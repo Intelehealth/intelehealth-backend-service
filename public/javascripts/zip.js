@@ -2,7 +2,7 @@ const fs = require('fs');
 const archiver = require('archiver');
 
 module.exports = {
-    zip : (key) => {
+    zipFolder : (key) => {
         const archive = archiver.create('zip', {});
         const output = fs.createWriteStream(`./public/${key}.zip`);
         return new Promise((resolve, reject) => {
