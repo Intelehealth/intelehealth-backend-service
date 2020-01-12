@@ -369,23 +369,4 @@ router.get('/read', (req, res, next) => {
 })
 
 
-const accountSid = 'ACc048d527ae8354a26d6d3e4774e01484';
-const authToken = 'a776d911990b455c8cedbd1af0bd98dc';
-const client = require('twilio')(accountSid, authToken);
-
-router.get('/sms', (req,res) => {
-  let to = req.body.to;
-  let body = req.body.body;
-  client.messages
-  .create({
-          body: 'Hi there!', 
-          from: '+12054309622', 
-          to: '+919527491175'})
-  .then(message => 
-    res.status(200).json({messgae: message})
-  )
-});
-
-
-
 module.exports = router;
