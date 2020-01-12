@@ -12,7 +12,7 @@ module.exports = {
             path = `./public/key/logo/${mindmap}`; 
             fs.writeFileSync(path, base64Image, {encoding: 'base64'});
         } else {
-            path = `./public/key/engine/${mindmap}`;
+            path = `./public/key/Engines/${mindmap}`;
             fs.writeFileSync(path, result);
         }
     }
