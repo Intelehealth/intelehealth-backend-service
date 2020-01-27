@@ -40,7 +40,7 @@ router.post('/mindmap/upload', (req, res) => {
               }
             })
           }).catch((error) => res.status(200).json({message: 'Cannot write to file!', error}))
-        } else res.status(200).json({messgae: 'File Already Present'})
+        } else res.status(200).json({message: 'File Already Present'})
       }
     });
   } else res.status(200).json({message: 'Please provide a license key'})
