@@ -1,19 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const fs = require("fs");
-const url = require('url');
 const mysql = require('../public/javascripts/mysql/mysql');
 const { zipFolder } = require('../public/javascripts/zip');
 const { rmDir } = require('../public/javascripts/deletefile');
 const { mkDir } = require('../public/javascripts/directory');
 const { wrMindmap } = require('../public/javascripts/writefile');
+const { getFormattedUrl, readLicenseFile, writeToLicenseKey } = require('../public/javascripts/functions');
 
-const getFormattedUrl = (req) => {
-  return url.format({
-      protocol: req.protocol,
-      host: req.get('host')
-  });
-}
 
 // mindmap upload
 router.post('/mindmap/upload', (req, res) => {
@@ -21,50 +15,37 @@ router.post('/mindmap/upload', (req, res) => {
   const filename = req.body.filename;
   const value = req.body.value;
   if (key) {
-    try {
-      const contents = JSON.parse(fs.readFileSync(`./public/license/license.json`));
-      contents.licensekey.forEach((license, index) => {
-        if (key in license) {
-          contents.licensekey[index][key].key.push(filename);
-        }
-      });
-      try {
-        fs.writeFile('./public/license/license.json', JSON.stringify(contents), 'utf8', (err) => {
-          if(err) res.status(400).json({message: err.message});
-          else {
-          let details = { 
-            mindmap_name : filename,
-            date_created : new Date(),
-            mindmap_json : value
-          };
-          mysql.query('Insert into mindmaps SET ?', details, (err, results, fields) => {
-            if (err) res.status(400).json({message: err.message})
-            else {
-            res.status(200).json({
-              message:'Uploaded Successfully'
-              });
-            }
-          });
-          }
-        })
-      } catch (error) {
-          res.status(200).json({
-            message: 'Cannot write to file!',
-            error
-          })
-        }
-    } catch (error) {
-      res.status(200).json({
-        message: 'Unable to read file, please check the format!',
-        error
-      })
-    }
-  } else {
-    res.status(200).json({
-      message: 'Please provide a license key'
-    })
-  }
+    const contents = JSON.parse(fs.readFileSync(`./public/license/license.json`));
+    readLicenseFile(contents, key).then(response => {
+      if (response.present) {
+        let filePresent = contents.licensekey[response.index][key].key.includes(filename);
+        if (!filePresent) {
+          contents.licensekey[response.index][key].key.push(filename);
+          writeToLicenseKey(contents)
+          .then(() => {
+            let details = { 
+              mindmap_name : filename,
+              date_created : new Date(),
+              mindmap_json : value
+            };
+            mysql.query(`Select * from mindmaps where mindmap_name='${filename}'`, (err, results) => {
+              if (err) res.status(400).json(({message: err.message}))
+              else {
+                if (!results.length) {
+                  mysql.query('Insert into mindmaps SET ?', details, (err, results, fields) => {
+                  if (err) res.status(400).json({message: err.message})
+                  else res.status(200).json({message:'Uploaded Successfully'});
+                  });
+                } else res.status(200).json({message:'Uploaded Successfully'});
+              }
+            })
+          }).catch((error) => res.status(200).json({message: 'Cannot write to file!', error}))
+        } else res.status(200).json({messgae: 'File Already Present'})
+      }
+    });
+  } else res.status(200).json({message: 'Please provide a license key'})
 })
+
 
 // list of mindmap keys
 router.get('/mindmap', (req, res) => {
@@ -82,38 +63,44 @@ router.get('/mindmap', (req, res) => {
   }
 })
 
-// read file
-const readLicenseFile = (contents, key) => {
-  let flag = true;
-  return new Promise((resolve, reject) => {
-  contents.licensekey.forEach((license, index) => {
-    if (key in license) {
-      flag = false
-      resolve({present: true, index})
-    }
-  })
-  if (flag) {
-    resolve({present: false})
-  }
-  })
-}
-
-
-// write to license key file
-const writeToLicenseKey = (contents) => {
-  return new Promise((resolve, reject) => {
+// post image
+router.post('/mindmap/image', (req, res) => {
+  const key = req.body.key;
+  const filename = req.body.filename;
+  const value = req.body.value;
+  if (key) {
     try {
-      fs.writeFile('./public/license/license.json', JSON.stringify(contents), 'utf8', (err) => {
-        if(err) reject({message: err.message});
+      let details = { 
+        mindmap_name : filename,
+        date_created : new Date(),
+        mindmap_json : value
+      };
+      mysql.query('Insert into mindmaps SET ?', details, (err, results, fields) => {
+        if (err) res.status(400).json({message: err.message})
         else {
-          resolve()
+          const contents = JSON.parse(fs.readFileSync(`./public/license/license.json`));
+          readLicenseFile(contents, key).then(response => {
+            if (response.present)
+            contents.licensekey[response.index][key].key.push(filename);
+            writeToLicenseKey(contents)
+            .then(()=> res.status(200).json({message: 'Image Uploaded'}))
+            .catch((err) => res.status(400).json({message: 'Cannot write to file!', err}))
+          })
         }
-      })
+      });
     } catch (error) {
-      reject()
+      res.status(200).json({
+        message: 'Cannot write to file!',
+        error
+      })
     }
-  })
-}
+  } else {
+    res.status(200).json({
+      message: 'Please provide a license key'
+    })
+  }
+});
+
 // Add new license key
 router.post('/mindmap/addkey', (req, res) => {
   let newKey = req.body.key;
@@ -125,7 +112,7 @@ router.post('/mindmap/addkey', (req, res) => {
       if (response.present) {
         res.status(200).json({message: 'Key already Present'})
       } else {
-        contents.licensekey.push({[newKey]:[], expiry_date: newExpiryDate})
+        contents.licensekey.push({[newKey]:{key:[],expiry_date: newExpiryDate}})
         writeToLicenseKey(contents)
         .then(() => res.status(200).json({message: 'Key added'}))
         .catch(() => res.status(200).json({message: 'Cannot write to file!',error}))
@@ -156,33 +143,40 @@ router.get('/mindmap/details/:key', (req, res) => {
     }).then(response => {
       const expiry = response.expiry;
       const mindmaps = response.mindmaps;
-      mindmaps.forEach((mindmap, index) => {
-      mysql.query(`Select * from mindmaps where mindmap_name='${mindmap}'`, (err, result) => {
-        if (err) res.status(400).json({message: err.message})
-        else {
-          let minmapName = result[0].mindmap_name;
-          if (minmapName.match('.json') !== null) {
-            const data = {
-              name: result[0].mindmap_name,
-              last_update : result[0].date_updated ? result[0].date_updated : result[0].date_created
+      if (mindmaps.length) {
+        mindmaps.forEach((mindmap, index) => {
+        mysql.query(`Select * from mindmaps where mindmap_name='${mindmap}'`, (err, result) => {
+          if (err) res.status(400).json({message: err.message})
+          else {
+            let minmapName = result[0].mindmap_name;
+            if (minmapName.match('.json') !== null) {
+              const data = {
+                name: result[0].mindmap_name,
+                last_update : result[0].date_updated ? result[0].date_updated : result[0].date_created
+              }
+              lists.push(data);
+              if (mindmaps.length === index+1) send();
+            } else {
+              image = {
+                image_name: result[0].mindmap_name,
+                image_file: result[0].mindmap_json
+              }
+              if (mindmaps.length === index+1) send();
             }
-            lists.push(data);
-            if (mindmaps.length === index+1) send();
-          } else {
-            image = {
-              image_name: result[0].mindmap_name,
-              image_file: result[0].mindmap_json
-            }
-            if (mindmaps.length === index+1) send();
           }
-        }
+        })
       })
-    })
+    } else {
+      res.status(200).json({
+        expiry,
+        data: 'No mindmaps to this licence key'
+      })
+    }
     send = () => {
       res.status(200).json({
         expiry,
         datas: lists,
-        image
+        image : Object.keys(image).length ? image : undefined
       })
     }
   }).catch(err => console.log(err))
@@ -202,22 +196,9 @@ router.post('/mindmap/:key', (req, res) => {
       contents.licensekey.forEach((license, index) => {
         if (key in license) {
           contents.licensekey[index][key].expiry_date = newExpiryDate;
-          try {
-            fs.writeFile('./public/license/license.json', JSON.stringify(contents), 'utf8', (err) => {
-              if(err) res.status(400).json({message: err.message});
-              else {
-                res.status(200).json({
-                  message: 'Expiry date updated',
-                  updatedDate : newExpiryDate
-                })
-              }
-            })
-          } catch (error) {
-            res.status(200).json({
-              message: 'Cannot write to file!',
-              error
-            })
-          }
+          writeToLicenseKey(contents)
+            .then(() => res.status(200).json({message: 'Expiry date updated',updatedDate : newExpiryDate}))
+            .catch(() => res.status(400).json({message:'Cannot write to file!'}))
         }
       })
   } else {
@@ -235,15 +216,22 @@ router.post('/mindmap/delete/:key', (req, res) => {
   readLicenseFile(contents, key).then(response => {
     let fileIndex = contents.licensekey[response.index][key].key.indexOf(filename);
     if (fileIndex !== -1) {
-      mysql.query(`DELETE from mindmaps where mindmap_name='${filename}'`, (err, result) => {
+      contents.licensekey[response.index][key].key.splice(fileIndex, 1);
+        let fileExitOnOtherKey = contents.licensekey.filter(item => {return Object.values(item)[0].key.includes(req.body.mindmapName)})
+        if (fileExitOnOtherKey.length) {
+          writeToLicenseKey(contents)
+          .then(()=> res.status(200).json({message: 'File Deleted', fileIndex}))
+          .catch((err) => res.status(400).json({message: 'Cannot write to file!', err}))
+        } else {
+        mysql.query(`DELETE from mindmaps where mindmap_name='${filename}'`, (err, result) => {
         if (err) res.status(400).json({err})
         else {
-          contents.licensekey[response.index][key].key.splice(fileIndex, 1);
           writeToLicenseKey(contents)
           .then(()=> res.status(200).json({message: 'File Deleted', fileIndex}))
           .catch((err) => res.status(400).json({message: 'Cannot write to file!', err}))
         }
-      })
+        })
+      }
     }
   })
 })
@@ -257,17 +245,19 @@ router.get('/mindmap/download', (req, res) => {
     rmDir('./public/key');
     new Promise((resolve, reject) => {
       contents = JSON.parse(fs.readFileSync(`./public/license/license.json`));
-      contents.licensekey.forEach(license => {
+      contents.licensekey.forEach((license, index) => {
         if (key in license) {
           resolve({
             mindmaps: Object.values(license)[0].key,
             expiry: Object.values(license)[0].expiry_date
           })
-        }
+        } if (contents.licensekey.length === index+1) reject()
       });
     }).then(response => {
       const mindmaps = response.mindmaps;
-      const expiry = response.expiry;
+      const expiryDate = new Date(response.expiry).getTime();
+      const currentDate = new Date().getTime();
+      if (expiryDate > currentDate) {
         mkDir('./public/key');
         mkDir('./public/key/Engines');
         mkDir('./public/key/logo');
@@ -280,6 +270,9 @@ router.get('/mindmap/download', (req, res) => {
             }
           })
         })
+      } else {
+        res.status(200).json({message: 'License Expired'})
+      }
         send = () => {
           let zip = zipFolder(key)
           zip.then(() => {
@@ -297,6 +290,7 @@ router.get('/mindmap/download', (req, res) => {
   }
 });
 
+
 // logo update
 router.put('/mindmap/:key/:imagename', (req, res) => {
   const key = req.params.key;
@@ -305,9 +299,9 @@ router.put('/mindmap/:key/:imagename', (req, res) => {
   const value = req.body.value;
   if (key && oldfileName) {
     const contents = JSON.parse(fs.readFileSync(`./public/license/license.json`));
-    contents.licensekey.forEach((license, index) => {
-      if (key in license) {
-        var fileIndex = contents.licensekey[index][key].key.indexOf(oldfileName);
+    readLicenseFile(contents, key).then(response => {
+      if (response.present){
+        var fileIndex = contents.licensekey[response.index][key].key.indexOf(oldfileName);
         if (fileIndex !== -1) {
           try {
             mysql.query(`Select * from mindmaps where mindmap_name='${oldfileName}'`, (err, results, fields) => {
@@ -317,15 +311,10 @@ router.put('/mindmap/:key/:imagename', (req, res) => {
                 mysql.query(`UPDATE mindmaps SET mindmap_name='${newfilename}', mindmap_json='${value}', date_updated='${new Date().toISOString().slice(0, 19).replace('T', ' ')}' WHERE mindmap_id=${fileSqlId}`, (err, results) => {
                   if (err) res.status(400).json({message: err.message})
                   else {
-                    contents.licensekey[index][key].key[fileIndex] = newfilename;
-                    fs.writeFile('./public/license/license.json', JSON.stringify(contents), 'utf8', (err) => {
-                      if(err) res.status(400).json({message: err.message});
-                      else {
-                        res.status(200).json({
-                          message: 'Image Updated'
-                        })
-                      }
-                    })
+                    contents.licensekey[response.index][key].key[fileIndex] = newfilename;
+                    writeToLicenseKey(contents)
+                    .then(() => res.status(200).json({message: 'Image Updated'}))
+                    .catch(() => res.status(200).json({message: 'Cannot write to file!'}))
                   }
                 })
               }
@@ -363,10 +352,10 @@ const readFiles = (dirname) => {
   });
 }
 
-router.get('/read', (req, res, next) => {
-  readFiles('./public/afimm_2017/');
-  res.status(200).json({message : 'sucess'});
-})
+// router.get('/read', (req, res, next) => {
+//   readFiles('./public/afimm_2017/');
+//   res.status(200).json({message : 'sucess'});
+// })
 
 
 module.exports = router;
