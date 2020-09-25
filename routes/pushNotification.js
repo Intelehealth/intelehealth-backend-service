@@ -14,8 +14,8 @@ router.post('/subscribe', (req, res) => {
         date_created: new Date()
     }
     mysql.query('Insert into pushnotification SET ?', details, (err, results, fields) => {
-        if (!err) res.status(200).json({message: 'Subscribed Successfully'})
-        else req.status(400).json({message: 'Not Subscribed'})
+        if (!err) res.status(200).json({ message: 'Subscribed Successfully' })
+        else req.status(400).json({ message: 'Not Subscribed' })
     })
 })
 
@@ -31,21 +31,22 @@ router.post('/push', (req, res) => {
                 );
                 let patient = req.body.patient;
                 let payload = JSON.stringify({
-                    notification : {
-                        title: `Patient ${patient.name} seen by doctor`,
+                    notification: {
+                        // title: `Patient ${patient.name} seen by doctor`,
+                        title: `New Patient  ${patient.name} is been uploaded, Please start giving consultation.`,
                         body: `${patient.provider}`,
                         vibrate: [100, 50, 100],
                     }
                 })
-                
-                Promise.all(results.map(sub => {
-                    if (!patient.provider.match(sub.doctor_name)) {
-                        webpush.sendNotification(JSON.parse(sub.notification_object), payload)
-                    }}))
-                    .then(() => res.status(200).json({message: 'Notification sent'}))
-            } else res.status(200).json({message: 'No doctor with same specialization found'})
-        })
-    } else res.status(400).json({message: 'Error'})
-})
 
+                Promise.all(results.map(sub => {
+                        if (!patient.provider.match(sub.doctor_name)) {
+                            webpush.sendNotification(JSON.parse(sub.notification_object), payload)
+                        }
+                    }))
+                    .then(() => res.status(200).json({ message: 'Notification sent' }))
+            } else res.status(200).json({ message: 'No doctor with same specialization found' })
+        })
+    } else res.status(400).json({ message: 'Error' })
+})
 module.exports = router;
