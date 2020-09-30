@@ -49,21 +49,21 @@ const snoozeNotification = async ({ body }, res) => {
       case "30m":
         snooze_till = new Date().addMinutes(30).valueOf();
         resp = {
-          snooze_till,
+          snooze_till: snooze_till - new Date().valueOf(),
           message: await setSnoozeToDBb(body.user_uuid, snooze_till),
         };
         break;
       case "1h":
         snooze_till = new Date().addHours(1).valueOf();
         resp = {
-          snooze_till,
+          snooze_till: snooze_till - new Date().valueOf(),
           message: await setSnoozeToDBb(body.user_uuid, snooze_till),
         };
         break;
       case "2h":
         snooze_till = new Date().addHours(2).valueOf();
         resp = {
-          snooze_till,
+          snooze_till: snooze_till - new Date().valueOf(),
           message: await setSnoozeToDBb(body.user_uuid, snooze_till),
         };
         break;
@@ -91,6 +91,36 @@ const snoozeNotification = async ({ body }, res) => {
   }
 };
 
+const getSettings = async (uuid) => {
+  return new Promise((resolve, reject) => {
+    mysql.query(
+      `select * from user_settings where user_uuid='${uuid}' LIMIT 0 , 1`,
+      (err, results, fields) => {
+        if (err) {
+          res.status(400).json({ message: err.message });
+          reject(err);
+        }
+        resolve(results[0]);
+      }
+    );
+  });
+};
+
+const getUserSettings = async ({ params }, res) => {
+  if (!params.uuid)
+    res.status(422).json({ message: "Please pass correct user uuid!" });
+
+  const data = await getSettings(params.uuid);
+  res.status(200).json({
+    message: "Settings received successfully.",
+    data: {
+      snooze_till:
+        data && data.snooze_till ? data.snooze_till - new Date().valueOf() : "",
+    },
+  });
+};
+
 module.exports = {
   snoozeNotification,
+  getUserSettings,
 };
