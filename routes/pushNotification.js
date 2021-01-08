@@ -85,23 +85,18 @@ router.post("/push", (req, res) => {
             });
             const allNotifications = results.map((sub) => {
               if (!patient.provider.match(sub.doctor_name)) {
-                return {
-                  webpush: webpush.sendNotification(
+                webpush
+                  .sendNotification(
                     JSON.parse(sub.notification_object),
                     payload
-                  ),
-                  sub,
-                };
+                  )
+                  .catch((error) => {
+                    console.log("error:skipFlag:second notification ", error);
+                  });
               }
             });
 
-            Promise.all(
-              allNotifications.map((p) =>
-                p.webpush.catch((error) => {
-                  console.log("error: ", error, p.sub);
-                })
-              )
-            ).then((response) => {
+            Promise.all(allNotifications).then((response) => {
               res.status(200).json({ message: "Notification sent" });
             });
           } else
@@ -119,9 +114,14 @@ router.post("/push", (req, res) => {
             res.set("Content-Type", "application/json");
             webpush.setVapidDetails(
               "mailto:support@intelehealth.org",
-              "BDGWYaKQhSDtC8VtcPekovFWM4M7mhs3NHe-X1HA7HH-t7nkiexSyYxUxQkwl2H44BiojKJjOdXi367XgxXxvpw",
-              "vIrlMoYDp0cmfsKDfwdfv0GTqxU72CQabHgmtjPj4WY"
+              vapidKeys.publicKey,
+              vapidKeys.privateKey
             );
+            // webpush.setVapidDetails(
+            //   "mailto:support@intelehealth.org",
+            //   "BDGWYaKQhSDtC8VtcPekovFWM4M7mhs3NHe-X1HA7HH-t7nkiexSyYxUxQkwl2H44BiojKJjOdXi367XgxXxvpw",
+            //   "vIrlMoYDp0cmfsKDfwdfv0GTqxU72CQabHgmtjPj4WY"
+            // );
             let patient = req.body.patient;
             console.log("patient: ", patient);
             let payload1 = JSON.stringify({
@@ -135,10 +135,14 @@ router.post("/push", (req, res) => {
             Promise.all(
               results.map((sub) => {
                 if (!patient.provider.match(sub.doctor_name)) {
-                  webpush.sendNotification(
-                    JSON.parse(sub.notification_object),
-                    payload1
-                  );
+                  webpush
+                    .sendNotification(
+                      JSON.parse(sub.notification_object),
+                      payload1
+                    )
+                    .catch((error) => {
+                      console.log("error:first notification ", error);
+                    });
                 }
               })
             ).then(() =>
