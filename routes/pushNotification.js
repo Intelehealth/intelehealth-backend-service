@@ -46,16 +46,18 @@ router.post("/subscribe", async (req, res) => {
   }
 });
 
-// "BDGWYaKQhSDtC8VtcPekovFWM4M7mhs3NHe-X1HA7HH-t7nkiexSyYxUxQkwl2H44BiojKJjOdXi367XgxXxvpw",
-// "vIrlMoYDp0cmfsKDfwdfv0GTqxU72CQabHgmtjPj4WY"
-// 'BAfolLQ7VpRSmWm6DskG-YyG3jjzq5z0rjKEl5HXLCw2W8CKS9cVmifnCAWnrlJMETgbgjuV1pWKLUf8zlbojH0',
-// 'kCDISA3-UoW0pEx_gSTm4VtQASbvza-uw27Mq1x2wEc'
-// BDGWYaKQhSDtC8VtcPekovFWM4M7mhs3NHe-X1HA7HH-t7nkiexSyYxUxQkwl2H44BiojKJjOdXi367XgxXxvpw
-// vIrlMoYDp0cmfsKDfwdfv0GTqxU72CQabHgmtjPj4WY
+// afi
+// const vapidKeys = {
+//   publicKey:
+//     "BAfolLQ7VpRSmWm6DskG-YyG3jjzq5z0rjKEl5HXLCw2W8CKS9cVmifnCAWnrlJMETgbgjuV1pWKLUf8zlbojH0",
+//   privateKey: "kCDISA3-UoW0pEx_gSTm4VtQASbvza-uw27Mq1x2wEc",
+// };
+
+// demo;
 const vapidKeys = {
   publicKey:
-    "BAfolLQ7VpRSmWm6DskG-YyG3jjzq5z0rjKEl5HXLCw2W8CKS9cVmifnCAWnrlJMETgbgjuV1pWKLUf8zlbojH0",
-  privateKey: "kCDISA3-UoW0pEx_gSTm4VtQASbvza-uw27Mq1x2wEc",
+    "BIWPsR9rM0wmZxNDcoXzL8-yDm-iCXu6L-atyFaCiA9ekoZR8d5iE5Mqf_zZOBkoAVMWUVHOv5PDao0p2rt4McQ",
+  privateKey: "hA8KGnsfjPPiYc53fQJZ7Hq6H8BnQ3fdV3o2DxxwIJs",
 };
 
 router.post("/push", (req, res) => {
