@@ -65,8 +65,8 @@ router.post("/push", (req, res) => {
   try {
     if (req.body.patient && req.body.speciality && req.body.skipFlag) {
       mysql.query(
-        `Select notification_object, doctor_name from pushnotification where speciality='${req.body.speciality}'`,
-        (err, results) => {
+        `Select notification_object, doctor_name, user_uuid from pushnotification where speciality='${req.body.speciality}'`,
+        async (err, results) => {
           if (results.length) {
             res.set("Content-Type", "application/json");
             webpush.setVapidDetails(
@@ -83,8 +83,33 @@ router.post("/push", (req, res) => {
                 vibrate: [100, 50, 100],
               },
             });
+
+            const userUUID = results.map((sub) => {
+              return sub.user_uuid
+            }).join(`','`);
+
+            var user_settingData = await new Promise((res, rej) => {
+              mysql.query(`SELECT * FROM user_settings WHERE user_uuid IN ('${userUUID}')`,
+                (err, results) => {
+                  console.log('results: ', results);
+                  if (err) rej(err)
+                  res(results)
+                })
+            })
+            let snoozed = []
+            const currTime = Date.now();
+
+            user_settingData.forEach(element => {
+              if(currTime<=Number(element.snooze_till)){
+                snoozed.push(element);
+              }
+            });
+            snoozed.forEach(element => {
+                results.pop(element);
+            });
             const allNotifications = results.map((sub) => {
               if (!patient.provider.match(sub.doctor_name)) {
+
                 webpush
                   .sendNotification(
                     JSON.parse(sub.notification_object),
@@ -110,7 +135,6 @@ router.post("/push", (req, res) => {
         `Select notification_object, doctor_name from pushnotification where speciality='${req.body.speciality}'`,
         (err, results) => {
           if (results.length) {
-            console.log("results.length: ", results.length);
             res.set("Content-Type", "application/json");
             webpush.setVapidDetails(
               "mailto:support@intelehealth.org",
