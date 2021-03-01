@@ -3,6 +3,15 @@ const router = express.Router();
 const webpush = require("web-push");
 const mysql = require("../public/javascripts/mysql/mysql");
 // console.log(webpush.generateVAPIDKeys(),"---------------");
+const days = {
+    0: "Sunday",
+    1: "Monday",
+    2: "Tuesday",
+    3: "Wednesday",
+    4: "Thursday",
+    5: "Friday",
+    6: "Saturday",
+}
 
 router.post("/subscribe", async (req, res) => {
     let speciality = req.body.speciality;
@@ -96,9 +105,25 @@ router.post("/push", (req, res) => {
                     })
                     let snoozed = []
                     const currTime = Date.now();
-
+                    const getSnoozeTill = (snooze_till) => {
+                        try {
+                            return JSON.parse(snooze_till)
+                        } catch (error) {
+                            return snooze_till
+                        }
+                    }
                     user_settingData.forEach(element => {
-                        if (currTime <= Number(element.snooze_till)) {
+                        const snooze_till = getSnoozeTill(element.snooze_till);
+                        if (typeof snooze_till === 'object') {
+                            const day = days[new Date().getDay()];
+                            const schedule = snooze_till.find(d => d.day === day);
+                            if (schedule && schedule.startTime && schedule.endTime) {
+                                const start = schedule.startTime + ":00", end = schedule.endTime + ":00";
+                                let now = new Date().toLocaleTimeString().replace(' PM', '').replace(' AM', '')
+                                if (now.length === 7) now = "0" + now
+                                if (end >= now && now > start) snoozed.push(element);
+                            }
+                        } else if (currTime <= Number(snooze_till)) {
                             snoozed.push(element);
                         }
                     });
