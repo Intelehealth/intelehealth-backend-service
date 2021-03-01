@@ -158,4 +158,17 @@ router.post("/push", (req, res) => {
     }
 });
 
+router.post(
+  "/unsubscribe",
+  async ({ body: { user_uuid, finger_print } }, res) => {
+    mysql.query(
+      `DELETE from pushnotification where user_uuid='${user_uuid}' AND finger_print='${finger_print}'`,
+      (err, results) => {
+        if (err) res.status(400).json({ message: err.message });
+        else res.status(200).json({ results, message: "Unsubscribed!" });
+      }
+    );
+  }
+);
+
 module.exports = router;
