@@ -1,5 +1,3 @@
-const Stream = require("../handlers/stream");
-
 module.exports = function (server) {
   const io = require("socket.io")(server);
   let users = {};
@@ -27,4 +25,5 @@ module.exports = function (server) {
       io.to(data.to).emit("callAccepted", data.signal);
     });
   });
+  global.io = io;
 };

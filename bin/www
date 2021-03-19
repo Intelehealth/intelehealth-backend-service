@@ -19,7 +19,7 @@ app.set("port", port);
  * Create HTTP server.
  */
 
-var server = http.createServer(app);
+var server = http.createServer(app,'0.0.0.0');
 /**
  * Initializing socket
  */
