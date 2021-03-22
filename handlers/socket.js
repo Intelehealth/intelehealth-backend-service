@@ -24,6 +24,19 @@ module.exports = function (server) {
     socket.on("acceptCall", (data) => {
       io.to(data.to).emit("callAccepted", data.signal);
     });
+
+    /**
+     * AppRTC points
+     */
+    socket.on("register", (data) => {
+      console.log("register:data:>>>>>>>> ", data);
+      io.sockets.emit("register", data);
+    });
+
+    socket.on("send", (data) => {
+      console.log("send:data:----==>> ", data);
+      io.sockets.emit("send", data);
+    });
   });
   global.io = io;
 };

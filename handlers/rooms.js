@@ -37,9 +37,10 @@ Room = function () {
     clientMap[clientId] = client;
     if (callback) callback(null, client, otherClient);
   };
-
+  
   this.removeClient = function (clientId, callback) {
     delete clientMap[clientId];
+    var clientIds = Object.keys(clientMap);
     var otherClient = clientIds.length > 0 ? clientMap[clientIds[0]] : null;
     callback(null, true, otherClient);
   };

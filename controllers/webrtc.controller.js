@@ -7,24 +7,6 @@ var router = express.Router();
 var Rooms = require("../handlers/rooms");
 var rooms = new Rooms();
 
-// var constants = {
-//   LOOPBACK_CLIENT_ID: "LOOPBACK_CLIENT_ID",
-//   TURN_BASE_URL: "https://computeengineondemand.appspot.com",
-//   TURN_URL_TEMPLATE: "%s/turn?username=%s&key=%s",
-//   CEOD_KEY: "4080218913",
-//   WSS_HOST_ACTIVE_HOST_KEY: "wss_host_active_host", //memcache key for the active collider host.
-//   WSS_HOST_PORT_PAIRS: [
-//     "apprtc-ws.webrtc.org:443",
-//     "apprtc-ws-2.webrtc.org:443",
-//   ],
-//   RESPONSE_ERROR: "ERROR",
-//   RESPONSE_UNKNOWN_ROOM: "UNKNOWN_ROOM",
-//   RESPONSE_UNKNOWN_CLIENT: "UNKNOWN_CLIENT",
-//   RESPONSE_ROOM_FULL: "FULL",
-//   RESPONSE_DUPLICATE_CLIENT: "DUPLICATE_CLIENT",
-//   RESPONSE_SUCCESS: "SUCCESS",
-//   RESPONSE_INVALID_REQUEST: "INVALID_REQUEST",
-// };
 var constants = require("../config/index");
 
 function generateRandom(length) {
@@ -145,15 +127,16 @@ function getWSSParameters(req) {
     //}
   }
 
-  if (wssTLS && wssTLS == "false") {
+  if (true) {
+    // if (wssTLS && wssTLS == "false") {
     return {
-      wssUrl: "ws://" + wssHostPortPair + "/ws",
+      wssUrl: "ws://" + wssHostPortPair,
       wssPostUrl: "http://" + wssHostPortPair,
       host: wssHostPortPair,
     };
   } else {
     return {
-      wssUrl: "wss://" + wssHostPortPair + "/ws",
+      wssUrl: "wss://" + wssHostPortPair,
       wssPostUrl: "https://" + wssHostPortPair,
       host: wssHostPortPair,
     };
@@ -264,12 +247,7 @@ function getRoomParameters(req, roomId, clientId, isInitiator) {
   var username = clientId ? clientId : generateRandom(9);
   var turnUrl =
     turnBaseUrl.length > 0
-      ? util.format(
-          constants.TURN_URL_TEMPLATE,
-          turnBaseUrl,
-          username,
-          constants.CEOD_KEY
-        )
+      ? util.format(constants.TURN_URL_TEMPLATE, turnBaseUrl)
       : undefined;
 
   var pcConfig = makePCConfig(iceTransports);
@@ -394,14 +372,15 @@ function saveMessageFromClient(host, roomId, clientId, message, callback) {
   });
 }
 
-const main = async (req, res, next) => {
+const main = function (req, res, next) {
   // Parse out parameters from request.
+  console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>> main :");
   var params = getRoomParameters(req, null, null, null);
-  res.render("index_template", params);
+  res.json(params);
 };
 
-const joinRoom = (req, res, next) => {
-  console.log("req: join >> >> >>", req.body);
+const joinRoom = function (req, res, next) {
+  console.log(">>>>>>>>>>>>>>>>>>>>>>> joinRoom : >>>>");
   var roomId = req.params.roomId;
   var clientId = generateRandom(8);
   var isLoopback = req.query["debug"] == "loopback";
@@ -418,7 +397,9 @@ const joinRoom = (req, res, next) => {
     }
     var params = getRoomParameters(req, roomId, clientId, result.is_initiator);
     params.messages = result.messages;
-
+    //TODO(tkchin): Clean up response format. For simplicity put everything in
+    //params for now.
+    console.log("params: ", params);
     res.send({
       result: "SUCCESS",
       params: params,
@@ -428,7 +409,8 @@ const joinRoom = (req, res, next) => {
   });
 };
 
-const messageClientInRoom = (req, res, next) => {
+const messageClientInRoom = function (req, res, next) {
+  console.log(">>>>>>>>>>>>>>>>>>  messageClientInRoom : >>>>>>>>>>");
   var roomId = req.params.roomId;
   var clientId = req.params.clientId;
   var message = req.body;
@@ -451,15 +433,15 @@ const messageClientInRoom = (req, res, next) => {
         //  Note: loopback scenario follows this code path.
         //  TODO(tkchin): consider async fetch here.
         console.log(
-          "Forwarding message to collider from room " +
+          ">>>>>>>>>>>>>>>>>>>>>>Forwarding message to collider from room " +
             roomId +
             " client " +
             clientId
         );
         var wssParams = getWSSParameters(req);
         var postOptions = {
-          host: "apprtc-ws.webrtc.org", //wssParams.host,
-          port: 443,
+          host: wssParams.host,
+          port: 3004,
           path: "/" + roomId + "/" + clientId,
           method: "POST",
         };
@@ -470,6 +452,7 @@ const messageClientInRoom = (req, res, next) => {
             console.error(
               "Failed to send message to collider: " + httpRes.statusCode
             );
+            // TODO(tkchin): better error handling.
             res.status(httpRes.statusCode);
           }
         });
@@ -480,8 +463,9 @@ const messageClientInRoom = (req, res, next) => {
   );
 };
 
-const checkRoom = (req, res, next) => {
+const checkRoom = function (req, res, next) {
   var roomId = req.params.roomId;
+  console.log(">>>>>  checkRoom : >>>>>>>>>>>>>>>>>>>>>>>");
   var key = getCacheKeyForRoom(req.headers.host, roomId);
   rooms.get(key, function (error, room) {
     if (room) {
@@ -489,7 +473,7 @@ const checkRoom = (req, res, next) => {
       // Check if room is full
       if (room.getOccupancy() >= 2) {
         console.log("Room " + roomId + " is full");
-        res.render("full_template", {});
+        res.json({ message: "Room is full!" });
         return;
       }
     }
@@ -497,23 +481,22 @@ const checkRoom = (req, res, next) => {
     var params = getRoomParameters(req, roomId, null, null);
     // room_id/room_link will be included in the returned parameters
     // so the client will launch the requested room.
-    io.sockets.emit("join", params);
     res.json(params);
-    // res.render("index", params);
   });
 };
 
-const leaveRoom = (req, res, next) => {
+const leaveRoom = function (req, res, next) {
+  console.log("leaveRoom: >>>>>>>>>>>>>>>>>>>>>>>>>>>>");
   var roomId = req.params.roomId;
   var clientId = req.params.clientId;
   var key = getCacheKeyForRoom(req.headers.host, roomId);
   rooms.get(key, function (error, room) {
     if (!room) {
       console.warn("Unknown room: " + roomId);
-      callback({ error: constants.RESPONSE_UNKNOWN_ROOM }, false);
+      res.json({ error: constants.RESPONSE_UNKNOWN_ROOM }, false);
     } else if (!room.hasClient(clientId)) {
       console.warn("Unknown client: " + clientId);
-      callback({ error: constants.RESPONSE_UNKNOWN_CLIENT }, false);
+      res.json({ error: constants.RESPONSE_UNKNOWN_CLIENT }, false);
     } else {
       room.removeClient(clientId, function (error, isRemoved, otherClient) {
         if (error) {
@@ -538,49 +521,47 @@ const leaveRoom = (req, res, next) => {
   res.send({ result: constants.RESPONSE_SUCCESS });
 };
 
-const turn = (request, response) => {
+var Https = require("https");
+const turn = function (req, res) {
+  console.log("TURN>>>>>>>>>>>>>>>>>>>>>>: ", req.body);
+  // res.json(constants.iceServers);
   var getOptions = {
     host: "instant.io",
     port: 443,
     path: "/__rtcConfig__",
     method: "GET",
   };
-  https
-    .get(getOptions, function (result) {
-      console.log(result.statusCode == 200);
-
-      var body = "";
-
-      result.on("data", function (data) {
-        body += data;
-      });
-      result.on("end", function () {
-        response.json(body);
-      });
-    })
-    .on("error", function (e) {
-      response.json({
-        username: "webrtc",
-        password: "webrtc",
-        uris: [
-          "stun:stun.l.google.com:19302",
-          "stun:stun1.l.google.com:19302",
-          "stun:stun2.l.google.com:19302",
-          "stun:stun3.l.google.com:19302",
-          "stun:stun4.l.google.com:19302",
-          "stun:stun.services.mozilla.com",
-          "turn:turn.anyfirewall.com:443?transport=tcp",
-          // "turn:40.80.93.209:3478",
-        ],
-      });
+  Https.get(getOptions, function (result) {
+    console.log(result.statusCode == 200);
+    var body = "";
+    result.on("data", function (data) {
+      body += data;
     });
+    result.on("end", function () {
+      res.json(body);
+    });
+  }).on("error", function (e) {
+    res.json({
+      username: "webrtc",
+      password: "webrtc",
+      uris: [
+        "stun:stun.l.google.com:19302",
+        "stun:stun1.l.google.com:19302",
+        "stun:stun2.l.google.com:19302",
+        "stun:stun3.l.google.com:19302",
+        "stun:stun4.l.google.com:19302",
+        "stun:stun.services.mozilla.com",
+        "turn:turn.anyfirewall.com:443?transport=tcp",
+      ],
+    });
+  });
 };
 
 module.exports = {
   main,
-  turn,
   joinRoom,
   checkRoom,
-  leaveRoom,
+  turn,
   messageClientInRoom,
+  leaveRoom,
 };
