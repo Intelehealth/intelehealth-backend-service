@@ -1,9 +1,8 @@
 module.exports = {
   LOOPBACK_CLIENT_ID: "LOOPBACK_CLIENT_ID",
-  TURN_BASE_URL: "http://27.7.245.49:3004",
+  TURN_BASE_URL: "https://testing.intelehealth.org:3004",
   TURN_URL_TEMPLATE: "%s/turn",
-  // WSS_HOST_PORT_PAIRS: ["27.7.245.49:3004"],
-  WSS_HOST_PORT_PAIRS: ["27.7.245.49:3004"],
+  WSS_HOST_PORT_PAIRS: ["testing.intelehealth.org:3004"],
   RESPONSE_UNKNOWN_ROOM: "UNKNOWN_ROOM",
   RESPONSE_UNKNOWN_CLIENT: "UNKNOWN_CLIENT",
   RESPONSE_ROOM_FULL: "FULL",
@@ -19,11 +18,6 @@ module.exports = {
   WSS_HOST_ACTIVE_HOST_KEY: "wss_host_active_host",
   RESPONSE_INVALID_REQUEST: "INVALID_REQUEST",
   iceServers: [
-    // {
-    //   urls: ["turn:40.80.93.209:3478"],
-    //   username: "chat",
-    //   credential: "nochat",
-    // },
     {
       urls: ["turn:numb.viagenie.ca"],
       username: "sultan1640@gmail.com",
