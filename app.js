@@ -26,7 +26,6 @@ app.use(bodyParser.text());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 
-app.use("/", require("./routes/webrtc.route"));
 app.use("/api", indexRouter);
 app.use("/notification", pushRouter);
 

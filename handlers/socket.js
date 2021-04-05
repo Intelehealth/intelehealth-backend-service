@@ -22,7 +22,6 @@ module.exports = function (server) {
 
     socket.on("message", function (message) {
       log("Client said: ", message);
-      // for a real app, would be room-only (not broadcast)
       socket.broadcast.emit("message", message);
     });
 
@@ -46,7 +45,6 @@ module.exports = function (server) {
         socket.emit("joined", room, socket.id);
         io.sockets.in(room).emit("ready");
       } else {
-        // max two clients
         socket.emit("full", room);
       }
     });
