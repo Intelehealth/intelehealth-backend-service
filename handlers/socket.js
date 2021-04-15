@@ -1,17 +1,23 @@
 module.exports = function (server) {
   const io = require("socket.io")(server);
-  let users = {};
+  global.users = {};
   io.on("connection", (socket) => {
     if (!users[socket.id]) {
-      users[socket.id] = socket.id;
+      users[socket.id] = {
+        uuid: socket.handshake.query.userId,
+        status: "online",
+      };
     }
+    console.log("socket: >>>>>", socket.handshake.query.userId);
 
     socket.emit("myId", socket.id);
 
     io.sockets.emit("allUsers", users);
 
     socket.on("disconnect", () => {
+      console.log("disconnected:>> ", socket.id);
       delete users[socket.id];
+      io.sockets.emit("allUsers", users);
     });
 
     function log() {

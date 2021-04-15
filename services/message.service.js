@@ -1,15 +1,17 @@
-const { Messages } = require("../models")(function () {
+const { messages, Sequelize } = require("../models");
+
+module.exports = (function () {
   /**
    * Create a message entry
    * @param {string} fromUser
    * @param {string} toUser
    * @param {string} message
    */
-  this.sendMessage = async (fromUser, toUser, message) => {
+  this.sendMessage = async (fromUser, toUser, patientId, message) => {
     try {
       return {
         success: true,
-        data: await Messages.create({ fromUser, toUser, message }),
+        data: await messages.create({ fromUser, toUser, patientId, message }),
       };
     } catch (error) {
       console.log("error: sendMessage ", error);
@@ -26,21 +28,21 @@ const { Messages } = require("../models")(function () {
    * @param {string} toUserUuid
    * @returns []Array
    */
-  this.getMessages = async (fromUser, toUser) => {
+  this.getMessages = async (fromUser, toUser, patientId) => {
     try {
-      const messages = await Messages.findAll({
+      const data = await messages.findAll({
         where: {
-          fromUser,
-          toUser,
+          fromUser: { [Sequelize.Op.in]: [fromUser, toUser] },
+          toUser: { [Sequelize.Op.in]: [toUser, fromUser] },
+          patientId,
         },
-        raw: true,
       });
-      return { success: true, data: messages };
+      return { success: true, data };
     } catch (error) {
       console.log("error: getMessages ", error);
       return {
         success: false,
-        data: error,
+        data: [],
       };
     }
   };

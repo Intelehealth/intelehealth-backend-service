@@ -370,6 +370,7 @@ const readFiles = (dirname) => {
 }
 
 router.use('/mindmap', require('./notification.route'));
+router.use("/messages", require("./message.route"));
 // router.get('/read', (req, res, next) => {
 //   readFiles('./public/afimm_2017/');
 //   res.status(200).json({message : 'sucess'});
