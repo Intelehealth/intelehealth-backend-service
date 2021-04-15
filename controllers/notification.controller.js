@@ -117,6 +117,7 @@ const getSettings = async (uuid) => {
             `select * from user_settings where user_uuid='${uuid}' LIMIT 0 , 1`,
             (err, results, fields) => {
                 if (err) {
+                    console.log('err: ', err);
                     res.status(400).json({ message: err.message });
                     reject(err);
                 }
@@ -136,9 +137,13 @@ const getUserSettings = async ({ params }, res) => {
         data: {
             snooze_till:
                 data && data.snooze_till ? data.snooze_till - new Date().valueOf() : "",
+            isChange: data && data.isChangePassword ? data.isChangePassword : 0
         },
     });
 };
+
+
+
 
 module.exports = {
     snoozeNotification,

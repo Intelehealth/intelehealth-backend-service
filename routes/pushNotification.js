@@ -58,19 +58,23 @@ router.post("/subscribe", async (req, res) => {
     }
 });
 
-// "BDGWYaKQhSDtC8VtcPekovFWM4M7mhs3NHe-X1HA7HH-t7nkiexSyYxUxQkwl2H44BiojKJjOdXi367XgxXxvpw",
-// "vIrlMoYDp0cmfsKDfwdfv0GTqxU72CQabHgmtjPj4WY"
-// 'BAfolLQ7VpRSmWm6DskG-YyG3jjzq5z0rjKEl5HXLCw2W8CKS9cVmifnCAWnrlJMETgbgjuV1pWKLUf8zlbojH0',
-// 'kCDISA3-UoW0pEx_gSTm4VtQASbvza-uw27Mq1x2wEc'
-// BDGWYaKQhSDtC8VtcPekovFWM4M7mhs3NHe-X1HA7HH-t7nkiexSyYxUxQkwl2H44BiojKJjOdXi367XgxXxvpw
-// vIrlMoYDp0cmfsKDfwdfv0GTqxU72CQabHgmtjPj4WY
+
+
+// *  For mtdserver Server
+// const vapidKeys = {
+//     publicKey:
+//         "BOKq0TfYyhJCB49SYbdh9cOekujAcwnM1LpTcc0L8kxye5kNFImCsP-n_3ymrOBshFIJP8QocMDYyVAyM4WTGd8",
+//     privateKey: "F38MFPNQFYW6uAYglSTHqhjWMMsqodBmzPF81c7hg60",
+//     mailTo: "mailto:support@intelehealth.org"
+//   };
+
+// *  For Testing Server
 const vapidKeys = {
     publicKey:
         "BAfolLQ7VpRSmWm6DskG-YyG3jjzq5z0rjKEl5HXLCw2W8CKS9cVmifnCAWnrlJMETgbgjuV1pWKLUf8zlbojH0",
     privateKey: "kCDISA3-UoW0pEx_gSTm4VtQASbvza-uw27Mq1x2wEc",
     mailTo: "mailto:support@intelehealth.org"
 };
-
 router.post("/push", (req, res) => {
     try {
         mysql.query(
@@ -84,7 +88,7 @@ router.post("/push", (req, res) => {
                     let title = `Patient ${patient.name} seen by doctor`;
                     let body = `${patient.provider}`;
 
-                    if (req.body.patient && req.body.speciality && req.body.skipFlag) {
+                    if (req.body.patient && req.body.speciality && req.body.skipFlag == false) {
                         title = `New Patient ${patient.name} is been uploaded`
                         body = "Please start giving consultation"
                     }
@@ -98,7 +102,7 @@ router.post("/push", (req, res) => {
                     var user_settingData = await new Promise((res, rej) => {
                         mysql.query(`SELECT * FROM user_settings WHERE user_uuid IN ('${userUUID}')`,
                             (err, results) => {
-                                console.log('results: ', results);
+
                                 if (err) rej(err)
                                 res(results)
                             })
@@ -131,6 +135,7 @@ router.post("/push", (req, res) => {
                         results.pop(element);
                     });
                     const allNotifications = results.map((sub) => {
+
                         if (!patient.provider.match(sub.doctor_name)) {
 
                             webpush
@@ -159,16 +164,59 @@ router.post("/push", (req, res) => {
 });
 
 router.post(
-  "/unsubscribe",
-  async ({ body: { user_uuid, finger_print } }, res) => {
-    mysql.query(
-      `DELETE from pushnotification where user_uuid='${user_uuid}' AND finger_print='${finger_print}'`,
-      (err, results) => {
-        if (err) res.status(400).json({ message: err.message });
-        else res.status(200).json({ results, message: "Unsubscribed!" });
-      }
-    );
-  }
+    "/unsubscribe",
+    async ({ body: { user_uuid, finger_print } }, res) => {
+        mysql.query(
+            `DELETE from pushnotification where user_uuid='${user_uuid}' AND finger_print='${finger_print}'`,
+            (err, results) => {
+                if (err) res.status(400).json({ message: err.message });
+                else res.status(200).json({ results, message: "Unsubscribed!" });
+            }
+        );
+    }
 );
+
+router.post("/change_password", async (req, res) => {
+    let userId = req.body.userId;
+    console.log('user_uuid: ', userId);
+
+    const userUUID = await new Promise((res, rej) => {
+        mysql.query(
+            `Select * from user_settings where user_uuid='${userId}' LIMIT 0, 1`,
+            (err, results) => {
+                if (!err) res(results);
+                else rej(err);
+            }
+        );
+    });
+    console.log('userUUID: ', userUUID.length);
+
+    if (userUUID && userUUID.length) {
+        mysql.query(
+            `UPDATE user_settings SET isPasswordChange=1 where user_uuid='${userId}'`,
+            (err, results, fields) => {
+                if (err) res.status(400).json({ message: err.message });
+                else
+                    res
+                        .status(200)
+                        .json({ results, fields, message: "Updated Successfully" });
+            }
+        );
+    } else {
+        const details = {
+            user_uuid: userId,
+            isPasswordChange: 1,
+            snooze_till: null
+        }
+        mysql.query(
+            "Insert into user_settings SET ?",
+            details,
+            (err, results, fields) => {
+                if (!err) res.status(200).json({ message: "User added successfully!" });
+                else res.status(400).json({ message: "User Not Added" });
+            }
+        );
+    }
+});
 
 module.exports = router;
