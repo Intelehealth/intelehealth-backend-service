@@ -8,7 +8,7 @@ module.exports = (function () {
    * @param {*} res
    */
   this.sendMessage = async (req, res) => {
-    const { fromUser, toUser, patientId, message, socketId } = req.body;
+    const { fromUser, toUser, patientId, message } = req.body;
     const keysAndTypeToCheck = [
       { key: "fromUser", type: "string" },
       { key: "toUser", type: "string" },
@@ -21,7 +21,8 @@ module.exports = (function () {
         for (const key in users) {
           if (Object.hasOwnProperty.call(users, key)) {
             const user = users[key];
-            if (user && user.uuid == toUser) io.to(key).emit("updateMessage");
+            if (user && user.uuid == toUser)
+              io.to(key).emit("updateMessage", req.body);
           }
         }
         res.json(data);
