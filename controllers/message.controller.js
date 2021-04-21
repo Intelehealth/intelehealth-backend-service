@@ -21,8 +21,14 @@ module.exports = (function () {
         for (const key in users) {
           if (Object.hasOwnProperty.call(users, key)) {
             const user = users[key];
-            if (user && user.uuid == toUser)
-              io.to(key).emit("updateMessage", req.body);
+            if (user && user.uuid == toUser) {
+              try {
+                data.data.dataValues.createdAt = new Date(
+                  data.data.dataValues.createdAt
+                ).toGMTString();
+              } catch (error) {}
+              io.to(key).emit("updateMessage", data.data);
+            }
           }
         }
         res.json(data);
