@@ -26,11 +26,6 @@ module.exports = function (server) {
       socket.emit("log", array);
     }
 
-    socket.on("message", function (message) {
-      log("Client said: ", message);
-      socket.broadcast.emit("message", message);
-    });
-
     socket.on("create or join", function (room) {
       log("Received request to create or join room " + room);
 
@@ -39,6 +34,10 @@ module.exports = function (server) {
         ? Object.keys(clientsInRoom.sockets).length
         : 0;
       log("Room " + room + " now has " + numClients + " client(s)");
+      socket.on("message", function (message) {
+        log("Client said: ", message);
+        socket.in(room).emit("message", message);
+      });
 
       if (numClients === 0) {
         socket.join(room);
