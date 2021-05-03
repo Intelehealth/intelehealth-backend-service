@@ -36,7 +36,13 @@ module.exports = function (server) {
       log("Room " + room + " now has " + numClients + " client(s)");
       socket.on("message", function (message) {
         log("Client said: ", message);
-        socket.in(room).emit("message", message);
+        io.sockets.in(room).emit("message", message);
+      });
+
+      socket.on("bye", function (data) {
+        console.log("received bye");
+        io.sockets.in(room).emit("message", "bye");
+        io.sockets.in(room).emit("bye");
       });
 
       if (numClients === 0) {
@@ -53,6 +59,16 @@ module.exports = function (server) {
         socket.emit("full", room);
       }
     });
+    socket.on("call", function (nurseId) {
+      for (const socketId in users) {
+        if (Object.hasOwnProperty.call(users, socketId)) {
+          const userObj = users[socketId];
+          if (userObj.uuid === nurseId) {
+            io.sockets.to(socketId).emit("call");
+          }
+        }
+      }
+    });
 
     socket.on("ipaddr", function () {
       var ifaces = os.networkInterfaces();
@@ -63,10 +79,6 @@ module.exports = function (server) {
           }
         });
       }
-    });
-
-    socket.on("bye", function () {
-      console.log("received bye");
     });
   });
   global.io = io;
