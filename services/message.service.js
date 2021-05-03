@@ -37,6 +37,13 @@ module.exports = (function () {
           patientId,
         },
       });
+      for (let i = 0; i < data.length; i++) {
+        try {
+          data[i].dataValues.createdAt = new Date(
+            data[i].dataValues.createdAt
+          ).toGMTString();
+        } catch (error) {}
+      }
       return { success: true, data };
     } catch (error) {
       console.log("error: getMessages ", error);

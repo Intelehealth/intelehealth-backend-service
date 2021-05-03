@@ -26,11 +26,6 @@ module.exports = function (server) {
       socket.emit("log", array);
     }
 
-    socket.on("message", function (message) {
-      log("Client said: ", message);
-      socket.broadcast.emit("message", message);
-    });
-
     socket.on("create or join", function (room) {
       log("Received request to create or join room " + room);
 
@@ -39,6 +34,16 @@ module.exports = function (server) {
         ? Object.keys(clientsInRoom.sockets).length
         : 0;
       log("Room " + room + " now has " + numClients + " client(s)");
+      socket.on("message", function (message) {
+        log("Client said: ", message);
+        io.sockets.in(room).emit("message", message);
+      });
+
+      socket.on("bye", function (data) {
+        console.log("received bye");
+        io.sockets.in(room).emit("message", "bye");
+        io.sockets.in(room).emit("bye");
+      });
 
       if (numClients === 0) {
         socket.join(room);
@@ -54,6 +59,16 @@ module.exports = function (server) {
         socket.emit("full", room);
       }
     });
+    socket.on("call", function (nurseId) {
+      for (const socketId in users) {
+        if (Object.hasOwnProperty.call(users, socketId)) {
+          const userObj = users[socketId];
+          if (userObj.uuid === nurseId) {
+            io.sockets.to(socketId).emit("call");
+          }
+        }
+      }
+    });
 
     socket.on("ipaddr", function () {
       var ifaces = os.networkInterfaces();
@@ -64,10 +79,6 @@ module.exports = function (server) {
           }
         });
       }
-    });
-
-    socket.on("bye", function () {
-      console.log("received bye");
     });
   });
   global.io = io;
