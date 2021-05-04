@@ -16,6 +16,7 @@
     "morgan": "~1.9.1",
     "mysql": "^2.17.1",
     "mysql2": "^2.2.5",
+    "node-gcm": "^1.0.4",
     "node-turn": "^0.0.6",
     "sequelize": "^6.6.2",
     "sequelize-cli": "^6.2.0",

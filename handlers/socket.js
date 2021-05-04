@@ -1,3 +1,6 @@
+const { sendCloudNotification } = require("./helper");
+const { user_settings } = require("../models");
+
 module.exports = function (server) {
   const io = require("socket.io")(server);
   global.users = {};
@@ -59,13 +62,33 @@ module.exports = function (server) {
         socket.emit("full", room);
       }
     });
-    socket.on("call", function (nurseId) {
+    socket.on("call", async function (nurseId) {
+      let isCalling = false;
       for (const socketId in users) {
         if (Object.hasOwnProperty.call(users, socketId)) {
           const userObj = users[socketId];
           if (userObj.uuid === nurseId) {
             io.sockets.to(socketId).emit("call");
+            isCalling = true;
           }
+        }
+      }
+      if (!isCalling) {
+        const data = await user_settings.findOne({
+          where: { user_uuid: nurseId },
+        });
+        if (data && data.device_reg_token) {
+          const response = await sendCloudNotification({
+            title: "Incoming call",
+            body: "Doctor is trying to call you.",
+            regTokens: [data.device_reg_token],
+          });
+          io.sockets.emit("log", ["notification response", response, data]);
+        } else {
+          io.sockets.emit("log", [
+            `data/device reg token not found in db for ${nurseId}`,
+            data,
+          ]);
         }
       }
     });
