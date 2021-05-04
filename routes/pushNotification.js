@@ -58,12 +58,14 @@ router.post("/subscribe", async (req, res) => {
     }
 });
 
-// "BDGWYaKQhSDtC8VtcPekovFWM4M7mhs3NHe-X1HA7HH-t7nkiexSyYxUxQkwl2H44BiojKJjOdXi367XgxXxvpw",
-// "vIrlMoYDp0cmfsKDfwdfv0GTqxU72CQabHgmtjPj4WY"
-// 'BAfolLQ7VpRSmWm6DskG-YyG3jjzq5z0rjKEl5HXLCw2W8CKS9cVmifnCAWnrlJMETgbgjuV1pWKLUf8zlbojH0',
-// 'kCDISA3-UoW0pEx_gSTm4VtQASbvza-uw27Mq1x2wEc'
-// BDGWYaKQhSDtC8VtcPekovFWM4M7mhs3NHe-X1HA7HH-t7nkiexSyYxUxQkwl2H44BiojKJjOdXi367XgxXxvpw
-// vIrlMoYDp0cmfsKDfwdfv0GTqxU72CQabHgmtjPj4WY
+
+// const vapidKeys = {
+//     publicKey:
+//         "BIWPsR9rM0wmZxNDcoXzL8-yDm-iCXu6L-atyFaCiA9ekoZR8d5iE5Mqf_zZOBkoAVMWUVHOv5PDao0p2rt4McQ",
+//     privateKey: "hA8KGnsfjPPiYc53fQJZ7Hq6H8BnQ3fdV3o2DxxwIJs",
+//     mailTo: "mailto:support@intelehealth.org"
+// };
+// For testing server
 const vapidKeys = {
     publicKey:
         "BAfolLQ7VpRSmWm6DskG-YyG3jjzq5z0rjKEl5HXLCw2W8CKS9cVmifnCAWnrlJMETgbgjuV1pWKLUf8zlbojH0",
@@ -84,7 +86,7 @@ router.post("/push", (req, res) => {
                     let title = `Patient ${patient.name} seen by doctor`;
                     let body = `${patient.provider}`;
 
-                    if (req.body.patient && req.body.speciality && req.body.skipFlag) {
+                    if (req.body.patient && req.body.speciality && req.body.skipFlag == false) {
                         title = `New Patient ${patient.name} is been uploaded`
                         body = "Please start giving consultation"
                     }
@@ -112,6 +114,7 @@ router.post("/push", (req, res) => {
                             return snooze_till
                         }
                     }
+
                     user_settingData.forEach(element => {
                         const snooze_till = getSnoozeTill(element.snooze_till);
                         if (typeof snooze_till === 'object') {
@@ -119,9 +122,9 @@ router.post("/push", (req, res) => {
                             const schedule = snooze_till.find(d => d.day === day);
                             if (schedule && schedule.startTime && schedule.endTime) {
                                 const start = schedule.startTime + ":00", end = schedule.endTime + ":00";
-                                let now = new Date().toLocaleTimeString().replace(' PM', '').replace(' AM', '')
-                                if (now.length === 7) now = "0" + now
-                                if (end >= now && now > start) snoozed.push(element);
+                                let now = new Date().toLocaleTimeString("hi-IN",{hour12: false}).replace(' PM', '').replace(' AM', '')
+                                if (now.length === 7) { now = "0" + now }
+                                if (end >= now && now > start) {snoozed.push(element)};
                             }
                         } else if (currTime <= Number(snooze_till)) {
                             snoozed.push(element);
@@ -132,7 +135,6 @@ router.post("/push", (req, res) => {
                     });
                     const allNotifications = results.map((sub) => {
                         if (!patient.provider.match(sub.doctor_name)) {
-
                             webpush
                                 .sendNotification(
                                     JSON.parse(sub.notification_object),
@@ -158,17 +160,27 @@ router.post("/push", (req, res) => {
     }
 });
 
+
+// router.get("/getSnoozeTime", (req, res) =>{
+//         mysql.query(`Select * from user_settings`, (err, snoozeTimeData, fields) => {
+//             let Data = snoozeTimeData[0].snooze_till;
+//             let Data1 = Data ? Data : null
+//             if(err) res.status(400).json({message: err.message});
+//             else res.status(200).json({Data1, message: "Snoozed data!"})
+//         })
+// })
+
 router.post(
-  "/unsubscribe",
-  async ({ body: { user_uuid, finger_print } }, res) => {
-    mysql.query(
-      `DELETE from pushnotification where user_uuid='${user_uuid}' AND finger_print='${finger_print}'`,
-      (err, results) => {
-        if (err) res.status(400).json({ message: err.message });
-        else res.status(200).json({ results, message: "Unsubscribed!" });
-      }
-    );
-  }
+    "/unsubscribe",
+    async ({ body: { user_uuid, finger_print } }, res) => {
+        mysql.query(
+            `DELETE from pushnotification where user_uuid='${user_uuid}' AND finger_print='${finger_print}'`,
+            (err, results) => {
+                if (err) res.status(400).json({ message: err.message });
+                else res.status(200).json({ results, message: "Unsubscribed!" });
+            }
+        );
+    }
 );
 
 module.exports = router;
