@@ -69,7 +69,7 @@ module.exports = function (server) {
         if (Object.hasOwnProperty.call(users, socketId)) {
           const userObj = users[socketId];
           if (userObj.uuid === nurseId) {
-            io.sockets.to(socketId).emit("call");
+            io.sockets.to(socketId).emit("call", dataIds);
             isCalling = true;
           }
         }
