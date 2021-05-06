@@ -31,7 +31,7 @@ module.exports = (function () {
     regTokens,
   }) => {
     var sender = new gcm.Sender(
-      "AAAAteo0mXw:APA91bEsp3WC170iQTmR7GnAJNh7skYgP171klh_Ae2dd2MUmEwZMJaUKZIayOQSDJ7DI-DJkZYtu-E8RNKGbJMOhAlUi3kqhXgPBEf0wYWX1u04YxQcSCn-8o8YRSZavldn3JIxLGL5"
+      "AAAAteo0mXw:APA91bHKDO9T4O2sbk_sjYRkabN8F8MR0Gegv5H-Pa7VR-zoGp5GeYTztpac96Awy2F5FT0c09PZM5ryv2yXEcGZy8zwkQmujtJgMXDlHBjUcM0vDFHbOAK4SZ8jKDMzz-OGzm5TzfA0"
     );
 
     var message = new gcm.Message({
@@ -49,6 +49,7 @@ module.exports = (function () {
         { registrationTokens: regTokens },
         function (err, response) {
           if (err) {
+            console.log("err: ", err);
             console.error(err);
             rej(err);
           } else {

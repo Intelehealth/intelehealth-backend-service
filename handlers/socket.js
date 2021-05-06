@@ -62,7 +62,8 @@ module.exports = function (server) {
         socket.emit("full", room);
       }
     });
-    socket.on("call", async function (nurseId) {
+    socket.on("call", async function (dataIds) {
+      const { nurseId } = dataIds;
       let isCalling = false;
       for (const socketId in users) {
         if (Object.hasOwnProperty.call(users, socketId)) {
@@ -81,7 +82,10 @@ module.exports = function (server) {
           const response = await sendCloudNotification({
             title: "Incoming call",
             body: "Doctor is trying to call you.",
+            data: dataIds,
             regTokens: [data.device_reg_token],
+          }).catch((err) => {
+            console.log("err: ", err);
           });
           io.sockets.emit("log", ["notification response", response, data]);
         } else {
