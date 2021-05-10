@@ -46,6 +46,13 @@ module.exports = function (server) {
         console.log("received bye");
         io.sockets.in(room).emit("message", "bye");
         io.sockets.in(room).emit("bye");
+        io.sockets.emit("log", ["received bye", data]);
+      });
+
+      socket.on("no_answer", function (data) {
+        console.log("no_answer");
+        io.sockets.in(room).emit("bye");
+        io.sockets.emit("log", ["no_answer", data]);
       });
 
       if (numClients === 0) {
@@ -84,6 +91,21 @@ module.exports = function (server) {
             body: "Doctor is trying to call you.",
             data: dataIds,
             regTokens: [data.device_reg_token],
+            android: {
+              ttl: "60s",
+              priority: "high",
+            },
+            webpush: {
+              headers: {
+                TTL: "60",
+                Urgency: "high",
+              },
+            },
+            apns: {
+              headers: {
+                "apns-priority": "5",
+              },
+            },
           }).catch((err) => {
             console.log("err: ", err);
           });
