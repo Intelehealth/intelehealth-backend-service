@@ -1,5 +1,6 @@
 const { sendMessage, getMessages } = require("../services/message.service");
 const { validateParams } = require("../handlers/helper");
+const { user_settings } = require("../models");
 
 module.exports = (function () {
   /**
@@ -31,9 +32,27 @@ module.exports = (function () {
             }
           }
         }
-        res.json(data);
+        const userSetting = await user_settings.findOne({
+          where: { user_uuid: toUser },
+        });
+        let notificationResponse = "";
+        if (userSetting && userSetting.device_reg_token) {
+          notificationResponse = await sendCloudNotification({
+            title: "New chat message",
+            body: message,
+            data: {
+              ...userSetting.data,
+              actionType: "TEXT_CHAT",
+            },
+            regTokens: [userSetting.device_reg_token],
+          }).catch((err) => {
+            console.log("err: ", err);
+          });
+        }
+        res.json({ ...data, notificationResponse });
       }
     } catch (error) {
+      console.log("error: ", error);
       res.json({
         status: false,
         message: error,

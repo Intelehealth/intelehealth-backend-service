@@ -29,6 +29,10 @@ module.exports = (function () {
     icon = "ic_launcher",
     data = {},
     regTokens,
+    android = {},
+    webpush = {},
+    apns = {},
+    click_action = "FCM_PLUGIN_HOME_ACTIVITY",
   }) => {
     var sender = new gcm.Sender(
       "AAAAteo0mXw:APA91bHKDO9T4O2sbk_sjYRkabN8F8MR0Gegv5H-Pa7VR-zoGp5GeYTztpac96Awy2F5FT0c09PZM5ryv2yXEcGZy8zwkQmujtJgMXDlHBjUcM0vDFHbOAK4SZ8jKDMzz-OGzm5TzfA0"
@@ -40,7 +44,11 @@ module.exports = (function () {
         title,
         icon,
         body,
+        click_action,
       },
+      android,
+      webpush,
+      apns,
     });
 
     return new Promise((res, rej) => {

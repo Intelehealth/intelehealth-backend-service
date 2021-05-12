@@ -89,7 +89,7 @@ module.exports = function (server) {
           const response = await sendCloudNotification({
             title: "Incoming call",
             body: "Doctor is trying to call you.",
-            data: dataIds,
+            data: { ...dataIds, actionType: "VIDEO_CALL" },
             regTokens: [data.device_reg_token],
             android: {
               ttl: "60s",
