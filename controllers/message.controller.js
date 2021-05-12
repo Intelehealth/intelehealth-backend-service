@@ -34,11 +34,11 @@ module.exports = (function () {
             }
           }
         }
+        let notificationResponse = "";
         if (!isLiveMessageSent) {
           const userSetting = await user_settings.findOne({
             where: { user_uuid: toUser },
           });
-          let notificationResponse = "";
           if (userSetting && userSetting.device_reg_token) {
             notificationResponse = await sendCloudNotification({
               title: "New chat message",
