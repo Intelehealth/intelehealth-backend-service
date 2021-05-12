@@ -16,6 +16,7 @@ module.exports = (function () {
       { key: "patientId", type: "string" },
       { key: "message", type: "string" },
     ];
+    let isLiveMessageSent = false;
     try {
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await sendMessage(fromUser, toUser, patientId, message);
@@ -29,25 +30,29 @@ module.exports = (function () {
                 ).toGMTString();
               } catch (error) {}
               io.to(key).emit("updateMessage", data.data);
+              isLiveMessageSent = true;
             }
           }
         }
-        const userSetting = await user_settings.findOne({
-          where: { user_uuid: toUser },
-        });
-        let notificationResponse = "";
-        if (userSetting && userSetting.device_reg_token) {
-          notificationResponse = await sendCloudNotification({
-            title: "New chat message",
-            body: message,
-            data: {
-              ...userSetting.data,
-              actionType: "TEXT_CHAT",
-            },
-            regTokens: [userSetting.device_reg_token],
-          }).catch((err) => {
-            console.log("err: ", err);
+        if (!isLiveMessageSent) {
+          const userSetting = await user_settings.findOne({
+            where: { user_uuid: toUser },
           });
+          let notificationResponse = "";
+          if (userSetting && userSetting.device_reg_token) {
+            notificationResponse = await sendCloudNotification({
+              title: "New chat message",
+              body: message,
+              data: {
+                ...req.body,
+                ...data.data.dataValues,
+                actionType: "TEXT_CHAT",
+              },
+              regTokens: [userSetting.device_reg_token],
+            }).catch((err) => {
+              console.log("err: ", err);
+            });
+          }
         }
         res.json({ ...data, notificationResponse });
       }
