@@ -9,6 +9,7 @@ module.exports = function (server) {
       users[socket.id] = {
         uuid: socket.handshake.query.userId,
         status: "online",
+        name: socket.handshake.query.name,
       };
     }
     console.log("socket: >>>>>", socket.handshake.query.userId);
