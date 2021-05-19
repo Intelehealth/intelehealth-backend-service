@@ -92,21 +92,6 @@ module.exports = function (server) {
             body: "Doctor is trying to call you.",
             data: { ...dataIds, actionType: "VIDEO_CALL" },
             regTokens: [data.device_reg_token],
-            android: {
-              ttl: "60s",
-              priority: "high",
-            },
-            webpush: {
-              headers: {
-                TTL: "60",
-                Urgency: "high",
-              },
-            },
-            apns: {
-              headers: {
-                "apns-priority": "5",
-              },
-            },
           }).catch((err) => {
             console.log("err: ", err);
           });

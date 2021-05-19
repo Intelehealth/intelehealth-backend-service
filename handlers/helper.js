@@ -46,9 +46,21 @@ module.exports = (function () {
         body,
         click_action,
       },
-      android,
-      webpush,
-      apns,
+      android: {
+        ttl: "30s",
+        priority: "high",
+      },
+      webpush: {
+        headers: {
+          TTL: "30",
+          Urgency: "high",
+        },
+      },
+      apns: {
+        headers: {
+          "apns-priority": "5",
+        },
+      },
     });
 
     return new Promise((res, rej) => {
