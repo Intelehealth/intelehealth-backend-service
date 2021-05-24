@@ -81,5 +81,8 @@ module.exports = (function () {
     });
   };
 
+  this.RES = (res, data, statusCode = 200) => {
+    res.status(statusCode).json(data);
+  };
   return this;
 })();
