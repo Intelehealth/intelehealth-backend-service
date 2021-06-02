@@ -13,7 +13,6 @@ module.exports = (function () {
     const keysAndTypeToCheck = [
       { key: "fromUser", type: "string" },
       { key: "toUser", type: "string" },
-      { key: "patientId", type: "string" },
       { key: "message", type: "string" },
     ];
     let isLiveMessageSent = false;
@@ -80,6 +79,30 @@ module.exports = (function () {
     try {
       if (validateParams(req.params, keysAndTypeToCheck)) {
         const data = await getMessages(fromUser, toUser, patientId);
+        res.json(data);
+      }
+    } catch (error) {
+      res.json({
+        status: false,
+        message: error,
+      });
+    }
+  };
+
+  /**
+   * return all the messages associated with toUser, fromUser and a patient
+   * @param {*} req
+   * @param {*} res
+   */
+  this.getMessagesWithoutPatient = async (req, res) => {
+    const { fromUser, toUser } = req.params;
+    const keysAndTypeToCheck = [
+      { key: "fromUser", type: "string" },
+      { key: "toUser", type: "string" },
+    ];
+    try {
+      if (validateParams(req.params, keysAndTypeToCheck)) {
+        const data = await getMessages(fromUser, toUser, null);
         res.json(data);
       }
     } catch (error) {
