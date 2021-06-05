@@ -18,6 +18,8 @@ const {
   addUpdateMindMap,
   deleteMindmapKey,
   downloadMindmaps,
+  sendSMS,
+  startCall
 } = require("../controllers/mindmap.controller");
 
 // router.post('/mindmap/upload', async(req, res) => {
@@ -369,6 +371,8 @@ router.post("/mindmap/addUpdatekey", addUpdateLicenceKey);
 router.get("/mindmap/details/:key", getMindmapDetails);
 router.post("/mindmap/delete/:key", deleteMindmapKey);
 router.get("/mindmap/download", downloadMindmaps);
+router.post("/mindmap/sendSMS", sendSMS);
+router.post("/mindmap/startCall", startCall);
 // router.put('/mindmap/:key/:imagename', (req, res) => {
 
 router.use("/mindmap", require("./notification.route"));
