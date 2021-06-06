@@ -22,7 +22,7 @@ router.get("/mindmap/download", downloadMindmaps);
  * Links route
  */
 router.get("/mindmap/getLink", getLink);
-router.get("/mindmap/shortLink", shortLink);
+router.post("/mindmap/shortLink", shortLink);
 
 router.use("/mindmap", require("./notification.route"));
 router.use("/messages", require("./message.route"));

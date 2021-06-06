@@ -235,14 +235,14 @@ const getLink = async ({ query }, res) => {
   }
 };
 
-const shortLink = async ({ query }, res) => {
+const shortLink = async ({ body }, res) => {
   try {
-    if (!query.link) {
+    if (!body.link) {
       RES(res, { success: false, message: "Please pass link" }, 422);
       return;
     }
     let linkAlreadyExist = await links.findOne({
-      where: { link: query.link },
+      where: { link: body.link },
       raw: true,
     });
     if (linkAlreadyExist) {
@@ -262,7 +262,7 @@ const shortLink = async ({ query }, res) => {
       }));
       tried++;
     }
-    const data = await links.create({ link: query.link, hash });
+    const data = await links.create({ link: body.link, hash });
     RES(res, { success: true, data });
   } catch (error) {
     RES(res, { success: false, message: error.message }, 422);
