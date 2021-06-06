@@ -92,6 +92,7 @@ module.exports = function (server) {
             body: "Doctor is trying to call you.",
             data: { ...dataIds, actionType: "VIDEO_CALL" },
             regTokens: [data.device_reg_token],
+            data: data.type,
           }).catch((err) => {
             console.log("err: ", err);
           });

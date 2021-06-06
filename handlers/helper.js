@@ -33,10 +33,19 @@ module.exports = (function () {
     webpush = {},
     apns = {},
     click_action = "FCM_PLUGIN_HOME_ACTIVITY",
+    type = "Patient",
   }) => {
-    var sender = new gcm.Sender(
-      "AAAAteo0mXw:APA91bHKDO9T4O2sbk_sjYRkabN8F8MR0Gegv5H-Pa7VR-zoGp5GeYTztpac96Awy2F5FT0c09PZM5ryv2yXEcGZy8zwkQmujtJgMXDlHBjUcM0vDFHbOAK4SZ8jKDMzz-OGzm5TzfA0"
-    );
+    const patientAppKey =
+      "AAAA72UbkIc:APA91bGlhIqIfcWSGRl9z8J5X5bEd-3VEYFtI8w5ViLM2b74sMRlLdzQmIEvNRfatgVXuaLLAXJRT7o-RFYBPl51NTbPNbEEfcFv7R3d-XaNiQIU__Gzwr7lfOzHlOFgF9GTRq4M1krt";
+    const nurseAppKey =
+      "AAAAFO3cJb4:APA91bErE4LKKdJwdPcVqGhkyxon2dsI-eUo9Nay91_FYi4B9dBOEbCAoU7IddKXRT2XOjUjKgCCEPkEBCu_UtwA-E-GBS1FDnvf_x-4DtLRmSvaKmq1ifNJDJpdKIsFSVDx9OG2iGGX";
+    if (["Nurse", "nurse"].includes(type)) {
+      serverKey = nurseAppKey;
+    } else {
+      serverKey = patientAppKey;
+    }
+
+    var sender = new gcm.Sender(serverKey);
 
     var message = new gcm.Message({
       data,
