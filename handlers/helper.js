@@ -84,5 +84,13 @@ module.exports = (function () {
   this.RES = (res, data, statusCode = 200) => {
     res.status(statusCode).json(data);
   };
+
+  this.generateHash = (length) => {
+    return Math.round(
+      Math.pow(36, length + 1) - Math.random() * Math.pow(36, length)
+    )
+      .toString(36)
+      .slice(1);
+  };
   return this;
 })();

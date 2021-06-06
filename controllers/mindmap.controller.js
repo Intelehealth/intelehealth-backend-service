@@ -1,5 +1,5 @@
-const { RES, asyncForEach } = require("../handlers/helper");
-const { mindmaps, licences } = require("../models");
+const { RES, generateHash } = require("../handlers/helper");
+const { mindmaps, licences, links } = require("../models");
 const { mkDir } = require("../public/javascripts/directory");
 const { rmDir } = require("../public/javascripts/deletefile");
 const { wrMindmap } = require("../public/javascripts/writefile");
@@ -41,7 +41,7 @@ const addUpdateLicenceKey = async (req, res) => {
     let data = await licences.findOne({
       where: { keyName: body.key },
     });
-    if ((body.type === "image")) {
+    if (body.type === "image") {
       dataToUpdate = {
         imageName: body.imageName,
         imageValue: body.imageValue,
@@ -54,10 +54,12 @@ const addUpdateLicenceKey = async (req, res) => {
     }
     if (data) {
       data = await data.update(dataToUpdate);
-      message = body.type === "image" ? "Image updated" : "Updated successfully!";
+      message =
+        body.type === "image" ? "Image updated" : "Updated successfully!";
     } else {
       data = await licences.create(dataToUpdate);
-      message = body.type === "image" ? "Image uploaded" : "Added successfully!";
+      message =
+        body.type === "image" ? "Image uploaded" : "Added successfully!";
     }
     RES(res, { data, success: true, message });
   } catch (error) {
@@ -213,6 +215,60 @@ const downloadMindmaps = async (req, res) => {
   }
 };
 
+const getLink = async ({ query }, res) => {
+  try {
+    if (!query.hash) {
+      RES(res, { success: false, message: "Please pass hash" }, 422);
+      return;
+    }
+    const data = await links.findOne({
+      where: { hash: query.hash },
+      raw: true,
+    });
+    if (data) {
+      RES(res, { success: true, data });
+    } else {
+      RES(res, { success: false, message: "Invalid link" });
+    }
+  } catch (error) {
+    RES(res, { success: false, message: error.message }, 422);
+  }
+};
+
+const shortLink = async ({ query }, res) => {
+  try {
+    if (!query.link) {
+      RES(res, { success: false, message: "Please pass link" }, 422);
+      return;
+    }
+    let linkAlreadyExist = await links.findOne({
+      where: { link: query.link },
+      raw: true,
+    });
+    if (linkAlreadyExist) {
+      RES(res, { success: true, data: linkAlreadyExist });
+      return;
+    }
+    let len = 2;
+    let tried = 0;
+    let hash;
+    let exist;
+    while (!exist) {
+      if (tried > 2) len++;
+      hash = generateHash(len);
+      exist = !(await links.findOne({
+        where: { hash },
+        raw: true,
+      }));
+      tried++;
+    }
+    const data = await links.create({ link: query.link, hash });
+    RES(res, { success: true, data });
+  } catch (error) {
+    RES(res, { success: false, message: error.message }, 422);
+  }
+};
+
 module.exports = {
   getMindmapDetails,
   addUpdateLicenceKey,
@@ -220,4 +276,6 @@ module.exports = {
   addUpdateMindMap,
   deleteMindmapKey,
   downloadMindmaps,
+  getLink,
+  shortLink,
 };
