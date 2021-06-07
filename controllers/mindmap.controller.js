@@ -5,6 +5,7 @@ const { rmDir } = require("../public/javascripts/deletefile");
 const { wrMindmap } = require("../public/javascripts/writefile");
 const { zipFolder } = require("../public/javascripts/zip");
 const { getFormattedUrl } = require("../public/javascripts/functions");
+const request = require("request");
 
 /**
  * Return mindmaps respect to key
@@ -268,6 +269,73 @@ const shortLink = async ({ body }, res) => {
     RES(res, { success: false, message: error.message }, 422);
   }
 };
+const sendSMS = async (req, res) => {
+  const API_KEY_LOCAL = "A39e1e65900618ef9b6e16da473f8894d";
+  const API_KET_PROD = "Aa0f6771f16f5b85a9b90a90834d17d86";
+  const msgHost = "https://api.kaleyra.io/v1/HXIN1701481071IN/messages";
+  const domain = "intelehealth";
+  const msgData = {
+    sender: "TIFDOC",
+    template_id: "1107162261152009073",
+    source: "API",
+    type: "TXN",
+  };
+  let apiKey = "";
+  console.log("HOST: >> >>", req.host);
+  if (req.host.includes("localhost")) {
+    apiKey = API_KEY_LOCAL;
+  } else if (!req.host.includes(domain)) {
+    const message = `Request outside ${domain} domain not allowed.`;
+    RES(res, { success: false, message, host: req.host });
+    return;
+  } else if (req.host.includes(domain)) {
+    apiKey = API_KET_PROD;
+  }
+  let body = new URLSearchParams();
+  body.set("to", "91" + req.body.patientNo);
+  body.set("sender", msgData.sender);
+  body.set("source", msgData.source);
+  body.set("body", req.body.smsBody);
+  body.set("template_id", msgData.template_id);
+  body.set("type", msgData.type);
+  let sms = body.toString();
+  try {
+    const data = await new Promise((res, rej) => {
+      request.post(
+        msgHost,
+        {
+          form: sms,
+          headers: {
+            "api-key": apiKey,
+            "Content-Type": "application/x-www-form-urlencoded;",
+          },
+        },
+        function (err, response) {
+          if (err) rej(err);
+          res(JSON.parse(response.body));
+        }
+      );
+    });
+    RES(res, { success: true, data });
+  } catch (error) {
+    RES(res, { success: false, message: error.message });
+  }
+};
+
+const startCall = async (req, res) => {
+  const msgHost = `https://api-voice.kaleyra.com/v1/?api_key=Af2b75f5c755b200279df32f232763b0b&method=dial.click2call&caller=${req.body.doctorsMobileNo}&receiver=${req.body.patientMobileNo}`;
+  try {
+    const data = await new Promise((res, rej) => {
+      request.post(msgHost, function (err, response) {
+        if (err) rej(err);
+        res(response);
+      });
+    });
+    RES(res, { success: true, data });
+  } catch (error) {
+    RES(res, { success: false, message: error.message });
+  }
+};
 
 module.exports = {
   getMindmapDetails,
@@ -278,4 +346,6 @@ module.exports = {
   downloadMindmaps,
   getLink,
   shortLink,
+  sendSMS,
+  startCall,
 };

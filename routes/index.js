@@ -9,6 +9,8 @@ const {
   downloadMindmaps,
   getLink,
   shortLink,
+  sendSMS,
+  startCall,
 } = require("../controllers/mindmap.controller");
 
 router.post("/mindmap/upload", addUpdateMindMap);
@@ -18,11 +20,10 @@ router.get("/mindmap/details/:key", getMindmapDetails);
 router.post("/mindmap/delete/:key", deleteMindmapKey);
 router.get("/mindmap/download", downloadMindmaps);
 
-/**
- * Links route
- */
 router.get("/mindmap/getLink", getLink);
 router.post("/mindmap/shortLink", shortLink);
+router.post("/mindmap/sendSMS", sendSMS);
+router.post("/mindmap/startCall", startCall);
 
 router.use("/mindmap", require("./notification.route"));
 router.use("/messages", require("./message.route"));
