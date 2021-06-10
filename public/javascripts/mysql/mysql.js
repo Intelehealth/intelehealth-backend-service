@@ -8,13 +8,13 @@ connectDatabase = () => {
     const settings = { ...config[env], user: config[env].username };
     db = mysql.createConnection(settings);
 
-    db.connect((err) => {
-      if (!err) {
-        console.log("Database is connected!");
-      } else {
-        console.log("Error connecting database!");
-      }
-    });
+    // db.connect((err) => {
+    //   if (!err) {
+    //     console.log("Database is connected!");
+    //   } else {
+    //     console.log("Error connecting database!");
+    //   }
+    // });
   }
   return db;
 };

@@ -21,11 +21,6 @@ app.set("port", port);
 
 var server = http.createServer(app,'0.0.0.0');
 /**
- * Initializing socket
- */
-require("../handlers/socket")(server);
-
-/**
  * Listen on provided port, on all network interfaces.
  */
 server.listen(port);
