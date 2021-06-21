@@ -276,7 +276,7 @@ const sendSMS = async (req, res) => {
   const domain = "intelehealth";
   const msgData = {
     sender: "TIFDOC",
-    template_id: "1107162261152009073",
+    template_id: "1107162395105024978",
     source: "API",
     type: "TXN",
   };
