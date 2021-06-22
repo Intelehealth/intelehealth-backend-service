@@ -275,7 +275,7 @@ const sendSMS = async (req, res) => {
   const msgHost = "https://api.kaleyra.io/v1/HXIN1701481071IN/messages";
   const msgData = {
     sender: "TIFDOC",
-    template_id: "1107162395105024978",
+    template_id: "1107162427070618591",
     source: "API",
     type: "TXN",
   };
