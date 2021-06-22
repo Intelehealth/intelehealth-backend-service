@@ -271,26 +271,14 @@ const shortLink = async ({ body }, res) => {
 };
 const sendSMS = async (req, res) => {
   const API_KEY_LOCAL = "A39e1e65900618ef9b6e16da473f8894d";
-  const API_KET_PROD = "Aa0f6771f16f5b85a9b90a90834d17d86";
+ // const API_KET_PROD = "Aa0f6771f16f5b85a9b90a90834d17d86";
   const msgHost = "https://api.kaleyra.io/v1/HXIN1701481071IN/messages";
-  const domain = "intelehealth";
   const msgData = {
     sender: "TIFDOC",
     template_id: "1107162395105024978",
     source: "API",
     type: "TXN",
   };
-  let apiKey = "";
-  console.log("HOST: >> >>", req.host);
-  if (req.host.includes("localhost")) {
-    apiKey = API_KEY_LOCAL;
-  } else if (!req.host.includes(domain)) {
-    const message = `Request outside ${domain} domain not allowed.`;
-    RES(res, { success: false, message, host: req.host });
-    return;
-  } else if (req.host.includes(domain)) {
-    apiKey = API_KET_PROD;
-  }
   let body = new URLSearchParams();
   body.set("to", "91" + req.body.patientNo);
   body.set("sender", msgData.sender);
@@ -306,7 +294,7 @@ const sendSMS = async (req, res) => {
         {
           form: sms,
           headers: {
-            "api-key": apiKey,
+            "api-key": API_KEY_LOCAL,
             "Content-Type": "application/x-www-form-urlencoded;",
           },
         },
