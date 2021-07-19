@@ -372,6 +372,5 @@ router.get("/mindmap/download", downloadMindmaps);
 // router.put('/mindmap/:key/:imagename', (req, res) => {
 
 router.use("/mindmap", require("./notification.route"));
-router.use("/messages", require("./message.route"));
 
 module.exports = router;
