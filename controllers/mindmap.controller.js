@@ -311,24 +311,12 @@ const sendSMS = async (req, res) => {
 };
 
 const startCall = async (req, res) => {
-  const msgHost = `https://d788e0b618b3143e0f2df466fdad155561aaee3b32e4327d:49df1e7a635d9c575365fc82cc07d1ac3eb770e2284fd25e@api.exotel.com/v1/Accounts/intelehealth2/Calls/connect`
-  let body = new URLSearchParams();
-  body.set("From", "0" + req.body.doctorsMobileNo);
-  body.set("To", "0" + req.body.patientMobileNo);
-  body.set("CallerId", '01141236457');
-  let form = body.toString();
+  const msgHost = `https://api-voice.kaleyra.com/v1/?api_key=A4158bb5caef204f660439f5041352cef&method=dial.click2call&caller=${req.body.doctorsMobileNo}&receiver=${req.body.patientMobileNo}`;
   try {
     const data = await new Promise((res, rej) => {
-      request.post(msgHost, 
-        { 
-          form: form,
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded;",
-          }
-        },
-        function (err, response) {
-          if (err) rej(err);
-          res(response);
+      request.post(msgHost, function (err, response) {
+        if (err) rej(err);
+        res(response);
       });
     });
     RES(res, { success: true, data });
