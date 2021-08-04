@@ -71,8 +71,11 @@ module.exports = function (server) {
       }
     });
     socket.on("call", async function (dataIds) {
-      const { nurseId } = dataIds;
+      const { roomId: nurseId } = dataIds;
+      console.log("dataIds: ", dataIds);
+      console.log("nurseId: >>>>", nurseId);
       let isCalling = false;
+      console.log("users: ", users);
       for (const socketId in users) {
         if (Object.hasOwnProperty.call(users, socketId)) {
           const userObj = users[socketId];
@@ -82,10 +85,12 @@ module.exports = function (server) {
           }
         }
       }
-      if (!isCalling) {
+      console.log("isCalling: ", isCalling);
+      if (true) {
         const data = await user_settings.findOne({
           where: { user_uuid: nurseId },
         });
+        console.log("data: ", data);
         if (data && data.device_reg_token) {
           const response = await sendCloudNotification({
             title: "Incoming call",

@@ -35,7 +35,7 @@ module.exports = (function () {
     click_action = "FCM_PLUGIN_HOME_ACTIVITY",
   }) => {
     var sender = new gcm.Sender(
-      "AAAAJ_HGgX0:APA91bFDlJhE9SIb3X0vjNk1oYwtPtpzywFPq-0m1k-awrfJEo2snMw7Qj6d0Xcgz04AfZbS3Ii49FmzrxsiqtsmgqF9vmuTbKiwrPIb3EBRcRwbpvgJVmOFxBLNPXEM_0n7frXSX3NJ"
+      "AAAA72UbkIc:APA91bGlhIqIfcWSGRl9z8J5X5bEd-3VEYFtI8w5ViLM2b74sMRlLdzQmIEvNRfatgVXuaLLAXJRT7o-RFYBPl51NTbPNbEEfcFv7R3d-XaNiQIU__Gzwr7lfOzHlOFgF9GTRq4M1krt"
     );
 
     var message = new gcm.Message({
@@ -83,14 +83,6 @@ module.exports = (function () {
 
   this.RES = (res, data, statusCode = 200) => {
     res.status(statusCode).json(data);
-  };
-
-  this.generateHash = (length) => {
-    return Math.round(
-      Math.pow(36, length + 1) - Math.random() * Math.pow(36, length)
-    )
-      .toString(36)
-      .slice(1);
   };
   return this;
 })();
