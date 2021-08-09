@@ -1,11 +1,10 @@
-const { RES, generateHash } = require("../handlers/helper");
-const { mindmaps, licences, links } = require("../models");
+const { RES, asyncForEach } = require("../handlers/helper");
+const { mindmaps, licences } = require("../models");
 const { mkDir } = require("../public/javascripts/directory");
 const { rmDir } = require("../public/javascripts/deletefile");
 const { wrMindmap } = require("../public/javascripts/writefile");
 const { zipFolder } = require("../public/javascripts/zip");
 const { getFormattedUrl } = require("../public/javascripts/functions");
-const request = require("request");
 
 /**
  * Return mindmaps respect to key
@@ -42,7 +41,7 @@ const addUpdateLicenceKey = async (req, res) => {
     let data = await licences.findOne({
       where: { keyName: body.key },
     });
-    if (body.type === "image") {
+    if ((body.type === "image")) {
       dataToUpdate = {
         imageName: body.imageName,
         imageValue: body.imageValue,
@@ -55,12 +54,10 @@ const addUpdateLicenceKey = async (req, res) => {
     }
     if (data) {
       data = await data.update(dataToUpdate);
-      message =
-        body.type === "image" ? "Image updated" : "Updated successfully!";
+      message = body.type === "image" ? "Image updated" : "Updated successfully!";
     } else {
       data = await licences.create(dataToUpdate);
-      message =
-        body.type === "image" ? "Image uploaded" : "Added successfully!";
+      message = body.type === "image" ? "Image uploaded" : "Added successfully!";
     }
     RES(res, { data, success: true, message });
   } catch (error) {
@@ -216,116 +213,6 @@ const downloadMindmaps = async (req, res) => {
   }
 };
 
-const getLink = async ({ query }, res) => {
-  try {
-    if (!query.hash) {
-      RES(res, { success: false, message: "Please pass hash" }, 422);
-      return;
-    }
-    const data = await links.findOne({
-      where: { hash: query.hash },
-      raw: true,
-    });
-    if (data) {
-      RES(res, { success: true, data });
-    } else {
-      RES(res, { success: false, message: "Invalid link" });
-    }
-  } catch (error) {
-    RES(res, { success: false, message: error.message }, 422);
-  }
-};
-
-const shortLink = async ({ body }, res) => {
-  try {
-    if (!body.link) {
-      RES(res, { success: false, message: "Please pass link" }, 422);
-      return;
-    }
-    let linkAlreadyExist = await links.findOne({
-      where: { link: body.link },
-      raw: true,
-    });
-    if (linkAlreadyExist) {
-      RES(res, { success: true, data: linkAlreadyExist });
-      return;
-    }
-    let len = 2;
-    let tried = 0;
-    let hash;
-    let exist;
-    while (!exist) {
-      if (tried > 2) len++;
-      hash = generateHash(len);
-      exist = !(await links.findOne({
-        where: { hash },
-        raw: true,
-      }));
-      tried++;
-    }
-    const data = await links.create({ link: body.link, hash });
-    RES(res, { success: true, data });
-  } catch (error) {
-    RES(res, { success: false, message: error.message }, 422);
-  }
-};
-const sendSMS = async (req, res) => {
-  const API_KEY_LOCAL = "A39e1e65900618ef9b6e16da473f8894d";
-  const msgHost = "https://api.kaleyra.io/v1/HXIN1701481071IN/messages";
-  const msgData = {
-    sender: "TIFDOC",
-    template_id: "1107162427070618591",
-    source: "API",
-    type: "TXN",
-    callback:JSON.stringify({"url":"https://swasthyasampark.intelehealth.org/ksms","method" : "POST","header" : {"x-api-key" : "Apex test SMS callback","x-randoem-id" : "232y2uey"},"retry" :{"count":"3","interval":["10", "10","10"]}})
-  };
-  let body = new URLSearchParams();
-  body.set("to", "91" + req.body.patientNo);
-  body.set("sender", msgData.sender);
-  body.set("source", msgData.source);
-  body.set("body", req.body.smsBody);
-  body.set("template_id", msgData.template_id);
-  body.set("type", msgData.type);
-  body.set("callback", msgData.callback);
-  let sms = body.toString();
-  try {
-    const data = await new Promise((res, rej) => {
-      request.post(
-        msgHost,
-        {
-          form: sms,
-          headers: {
-            "api-key": API_KEY_LOCAL,
-            "Content-Type": "application/x-www-form-urlencoded;",
-          },
-        },
-        function (err, response) {
-          if (err) rej(err);
-          res(JSON.parse(response.body));
-        }
-      );
-    });
-    RES(res, { success: true, data });
-  } catch (error) {
-    RES(res, { success: false, message: error.message });
-  }
-};
-
-const startCall = async (req, res) => {
-  const msgHost = `https://api-voice.kaleyra.com/v1/?api_key=Af2b75f5c755b200279df32f232763b0b&method=dial.click2call&caller=${req.body.doctorsMobileNo}&receiver=${req.body.patientMobileNo}`;
-  try {
-    const data = await new Promise((res, rej) => {
-      request.post(msgHost, function (err, response) {
-        if (err) rej(err);
-        res(response);
-      });
-    });
-    RES(res, { success: true, data });
-  } catch (error) {
-    RES(res, { success: false, message: error.message });
-  }
-};
-
 module.exports = {
   getMindmapDetails,
   addUpdateLicenceKey,
@@ -333,8 +220,4 @@ module.exports = {
   addUpdateMindMap,
   deleteMindmapKey,
   downloadMindmaps,
-  getLink,
-  shortLink,
-  sendSMS,
-  startCall,
 };

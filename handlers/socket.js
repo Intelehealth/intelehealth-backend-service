@@ -1,4 +1,5 @@
 const { sendCloudNotification } = require("./helper");
+console.log("sendCloudNotification: ", sendCloudNotification);
 const { user_settings } = require("../models");
 
 module.exports = function (server) {
@@ -90,11 +91,29 @@ module.exports = function (server) {
           const response = await sendCloudNotification({
             title: "Incoming call",
             body: "Doctor is trying to call you.",
-            data: { ...dataIds, actionType: "VIDEO_CALL" },
+            data: {
+              ...dataIds,
+              actionType: "VIDEO_CALL",
+              timestamp: Date.now(),
+            },
             regTokens: [data.device_reg_token],
           }).catch((err) => {
             console.log("err: ", err);
           });
+          // setTimeout(() => {
+          //   const response = sendCloudNotification({
+          //     title: "Incoming call",
+          //     body: "Doctor is trying to call you.",
+          //     data: {
+          //       ...dataIds,
+          //       actionType: "VIDEO_CALL",
+          //       timestamp: Date.now(),
+          //     },
+          //     regTokens: [data.device_reg_token],
+          //   }).catch((err) => {
+          //     console.log("err: ", err);
+          //   });
+          // }, 3000);
           io.sockets.emit("log", ["notification response", response, data]);
         } else {
           io.sockets.emit("log", [

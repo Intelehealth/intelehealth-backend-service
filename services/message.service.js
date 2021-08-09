@@ -30,12 +30,13 @@ module.exports = (function () {
    */
   this.getMessages = async (fromUser, toUser, patientId) => {
     try {
-      let where = {
-        fromUser: { [Sequelize.Op.in]: [fromUser, toUser] },
-        toUser: { [Sequelize.Op.in]: [toUser, fromUser] },
-      };
-      if (patientId) where.patientId = patientId;
-      const data = await messages.findAll({ where });
+      const data = await messages.findAll({
+        where: {
+          fromUser: { [Sequelize.Op.in]: [fromUser, toUser] },
+          toUser: { [Sequelize.Op.in]: [toUser, fromUser] },
+          patientId,
+        },
+      });
       for (let i = 0; i < data.length; i++) {
         try {
           data[i].dataValues.createdAt = new Date(
