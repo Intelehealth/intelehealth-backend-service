@@ -311,7 +311,7 @@ const sendSMS = async (req, res) => {
 };
 
 const startCall = async (req, res) => {
-  const msgHost = `https://api-voice.kaleyra.com/v1/?api_key=Ad999102331cd1308668e72c0f60cffdc&method=dial.click2call&caller=${req.body.doctorsMobileNo}&receiver=${req.body.patientMobileNo}`;
+  const msgHost = `https://api-voice.kaleyra.com/v1/?api_key=A4f98feaafc067dd6d8d5223762e9ad44&method=dial.click2call&caller=${req.body.doctorsMobileNo}&receiver=${req.body.patientMobileNo}`;
   try {
     const data = await new Promise((res, rej) => {
       request.post(msgHost, function (err, response) {
