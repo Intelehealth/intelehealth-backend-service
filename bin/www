@@ -6,17 +6,17 @@
 
 var app = require('../app');
 var debug = require('debug')('mindmapbackend:server');
-//var http = require('http');
-const https = require('https');
+var http = require('http');
+// const https = require('https');
 const fs = require('fs');
 /**
  * Get port from environment and store in Express.
  */
 
-const options = {
-  key: fs.readFileSync('/etc/letsencrypt/live/uniceftraining.intelehealth.org/privkey.pem'),
-  cert: fs.readFileSync('/etc/letsencrypt/live/uniceftraining.intelehealth.org/fullchain.pem')
-};
+// const options = {
+//   key: fs.readFileSync('/etc/letsencrypt/live/uniceftraining.intelehealth.org/privkey.pem'),
+//   cert: fs.readFileSync('/etc/letsencrypt/live/uniceftraining.intelehealth.org/fullchain.pem')
+// };
 
 var port = normalizePort(process.env.PORT || '3004');
 app.set('port', port);
@@ -24,8 +24,8 @@ app.set('port', port);
 /**
  * Create HTTP server.
  */
-
-var server = https.createServer(options, app);
+var server = http.createServer(app)
+// var server = https.createServer(options, app);
 
 /**
  * Listen on provided port, on all network interfaces.
