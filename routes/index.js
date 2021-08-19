@@ -19,5 +19,6 @@ router.post("/mindmap/delete/:key", deleteMindmapKey);
 router.get("/mindmap/download", downloadMindmaps);
 
 router.use("/mindmap", require("./notification.route"));
+router.use("/openmrs", require("./openmrs.route"));
 
 module.exports = router;
