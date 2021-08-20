@@ -73,7 +73,10 @@ group by case
  * @param {*} next
  */
 const getVisitCounts = async (req, res, next) => {
-  const query = getVisitCountQuery({ speciality: "General Physician" });
+  const speciality = req.query.speciality
+    ? req.query.speciality
+    : "General Physician";
+  const query = getVisitCountQuery({ speciality });
 
   try {
     const data = await new Promise((resolve, reject) => {
