@@ -88,32 +88,18 @@ module.exports = function (server) {
           where: { user_uuid: nurseId },
         });
         if (data && data.device_reg_token) {
-          const response = await sendCloudNotification({
-            title: "Incoming call",
-            body: "Doctor is trying to call you.",
-            data: {
-              ...dataIds,
-              actionType: "VIDEO_CALL",
-              timestamp: Date.now(),
-            },
-            regTokens: [data.device_reg_token],
-          }).catch((err) => {
-            console.log("err: ", err);
-          });
-          // setTimeout(() => {
-          //   const response = sendCloudNotification({
-          //     title: "Incoming call",
-          //     body: "Doctor is trying to call you.",
-          //     data: {
-          //       ...dataIds,
-          //       actionType: "VIDEO_CALL",
-          //       timestamp: Date.now(),
-          //     },
-          //     regTokens: [data.device_reg_token],
-          //   }).catch((err) => {
-          //     console.log("err: ", err);
-          //   });
-          // }, 3000);
+          // const response = await sendCloudNotification({
+          //   title: "Incoming call",
+          //   body: "Doctor is trying to call you.",
+          //   data: {
+          //     ...dataIds,
+          //     actionType: "VIDEO_CALL",
+          //     timestamp: Date.now(),
+          //   },
+          //   regTokens: [data.device_reg_token],
+          // }).catch((err) => {
+          //   console.log("err: ", err);
+          // });
           io.sockets.emit("log", ["notification response", response, data]);
         } else {
           io.sockets.emit("log", [
