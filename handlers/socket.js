@@ -1,7 +1,8 @@
-const { sendCloudNotification } = require("./helper");
+// const { sendCloudNotification } = require("./helper");
 const { user_settings } = require("../models");
-
 const admin = require("firebase-admin");
+const env = process.env.NODE_ENV || "development";
+const config = require(__dirname + "/../config/config.json")[env];
 
 admin.initializeApp({
   credential: admin.credential.cert({
@@ -26,7 +27,11 @@ admin.initializeApp({
 
 module.exports = function (server) {
   const db = admin.database();
-  const rtcNotifyRef = db.ref("rtc_notify");
+  const DB_NAME = `${config.domain.replace(/\./g, "_")}/rtc_notify`;
+  // const DB_NAME = "rtc_notify_dev";
+  console.log("DB_NAME: ", DB_NAME);
+
+  const rtcNotifyRef = db.ref(DB_NAME);
   const io = require("socket.io")(server);
   global.users = {};
   io.on("connection", (socket) => {
@@ -110,11 +115,21 @@ module.exports = function (server) {
       }
       let data = "";
       if (!isCalling) {
-        socket.emit("toast", {
-          duration: 2000,
-          message:
-            "Not able to reach the health worker at this moment. Please try again after sometime.",
-        });
+        const room = roomId;
+        setTimeout(() => {
+          var clientsInRoom = io.sockets.adapter.rooms[room];
+          var numClients = clientsInRoom
+            ? Object.keys(clientsInRoom.sockets).length
+            : 0;
+
+          if (numClients < 2) {
+            socket.emit("toast", {
+              duration: 2000,
+              message:
+                "Not able to reach the health worker at this moment. Please try again after sometime.",
+            });
+          }
+        }, 10000);
         data = await user_settings.findOne({
           where: { user_uuid: nurseId },
         });
