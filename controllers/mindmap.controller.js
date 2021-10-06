@@ -270,12 +270,12 @@ const shortLink = async ({ body }, res) => {
   }
 };
 const sendSMS = async (req, res) => {
-  const API_KEY_LOCAL = "A39e1e65900618ef9b6e16da473f8894d";
- // const API_KET_PROD = "Aa0f6771f16f5b85a9b90a90834d17d86";
-  const msgHost = "https://api.kaleyra.io/v1/HXIN1701481071IN/messages";
+  const API_KEY_LOCAL = "A0bc2dab7ba8467a1a3a2ba47a815fd29";
+  const msgHost = "https://api.in.kaleyra.io/v1/HXIN1707771007IN/messages";
   const msgData = {
-    sender: "TIFDOC",
-    template_id: "1107162427070618591",
+    sender: "HLOSAH",
+    template_id: req.body.language === "Kannada" ? "1107163004145999375" : (req.body.language === "Hindi" || req.body.language === "English") ? "1107163229217231828" :
+    req.body.language === "Marathi" ? "1107162944076132950" : req.body.language === "Tamil" ? "1107163229221160263" : "1107163229217231828",
     source: "API",
     type: "TXN",
   };
@@ -286,6 +286,7 @@ const sendSMS = async (req, res) => {
   body.set("body", req.body.smsBody);
   body.set("template_id", msgData.template_id);
   body.set("type", msgData.type);
+  body.set("unicode", 1);
   let sms = body.toString();
   try {
     const data = await new Promise((res, rej) => {
