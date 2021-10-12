@@ -58,14 +58,14 @@ router.post("/subscribe", async (req, res) => {
   }
 });
 
-//for demo server
+//for MSF training server
 const vapidKeys = {
   publicKey:
-    "BG4nDxMHBPV4YtkBZoGjPSOWDPrbyzw-o-vDKaScPhYfAjQs1hclQLwNWKKHYHNut0GZoVyj0jONVZgA5Dzdq0U",
-  privateKey: "SuA1XssVFT4UfSv8DEGx_uRkng2YtEUVxj54729zXkM",
+    "BNoBPMTLB1juNTJMiQa8LLMYQW9m1456EA9wTivJufaDgOu0jLQ2UkR9Dl4f_fWam8dxK-bWInNkKJ9L-oNfKz0",
+  privateKey: "B4pVMz88JJG4IBat6ZdVkt7X_YNvpmP0H0FO5YeMTMg",
   mailTo: "mailto:support@intelehealth.org",
 };
-// For testing server
+// For MSF Production server
 // const vapidKeys = {
 //     publicKey:
 //         "BAfolLQ7VpRSmWm6DskG-YyG3jjzq5z0rjKEl5HXLCw2W8CKS9cVmifnCAWnrlJMETgbgjuV1pWKLUf8zlbojH0",
