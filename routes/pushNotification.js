@@ -68,8 +68,8 @@ const vapidKeys = {
 // For MSF Production server
 // const vapidKeys = {
 //     publicKey:
-//         "BAfolLQ7VpRSmWm6DskG-YyG3jjzq5z0rjKEl5HXLCw2W8CKS9cVmifnCAWnrlJMETgbgjuV1pWKLUf8zlbojH0",
-//     privateKey: "kCDISA3-UoW0pEx_gSTm4VtQASbvza-uw27Mq1x2wEc",
+//         "BCJhdvNt47tq93OpcNQ8OV7A7xcaU1hd8m-fhJ9TgoEy9meNV60ikx12XD3WrbXiacbQVB1OwEdAXGIFYN0YrjU",
+//     privateKey: "pQ0U5ujWSpInCBd88y1QWDeetURL_csNVi3nBxcA_fY",
 //     mailTo: "mailto:support@intelehealth.org"
 // };
 
