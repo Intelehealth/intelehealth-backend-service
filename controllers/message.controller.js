@@ -24,12 +24,15 @@ module.exports = (function () {
           if (Object.hasOwnProperty.call(users, key)) {
             const user = users[key];
             if (user && user.uuid == toUser) {
+              console.log('user: ', user);
+              console.log('key: ', key);
+              console.log('--------------------------------------------------------------');
               try {
                 data.data.dataValues.createdAt = new Date(
                   data.data.dataValues.createdAt
                 ).toGMTString();
               } catch (error) {}
-              io.to(key).emit("updateMessage", data.data);
+              io.to(key).emit("updateMessage", { ...data.data, ...req.body });
               isLiveMessageSent = true;
             }
           }
