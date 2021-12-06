@@ -26,5 +26,6 @@ router.post("/mindmap/sendSMS", sendSMS);
 router.post("/mindmap/startCall", startCall);
 
 router.use("/mindmap", require("./notification.route"));
+router.use("/openmrs", require("./openmrs.route"));
 
 module.exports = router;
