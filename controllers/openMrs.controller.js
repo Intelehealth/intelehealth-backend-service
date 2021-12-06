@@ -68,25 +68,27 @@ const getLocations = async (req, res, next) => {
               child.sanchs = sanchs.map((s) => {
                 const villages = data
                   .filter((v) => v.parent === s.id && v.tag === "Village")
-                  .map(({ name }) => ({ name }));
+                  .map(({ name, uuid, id }) => ({ name, uuid, id }));
 
-                return { name: s.name, villages };
+                return { name: s.name, uuid: s.uuid, id: s.id, villages };
               });
             } else if (tehsils.length) {
               child.tehsils = tehsils.map((t) => {
                 const villages = data
                   .filter((v) => v.parent === t.id && v.tag === "Village")
-                  .map(({ name }) => ({ name }));
+                  .map(({ name, uuid, id }) => ({ name, uuid, id }));
 
-                return { name: s.name, villages };
+                return { name: s.name, uuid: s.uuid, id: s.id, villages };
               });
             } else {
               child.villages = data
                 .filter((v) => v.parent === d.id && v.tag === "Village")
-                .map(({ name }) => ({ name }));
+                .map(({ name, uuid, id }) => ({ name, uuid, id }));
             }
             return {
               name: d.name,
+              uuid: d.uuid,
+              id: d.id,
               ...child,
             };
           });
@@ -94,6 +96,8 @@ const getLocations = async (req, res, next) => {
 
         return {
           name: s.name,
+          id: s.id,
+          uuid: s.uuid,
           districts,
         };
       });
