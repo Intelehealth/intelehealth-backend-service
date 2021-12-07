@@ -1,11 +1,11 @@
 const express = require("express");
 const router = express.Router();
 const {
-  getVisitCounts,
+  // getVisitCounts,
   getLocations,
 } = require("../controllers/openMrs.controller");
 
-router.get("/getVisitCounts", getVisitCounts);
+// router.get("/getVisitCounts", getVisitCounts);
 router.get("/getLocations", getLocations);
 
 module.exports = router;

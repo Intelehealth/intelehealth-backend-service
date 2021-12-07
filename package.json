@@ -5,8 +5,7 @@
   "scripts": {
     "start": "node ./bin/www",
     "dev": "NODE_ENV=development nodemon ./bin/www",
-    "debug": "NODE_ENV=development nodemon --inspect ./bin/www",
-    "migrate": "node_modules/sequelize-cli/lib/sequelize db:migrate"
+    "migrate": "sequelize-cli db:migrate"
   },
   "dependencies": {
     "archiver": "^3.1.1",
@@ -14,7 +13,6 @@
     "cookie-parser": "~1.4.4",
     "debug": "~2.6.9",
     "express": "~4.16.1",
-    "firebase-admin": "^10.0.0",
     "morgan": "~1.9.1",
     "mysql": "^2.17.1",
     "mysql2": "^2.2.5",
@@ -24,8 +22,5 @@
     "sequelize-cli": "^6.2.0",
     "socket.io": "2.4.1",
     "web-push": "^3.4.4"
-  },
-  "devDependencies": {
-    "sequelize-cli": "^6.2.0"
   }
 }

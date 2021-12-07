@@ -126,17 +126,15 @@ const getUserSettings = async ({ params }, res) => {
   if (!params.uuid)
     res.status(422).json({ message: "Please pass correct user uuid!" });
 
-  let data = await getSettings(params.uuid).catch((err) =>
-    res.status(400).json({ message: err.message })
-  );
+  let data = await user_settings.findOne({
+    where: { user_uuid: params.uuid },
+  });
   if (!data) data = {};
   res.status(200).json({
-    message: "Settings saved successfully.",
-    data: {
-      ...data,
-      snooze_till:
-        data && data.snooze_till ? data.snooze_till - new Date().valueOf() : "",
-    },
+    message: "Settings recevied successfully.",
+    data,
+    snooze_till:
+      data && data.snooze_till ? data.snooze_till - new Date().valueOf() : "",
   });
 };
 
