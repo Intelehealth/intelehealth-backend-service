@@ -1,54 +1,60 @@
-'use strict';
+"use strict";
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('appointments', {
+    await queryInterface.createTable("appointments", {
       id: {
         allowNull: false,
         autoIncrement: true,
         primaryKey: true,
-        type: Sequelize.INTEGER
+        type: Sequelize.INTEGER,
       },
       slotDay: {
-        type: Sequelize.STRING
+        type: Sequelize.STRING,
       },
       slotDate: {
-        type: Sequelize.STRING
+        type: Sequelize.STRING,
       },
       slotDuration: {
-        type: Sequelize.INTEGER
+        type: Sequelize.INTEGER,
       },
       slotDurationUnit: {
-        type: Sequelize.STRING
+        type: Sequelize.STRING,
       },
       slotTime: {
-        type: Sequelize.STRING
+        type: Sequelize.STRING,
       },
       speciality: {
-        type: Sequelize.STRING
+        type: Sequelize.STRING,
       },
       userUuid: {
-        type: Sequelize.STRING
+        type: Sequelize.STRING,
       },
       drName: {
-        type: Sequelize.STRING
+        type: Sequelize.STRING,
       },
       visitUuid: {
-        type: Sequelize.STRING
+        type: Sequelize.STRING,
       },
       patientId: {
-        type: Sequelize.STRING
+        type: Sequelize.STRING,
+      },
+      status: {
+        type: Sequelize.STRING,
+      },
+      slotJsDate: {
+        type: Sequelize.DATE,
       },
       createdAt: {
         allowNull: false,
-        type: Sequelize.DATE
+        type: Sequelize.DATE,
       },
       updatedAt: {
         allowNull: false,
-        type: Sequelize.DATE
-      }
+        type: Sequelize.DATE,
+      },
     });
   },
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable('appointments');
-  }
+    await queryInterface.dropTable("appointments");
+  },
 };

@@ -3,6 +3,7 @@ const {
   getUserAppointmentSchedule,
   upsertAppointmentSchedule,
   getAppointmentSlots,
+  bookAppointment,
 } = require("../services/appointment.service");
 
 module.exports = (function () {
@@ -11,7 +12,7 @@ module.exports = (function () {
    * @param {*} req
    * @param {*} res
    */
-  this.upsertSchedule = async (req, res) => {
+  this.upsertSchedule = async (req, res, next) => {
     const keysAndTypeToCheck = [
       { key: "userUuid", type: "string" },
       { key: "drName", type: "string" },
@@ -28,14 +29,11 @@ module.exports = (function () {
       }
     } catch (error) {
       console.log("error: ", error);
-      res.json({
-        status: false,
-        message: error,
-      });
+      next(error);
     }
   };
 
-  this.getAppointmentSchedule = async (req, res) => {
+  this.getAppointmentSchedule = async (req, res, next) => {
     try {
       const userUuid = req.params.userUuid;
       const data = await getUserAppointmentSchedule({ where: { userUuid } });
@@ -45,10 +43,7 @@ module.exports = (function () {
       });
     } catch (error) {
       console.log("error: ", error);
-      res.json({
-        status: false,
-        message: error,
-      });
+      next(error);
     }
   };
 
@@ -63,7 +58,31 @@ module.exports = (function () {
         const data = await getAppointmentSlots(req.query);
         res.json({
           status: true,
-          data,
+          ...data,
+        });
+      }
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  this.bookAppointment = async (req, res, next) => {
+    try {
+      const keysAndTypeToCheck = [
+        { key: "slotDay", type: "string" },
+        { key: "slotDuration", type: "number" },
+        { key: "slotDurationUnit", type: "string" },
+        { key: "slotTime", type: "string" },
+        { key: "speciality", type: "string" },
+        { key: "userUuid", type: "string" },
+        { key: "drName", type: "string" },
+        { key: "visitUuid", type: "string" },
+      ];
+      if (validateParams(req.body, keysAndTypeToCheck)) {
+        const data = await bookAppointment(req.body);
+        res.json({
+          status: true,
+          ...data,
         });
       }
     } catch (error) {

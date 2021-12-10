@@ -1,4 +1,11 @@
-const { appointment_schedule: Schedule } = require("../models");
+const {
+  appointment_schedule: Schedule,
+  appointments: Appointment,
+  appointment_settings: Setting,
+  Sequelize,
+} = require("../models");
+const Op = Sequelize.Op;
+
 const moment = require("moment");
 
 module.exports = (function () {
@@ -44,10 +51,7 @@ module.exports = (function () {
       }
     } catch (error) {
       console.log("error: upsertAppointmentSchedule ", error);
-      return {
-        success: false,
-        data: error,
-      };
+      throw error;
     }
   };
 
@@ -67,15 +71,23 @@ module.exports = (function () {
       };
     }
   };
+  const DATE_FORMAT = "DD/MM/YYYY";
+  const TIME_FORMAT = "LT";
 
   this.getAppointmentSlots = async ({ fromDate, toDate, speciality }) => {
     let schedules = await Schedule.findAll({
       where: { speciality },
       raw: true,
     });
-    const DATE_FORMAT = "DD/MM/YYYY";
-    const TIME_FORMAT = "LT";
-    const SLOT_MINUTES = 30;
+    let setting = await Setting.findOne({ where: {}, raw: true });
+    // console.log("setting: ", setting);
+
+    const SLOT_DURATION =
+      setting && setting.slotDuration ? setting.slotDuration : 30;
+    const SLOT_DURATION_UNIT =
+      setting && setting.slotDurationUnit
+        ? setting.slotDurationUnit
+        : "minutes";
     let dates = [];
     try {
       if (schedules.length) {
@@ -97,7 +109,6 @@ module.exports = (function () {
           };
         });
 
-        let daysToSchedule = [];
         schedules.forEach((schedule) => {
           const slots = schedule.slotSchedule.filter(
             (s) => s.startTime && s.endTime
@@ -106,9 +117,7 @@ module.exports = (function () {
           schedule.daysToSchedule = days.filter((d) =>
             slotDays.includes(d.day)
           );
-          console.log("schedule: ", schedule);
           schedule.daysToSchedule.forEach((slot) => {
-            console.log("slot: ", slot);
             const slotSchedule = slots.find((s) => s.day === slot.day);
             if (slotSchedule) {
               const { startTime, endTime } = slotSchedule;
@@ -119,23 +128,74 @@ module.exports = (function () {
                   dates.push({
                     slotDay: slot.day,
                     slotDate: slot.normDate,
-                    slotDuration: SLOT_MINUTES,
-                    slotDurationUnit: "minutes",
+                    slotDuration: SLOT_DURATION,
+                    slotDurationUnit: SLOT_DURATION_UNIT,
                     slotTime: now.format(TIME_FORMAT),
                     speciality: schedule.speciality,
                     userUuid: schedule.userUuid,
                     drName: schedule.drName,
                   });
                 }
-                now.add(SLOT_MINUTES, "minutes");
+                now.add(SLOT_DURATION, SLOT_DURATION_UNIT);
               }
             }
           });
         });
-        console.log("schedules: ", schedules);
+        const appointments = await Appointment.findAll({
+          where: {
+            speciality,
+            slotJsDate: {
+              [Op.between]: [
+                moment(fromDate, DATE_FORMAT).format(),
+                moment(toDate, DATE_FORMAT).format(),
+              ],
+            },
+          },
+          raw: true,
+        });
+        if(appointments){
+
+        }
+        console.log("appointments: ", appointments);
       }
 
       return { dates };
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  this.bookAppointment = async (params) => {
+    const {
+      slotDay,
+      slotDate,
+      slotDuration,
+      slotDurationUnit,
+      slotTime,
+      speciality,
+      userUuid,
+      drName,
+      visitUuid,
+      patientId,
+    } = params;
+    try {
+      const data = await Appointment.create({
+        slotDay,
+        slotDate,
+        slotDuration,
+        slotDurationUnit,
+        slotTime,
+        speciality,
+        userUuid,
+        drName,
+        visitUuid,
+        patientId,
+        status: "booked",
+        slotJsDate: moment(slotDate, DATE_FORMAT).format(),
+      });
+      return {
+        data: data.toJSON(),
+      };
     } catch (error) {
       throw error;
     }

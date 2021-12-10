@@ -16,6 +16,7 @@ module.exports = (sequelize, DataTypes) => {
   appointments.init({
     slotDay: DataTypes.STRING,
     slotDate: DataTypes.STRING,
+    slotJsDate: DataTypes.DATE,
     slotDuration: DataTypes.INTEGER,
     slotDurationUnit: DataTypes.STRING,
     slotTime: DataTypes.STRING,
@@ -23,7 +24,8 @@ module.exports = (sequelize, DataTypes) => {
     userUuid: DataTypes.STRING,
     drName: DataTypes.STRING,
     visitUuid: DataTypes.STRING,
-    patientId: DataTypes.STRING
+    patientId: DataTypes.STRING,
+    status: DataTypes.STRING
   }, {
     sequelize,
     modelName: 'appointments',
