@@ -4,6 +4,7 @@ const {
   upsertAppointmentSchedule,
   getAppointmentSlots,
   bookAppointment,
+  getUserSlots,
 } = require("../services/appointment.service");
 
 module.exports = (function () {
@@ -41,6 +42,26 @@ module.exports = (function () {
         status: true,
         data,
       });
+    } catch (error) {
+      console.log("error: ", error);
+      next(error);
+    }
+  };
+
+  this.getUserSlots = async (req, res, next) => {
+    try {
+      const keysAndTypeToCheck = [
+        { key: "fromDate", type: "string" },
+        { key: "toDate", type: "string" },
+      ];
+      if (validateParams(req.query, keysAndTypeToCheck)) {
+        const userUuid = req.params.userUuid;
+        const data = await getUserSlots({ ...req.query, userUuid });
+        res.json({
+          status: true,
+          data,
+        });
+      }
     } catch (error) {
       console.log("error: ", error);
       next(error);

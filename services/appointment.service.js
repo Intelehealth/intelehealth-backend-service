@@ -74,6 +74,26 @@ module.exports = (function () {
   const DATE_FORMAT = "DD/MM/YYYY";
   const TIME_FORMAT = "LT";
 
+  this.getUserSlots = async ({ userUuid, fromDate, toDate }) => {
+    try {
+      const data = await Appointment.findAll({
+        where: {
+          userUuid,
+          slotJsDate: {
+            [Op.between]: [
+              moment(fromDate, DATE_FORMAT).format(),
+              moment(toDate, DATE_FORMAT).format(),
+            ],
+          },
+        },
+        raw: true,
+      });
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  };
+
   this.getAppointmentSlots = async ({ fromDate, toDate, speciality }) => {
     let schedules = await Schedule.findAll({
       where: { speciality },
