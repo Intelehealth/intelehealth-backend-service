@@ -153,10 +153,20 @@ module.exports = (function () {
           },
           raw: true,
         });
-        if(appointments){
-
+        if (appointments) {
+          appointments.forEach((apnmt) => {
+            const dateIdx = dates.findIndex(
+              (d) =>
+                d.slotTime === apnmt.slotTime &&
+                d.slotDate === apnmt.slotDate &&
+                d.slotDay === apnmt.slotDay &&
+                d.userUuid === apnmt.userUuid
+            );
+            if (dateIdx != -1) {
+              dates.splice(dateIdx, 1);
+            }
+          });
         }
-        console.log("appointments: ", appointments);
       }
 
       return { dates };
