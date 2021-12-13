@@ -98,6 +98,8 @@ module.exports = (function () {
         { key: "userUuid", type: "string" },
         { key: "drName", type: "string" },
         { key: "visitUuid", type: "string" },
+        { key: "patientName", type: "string" },
+        { key: "openMrsId", type: "string" },
       ];
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await bookAppointment(req.body);

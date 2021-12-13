@@ -35,6 +35,12 @@ module.exports = {
       visitUuid: {
         type: Sequelize.STRING,
       },
+      patientName: {
+        type: Sequelize.STRING,
+      },
+      openMrsId: {
+        type: Sequelize.STRING,
+      },
       patientId: {
         type: Sequelize.STRING,
       },

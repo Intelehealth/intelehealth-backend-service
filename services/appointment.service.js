@@ -207,6 +207,8 @@ module.exports = (function () {
       drName,
       visitUuid,
       patientId,
+      openMrsId,
+      patientName,
     } = params;
     try {
       const data = await Appointment.create({
@@ -221,6 +223,8 @@ module.exports = (function () {
         visitUuid,
         patientId,
         status: "booked",
+        openMrsId,
+        patientName,
         slotJsDate: moment(slotDate, DATE_FORMAT).format(),
       });
       return {
