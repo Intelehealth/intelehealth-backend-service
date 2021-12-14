@@ -242,7 +242,7 @@ module.exports = (function () {
   };
 
   this.cancelAppointment = async (visitUuid) => {
-    const appointment = await Appointment.findOne({ visitUuid });
+    const appointment = await Appointment.findOne({ where: { visitUuid } });
     if (appointment) {
       appointment.update({ status: "cancelled" });
       return {
