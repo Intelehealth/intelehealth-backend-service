@@ -241,7 +241,7 @@ module.exports = (function () {
     }
   };
 
-  this.cancelAppointment = async ({ visitUuid   }) => {
+  this.cancelAppointment = async ({ visitUuid }) => {
     const appointment = await Appointment.findOne({ where: { visitUuid } });
     if (appointment) {
       appointment.update({ status: "cancelled" });
@@ -255,6 +255,10 @@ module.exports = (function () {
         message: "Appointment not found this visit uuid!",
       };
     }
+  };
+
+  this.getAppointment = async ({ visitUuid }) => {
+    return await Appointment.findOne({ where: { visitUuid } });
   };
 
   return this;

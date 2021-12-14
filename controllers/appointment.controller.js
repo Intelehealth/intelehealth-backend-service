@@ -6,6 +6,7 @@ const {
   bookAppointment,
   getUserSlots,
   cancelAppointment,
+  getAppointment,
 } = require("../services/appointment.service");
 
 module.exports = (function () {
@@ -120,6 +121,18 @@ module.exports = (function () {
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await cancelAppointment(req.body);
         res.json(data);
+      }
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  this.getAppointment = async (req, res, next) => {
+    try {
+      const keysAndTypeToCheck = [{ key: "visitUuid", type: "string" }];
+      if (validateParams(req.params, keysAndTypeToCheck)) {
+        const data = await getAppointment(req.params);
+        res.json({ status: true, data });
       }
     } catch (error) {
       next(error);
