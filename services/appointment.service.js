@@ -85,6 +85,7 @@ module.exports = (function () {
               moment(toDate, DATE_FORMAT).format(),
             ],
           },
+          status: "booked",
         },
         raw: true,
       });
@@ -137,6 +138,10 @@ module.exports = (function () {
           schedule.daysToSchedule = days.filter((d) =>
             slotDays.includes(d.day)
           );
+
+          // const daysToSchedule = schedule.daysToSchedule.filter((d) => {
+          //   return days.map((d) => d.normDate);
+          // });
           schedule.daysToSchedule.forEach((slot) => {
             const slotSchedule = slots.find((s) => s.day === slot.day);
             if (slotSchedule) {
@@ -170,6 +175,7 @@ module.exports = (function () {
                 moment(toDate, DATE_FORMAT).format(),
               ],
             },
+            status: "booked",
           },
           raw: true,
         });
@@ -232,6 +238,22 @@ module.exports = (function () {
       };
     } catch (error) {
       throw error;
+    }
+  };
+
+  this.cancelAppointment = async (visitUuid) => {
+    const appointment = await Appointment.findOne({ visitUuid });
+    if (appointment) {
+      appointment.update({ status: "cancelled" });
+      return {
+        status: true,
+        message: "Appointment cancelled successfully!",
+      };
+    } else {
+      return {
+        success: false,
+        message: "Appointment not found this visit uuid!",
+      };
     }
   };
 
