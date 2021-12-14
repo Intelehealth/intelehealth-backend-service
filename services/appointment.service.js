@@ -258,7 +258,9 @@ module.exports = (function () {
   };
 
   this.getAppointment = async ({ visitUuid }) => {
-    return await Appointment.findOne({ where: { visitUuid } });
+    return await Appointment.findOne({
+      where: { visitUuid, status: "booked" },
+    });
   };
 
   return this;
