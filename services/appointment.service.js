@@ -251,7 +251,7 @@ module.exports = (function () {
       };
     } else {
       return {
-        success: false,
+        status: false,
         message: "Appointment not found this visit uuid!",
       };
     }

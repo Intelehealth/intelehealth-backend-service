@@ -119,10 +119,7 @@ module.exports = (function () {
       const keysAndTypeToCheck = [{ key: "visitUuid", type: "string" }];
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await cancelAppointment(req.body);
-        res.json({
-          status: true,
-          ...data,
-        });
+        res.json(data);
       }
     } catch (error) {
       next(error);
