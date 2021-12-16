@@ -241,8 +241,9 @@ module.exports = (function () {
     }
   };
 
-  this.cancelAppointment = async ({ visitUuid }) => {
-    const appointment = await Appointment.findOne({ where: { visitUuid } });
+  this.cancelAppointment = async (params) => {
+    const { id, visitUuid } = params;
+    const appointment = await Appointment.findOne({ where: { id: id, visitUuid: visitUuid} });
     if (appointment) {
       appointment.update({ status: "cancelled" });
       return {

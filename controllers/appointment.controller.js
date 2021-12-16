@@ -117,7 +117,10 @@ module.exports = (function () {
 
   this.cancelAppointment = async (req, res, next) => {
     try {
-      const keysAndTypeToCheck = [{ key: "visitUuid", type: "string" }];
+      const keysAndTypeToCheck = [
+        { key: "id", type: "number" },
+        { key: "visitUuid", type: "string" }
+      ];
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await cancelAppointment(req.body);
         res.json(data);
