@@ -110,6 +110,7 @@ module.exports = (function () {
         ? setting.slotDurationUnit
         : "minutes";
     let dates = [];
+    let uniqueTimeSlots = [];
     try {
       if (schedules.length) {
         const startDate = moment(fromDate, DATE_FORMAT);
@@ -192,10 +193,18 @@ module.exports = (function () {
               dates.splice(dateIdx, 1);
             }
           });
+          dates.forEach((slot) => {
+            const slt = uniqueTimeSlots.find(
+              (us) => us.slotTime === slot.slotTime
+            );
+            if (!slt) {
+              uniqueTimeSlots.push(slot);
+            }
+          });
         }
       }
 
-      return { dates };
+      return { dates: uniqueTimeSlots };
     } catch (error) {
       throw error;
     }
