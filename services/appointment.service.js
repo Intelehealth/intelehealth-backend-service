@@ -122,11 +122,11 @@ module.exports = (function () {
         }
         daysDiff++;
         const days = Array.from({ length: daysDiff }).map((day) => {
-          const date = startDate.add(1, "days");
+          // const date = startDate.add(1, "days");
           return {
             day: startDate.format("dddd"),
-            date,
-            normDate: date.format(DATE_FORMAT),
+            date: startDate,
+            normDate: startDate.format(DATE_FORMAT),
           };
         });
 
@@ -243,7 +243,9 @@ module.exports = (function () {
 
   this.cancelAppointment = async (params) => {
     const { id, visitUuid } = params;
-    const appointment = await Appointment.findOne({ where: { id: id, visitUuid: visitUuid} });
+    const appointment = await Appointment.findOne({
+      where: { id: id, visitUuid: visitUuid },
+    });
     if (appointment) {
       appointment.update({ status: "cancelled" });
       return {
