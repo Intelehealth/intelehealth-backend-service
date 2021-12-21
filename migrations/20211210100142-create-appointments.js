@@ -35,6 +35,9 @@ module.exports = {
       locationUuid: {
         type: Sequelize.STRING,
       },
+      hwUUID: {
+        type: Sequelize.STRING,
+      },
       visitUuid: {
         type: Sequelize.STRING,
       },

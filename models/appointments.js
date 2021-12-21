@@ -26,6 +26,7 @@ module.exports = (sequelize, DataTypes) => {
     visitUuid: DataTypes.STRING,
     patientId: DataTypes.STRING,
     locationUuid: DataTypes.STRING,
+    hwUUID: DataTypes.STRING,
     patientName: DataTypes.STRING,
     openMrsId: DataTypes.STRING,
     status: DataTypes.STRING

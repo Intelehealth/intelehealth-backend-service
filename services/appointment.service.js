@@ -73,6 +73,14 @@ module.exports = (function () {
   };
   const DATE_FORMAT = "DD/MM/YYYY";
   const TIME_FORMAT = "LT";
+  const FILTER_TIME_DATE_FORMAT = "DD/MM/YYYY HH:mm:ss";
+
+  this.getFilterDates = (fromDate, toDate) => {
+    return [
+      moment.utc(`${fromDate} 00:00:00`, FILTER_TIME_DATE_FORMAT).format(),
+      moment.utc(`${toDate} 23:59:59`, FILTER_TIME_DATE_FORMAT).format(),
+    ];
+  };
 
   this.getUserSlots = async ({ userUuid, fromDate, toDate }) => {
     try {
@@ -80,10 +88,7 @@ module.exports = (function () {
         where: {
           userUuid,
           slotJsDate: {
-            [Op.between]: [
-              moment(fromDate, DATE_FORMAT).format(),
-              moment(toDate, DATE_FORMAT).format(),
-            ],
+            [Op.between]: this.getFilterDates(fromDate, toDate),
           },
           status: "booked",
         },
@@ -101,10 +106,7 @@ module.exports = (function () {
         where: {
           locationUuid,
           slotJsDate: {
-            [Op.between]: [
-              moment(fromDate, DATE_FORMAT).format(),
-              moment(toDate, DATE_FORMAT).format(),
-            ],
+            [Op.between]: this.getFilterDates(fromDate, toDate),
           },
           status: "booked",
         },
@@ -192,15 +194,13 @@ module.exports = (function () {
           where: {
             speciality,
             slotJsDate: {
-              [Op.between]: [
-                moment(fromDate, DATE_FORMAT).format(),
-                moment(toDate, DATE_FORMAT).format(),
-              ],
+              [Op.between]: this.getFilterDates(fromDate, toDate),
             },
             status: "booked",
           },
           raw: true,
         });
+
         if (appointments) {
           appointments.forEach((apnmt) => {
             const dateIdx = dates.findIndex(
@@ -246,8 +246,23 @@ module.exports = (function () {
       openMrsId,
       patientName,
       locationUuid,
+      hwUUID,
     } = params;
     try {
+      const apnmt = await Appointment.findOne({
+        where: {
+          slotDay,
+          slotTime,
+          speciality,
+          userUuid,
+          status: "booked",
+        },
+        raw: true,
+      });
+      if (apnmt) {
+        throw new Error("Appointment not available, it's already booked.");
+      }
+
       const data = await Appointment.create({
         slotDay,
         slotDate,
@@ -263,6 +278,7 @@ module.exports = (function () {
         openMrsId,
         patientName,
         locationUuid,
+        hwUUID,
         slotJsDate: moment(
           `${slotDate} ${slotTime}`,
           "DD/MM/YYYY HH:mm A"
