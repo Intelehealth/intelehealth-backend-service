@@ -27,8 +27,8 @@ console.log("cronString: isValid: ", isValid);
 
 const sendAppointmentNotification = async () => {
   console.log("sendAppointmentNotification : cron running");
-  const startDate = moment().format(SQL_DATE_FORMAT);
-  const endDate = moment().subtract(1, "minutes").format(SQL_DATE_FORMAT);
+  const startDate = moment.utc().subtract(1, "minutes").format(SQL_DATE_FORMAT);
+  const endDate = moment.utc().format(SQL_DATE_FORMAT);
   const query = `SELECT
   a.slotDate,
   a.slotJsDate,
@@ -46,11 +46,12 @@ const sendAppointmentNotification = async () => {
   s.notification_object as webpush_obj
   FROM
   appointments a
-      LEFT JOIN pushnotification s ON a.userUuid = s.user_uuid
+  INNER JOIN pushnotification s ON a.userUuid = s.user_uuid
   WHERE
   a.slotJsDate BETWEEN '${startDate}'
   AND '${endDate}'
   AND a.status = 'booked';`;
+  console.log("query: ", query);
 
   const data = await new Promise((resolve, reject) => {
     mysql.query(query, (err, results) => {
@@ -61,6 +62,7 @@ const sendAppointmentNotification = async () => {
       resolve(results);
     });
   });
+  console.log("data: ", data);
   for (let i = 0; i < data.length; i++) {
     const schedule = data[i];
     if (schedule.webpush_obj) {

@@ -263,7 +263,10 @@ module.exports = (function () {
         openMrsId,
         patientName,
         locationUuid,
-        slotJsDate: moment(slotDate, DATE_FORMAT).format(),
+        slotJsDate: moment(
+          `${slotDate} ${slotTime}`,
+          "DD/MM/YYYY HH:mm A"
+        ).format(),
       });
       return {
         data: data.toJSON(),
