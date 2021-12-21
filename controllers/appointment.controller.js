@@ -7,6 +7,7 @@ const {
   getUserSlots,
   cancelAppointment,
   getAppointment,
+  getSlots,
 } = require("../services/appointment.service");
 
 module.exports = (function () {
@@ -69,6 +70,25 @@ module.exports = (function () {
       next(error);
     }
   };
+  this.getSlots = async (req, res, next) => {
+    try {
+      const keysAndTypeToCheck = [
+        { key: "fromDate", type: "string" },
+        { key: "toDate", type: "string" },
+        { key: "locationUuid", type: "string" },
+      ];
+      if (validateParams(req.query, keysAndTypeToCheck)) {
+        const data = await getSlots(req.query);
+        res.json({
+          status: true,
+          data,
+        });
+      }
+    } catch (error) {
+      console.log("error: ", error);
+      next(error);
+    }
+  };
 
   this.getAppointmentSlots = async (req, res, next) => {
     try {
@@ -100,6 +120,7 @@ module.exports = (function () {
         { key: "userUuid", type: "string" },
         { key: "drName", type: "string" },
         { key: "visitUuid", type: "string" },
+        { key: "locationUuid", type: "string" },
         { key: "patientName", type: "string" },
         { key: "openMrsId", type: "string" },
       ];
@@ -119,7 +140,7 @@ module.exports = (function () {
     try {
       const keysAndTypeToCheck = [
         { key: "id", type: "number" },
-        { key: "visitUuid", type: "string" }
+        { key: "visitUuid", type: "string" },
       ];
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await cancelAppointment(req.body);

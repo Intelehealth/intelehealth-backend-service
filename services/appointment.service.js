@@ -95,6 +95,27 @@ module.exports = (function () {
     }
   };
 
+  this.getSlots = async ({ locationUuid, fromDate, toDate }) => {
+    try {
+      const data = await Appointment.findAll({
+        where: {
+          locationUuid,
+          slotJsDate: {
+            [Op.between]: [
+              moment(fromDate, DATE_FORMAT).format(),
+              moment(toDate, DATE_FORMAT).format(),
+            ],
+          },
+          status: "booked",
+        },
+        raw: true,
+      });
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  };
+
   this.getAppointmentSlots = async ({ fromDate, toDate, speciality }) => {
     let schedules = await Schedule.findAll({
       where: { speciality },
@@ -224,6 +245,7 @@ module.exports = (function () {
       patientId,
       openMrsId,
       patientName,
+      locationUuid,
     } = params;
     try {
       const data = await Appointment.create({
@@ -240,6 +262,7 @@ module.exports = (function () {
         status: "booked",
         openMrsId,
         patientName,
+        locationUuid,
         slotJsDate: moment(slotDate, DATE_FORMAT).format(),
       });
       return {
