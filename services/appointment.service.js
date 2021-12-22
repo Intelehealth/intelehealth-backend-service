@@ -412,13 +412,13 @@ where
           toDate,
           speciality,
         });
-        // await this._cancelAppointment(appointment);
+        await this._cancelAppointment(appointment);
         if (dates.length) {
           let apnmtData = { ...apnmt, ...dates[0] };
           ["id", "createdAt", "updatedAt", "slotJsDate"].forEach((key) => {
             delete apnmtData[key];
           });
-          // this._bookAppointment(apnmtData);
+          this._bookAppointment(apnmtData);
         }
         sendCancelNotification(apnmt);
       });
