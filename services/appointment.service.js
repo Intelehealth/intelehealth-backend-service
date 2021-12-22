@@ -298,6 +298,16 @@ where
     try {
       const apnmt = await Appointment.findOne({
         where: {
+          slotDay,
+          slotTime,
+          speciality,
+          userUuid,
+          status: "booked",
+        },
+        raw: true,
+      });
+      const apnmt = await Appointment.findOne({
+        where: {
           visitUuid,
           status: "booked",
         },
@@ -305,6 +315,17 @@ where
       });
       if (apnmt) {
         throw new Error("Appointment not available, it's already booked.");
+      }
+
+      const visitApnmt = await Appointment.findOne({
+        where: {
+          visitUuid,
+          status: "booked",
+        },
+        raw: true,
+      });
+      if (visitApnmt) {
+        throw new Error("Appointment for this visit is already present.");
       }
 
       const data = await Appointment.create({
