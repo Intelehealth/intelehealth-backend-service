@@ -1,6 +1,42 @@
 const gcm = require("node-gcm");
+const mysql = require("../public/javascripts/mysql/mysql");
+const webpush = require("web-push");
 
 module.exports = (function () {
+  const vapidKeys = {
+    // unicef production
+    // publicKey:
+    //   "BCGfng5flfhjlqR_imzFXwHGeEMBA6AzFVAex7sPLDbsMCn_IMKtQmI9TDnmP6raxmPcBcnoKO_AHKaLtctsIjg",
+    // privateKey: "85omZfgs39Tt2R5JwB3sCkgYlSQd5mV-iAsTEz8lEoQ",
+    // unicef training
+    publicKey:
+      "BPahLgBCajrPyOkLGQuFf5sEtuX1pXRckn6bmW5nNrxy-5QM9uJ6JPM5sp_wuaJl1jNOylgcUxLJdOJtGIGEreo",
+    privateKey: "D3xqo6aJ-Z8YNN03zMbmTexDUpNK2GCUVSmb6FM-FeE",
+    mailTo: "mailto:support@intelehealth.org",
+  };
+  webpush.setVapidDetails(
+    vapidKeys.mailTo,
+    vapidKeys.publicKey,
+    vapidKeys.privateKey
+  );
+
+  this.sendWebPushNotificaion = async ({ webpush_obj, title, body }) => {
+    webpush
+      .sendNotification(
+        JSON.parse(webpush_obj),
+        JSON.stringify({
+          notification: {
+            title,
+            body,
+            vibrate: [100, 50, 100],
+          },
+        })
+      )
+      .catch((error) => {
+        console.log("appointment notification error", error);
+      });
+  };
+
   this.validateParams = (params, keysAndTypeToCheck = []) => {
     try {
       keysAndTypeToCheck.forEach((obj) => {
@@ -84,5 +120,24 @@ module.exports = (function () {
   this.RES = (res, data, statusCode = 200) => {
     res.status(statusCode).json(data);
   };
+
+  this.asyncForEach = async function (array, callback) {
+    for (let index = 0; index < array.length; index++) {
+      await callback(array[index], index, array);
+    }
+  };
+
+  this.getDataFromQuery = (query) => {
+    return new Promise((resolve, reject) => {
+      mysql.query(query, (err, results) => {
+        if (err) {
+          console.log("err: ", err);
+          reject(err.message);
+        }
+        resolve(results);
+      });
+    });
+  };
+
   return this;
 })();

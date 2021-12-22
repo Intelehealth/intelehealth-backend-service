@@ -2,10 +2,10 @@ const { validateParams } = require("../handlers/helper");
 const {
   getUserAppointmentSchedule,
   upsertAppointmentSchedule,
-  getAppointmentSlots,
-  bookAppointment,
+  _getAppointmentSlots,
+  _bookAppointment,
   getUserSlots,
-  cancelAppointment,
+  _cancelAppointment,
   getAppointment,
   getSlots,
 } = require("../services/appointment.service");
@@ -98,7 +98,7 @@ module.exports = (function () {
         { key: "speciality", type: "string" },
       ];
       if (validateParams(req.query, keysAndTypeToCheck)) {
-        const data = await getAppointmentSlots(req.query);
+        const data = await _getAppointmentSlots(req.query);
         res.json({
           status: true,
           ...data,
@@ -126,7 +126,7 @@ module.exports = (function () {
         { key: "hwUUID", type: "string" },
       ];
       if (validateParams(req.body, keysAndTypeToCheck)) {
-        const data = await bookAppointment(req.body);
+        const data = await _bookAppointment(req.body);
         res.json({
           status: true,
           ...data,
@@ -144,7 +144,7 @@ module.exports = (function () {
         { key: "visitUuid", type: "string" },
       ];
       if (validateParams(req.body, keysAndTypeToCheck)) {
-        const data = await cancelAppointment(req.body);
+        const data = await _cancelAppointment(req.body);
         res.json(data);
       }
     } catch (error) {

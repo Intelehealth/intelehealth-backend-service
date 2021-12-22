@@ -1,35 +1,16 @@
 const cron = require("node-cron");
 const moment = require("moment");
 const mysql = require("./public/javascripts/mysql/mysql");
-const webpush = require("web-push");
+const { sendWebPushNotificaion } = require("./handlers/helper");
 
 const cronString = "*/1 * * * *";
 const SQL_DATE_FORMAT = "YYYY-MM-DD HH:mm:ss";
-const vapidKeys = {
-  // unicef production
-  // publicKey:
-  //   "BCGfng5flfhjlqR_imzFXwHGeEMBA6AzFVAex7sPLDbsMCn_IMKtQmI9TDnmP6raxmPcBcnoKO_AHKaLtctsIjg",
-  // privateKey: "85omZfgs39Tt2R5JwB3sCkgYlSQd5mV-iAsTEz8lEoQ",
-  // unicef training
-  publicKey:
-    "BPahLgBCajrPyOkLGQuFf5sEtuX1pXRckn6bmW5nNrxy-5QM9uJ6JPM5sp_wuaJl1jNOylgcUxLJdOJtGIGEreo",
-  privateKey: "D3xqo6aJ-Z8YNN03zMbmTexDUpNK2GCUVSmb6FM-FeE",
-  mailTo: "mailto:support@intelehealth.org",
-};
-webpush.setVapidDetails(
-  vapidKeys.mailTo,
-  vapidKeys.publicKey,
-  vapidKeys.privateKey
-);
 
 const isValid = cron.validate(cronString);
 console.log("cronString: isValid: ", isValid);
 
-const sendAppointmentNotification = async () => {
-  console.log("sendAppointmentNotification : cron running");
-  const startDate = moment.utc().subtract(1, "minutes").format(SQL_DATE_FORMAT);
-  const endDate = moment.utc().format(SQL_DATE_FORMAT);
-  const query = `SELECT
+const getQuery = (startDate, endDate) => {
+  return `SELECT
   a.slotDate,
   a.slotJsDate,
   a.slotDuration,
@@ -51,9 +32,12 @@ const sendAppointmentNotification = async () => {
   a.slotJsDate BETWEEN '${startDate}'
   AND '${endDate}'
   AND a.status = 'booked';`;
+};
+
+const queryAndSendNotification = async (query) => {
   console.log("query: ", query);
 
-  const data = await new Promise((resolve, reject) => {
+  new Promise((resolve, reject) => {
     mysql.query(query, (err, results) => {
       if (err) {
         console.log("err: ", err);
@@ -61,29 +45,39 @@ const sendAppointmentNotification = async () => {
       }
       resolve(results);
     });
-  });
-  console.log("data: ", data);
-  for (let i = 0; i < data.length; i++) {
-    const schedule = data[i];
-    if (schedule.webpush_obj) {
-      const title = `Appointment Reminder(${schedule.slotTime}): ${schedule.patientName}`;
-      console.log("title: ", title);
-      webpush
-        .sendNotification(
-          JSON.parse(schedule.webpush_obj),
-          JSON.stringify({
-            notification: {
-              title,
-              body: schedule.openMrsId,
-              vibrate: [100, 50, 100],
-            },
-          })
-        )
-        .catch((error) => {
-          console.log("appointment notification ", error);
+  }).then((data) => {
+    console.log("data: ", data);
+    for (let i = 0; i < data.length; i++) {
+      const schedule = data[i];
+      if (schedule.webpush_obj) {
+        const title = `Appointment Reminder(${schedule.slotTime}): ${schedule.patientName}`;
+        console.log("title: ", title);
+        sendWebPushNotificaion({
+          webpush_obj: schedule.webpush_obj,
+          title,
+          body: schedule.openMrsId,
         });
+      }
     }
-  }
+  });
+};
+
+const sendAppointmentNotification = async () => {
+  console.log("sendAppointmentNotification : cron running");
+  // trigger 15 mins before
+  const earlyNotificationQuery = getQuery(
+    moment.utc().subtract(15, "minutes").format(SQL_DATE_FORMAT),
+    moment.utc().subtract(14, "minutes").format(SQL_DATE_FORMAT)
+  );
+  queryAndSendNotification(earlyNotificationQuery);
+
+  // trigger 1 mins before
+  const query = getQuery(
+    moment.utc().subtract(1, "minutes").format(SQL_DATE_FORMAT),
+    moment.utc().format(SQL_DATE_FORMAT)
+  );
+
+  queryAndSendNotification(query);
 };
 
 cron.schedule(cronString, sendAppointmentNotification, {

@@ -7,8 +7,48 @@ const {
 const Op = Sequelize.Op;
 
 const moment = require("moment");
+const { asyncForEach, getDataFromQuery } = require("../handlers/helper");
 
 module.exports = (function () {
+  const DATE_FORMAT = "DD/MM/YYYY";
+  const TIME_FORMAT = "LT";
+  const FILTER_TIME_DATE_FORMAT = "DD/MM/YYYY HH:mm:ss";
+
+  const sendCancelNotification = async ({ id, slotTime, patientName }) => {
+    const query = `
+    select
+    a.id,
+    u.device_reg_token as token
+from
+    appointments a
+    INNER JOIN user_settings u ON u.user_uuid = a.hwUUID
+where
+    a.id = ${id};`;
+    try {
+      const data = await getDataFromQuery(query);
+      if (data && data.length) {
+        const { token } = data[0];
+        if (token) {
+          const response = await sendCloudNotification({
+            title: `Appointment for ${patientName}(${slotTime}) has been cancelled.`,
+            body: `Reason : Due to doctor's change in schedule.`,
+            data: {},
+            regTokens: [token],
+          }).catch((err) => {
+            console.log("err:12 ", err);
+          });
+          console.log("response:sendCancelNotification ", response);
+        }
+      }
+    } catch (error) {
+      console.log("error:sendCancelNotification ", error);
+    }
+  };
+
+  const getTodayDate = () => {
+    return this.getFilterDates(moment().format("DD/MM/YYYY"), null)[0];
+  };
+
   /**
    * Create & updates a schedule if already exist for userUuid
    * @param {string} userUuid
@@ -33,10 +73,14 @@ module.exports = (function () {
       if (slotSchedule) update.slotSchedule = slotSchedule;
       if (slotSchedule) update.drName = drName;
       if (schedule) {
-        return {
+        const resp = {
           message: "Appointment updated successfully",
           data: await Schedule.update(update, { where: { userUuid } }),
         };
+
+        await this.rescheduleOrCancelAppointment(userUuid);
+
+        return resp;
       } else {
         return {
           message: "Appointment created successfully",
@@ -71,9 +115,6 @@ module.exports = (function () {
       };
     }
   };
-  const DATE_FORMAT = "DD/MM/YYYY";
-  const TIME_FORMAT = "LT";
-  const FILTER_TIME_DATE_FORMAT = "DD/MM/YYYY HH:mm:ss";
 
   this.getFilterDates = (fromDate, toDate) => {
     return [
@@ -118,7 +159,12 @@ module.exports = (function () {
     }
   };
 
-  this.getAppointmentSlots = async ({ fromDate, toDate, speciality }) => {
+  this._getAppointmentSlots = async ({
+    fromDate,
+    toDate,
+    speciality,
+    returnAllSlots = false,
+  }) => {
     let schedules = await Schedule.findAll({
       where: { speciality },
       raw: true,
@@ -200,6 +246,7 @@ module.exports = (function () {
           },
           raw: true,
         });
+        if (returnAllSlots) return dates;
 
         if (appointments) {
           appointments.forEach((apnmt) => {
@@ -231,7 +278,7 @@ module.exports = (function () {
     }
   };
 
-  this.bookAppointment = async (params) => {
+  this._bookAppointment = async (params) => {
     const {
       slotDay,
       slotDate,
@@ -292,7 +339,7 @@ module.exports = (function () {
     }
   };
 
-  this.cancelAppointment = async (params) => {
+  this._cancelAppointment = async (params) => {
     const { id, visitUuid } = params;
     const appointment = await Appointment.findOne({
       where: { id: id, visitUuid: visitUuid },
@@ -315,6 +362,67 @@ module.exports = (function () {
     return await Appointment.findOne({
       where: { visitUuid, status: "booked" },
     });
+  };
+
+  this.rescheduleOrCancelAppointment = async (userUuid) => {
+    const todayDate = getTodayDate();
+    const data = await Appointment.findAll({
+      where: {
+        userUuid,
+        slotJsDate: {
+          [Op.gte]: todayDate,
+        },
+        status: "booked",
+      },
+      order: [["slotJsDate", "DESC"]],
+      raw: true,
+    });
+
+    if (data && data.length) {
+      const [firstSlot] = data;
+      const appointments = await this._getAppointmentSlots({
+        fromDate: moment().format(DATE_FORMAT),
+        toDate: firstSlot.slotDate,
+        speciality: firstSlot.speciality,
+        returnAllSlots: true,
+      });
+      console.log("appointments: ", appointments);
+      const currDrSlots = appointments.filter((a) => a.userUuid === userUuid);
+      console.log("currDrSlots: ", currDrSlots);
+      currDrSlots.forEach((apnmt) => {
+        const dateIdx = data.findIndex(
+          (d) =>
+            d.slotTime === apnmt.slotTime &&
+            d.slotDate === apnmt.slotDate &&
+            d.slotDay === apnmt.slotDay &&
+            d.userUuid === apnmt.userUuid
+        );
+        if (dateIdx != -1) {
+          data.splice(dateIdx, 1);
+        }
+      });
+      console.log("data: ", data);
+
+      asyncForEach(data, async (apnmt) => {
+        const appointment = { ...apnmt };
+        const { speciality, slotDate } = apnmt;
+        const fromDate = (toDate = slotDate);
+        const { dates } = await this._getAppointmentSlots({
+          fromDate,
+          toDate,
+          speciality,
+        });
+        // await this._cancelAppointment(appointment);
+        if (dates.length) {
+          let apnmtData = { ...apnmt, ...dates[0] };
+          ["id", "createdAt", "updatedAt", "slotJsDate"].forEach((key) => {
+            delete apnmtData[key];
+          });
+          // this._bookAppointment(apnmtData);
+        }
+        sendCancelNotification(apnmt);
+      });
+    }
   };
 
   return this;
