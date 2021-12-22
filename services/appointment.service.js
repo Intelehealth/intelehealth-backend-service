@@ -298,10 +298,7 @@ where
     try {
       const apnmt = await Appointment.findOne({
         where: {
-          slotDay,
-          slotTime,
-          speciality,
-          userUuid,
+          visitUuid,
           status: "booked",
         },
         raw: true,
