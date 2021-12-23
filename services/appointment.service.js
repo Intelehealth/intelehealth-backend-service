@@ -27,22 +27,19 @@ where
     try {
       const data = await getDataFromQuery(query);
       if (data && data.length) {
-        const { token } = data[0];
-        if (token) {
-          const response = await sendCloudNotification({
-            title: `Appointment for ${patientName}(${slotTime}) has been cancelled.`,
-            body: `Reason : Due to doctor's change in schedule.`,
-            data: {},
-            regTokens: [token],
-          }).catch((err) => {
-            console.log("err:12 ", err);
-          });
-          console.log("response:sendCancelNotification ", response);
-        }
+        asyncForEach(data, async (item) => {
+          const { token } = item;
+          if (token) {
+            await sendCloudNotification({
+              title: `Appointment for ${patientName}(${slotTime}) has been cancelled.`,
+              body: `Reason : Due to doctor's change in schedule.`,
+              data: {},
+              regTokens: [token],
+            }).catch((err) => {});
+          }
+        });
       }
-    } catch (error) {
-      console.log("error:sendCancelNotification ", error);
-    }
+    } catch (error) {}
   };
 
   const getTodayDate = () => {
@@ -94,7 +91,6 @@ where
         };
       }
     } catch (error) {
-      console.log("error: upsertAppointmentSchedule ", error);
       throw error;
     }
   };
@@ -108,7 +104,6 @@ where
     try {
       return await Schedule[method](opts);
     } catch (error) {
-      console.log("error: getAppointmentSchedule ", error);
       return {
         success: false,
         data: [],
@@ -170,7 +165,6 @@ where
       raw: true,
     });
     let setting = await Setting.findOne({ where: {}, raw: true });
-    // console.log("setting: ", setting);
 
     const SLOT_DURATION =
       setting && setting.slotDuration ? setting.slotDuration : 30;
@@ -266,7 +260,14 @@ where
               (us) => us.slotTime === slot.slotTime
             );
             if (!slt) {
-              uniqueTimeSlots.push(slot);
+              const today = moment().format(DATE_FORMAT);
+              if (slot.slotDate === today) {
+                if (moment(slot.slotTime, "LT") > moment()) {
+                  uniqueTimeSlots.push(slot);
+                }
+              } else {
+                uniqueTimeSlots.push(slot);
+              }
             }
           });
         }
@@ -296,14 +297,23 @@ where
       hwUUID,
     } = params;
     try {
-      const apnmt = await Appointment.findOne({
+      const bookedApnmt = await Appointment.findOne({
         where: {
-          visitUuid,
+          slotTime,
+          slotDate,
+          userUuid,
           status: "booked",
         },
         raw: true,
       });
-      if (apnmt) {
+      console.log(
+        " slotTime,  slotDate, userUuid,: ",
+        slotTime,
+        slotDate,
+        userUuid
+      );
+
+      if (bookedApnmt) {
         throw new Error("Appointment not available, it's already booked.");
       }
 
@@ -352,6 +362,12 @@ where
     const appointment = await Appointment.findOne({
       where: { id: id, visitUuid: visitUuid },
     });
+    if (moment.utc(appointment.slotJsDate) < moment()) {
+      return {
+        status: false,
+        message: "You can not cancel past appointments!",
+      };
+    }
     if (appointment) {
       appointment.update({ status: "cancelled" });
       return {
@@ -394,9 +410,9 @@ where
         speciality: firstSlot.speciality,
         returnAllSlots: true,
       });
-      console.log("appointments: ", appointments);
+
       const currDrSlots = appointments.filter((a) => a.userUuid === userUuid);
-      console.log("currDrSlots: ", currDrSlots);
+
       currDrSlots.forEach((apnmt) => {
         const dateIdx = data.findIndex(
           (d) =>
@@ -409,7 +425,6 @@ where
           data.splice(dateIdx, 1);
         }
       });
-      console.log("data: ", data);
 
       asyncForEach(data, async (apnmt) => {
         const appointment = { ...apnmt };
@@ -420,12 +435,15 @@ where
           toDate,
           speciality,
         });
-        await this._cancelAppointment(appointment);
+
+        const canceled = await this._cancelAppointment(appointment);
+
         if (dates.length) {
           let apnmtData = { ...apnmt, ...dates[0] };
           ["id", "createdAt", "updatedAt", "slotJsDate"].forEach((key) => {
             delete apnmtData[key];
           });
+
           this._bookAppointment(apnmtData);
         }
         sendCancelNotification(apnmt);
