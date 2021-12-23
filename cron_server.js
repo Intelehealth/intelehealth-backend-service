@@ -10,6 +10,7 @@ const isValid = cron.validate(cronString);
 console.log("cronString: isValid: ", isValid);
 
 const getQuery = (startDate, endDate) => {
+  console.log("startDate, endDate: ", startDate, endDate);
   return `SELECT
   a.slotDate,
   a.slotJsDate,
@@ -66,14 +67,22 @@ const sendAppointmentNotification = async () => {
   console.log("sendAppointmentNotification : cron running");
   // trigger 15 mins before
   const earlyNotificationQuery = getQuery(
-    moment.utc().subtract(15, "minutes").format(SQL_DATE_FORMAT),
+    moment
+      .utc()
+      .subtract(15, "minutes")
+      .add(1, "second")
+      .format(SQL_DATE_FORMAT),
     moment.utc().subtract(14, "minutes").format(SQL_DATE_FORMAT)
   );
   queryAndSendNotification(earlyNotificationQuery);
 
   // trigger 1 mins before
   const query = getQuery(
-    moment.utc().subtract(1, "minutes").format(SQL_DATE_FORMAT),
+    moment
+      .utc()
+      .subtract(1, "minutes")
+      .add(1, "second")
+      .format(SQL_DATE_FORMAT),
     moment.utc().format(SQL_DATE_FORMAT)
   );
 
