@@ -36,8 +36,6 @@ const getQuery = (startDate, endDate) => {
 };
 
 const queryAndSendNotification = async (query) => {
-  console.log("query: ", query);
-
   new Promise((resolve, reject) => {
     mysql.query(query, (err, results) => {
       if (err) {
