@@ -445,8 +445,9 @@ where
           });
 
           this._bookAppointment(apnmtData);
+        } else {
+          sendCancelNotification(apnmt);
         }
-        sendCancelNotification(apnmt);
       });
     }
   };
