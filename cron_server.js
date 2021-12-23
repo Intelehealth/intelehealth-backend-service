@@ -61,19 +61,8 @@ const queryAndSendNotification = async (query) => {
   });
 };
 
-const sendAppointmentNotification = async () => {
-  console.log("sendAppointmentNotification : cron running");
-  // trigger 15 mins before
-  const earlyNotificationQuery = getQuery(
-    moment
-      .utc()
-      .subtract(15, "minutes")
-      .add(1, "second")
-      .format(SQL_DATE_FORMAT),
-    moment.utc().subtract(14, "minutes").format(SQL_DATE_FORMAT)
-  );
-  queryAndSendNotification(earlyNotificationQuery);
-
+const sendAppointmentNotification1min = async () => {
+  console.log("1 min >> : cron running");
   // trigger 1 mins before
   const query = getQuery(
     moment
@@ -87,7 +76,24 @@ const sendAppointmentNotification = async () => {
   queryAndSendNotification(query);
 };
 
-cron.schedule(cronString, sendAppointmentNotification, {
+const sendAppointmentNotification15min = async () => {
+  console.log("15min ---- : cron running");
+  // trigger 15 mins before
+  const earlyNotificationQuery = getQuery(
+    moment
+      .utc()
+      .subtract(15, "minutes")
+      .add(1, "second")
+      .format(SQL_DATE_FORMAT),
+    moment.utc().subtract(14, "minutes").format(SQL_DATE_FORMAT)
+  );
+  queryAndSendNotification(earlyNotificationQuery);
+};
+
+cron.schedule(cronString, sendAppointmentNotification1min, {
+  scheduled: true,
+});
+cron.schedule(cronString, sendAppointmentNotification15min, {
   scheduled: true,
 });
 
