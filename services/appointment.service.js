@@ -69,6 +69,7 @@ where
       if (slotDays) update.slotDays = slotDays;
       if (slotSchedule) update.slotSchedule = slotSchedule;
       if (slotSchedule) update.drName = drName;
+      if (slotSchedule) update.speciality = speciality;
       if (schedule) {
         const resp = {
           message: "Appointment updated successfully",

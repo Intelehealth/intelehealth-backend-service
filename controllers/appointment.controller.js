@@ -22,6 +22,7 @@ module.exports = (function () {
       { key: "drName", type: "string" },
       { key: "slotDays", type: "string" },
       { key: "slotSchedule", type: "object" },
+      { key: "speciality", type: "string" },
     ];
     try {
       if (validateParams(req.body, keysAndTypeToCheck)) {
