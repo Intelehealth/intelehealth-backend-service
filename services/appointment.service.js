@@ -213,7 +213,7 @@ where
               let now = moment(startTime, TIME_FORMAT);
               let deadline = moment(endTime, TIME_FORMAT);
               while (now.diff(deadline) < 0) {
-                if (now > moment(now).hour(9)) {
+                if (now > moment(now).hour(8)) {
                   dates.push({
                     slotDay: slot.day,
                     slotDate: slot.normDate,
