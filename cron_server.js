@@ -65,12 +65,8 @@ const sendAppointmentNotification1min = async () => {
   console.log("1 min >> : cron running");
   // trigger 1 mins before
   const query = getQuery(
-    moment
-      .utc()
-      .subtract(1, "minutes")
-      .add(1, "second")
-      .format(SQL_DATE_FORMAT),
-    moment.utc().format(SQL_DATE_FORMAT)
+    moment.utc().add(1, "second").format(SQL_DATE_FORMAT),
+    moment.utc().add(1, "minute").format(SQL_DATE_FORMAT)
   );
 
   queryAndSendNotification(query);
