@@ -430,21 +430,26 @@ where
         const appointment = { ...apnmt };
         const { speciality, slotDate } = apnmt;
         const fromDate = (toDate = slotDate);
+        await this._cancelAppointment(appointment);
+
         const { dates } = await this._getAppointmentSlots({
           fromDate,
           toDate,
           speciality,
         });
 
-        const canceled = await this._cancelAppointment(appointment);
-
         if (dates.length) {
-          let apnmtData = { ...apnmt, ...dates[0] };
+          let slot = dates.find(
+            (d) =>
+              d.slotTime === apnmt.slotTime && d.slotDate === apnmt.slotDate
+          );
+          if (!slot) slot = dates[0];
+          let apnmtData = { ...apnmt, ...slot };
           ["id", "createdAt", "updatedAt", "slotJsDate"].forEach((key) => {
             delete apnmtData[key];
           });
 
-          this._bookAppointment(apnmtData);
+          await this._bookAppointment(apnmtData);
         } else {
           sendCancelNotification(apnmt);
         }
