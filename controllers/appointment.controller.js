@@ -4,6 +4,7 @@ const {
   upsertAppointmentSchedule,
   _getAppointmentSlots,
   _bookAppointment,
+  _rescheduleAppointment,
   getUserSlots,
   _cancelAppointment,
   getAppointment,
@@ -128,6 +129,35 @@ module.exports = (function () {
       ];
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await _bookAppointment(req.body);
+        res.json({
+          status: true,
+          ...data,
+        });
+      }
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  this.rescheduleAppointment = async (req, res, next) => {
+    try {
+      const keysAndTypeToCheck = [
+        { key: "slotDay", type: "string" },
+        { key: "slotDuration", type: "number" },
+        { key: "slotDurationUnit", type: "string" },
+        { key: "slotTime", type: "string" },
+        { key: "speciality", type: "string" },
+        { key: "userUuid", type: "string" },
+        { key: "drName", type: "string" },
+        { key: "visitUuid", type: "string" },
+        { key: "locationUuid", type: "string" },
+        { key: "patientName", type: "string" },
+        { key: "openMrsId", type: "string" },
+        { key: "hwUUID", type: "string" },
+        { key: "appointmentId", type: "number" },
+      ];
+      if (validateParams(req.body, keysAndTypeToCheck)) {
+        const data = await _rescheduleAppointment(req.body);
         res.json({
           status: true,
           ...data,

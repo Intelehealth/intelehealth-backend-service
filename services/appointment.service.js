@@ -3,6 +3,7 @@ const {
   appointments: Appointment,
   appointment_settings: Setting,
   Sequelize,
+  sequelize,
 } = require("../models");
 const Op = Sequelize.Op;
 
@@ -280,6 +281,45 @@ where
     }
   };
 
+  const createAppointment = async ({
+    openMrsId,
+    patientName,
+    locationUuid,
+    hwUUID,
+    slotDay,
+    slotDate,
+    slotDuration,
+    slotDurationUnit,
+    slotTime,
+    speciality,
+    userUuid,
+    drName,
+    visitUuid,
+    patientId,
+  }) => {
+    return await Appointment.create({
+      slotDay,
+      slotDate,
+      slotDuration,
+      slotDurationUnit,
+      slotTime,
+      speciality,
+      userUuid,
+      drName,
+      visitUuid,
+      patientId,
+      status: "booked",
+      openMrsId,
+      patientName,
+      locationUuid,
+      hwUUID,
+      slotJsDate: moment(
+        `${slotDate} ${slotTime}`,
+        "DD/MM/YYYY HH:mm A"
+      ).format(),
+    });
+  };
+
   this._bookAppointment = async (params) => {
     const {
       slotDay,
@@ -329,7 +369,11 @@ where
         throw new Error("Appointment for this visit is already present.");
       }
 
-      const data = await Appointment.create({
+      const data = await createAppointment({
+        openMrsId,
+        patientName,
+        locationUuid,
+        hwUUID,
         slotDay,
         slotDate,
         slotDuration,
@@ -340,15 +384,6 @@ where
         drName,
         visitUuid,
         patientId,
-        status: "booked",
-        openMrsId,
-        patientName,
-        locationUuid,
-        hwUUID,
-        slotJsDate: moment(
-          `${slotDate} ${slotTime}`,
-          "DD/MM/YYYY HH:mm A"
-        ).format(),
       });
       return {
         data: data.toJSON(),
@@ -358,12 +393,14 @@ where
     }
   };
 
-  this._cancelAppointment = async (params) => {
+  this._cancelAppointment = async (params, validate = true) => {
     const { id, visitUuid } = params;
+    let where = { id };
+    if (visitUuid) where.visitUuid = visitUuid;
     const appointment = await Appointment.findOne({
-      where: { id: id, visitUuid: visitUuid },
+      where,
     });
-    if (moment.utc(appointment.slotJsDate) < moment()) {
+    if (moment.utc(appointment.slotJsDate) < moment() && validate) {
       return {
         status: false,
         message: "You can not cancel past appointments!",
@@ -378,7 +415,7 @@ where
     } else {
       return {
         status: false,
-        message: "Appointment not found this visit uuid!",
+        message: "Appointment not found!",
       };
     }
   };
@@ -455,6 +492,51 @@ where
           sendCancelNotification(apnmt);
         }
       });
+    }
+  };
+
+  this._rescheduleAppointment = async ({
+    openMrsId,
+    patientName,
+    locationUuid,
+    hwUUID,
+    slotDay,
+    slotDate,
+    slotDuration,
+    slotDurationUnit,
+    slotTime,
+    speciality,
+    userUuid,
+    drName,
+    visitUuid,
+    patientId,
+    appointmentId,
+  }) => {
+    const cancelled = await this._cancelAppointment(
+      { id: appointmentId },
+      false
+    );
+    if (cancelled && cancelled.status) {
+      return {
+        data: await createAppointment({
+          openMrsId,
+          patientName,
+          locationUuid,
+          hwUUID,
+          slotDay,
+          slotDate,
+          slotDuration,
+          slotDurationUnit,
+          slotTime,
+          speciality,
+          userUuid,
+          drName,
+          visitUuid,
+          patientId,
+        }),
+      };
+    } else {
+      return cancelled;
     }
   };
 
