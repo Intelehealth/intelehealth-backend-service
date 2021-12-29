@@ -393,7 +393,7 @@ where
     }
   };
 
-  this._cancelAppointment = async (params, validate = true) => {
+  this._cancelAppointment = async (params, validate = true, notify = true) => {
     const { id, visitUuid } = params;
     let where = { id };
     if (visitUuid) where.visitUuid = visitUuid;
@@ -408,6 +408,7 @@ where
     }
     if (appointment) {
       appointment.update({ status: "cancelled" });
+      if (notify) sendCancelNotification(appointment);
       return {
         status: true,
         message: "Appointment cancelled successfully!",
@@ -468,7 +469,7 @@ where
         const appointment = { ...apnmt };
         const { speciality, slotDate } = apnmt;
         const fromDate = (toDate = slotDate);
-        await this._cancelAppointment(appointment);
+        await this._cancelAppointment(appointment, true, false);
 
         const { dates } = await this._getAppointmentSlots({
           fromDate,
