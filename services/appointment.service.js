@@ -108,10 +108,7 @@ where
     try {
       return await Schedule[method](opts);
     } catch (error) {
-      return {
-        success: false,
-        data: [],
-      };
+      throw error;
     }
   };
 
