@@ -59,6 +59,7 @@ where
     slotSchedule,
     speciality,
     drName,
+    type,
   }) => {
     try {
       const schedule = await this.getUserAppointmentSchedule({
@@ -69,14 +70,14 @@ where
       let update = {};
       if (slotDays) update.slotDays = slotDays;
       if (slotSchedule) update.slotSchedule = slotSchedule;
-      if (slotSchedule) update.drName = drName;
-      if (slotSchedule) update.speciality = speciality;
+      if (drName) update.drName = drName;
+      if (speciality) update.speciality = speciality;
+      if (type) update.type = type;
       if (schedule) {
         const resp = {
           message: "Appointment updated successfully",
           data: await Schedule.update(update, { where: { userUuid } }),
         };
-
         await this.rescheduleOrCancelAppointment(userUuid);
 
         return resp;
@@ -89,6 +90,7 @@ where
             slotSchedule,
             speciality,
             drName,
+            type,
           }),
         };
       }
@@ -156,6 +158,94 @@ where
     }
   };
 
+  const getMonthSlots = ({
+    schedule,
+    days,
+    SLOT_DURATION,
+    SLOT_DURATION_UNIT,
+  }) => {
+    let dates = [];
+    const slots = schedule.slotSchedule.filter((s) => s.startTime && s.endTime);
+    const slotDays = slots
+      .map((s) => moment(s.date).get("date"))
+      .sort((a, b) => a - b);
+
+    schedule.daysToSchedule = days.filter((d) => {
+      const date = moment(d.normDate, DATE_FORMAT).get("date");
+      return slotDays.includes(date);
+    });
+
+    // const daysToSchedule = schedule.daysToSchedule.filter((d) => {
+    //   return days.map((d) => d.normDate);
+    // });
+    schedule.daysToSchedule.forEach((slot) => {
+      const slotSchedule = slots.find((s) => s.day === slot.day);
+      if (slotSchedule) {
+        const { startTime, endTime } = slotSchedule;
+        let now = moment(startTime, TIME_FORMAT);
+        let deadline = moment(endTime, TIME_FORMAT);
+        while (now.diff(deadline) < 0) {
+          if (now > moment(now).hour(8)) {
+            dates.push({
+              slotDay: slot.day,
+              slotDate: slot.normDate,
+              slotDuration: SLOT_DURATION,
+              slotDurationUnit: SLOT_DURATION_UNIT,
+              slotTime: now.format(TIME_FORMAT),
+              speciality: schedule.speciality,
+              userUuid: schedule.userUuid,
+              drName: schedule.drName,
+            });
+          }
+          now.add(SLOT_DURATION, SLOT_DURATION_UNIT);
+        }
+      }
+    });
+
+    return dates;
+  };
+
+  const getWeekSlots = ({
+    schedule,
+    days,
+    SLOT_DURATION,
+    SLOT_DURATION_UNIT,
+  }) => {
+    let dates = [];
+    const slots = schedule.slotSchedule.filter((s) => s.startTime && s.endTime);
+    const slotDays = slots.map((s) => s.day);
+    schedule.daysToSchedule = days.filter((d) => slotDays.includes(d.day));
+
+    // const daysToSchedule = schedule.daysToSchedule.filter((d) => {
+    //   return days.map((d) => d.normDate);
+    // });
+    schedule.daysToSchedule.forEach((slot) => {
+      const slotSchedule = slots.find((s) => s.day === slot.day);
+      if (slotSchedule) {
+        const { startTime, endTime } = slotSchedule;
+        let now = moment(startTime, TIME_FORMAT);
+        let deadline = moment(endTime, TIME_FORMAT);
+        while (now.diff(deadline) < 0) {
+          if (now > moment(now).hour(8)) {
+            dates.push({
+              slotDay: slot.day,
+              slotDate: slot.normDate,
+              slotDuration: SLOT_DURATION,
+              slotDurationUnit: SLOT_DURATION_UNIT,
+              slotTime: now.format(TIME_FORMAT),
+              speciality: schedule.speciality,
+              userUuid: schedule.userUuid,
+              drName: schedule.drName,
+            });
+          }
+          now.add(SLOT_DURATION, SLOT_DURATION_UNIT);
+        }
+      }
+    });
+
+    return dates;
+  };
+
   this._getAppointmentSlots = async ({
     fromDate,
     toDate,
@@ -188,49 +278,31 @@ where
         }
         daysDiff++;
         const days = Array.from({ length: daysDiff }).map((day) => {
-          // const date = startDate.add(1, "days");
-          return {
+          const data = {
             day: startDate.format("dddd"),
             date: startDate,
             normDate: startDate.format(DATE_FORMAT),
           };
+          const date = startDate.add(1, "days");
+          return data;
         });
 
         schedules.forEach((schedule) => {
-          const slots = schedule.slotSchedule.filter(
-            (s) => s.startTime && s.endTime
-          );
-          const slotDays = slots.map((s) => s.day);
-          schedule.daysToSchedule = days.filter((d) =>
-            slotDays.includes(d.day)
-          );
-
-          // const daysToSchedule = schedule.daysToSchedule.filter((d) => {
-          //   return days.map((d) => d.normDate);
-          // });
-          schedule.daysToSchedule.forEach((slot) => {
-            const slotSchedule = slots.find((s) => s.day === slot.day);
-            if (slotSchedule) {
-              const { startTime, endTime } = slotSchedule;
-              let now = moment(startTime, TIME_FORMAT);
-              let deadline = moment(endTime, TIME_FORMAT);
-              while (now.diff(deadline) < 0) {
-                if (now > moment(now).hour(8)) {
-                  dates.push({
-                    slotDay: slot.day,
-                    slotDate: slot.normDate,
-                    slotDuration: SLOT_DURATION,
-                    slotDurationUnit: SLOT_DURATION_UNIT,
-                    slotTime: now.format(TIME_FORMAT),
-                    speciality: schedule.speciality,
-                    userUuid: schedule.userUuid,
-                    drName: schedule.drName,
-                  });
-                }
-                now.add(SLOT_DURATION, SLOT_DURATION_UNIT);
-              }
-            }
-          });
+          const _dates =
+            schedule.type === "month"
+              ? getMonthSlots({
+                  schedule,
+                  days,
+                  SLOT_DURATION,
+                  SLOT_DURATION_UNIT,
+                })
+              : getWeekSlots({
+                  schedule,
+                  days,
+                  SLOT_DURATION,
+                  SLOT_DURATION_UNIT,
+                });
+          dates = dates.concat(_dates);
         });
         const appointments = await Appointment.findAll({
           where: {

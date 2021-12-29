@@ -24,6 +24,7 @@ module.exports = (function () {
       { key: "slotDays", type: "string" },
       { key: "slotSchedule", type: "object" },
       { key: "speciality", type: "string" },
+      { key: "type", type: "string" },
     ];
     try {
       if (validateParams(req.body, keysAndTypeToCheck)) {

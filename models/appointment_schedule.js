@@ -18,6 +18,7 @@ module.exports = (sequelize, DataTypes) => {
       slotSchedule: DataTypes.JSON,
       speciality: DataTypes.STRING,
       drName: DataTypes.STRING,
+      type: DataTypes.STRING,
     },
     {
       sequelize,
