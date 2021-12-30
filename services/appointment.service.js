@@ -43,6 +43,37 @@ where
     } catch (error) {}
   };
 
+  const sendCancelNotificationToWebappDoctor = async ({
+    id,
+    slotTime,
+    patientName,
+    openMrsId,
+  }) => {
+    const query = `SELECT
+    a.id,
+    s.notification_object as webpush_obj
+FROM
+    appointments a
+    INNER JOIN pushnotification s ON a.userUuid = s.user_uuid
+WHERE
+    a.id = ${id}`;
+    try {
+      const data = await getDataFromQuery(query);
+      if (data && data.length) {
+        asyncForEach(data, async (data) => {
+          if (data.webpush_obj) {
+            const title = `Appointment for ${patientName}(${slotTime}) has been cancelled.`;
+            sendWebPushNotificaion({
+              webpush_obj: data.webpush_obj,
+              title,
+              body: openMrsId,
+            });
+          }
+        });
+      }
+    } catch (error) {}
+  };
+
   const getTodayDate = () => {
     return this.getFilterDates(moment().format("DD/MM/YYYY"), null)[0];
   };
@@ -477,7 +508,7 @@ where
     }
     if (appointment) {
       appointment.update({ status: "cancelled" });
-      if (notify) sendCancelNotification(appointment);
+      if (notify) sendCancelNotificationToWebappDoctor(appointment);
       return {
         status: true,
         message: "Appointment cancelled successfully!",
