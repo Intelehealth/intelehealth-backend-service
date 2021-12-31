@@ -25,6 +25,7 @@ module.exports = (function () {
       { key: "slotSchedule", type: "object" },
       { key: "speciality", type: "string" },
       { key: "type", type: "string" },
+      { key: "year", type: "string" },
     ];
     try {
       if (validateParams(req.body, keysAndTypeToCheck)) {
@@ -43,7 +44,10 @@ module.exports = (function () {
   this.getAppointmentSchedule = async (req, res, next) => {
     try {
       const userUuid = req.params.userUuid;
-      const data = await getUserAppointmentSchedule({ where: { userUuid } });
+      const year = req.query.year;
+      let where = { userUuid };
+      if (year) where.year = year;
+      const data = await getUserAppointmentSchedule({ where });
       res.json({
         status: true,
         data,

@@ -91,11 +91,13 @@ WHERE
     speciality,
     drName,
     type,
+    year,
   }) => {
     try {
       const schedule = await this.getUserAppointmentSchedule({
         where: {
           userUuid,
+          year,
         },
       });
       let update = {};
@@ -104,6 +106,7 @@ WHERE
       if (drName) update.drName = drName;
       if (speciality) update.speciality = speciality;
       if (type) update.type = type;
+      if (year) update.year = year;
       if (schedule) {
         const resp = {
           message: "Appointment updated successfully",
@@ -122,6 +125,7 @@ WHERE
             speciality,
             drName,
             type,
+            year,
           }),
         };
       }
