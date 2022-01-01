@@ -110,8 +110,7 @@ WHERE
     try {
       const opts = { where: { userUuid, year, month } };
       const schedule = await this.getUserAppointmentSchedule(opts);
-      let update = {};
-      if (slotDays) update.slotDays = slotDays;
+      let update = { slotDays };
       if (slotSchedule) update.slotSchedule = slotSchedule;
       if (drName) update.drName = drName;
       if (speciality) update.speciality = speciality;
