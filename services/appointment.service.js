@@ -594,7 +594,7 @@ WHERE
 
           await this._bookAppointment(apnmtData);
         } else {
-          sendCancelNotification(apnmt);
+          await sendCancelNotification(apnmt);
         }
       });
     }
