@@ -214,7 +214,9 @@ WHERE
     //   return days.map((d) => d.normDate);
     // });
     schedule.daysToSchedule.forEach((slot) => {
-      const slotSchedule = slots.find((s) => s.day === slot.day);
+      const slotSchedule = slots.find(
+        (s) => moment(s.date).format(DATE_FORMAT) === slot.normDate
+      );
       if (slotSchedule) {
         const { startTime, endTime } = slotSchedule;
         let now = moment(startTime, TIME_FORMAT);
