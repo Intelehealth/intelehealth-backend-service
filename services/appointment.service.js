@@ -325,20 +325,20 @@ WHERE
         });
 
         schedules.forEach((schedule) => {
-          const _dates =
-            schedule.type === "month"
-              ? getMonthSlots({
-                  schedule,
-                  days,
-                  SLOT_DURATION,
-                  SLOT_DURATION_UNIT,
-                })
-              : getWeekSlots({
-                  schedule,
-                  days,
-                  SLOT_DURATION,
-                  SLOT_DURATION_UNIT,
-                });
+          const _dates = true
+            ? // schedule.type === "month"
+              getMonthSlots({
+                schedule,
+                days,
+                SLOT_DURATION,
+                SLOT_DURATION_UNIT,
+              })
+            : getWeekSlots({
+                schedule,
+                days,
+                SLOT_DURATION,
+                SLOT_DURATION_UNIT,
+              });
           dates = dates.concat(_dates);
         });
         const appointments = await Appointment.findAll({
