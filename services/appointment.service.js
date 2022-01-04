@@ -598,6 +598,7 @@ WHERE
           await this._bookAppointment(apnmtData);
         } else {
           await sendCancelNotification(apnmt);
+          await sendCancelNotificationToWebappDoctor(apnmt);
         }
       });
     }
