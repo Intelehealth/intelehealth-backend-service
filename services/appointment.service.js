@@ -3,12 +3,15 @@ const {
   appointments: Appointment,
   appointment_settings: Setting,
   Sequelize,
-  sequelize,
 } = require("../models");
 const Op = Sequelize.Op;
 
 const moment = require("moment");
-const { asyncForEach, getDataFromQuery } = require("../handlers/helper");
+const {
+  asyncForEach,
+  getDataFromQuery,
+  sendCloudNotification,
+} = require("../handlers/helper");
 
 module.exports = (function () {
   const DATE_FORMAT = "DD/MM/YYYY";
@@ -532,12 +535,12 @@ WHERE
   };
 
   this.rescheduleOrCancelAppointment = async (userUuid) => {
-    const todayDate = getTodayDate();
+    const todayDate = moment.utc().format();
     const data = await Appointment.findAll({
       where: {
         userUuid,
         slotJsDate: {
-          [Op.gte]: todayDate,
+          [Op.gt]: todayDate,
         },
         status: "booked",
       },
