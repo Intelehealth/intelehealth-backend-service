@@ -586,12 +586,10 @@ WHERE
           speciality,
         });
 
-        if (dates.length) {
-          let slot = dates.find(
-            (d) =>
-              d.slotTime === apnmt.slotTime && d.slotDate === apnmt.slotDate
-          );
-          if (!slot) slot = dates[0];
+        let slot = dates.find(
+          (d) => d.slotTime === apnmt.slotTime && d.slotDate === apnmt.slotDate
+        );
+        if (slot) {
           let apnmtData = { ...apnmt, ...slot };
           ["id", "createdAt", "updatedAt", "slotJsDate"].forEach((key) => {
             delete apnmtData[key];
