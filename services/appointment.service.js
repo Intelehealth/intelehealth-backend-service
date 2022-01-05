@@ -98,13 +98,8 @@ WHERE
     year,
   }) => {
     try {
-      const schedule = await this.getUserAppointmentSchedule({
-        where: {
-          userUuid,
-          year,
-          month,
-        },
-      });
+      const opts = { where: { userUuid, year, month } };
+      const schedule = await this.getUserAppointmentSchedule(opts);
       let update = {};
       if (slotDays) update.slotDays = slotDays;
       if (slotSchedule) update.slotSchedule = slotSchedule;
@@ -116,7 +111,7 @@ WHERE
       if (schedule) {
         const resp = {
           message: "Appointment updated successfully",
-          data: await Schedule.update(update, { where: { userUuid } }),
+          data: await Schedule.update(update, opts),
         };
         await this.rescheduleOrCancelAppointment(userUuid);
 
