@@ -59,20 +59,20 @@ router.post("/subscribe", async (req, res) => {
 });
 
 //for Unicef training
-// const vapidKeys = {
-//   publicKey:
-//     "BPahLgBCajrPyOkLGQuFf5sEtuX1pXRckn6bmW5nNrxy-5QM9uJ6JPM5sp_wuaJl1jNOylgcUxLJdOJtGIGEreo",
-//   privateKey: "D3xqo6aJ-Z8YNN03zMbmTexDUpNK2GCUVSmb6FM-FeE",
-//   mailTo: "mailto:support@intelehealth.org",
-// };
-
-//for Unicef Production
 const vapidKeys = {
   publicKey:
-    "BCGfng5flfhjlqR_imzFXwHGeEMBA6AzFVAex7sPLDbsMCn_IMKtQmI9TDnmP6raxmPcBcnoKO_AHKaLtctsIjg",
-  privateKey: "85omZfgs39Tt2R5JwB3sCkgYlSQd5mV-iAsTEz8lEoQ",
+    "BPahLgBCajrPyOkLGQuFf5sEtuX1pXRckn6bmW5nNrxy-5QM9uJ6JPM5sp_wuaJl1jNOylgcUxLJdOJtGIGEreo",
+  privateKey: "D3xqo6aJ-Z8YNN03zMbmTexDUpNK2GCUVSmb6FM-FeE",
   mailTo: "mailto:support@intelehealth.org",
 };
+
+//for Unicef Production
+// const vapidKeys = {
+//   publicKey:
+//     "BCGfng5flfhjlqR_imzFXwHGeEMBA6AzFVAex7sPLDbsMCn_IMKtQmI9TDnmP6raxmPcBcnoKO_AHKaLtctsIjg",
+//   privateKey: "85omZfgs39Tt2R5JwB3sCkgYlSQd5mV-iAsTEz8lEoQ",
+//   mailTo: "mailto:support@intelehealth.org",
+// };
 
 router.post("/push", (req, res) => {
   try {
