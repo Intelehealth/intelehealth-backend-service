@@ -94,6 +94,7 @@ WHERE
     speciality,
     drName,
     type,
+    month,
     year,
   }) => {
     try {
@@ -101,6 +102,7 @@ WHERE
         where: {
           userUuid,
           year,
+          month,
         },
       });
       let update = {};
@@ -110,6 +112,7 @@ WHERE
       if (speciality) update.speciality = speciality;
       if (type) update.type = type;
       if (year) update.year = year;
+      if (month) update.month = month;
       if (schedule) {
         const resp = {
           message: "Appointment updated successfully",
@@ -128,6 +131,7 @@ WHERE
             speciality,
             drName,
             type,
+            month,
             year,
           }),
         };

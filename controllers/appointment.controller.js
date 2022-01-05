@@ -25,6 +25,7 @@ module.exports = (function () {
       { key: "slotSchedule", type: "object" },
       { key: "speciality", type: "string" },
       { key: "type", type: "string" },
+      { key: "month", type: "string" },
       { key: "year", type: "string" },
     ];
     try {
@@ -45,8 +46,10 @@ module.exports = (function () {
     try {
       const userUuid = req.params.userUuid;
       const year = req.query.year;
+      const month = req.query.month;
       let where = { userUuid };
       if (year) where.year = year;
+      if (month) where.month = month;
       const data = await getUserAppointmentSchedule({ where });
       res.json({
         status: true,
