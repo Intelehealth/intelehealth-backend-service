@@ -22,7 +22,7 @@ module.exports = (function () {
     const query = `
     select
     a.id,
-    u.device_reg_token as token
+    u.device_reg_token as token,
     u.locale as locale
 from
     appointments a

@@ -25,7 +25,7 @@ const getQuery = (startDate, endDate) => {
   a.patientName,
   a.openMrsId,
   a.status,
-  s.notification_object as webpush_obj
+  s.notification_object as webpush_obj,
   s.locale as locale 
   FROM
   appointments a
