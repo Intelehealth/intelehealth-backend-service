@@ -23,6 +23,7 @@ module.exports = (function () {
     select
     a.id,
     u.device_reg_token as token
+    u.locale
 from
     appointments a
     INNER JOIN user_settings u ON u.user_uuid = a.hwUUID
@@ -32,12 +33,18 @@ where
       const data = await getDataFromQuery(query);
       if (data && data.length) {
         asyncForEach(data, async (item) => {
-          const { token } = item;
+          const { token, locale } = item;
+          console.log("locale: ", locale);
           if (token) {
             await sendCloudNotification({
-              title: `Appointment for ${patientName}(${slotTime}) has been cancelled.`,
-              body: `Reason : Due to doctor's change in schedule.`,
-              data: {},
+              title:
+                locale === "ru"
+                  ? `Запись на прием за ${patientName}(${slotTime}) отменена.`
+                  : `Appointment for ${patientName}(${slotTime}) has been cancelled.`,
+              body:
+                locale === "ru"
+                  ? `Причина: В связи с изменением графика врача`
+                  : `Reason : Due to doctor's change in schedule.`,
               regTokens: [token],
             }).catch((err) => {});
           }
@@ -55,6 +62,7 @@ where
     const query = `SELECT
     a.id,
     s.notification_object as webpush_obj
+    s.locale 
 FROM
     appointments a
     INNER JOIN pushnotification s ON a.userUuid = s.user_uuid
@@ -65,7 +73,9 @@ WHERE
       if (data && data.length) {
         asyncForEach(data, async (data) => {
           if (data.webpush_obj) {
-            const title = `Appointment for ${patientName}(${slotTime}) has been cancelled.`;
+            const engTitle = `Appointment for ${patientName}(${slotTime}) has been cancelled.`;
+            const ruTitle = `Запись на прием за ${patientName}(${slotTime}) отменена.`;
+            const title = data.locale === "ru" ? ruTitle : engTitle;
             sendWebPushNotificaion({
               webpush_obj: data.webpush_obj,
               title,

@@ -26,6 +26,7 @@ const getQuery = (startDate, endDate) => {
   a.openMrsId,
   a.status,
   s.notification_object as webpush_obj
+  s.locale 
   FROM
   appointments a
   INNER JOIN pushnotification s ON a.userUuid = s.user_uuid
@@ -49,7 +50,10 @@ const queryAndSendNotification = async (query) => {
     for (let i = 0; i < data.length; i++) {
       const schedule = data[i];
       if (schedule.webpush_obj) {
-        const title = `Appointment Reminder(${schedule.slotTime}): ${schedule.patientName}`;
+        const engTitle = `Appointment Reminder(${schedule.slotTime}): ${schedule.patientName}`;
+        const ruTitle = `Напоминание о встрече(${schedule.slotTime}): ${schedule.patientName}`;
+        const title = schedule.locale === "ru" ? ruTitle : engTitle;
+        console.log("schedule.locale: ", schedule.locale);
         console.log("title: ", title);
         sendWebPushNotificaion({
           webpush_obj: schedule.webpush_obj,
