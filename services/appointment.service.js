@@ -23,7 +23,7 @@ module.exports = (function () {
     select
     a.id,
     u.device_reg_token as token
-    u.locale
+    u.locale as locale
 from
     appointments a
     INNER JOIN user_settings u ON u.user_uuid = a.hwUUID
