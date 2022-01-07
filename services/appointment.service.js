@@ -61,8 +61,8 @@ where
   }) => {
     const query = `SELECT
     a.id,
-    s.notification_object as webpush_obj
-    s.locale 
+    s.notification_object as webpush_obj,
+    s.locale  as locale
 FROM
     appointments a
     INNER JOIN pushnotification s ON a.userUuid = s.user_uuid
