@@ -1,4 +1,5 @@
 const gcm = require("node-gcm");
+const mysql = require("../public/javascripts/mysql/mysql");
 const webpush = require("web-push");
 
 module.exports = (function () {
@@ -114,5 +115,24 @@ module.exports = (function () {
   this.RES = (res, data, statusCode = 200) => {
     res.status(statusCode).json(data);
   };
+
+  this.asyncForEach = async function (array, callback) {
+    for (let index = 0; index < array.length; index++) {
+      await callback(array[index], index, array);
+    }
+  };
+
+  this.getDataFromQuery = (query) => {
+    return new Promise((resolve, reject) => {
+      mysql.query(query, (err, results) => {
+        if (err) {
+          console.log("err: ", err);
+          reject(err.message);
+        }
+        resolve(results);
+      });
+    });
+  };
+
   return this;
 })();
