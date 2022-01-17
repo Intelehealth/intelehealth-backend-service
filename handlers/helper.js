@@ -1,6 +1,36 @@
 const gcm = require("node-gcm");
+const webpush = require("web-push");
 
 module.exports = (function () {
+  const vapidKeys = {
+    publicKey:
+    "BG4nDxMHBPV4YtkBZoGjPSOWDPrbyzw-o-vDKaScPhYfAjQs1hclQLwNWKKHYHNut0GZoVyj0jONVZgA5Dzdq0U",
+    privateKey: "SuA1XssVFT4UfSv8DEGx_uRkng2YtEUVxj54729zXkM",
+    mailTo: "mailto:support@intelehealth.org",
+  };
+  webpush.setVapidDetails(
+    vapidKeys.mailTo,
+    vapidKeys.publicKey,
+    vapidKeys.privateKey
+  );
+
+  this.sendWebPushNotificaion = async ({ webpush_obj, title, body }) => {
+    webpush
+      .sendNotification(
+        JSON.parse(webpush_obj),
+        JSON.stringify({
+          notification: {
+            title,
+            body,
+            vibrate: [100, 50, 100],
+          },
+        })
+      )
+      .catch((error) => {
+        console.log("appointment notification error", error);
+      });
+  };
+
   this.validateParams = (params, keysAndTypeToCheck = []) => {
     try {
       keysAndTypeToCheck.forEach((obj) => {
