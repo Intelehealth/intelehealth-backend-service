@@ -1,5 +1,6 @@
 const gcm = require("node-gcm");
 const mysql = require("../public/javascripts/mysql/mysql");
+const openMrsDB = require("../public/javascripts/mysql/mysqlOpenMrs");
 const webpush = require("web-push");
 
 module.exports = (function () {
@@ -132,9 +133,10 @@ module.exports = (function () {
     }
   };
 
-  this.getDataFromQuery = (query) => {
+  this.getDataFromQuery = (query, openMrs = false) => {
+    const db = openMrs ? openMrsDB : mysql;
     return new Promise((resolve, reject) => {
-      mysql.query(query, (err, results) => {
+      db.query(query, (err, results) => {
         if (err) {
           console.log("err: ", err);
           reject(err.message);
