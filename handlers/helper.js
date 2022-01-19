@@ -1,19 +1,60 @@
 const gcm = require("node-gcm");
+const mysql = require("../public/javascripts/mysql/mysql");
+const webpush = require("web-push");
 
 module.exports = (function () {
+  //for demo server
+  const vapidKeys = {
+    publicKey:
+      "BG4nDxMHBPV4YtkBZoGjPSOWDPrbyzw-o-vDKaScPhYfAjQs1hclQLwNWKKHYHNut0GZoVyj0jONVZgA5Dzdq0U",
+    privateKey: "SuA1XssVFT4UfSv8DEGx_uRkng2YtEUVxj54729zXkM",
+    mailTo: "mailto:support@intelehealth.org",
+  };
+  // For testing server
+  // const vapidKeys = {
+  //     publicKey:
+  //         "BAfolLQ7VpRSmWm6DskG-YyG3jjzq5z0rjKEl5HXLCw2W8CKS9cVmifnCAWnrlJMETgbgjuV1pWKLUf8zlbojH0",
+  //     privateKey: "kCDISA3-UoW0pEx_gSTm4VtQASbvza-uw27Mq1x2wEc",
+  //     mailTo: "mailto:support@intelehealth.org"
+  // };
+  webpush.setVapidDetails(
+    vapidKeys.mailTo,
+    vapidKeys.publicKey,
+    vapidKeys.privateKey
+  );
+
+  this.sendWebPushNotificaion = async ({ webpush_obj, title, body }) => {
+    await webpush
+      .sendNotification(
+        JSON.parse(webpush_obj),
+        JSON.stringify({
+          notification: {
+            title,
+            body,
+            vibrate: [100, 50, 100],
+          },
+        })
+      )
+      .catch((error) => {
+        console.log("notification:", error.body);
+        console.log("status code: ", error.statusCode);
+        console.log("--------------------------------------------------------");
+      });
+  };
+
   this.validateParams = (params, keysAndTypeToCheck = []) => {
     try {
       keysAndTypeToCheck.forEach((obj) => {
         if (!params[obj.key] && typeof params[obj.key] !== obj.type) {
           if (!params[obj.key]) {
-            throw `Invalid request, ${obj.key} is missing.`;
-            return false;
+            throw new Error(`Invalid request, ${obj.key} is missing.`);
           }
           if (!params[obj.key]) {
-            throw `Wrong param type for ${obj.key}(${typeof params[
-              obj.key
-            ]}), required type is ${obj.type}.`;
-            return false;
+            throw new Error(
+              `Wrong param type for ${obj.key}(${typeof params[
+                obj.key
+              ]}), required type is ${obj.type}.`
+            );
           }
         }
       });
@@ -84,5 +125,24 @@ module.exports = (function () {
   this.RES = (res, data, statusCode = 200) => {
     res.status(statusCode).json(data);
   };
+
+  this.asyncForEach = async function (array, callback) {
+    for (let index = 0; index < array.length; index++) {
+      await callback(array[index], index, array);
+    }
+  };
+
+  this.getDataFromQuery = (query) => {
+    return new Promise((resolve, reject) => {
+      mysql.query(query, (err, results) => {
+        if (err) {
+          console.log("err: ", err);
+          reject(err.message);
+        }
+        resolve(results);
+      });
+    });
+  };
+
   return this;
 })();

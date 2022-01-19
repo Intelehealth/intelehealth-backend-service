@@ -75,6 +75,7 @@ const vapidKeys = {
 
 router.post("/push", (req, res) => {
   try {
+    console.log("/push: ", req.body);
     mysql.query(
       `Select notification_object, doctor_name, user_uuid from pushnotification where speciality='${req.body.speciality}'`,
       async (err, results) => {
@@ -160,10 +161,13 @@ router.post("/push", (req, res) => {
                 });
             }
           });
-
-          Promise.all(allNotifications).then((response) => {
-            res.status(200).json({ message: "Notification sent" });
-          });
+          if (![undefined, null, ""].includes(req.body.skipFlag)) {
+            Promise.all(allNotifications).then((response) => {
+              res.status(200).json({ message: "Notification sent" });
+            });
+          } else {
+            res.status(200).json({ message: "Notification sent." });
+          }
         } else
           res
             .status(200)
