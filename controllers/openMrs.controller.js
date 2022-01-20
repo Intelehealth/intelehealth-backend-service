@@ -1,5 +1,9 @@
 const openMrsDB = require("../public/javascripts/mysql/mysqlOpenMrs");
-const { getVisitCountQueryForGp, getVisitCountQuery } = require("./queries");
+const {
+  getVisitCountQueryForGp,
+  getVisitCountQuery,
+  locationQuery,
+} = require("./queries");
 
 /**
  * To return the visit counts from the openmrs db using custom query
