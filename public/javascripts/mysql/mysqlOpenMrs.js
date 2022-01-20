@@ -14,7 +14,8 @@ connectDatabase = () => {
 
     db.connect((err) => {
       if (!err) {
-        console.log("Database is connected - OpenMrs");
+        db.query('SET SESSION auto_increment_increment=1');
+        console.log("Database is connected - OpenMrs-");
       } else {
         console.log("Error connecting database - OpenMrs");
       }
