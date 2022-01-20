@@ -1,5 +1,5 @@
 const openMrsDB = require("../public/javascripts/mysql/mysqlOpenMrs");
-const { getVisitCountQueryForGp, getVisitCountQuery } = require("./queries");
+const { getVisitCountQueryForGp, getVisitCountQuery, locationQuery } = require("./queries");
 
 /**
  * To return the visit counts from the openmrs db using custom query
@@ -51,6 +51,7 @@ const getLocations = async (req, res, next) => {
     });
     let states = data.filter((d) => d.tag === "State");
     if (states.length) {
+      console.log('states: ', states);
       states = states.map((s) => {
         let districts = data.filter(
           (d) => d.parent === s.id && d.tag === "District"
