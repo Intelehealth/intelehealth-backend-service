@@ -24,7 +24,7 @@ const sendNotification = async () => {
         const priority = counts.find((c) => c.Status === "Priority");
         console.log("priority: ", priority);
         console.log("awaiting: ", awaiting);
-        if (awaiting && priority && awaiting.Total && priority.Total) {
+        if ((awaiting && awaiting.Total) || (priority && priority.Total)) {
           await sendWebPushNotificaion({
             webpush_obj: obj.notification_object,
             title: "New Patient has been uploaded",
