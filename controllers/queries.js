@@ -82,7 +82,7 @@ module.exports = (function () {
   l.name as name,
   l.parent_location as parent,
   lt.name as tag,
-  lt.uuid as uuid
+  l.uuid as uuid
 from
   location_tag_map ltm
   LEFT JOIN location l ON l.location_id = ltm.location_id
