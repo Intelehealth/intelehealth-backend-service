@@ -39,7 +39,6 @@ const sendNotification = async () => {
   }
 };
 
-sendNotification();
-// const cronString = `*/15 * * * *`;
-// new CronJob(cronString, sendNotification, null, true, "Asia/Kolkata");
+const cronString = `*/15 * * * *`;
+new CronJob(cronString, sendNotification, null, true, "Asia/Kolkata");
 console.log("Cron started......");

@@ -4,19 +4,18 @@ const openMrsDB = require("../public/javascripts/mysql/mysqlOpenMrs");
 const webpush = require("web-push");
 
 module.exports = (function () {
-  //for demo server
   const vapidKeys = {
     publicKey:
-      "BG4nDxMHBPV4YtkBZoGjPSOWDPrbyzw-o-vDKaScPhYfAjQs1hclQLwNWKKHYHNut0GZoVyj0jONVZgA5Dzdq0U",
-    privateKey: "SuA1XssVFT4UfSv8DEGx_uRkng2YtEUVxj54729zXkM",
+      "BHkKl1nW4sC_os9IRMGhrSZ4JJp0RHl2_PxTdV_rElOjnHe-dq1hx2zw_bTgrkc4ulFD-VD4x6P63qN1Giroe7U",
+    privateKey: "YAL9dkVltWw5qj_nYg2zQFQe4viFysX89xxTV6aPRk8",
     mailTo: "mailto:support@intelehealth.org",
   };
-  // For testing server
+  // For ekal afi prod server
   // const vapidKeys = {
-  //     publicKey:
-  //         "BAfolLQ7VpRSmWm6DskG-YyG3jjzq5z0rjKEl5HXLCw2W8CKS9cVmifnCAWnrlJMETgbgjuV1pWKLUf8zlbojH0",
-  //     privateKey: "kCDISA3-UoW0pEx_gSTm4VtQASbvza-uw27Mq1x2wEc",
-  //     mailTo: "mailto:support@intelehealth.org"
+  //   publicKey:
+  //     "BO4jQA2_cu-WSdDY0HCbB9OKplPYpCRvjDwmjEPQd7K7m1bIrtjeW7FXCntUUkm2V0eAKh9AGKqmpR4-_gYSYX8",
+  //   privateKey: "ghU6K-grKvUMVdEmqNBoiM0olBsxD3FCpm2QDa8eR_U",
+  //   mailTo: "mailto:support@intelehealth.org",
   // };
   webpush.setVapidDetails(
     vapidKeys.mailTo,
