@@ -434,6 +434,7 @@ WHERE
         `${slotDate} ${slotTime}`,
         "DD/MM/YYYY HH:mm A"
       ).format(),
+      createdBy: hwUUID,
     });
   };
 
@@ -464,12 +465,6 @@ WHERE
         },
         raw: true,
       });
-      console.log(
-        " slotTime,  slotDate, userUuid,: ",
-        slotTime,
-        slotDate,
-        userUuid
-      );
 
       if (bookedApnmt) {
         throw new Error("Appointment not available, it's already booked.");
@@ -510,8 +505,13 @@ WHERE
     }
   };
 
-  this._cancelAppointment = async (params, validate = true, notify = true) => {
-    const { id, visitUuid } = params;
+  this._cancelAppointment = async (
+    params,
+    validate = true,
+    notify = true,
+    reschedule = false
+  ) => {
+    const { id, visitUuid, userId, reason } = params;
     let where = { id };
     if (visitUuid) where.visitUuid = visitUuid;
     const appointment = await Appointment.findOne({
@@ -523,8 +523,9 @@ WHERE
         message: "You can not cancel past appointments!",
       };
     }
+    const status = reschedule ? "rescheduled" : "cancelled";
     if (appointment) {
-      appointment.update({ status: "cancelled" });
+      appointment.update({ status, updatedBy: userId, reason });
       if (notify) sendCancelNotificationToWebappDoctor(appointment);
       return {
         status: true,
@@ -583,10 +584,13 @@ WHERE
       });
 
       asyncForEach(data, async (apnmt) => {
-        const appointment = { ...apnmt };
+        const appointment = {
+          ...apnmt,
+          userId: "a4ac4fee-538f-11e6-9cfe-86f436325720", // admin user id, as done by system automatically
+          reason: `Doctor's change in schedule.`,
+        };
         const { speciality, slotDate } = apnmt;
         const fromDate = (toDate = slotDate);
-        await this._cancelAppointment(appointment, true, false);
 
         const { dates } = await this._getAppointmentSlots({
           fromDate,
@@ -602,9 +606,10 @@ WHERE
           ["id", "createdAt", "updatedAt", "slotJsDate"].forEach((key) => {
             delete apnmtData[key];
           });
-
+          await this._cancelAppointment(appointment, true, false, true);
           await this._bookAppointment(apnmtData);
         } else {
+          await this._cancelAppointment(appointment, true, false);
           await sendCancelNotification(apnmt);
           await sendCancelNotificationToWebappDoctor(apnmt);
         }
@@ -628,9 +633,10 @@ WHERE
     visitUuid,
     patientId,
     appointmentId,
+    reason,
   }) => {
     const cancelled = await this._cancelAppointment(
-      { id: appointmentId },
+      { id: appointmentId, userId: hwUUID, reason },
       false
     );
     if (cancelled && cancelled.status) {
