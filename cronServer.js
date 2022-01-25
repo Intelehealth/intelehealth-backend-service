@@ -29,6 +29,9 @@ const sendNotification = async () => {
             webpush_obj: obj.notification_object,
             title: "New Patient has been uploaded",
             body: "Please start giving consultation",
+            options: {
+              TTL: 2 * 60 * 60, //It's in seconds, so this will be 2 hr
+            },
           });
         }
       });

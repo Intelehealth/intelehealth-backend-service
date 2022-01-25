@@ -23,7 +23,12 @@ module.exports = (function () {
     vapidKeys.privateKey
   );
 
-  this.sendWebPushNotificaion = async ({ webpush_obj, title, body }) => {
+  this.sendWebPushNotificaion = async ({
+    webpush_obj,
+    title,
+    body,
+    options = {},
+  }) => {
     await webpush
       .sendNotification(
         JSON.parse(webpush_obj),
@@ -33,7 +38,8 @@ module.exports = (function () {
             body,
             vibrate: [100, 50, 100],
           },
-        })
+        }),
+        options
       )
       .catch((error) => {
         console.log("notification:", error.body);
