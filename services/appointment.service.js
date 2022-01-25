@@ -511,7 +511,7 @@ WHERE
     notify = true,
     reschedule = false
   ) => {
-    const { id, visitUuid, userId, reason } = params;
+    const { id, visitUuid, hwUUID, reason } = params;
     let where = { id };
     if (visitUuid) where.visitUuid = visitUuid;
     const appointment = await Appointment.findOne({
@@ -525,7 +525,7 @@ WHERE
     }
     const status = reschedule ? "rescheduled" : "cancelled";
     if (appointment) {
-      appointment.update({ status, updatedBy: userId, reason });
+      appointment.update({ status, updatedBy: hwUUID, reason });
       if (notify) sendCancelNotificationToWebappDoctor(appointment);
       return {
         status: true,
@@ -586,7 +586,7 @@ WHERE
       asyncForEach(data, async (apnmt) => {
         const appointment = {
           ...apnmt,
-          userId: "a4ac4fee-538f-11e6-9cfe-86f436325720", // admin user id, as done by system automatically
+          hwUUID: "a4ac4fee-538f-11e6-9cfe-86f436325720", // admin user id, as done by system automatically
           reason: `Doctor's change in schedule.`,
         };
         const { speciality, slotDate } = apnmt;
