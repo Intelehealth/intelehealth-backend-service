@@ -637,7 +637,9 @@ WHERE
   }) => {
     const cancelled = await this._cancelAppointment(
       { id: appointmentId, userId: hwUUID, reason },
-      false
+      false,
+      null,
+      true
     );
     if (cancelled && cancelled.status) {
       return {

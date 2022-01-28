@@ -162,6 +162,7 @@ module.exports = (function () {
         { key: "patientName", type: "string" },
         { key: "openMrsId", type: "string" },
         { key: "hwUUID", type: "string" },
+        { key: "reason", type: "string" },
         { key: "appointmentId", type: "number" },
       ];
       if (validateParams(req.body, keysAndTypeToCheck)) {
@@ -181,6 +182,8 @@ module.exports = (function () {
       const keysAndTypeToCheck = [
         { key: "id", type: "number" },
         { key: "visitUuid", type: "string" },
+        { key: "reason", type: "string" },
+        { key: "hwUUID", type: "string" },
       ];
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await _cancelAppointment(req.body);
