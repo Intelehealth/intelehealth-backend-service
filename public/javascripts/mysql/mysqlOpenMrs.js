@@ -1,27 +1,33 @@
-var mysql = require("mysql");
-var config = require("../../../config/config.json");
-var db;
+const mysql = require("mysql");
+const config = require("../../../config/config.json");
+let pool;
 
 connectDatabase = () => {
-  if (!db) {
+  if (!pool) {
     const env = process.env.NODE_ENV ? process.env.NODE_ENV : "production";
     const settings = {
       ...config[env],
       user: config[env].username,
       database: "openmrs",
     };
-    db = mysql.createConnection(settings);
-
-    db.connect((err) => {
+    pool = mysql.createPool(settings);
+    pool.getConnection((err) => {
       if (!err) {
-        db.query('SET SESSION auto_increment_increment=1');
         console.log("Database is connected - OpenMrs-");
       } else {
         console.log("Error connecting database - OpenMrs");
       }
     });
+
+    // db.connect((err) => {
+    //   if (!err) {
+    //     console.log("Database is connected - OpenMrs-");
+    //   } else {
+    //     console.log("Error connecting database - OpenMrs");
+    //   }
+    // });
   }
-  return db;
+  return pool;
 };
 
 module.exports = connectDatabase();
