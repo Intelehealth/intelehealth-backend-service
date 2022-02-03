@@ -36,7 +36,7 @@ router.post("/subscribe", async (req, res) => {
 
   if (pushnotification && pushnotification.length) {
     mysql.query(
-      `UPDATE pushnotification SET notification_object='${details.notification_object}'
+      `UPDATE pushnotification SET notification_object='${details.notification_object},locale='${details.locale}'
        WHERE user_uuid='${details.user_uuid}' and finger_print='${details.finger_print}'`,
       (err, results, fields) => {
         if (err) res.status(400).json({ message: err.message });
@@ -58,18 +58,18 @@ router.post("/subscribe", async (req, res) => {
   }
 });
 
-//for demo server
+//for SS training
 const vapidKeys = {
   publicKey:
-    "BG4nDxMHBPV4YtkBZoGjPSOWDPrbyzw-o-vDKaScPhYfAjQs1hclQLwNWKKHYHNut0GZoVyj0jONVZgA5Dzdq0U",
-  privateKey: "SuA1XssVFT4UfSv8DEGx_uRkng2YtEUVxj54729zXkM",
+    "BMtnHsFSrIqN6HpWWHd1w7pjkuPcpPqAT_DIOo-B9L6BwpTgXUk-HtlRiWECDy2-N8RYCeqm8O8N_WUWX9V_578",
+  privateKey: "Bw1hIQNfnSaU9zNk1MM0Jydz9nXyYHP9T2474hvtjyU",
   mailTo: "mailto:support@intelehealth.org",
 };
-// For testing server
+// For SS production
 // const vapidKeys = {
 //     publicKey:
-//         "BAfolLQ7VpRSmWm6DskG-YyG3jjzq5z0rjKEl5HXLCw2W8CKS9cVmifnCAWnrlJMETgbgjuV1pWKLUf8zlbojH0",
-//     privateKey: "kCDISA3-UoW0pEx_gSTm4VtQASbvza-uw27Mq1x2wEc",
+//         "BNJYiUVbYJre8_1XP5aSD9BhpyJ-gBcpXgRyWXgM5MbF4P5evFFuU3sNC_fuk3hg33q8NDKUV-qYPWY7BeTJp0Y",
+//     privateKey: "Vtkox3xsLn2Y34tTySH6FpBaIcUY6nzEfH-P6KmUh1o",
 //     mailTo: "mailto:support@intelehealth.org"
 // };
 
