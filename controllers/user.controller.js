@@ -1,0 +1,47 @@
+const {
+  _createUpdateStatus,
+  _getStatuses,
+} = require("../services/user.service");
+const { validateParams } = require("../handlers/helper");
+
+module.exports = (function () {
+  this.createUpdateStatus = async (req, res) => {
+    const keysAndTypeToCheck = [
+      { key: "userUuid", type: "string" },
+      { key: "device", type: "string" },
+      { key: "status", type: "string" },
+    ];
+    try {
+      if (validateParams(req.body, keysAndTypeToCheck)) {
+        res.json({
+          status: true,
+          data: await _createUpdateStatus(req.body),
+        });
+      }
+    } catch (error) {
+      console.log("error: ", error);
+      res.json({
+        status: false,
+        message: error.message,
+      });
+    }
+  };
+
+  this.getStatuses = async (req, res) => {
+    try {
+      if (validateParams(req.params, [{ key: "userUuid", type: "string" }]))
+        res.json({
+          status: true,
+          data: await _getStatuses(req.params.userUuid, req.query),
+        });
+    } catch (error) {
+      console.log("error: ", error);
+      res.json({
+        status: false,
+        message: error.message,
+      });
+    }
+  };
+
+  return this;
+})();
