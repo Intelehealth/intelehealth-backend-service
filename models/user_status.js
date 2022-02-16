@@ -17,8 +17,16 @@ module.exports = (sequelize, DataTypes) => {
       lastLogin: DataTypes.DATE,
       device: DataTypes.STRING,
       version: DataTypes.STRING,
-      avgTimeSpentOneDay: DataTypes.STRING,
+      avgTimeSpentOneDay: {
+        type: DataTypes.STRING,
+        defaultValue: "0h 0m",
+      },
       status: DataTypes.STRING,
+      name: DataTypes.STRING,
+      userType: {
+        type: DataTypes.STRING,
+        defaultValue: "Health Worker",
+      },
     },
     {
       sequelize,

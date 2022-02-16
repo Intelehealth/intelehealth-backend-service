@@ -1,25 +1,60 @@
+const moment = require("moment");
 const { sendCloudNotification } = require("./helper");
 const { user_settings } = require("../models");
+const { _createUpdateStatus } = require("../services/user.service");
+
+function replaceAll(str, find, replace) {
+  const arr = str.split(find);
+  return arr.join(replace);
+}
 
 module.exports = function (server) {
   const io = require("socket.io")(server);
   global.users = {};
-  io.on("connection", (socket) => {
+  io.on("connection", async (socket) => {
     if (!users[socket.id]) {
+      let name = socket.handshake.query.name || "";
+      let device = socket.handshake.query.device || "";
+      name = replaceAll(name, "+", " ");
+      device = replaceAll(device, "+", " ");
+      const uuid =
+        socket.handshake.query.userId || socket.handshake.query.userUuid;
       users[socket.id] = {
-        uuid: socket.handshake.query.userId,
+        uuid,
         status: "online",
-        name: socket.handshake.query.name,
+        name,
+        device,
+        loginAt: moment("2022-02-16T14:31:59+05:30"),
       };
+      console.log("users[socket.id]: ", users[socket.id]);
+      await _createUpdateStatus({
+        userUuid: socket.handshake.query.userId,
+        status: "active",
+        device,
+      });
+      console.log("socket: >>>>>", uuid, "---", name);
     }
-    console.log("socket: >>>>>", socket.handshake.query.userId);
 
     socket.emit("myId", socket.id);
 
     io.sockets.emit("allUsers", users);
 
-    socket.on("disconnect", () => {
+    socket.on("disconnect", async () => {
       console.log("disconnected:>> ", socket.id);
+      const login = users[socket.id].loginAt.diff(moment(), "minutes");
+      const min = Math.abs(login) % 60;
+      const hr = Math.floor(Math.abs(login) / 60);
+      if (hr && min) {
+        try {
+          await _createUpdateStatus({
+            userUuid: users[socket.id].uuid,
+            status: "inactive",
+            avgTimeSpentOneDay: `${hr}h ${min}m`,
+          });
+        } catch (error) {
+          console.log("error: ", error);
+        }
+      }
       delete users[socket.id];
       io.sockets.emit("allUsers", users);
     });
