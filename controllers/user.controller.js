@@ -1,6 +1,7 @@
 const {
   _createUpdateStatus,
   _getStatuses,
+  _profile,
 } = require("../services/user.service");
 const { validateParams } = require("../handlers/helper");
 
@@ -48,6 +49,22 @@ module.exports = (function () {
       res.json({
         status: true,
         data: await _getStatuses(null, req.query),
+      });
+    } catch (error) {
+      console.log("error: ", error);
+      res.json({
+        status: false,
+        message: error.message,
+      });
+    }
+  };
+
+  this.profile = async (req, res) => {
+    try {
+      res.json({
+        status: true,
+        data: await _profile(req.params.userUuid, req.query),
+        message: "Date fetched successfully!",
       });
     } catch (error) {
       console.log("error: ", error);
