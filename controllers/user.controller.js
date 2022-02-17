@@ -10,7 +10,6 @@ module.exports = (function () {
     const keysAndTypeToCheck = [
       { key: "userUuid", type: "string" },
       { key: "device", type: "string" },
-      { key: "status", type: "string" },
     ];
     try {
       if (validateParams(req.body, keysAndTypeToCheck)) {

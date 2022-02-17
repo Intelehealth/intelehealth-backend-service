@@ -69,7 +69,7 @@ module.exports = (function () {
         );
         if (vitals || adlIntl) {
           const visit = adlIntl || vitals;
-          if (visit?.encounterProviders[0].provider.uuid === userUuid) {
+          if (visit.encounterProviders[0].provider.uuid === userUuid) {
             if (complete) {
               completed.push(i);
             } else if (progress) {
@@ -116,32 +116,31 @@ module.exports = (function () {
     const url = `/openmrs/ws/rest/v1/provider?user=${userUuid}&v=custom:(uuid,person:(uuid,display,gender),attributes)`;
     const { data } = await axiosInstance.get(url);
 
-    if (data?.results?.length) {
+    if (data.results.length) {
       const [user] = data.results;
-      const Gender = user?.person?.gender || "NA";
+      const Gender = user.person.gender || "NA";
       let attributes = {};
       user.attributes.forEach((attr) => {
-        attributes[attr?.attributeType?.display] = attr?.value || "NA";
+        attributes[attr.attributeType.display] = attr.value || "NA";
       });
-      console.log("attributes: ", attributes);
       const { total, inProgress, completed } = await getVisitsInfo(
-        user?.uuid,
+        user.uuid,
         query.type
       );
 
       profieData = {
-        userName: user?.person?.display,
-        Designation: attributes?.qualification || "NA",
-        AboutMe: attributes?.aboutMe || "NA",
-        patientRegistered: total?.length,
-        visitInProgress: inProgress?.length,
-        CompletedConsultation: completed?.length,
+        userName: user.person.display,
+        Designation: attributes.qualification || "NA",
+        AboutMe: attributes.aboutMe || "NA",
+        patientRegistered: total.length,
+        visitInProgress: inProgress.length,
+        CompletedConsultation: completed.length,
         personalInformation: {
           Gender,
-          State: attributes?.visitState || "NA",
-          Mobile: attributes?.phoneNumber || "NA",
-          WhatsApp: attributes?.whatsapp || "NA",
-          Email: attributes?.emailId || "NA",
+          State: attributes.visitState || "NA",
+          Mobile: attributes.phoneNumber || "NA",
+          WhatsApp: attributes.whatsapp || "NA",
+          Email: attributes.emailId || "NA",
         },
       };
       return profieData;

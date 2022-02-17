@@ -14,13 +14,11 @@ module.exports = (sequelize, DataTypes) => {
   user_status.init(
     {
       userUuid: DataTypes.STRING,
-      lastLogin: DataTypes.DATE,
+      currentTimestamp: DataTypes.DATE,
+      lastSyncTimestamp: DataTypes.DATE,
       device: DataTypes.STRING,
       version: DataTypes.STRING,
-      avgTimeSpentOneDay: {
-        type: DataTypes.STRING,
-        defaultValue: "0h 0m",
-      },
+      lastActivity: DataTypes.STRING,
       status: DataTypes.STRING,
       name: DataTypes.STRING,
       userType: {
