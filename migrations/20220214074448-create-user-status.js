@@ -29,6 +29,9 @@ module.exports = {
       status: {
         type: Sequelize.STRING,
       },
+      avgTimeSpentInADay: {
+        type: Sequelize.STRING,
+      },
       userType: {
         type: Sequelize.STRING,
       },

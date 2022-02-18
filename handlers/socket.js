@@ -31,6 +31,8 @@ module.exports = function (server) {
         userUuid: socket.handshake.query.userId,
         status: "active",
         device,
+        currentTimestamp: new Date(),
+        lastSyncTimestamp: new Date(),
       });
       console.log("socket: >>>>>", uuid, "---", name);
     }
@@ -49,7 +51,8 @@ module.exports = function (server) {
           await _createUpdateStatus({
             userUuid: users[socket.id].uuid,
             status: "inactive",
-            avgTimeSpentOneDay: `${hr}h ${min}m`,
+            currentTimestamp: new Date(),
+            lastSyncTimestamp: new Date(),
           });
         } catch (error) {
           console.log("error: ", error);

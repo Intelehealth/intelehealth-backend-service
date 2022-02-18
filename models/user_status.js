@@ -19,6 +19,10 @@ module.exports = (sequelize, DataTypes) => {
       device: DataTypes.STRING,
       version: DataTypes.STRING,
       lastActivity: DataTypes.STRING,
+      avgTimeSpentInADay: {
+        type: DataTypes.STRING,
+        defaultValue: "0h 0m",
+      },
       status: DataTypes.STRING,
       name: DataTypes.STRING,
       userType: {
