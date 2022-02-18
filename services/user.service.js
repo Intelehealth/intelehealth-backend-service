@@ -5,7 +5,13 @@ module.exports = (function () {
   this._createUpdateStatus = async (data) => {
     try {
       const { userUuid, device } = data;
-      const status = await user_status.findOne({ userUuid, device });
+      const status = await user_status.findOne({
+        where: {
+          userUuid,
+          device,
+        },
+      });
+      console.log("status: ", status);
       if (status) {
         return await user_status.update(data, { where: { id: status.id } });
       } else {
