@@ -150,7 +150,7 @@ WHERE
    * @param {object} findOptions
    * @returns []Array
    */
-  this.getUserAppointmentSchedule = async (opts = {}, method = "findOne") => {
+  this.getUserAppointmentSchedule = async (opts = {}, method = "findAll") => {
     try {
       return await Schedule[method](opts);
     } catch (error) {
