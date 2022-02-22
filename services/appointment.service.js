@@ -91,6 +91,60 @@ WHERE
     return this.getFilterDates(moment().format("DD/MM/YYYY"), null)[0];
   };
 
+  const checkCommonScheduleAndUpdate = async (schedule, newScheduleData) => {
+    const { slotSchedule, userUuid, year, month, speciality } = schedule;
+    const { slotSchedule: slots } = newScheduleData;
+    let oldUpdatedSchedule = [];
+    slotSchedule.map((schedule) => {
+      const idx = slots.findIndex((s) => s.day === schedule.day);
+      if (idx !== -1) {
+        const { startTime, endTime } = slots[idx];
+        console.log("slots[idx]: ", slots[idx]);
+        let newStart = moment(startTime, TIME_FORMAT);
+        let newEnd = moment(endTime, TIME_FORMAT);
+
+        let strt = moment(schedule.startTime, TIME_FORMAT);
+        let end = moment(schedule.endTime, TIME_FORMAT);
+        const totalSameToIgnore = strt.isSame(newStart) && end.isSame(newEnd);
+        const timeBeforeToIgnore = newEnd.isSameOrBefore(strt);
+        const timeAfterToIgnore = newStart.isSameOrAfter(end);
+        if (totalSameToIgnore) {
+          // condition to skip/remove the day
+        } else if (timeBeforeToIgnore || timeAfterToIgnore) {
+          oldUpdatedSchedule.push(schedule);
+        } else if (newEnd.isBetween(strt, end)) {
+          oldUpdatedSchedule.push({
+            ...schedule,
+            startTime: newEnd.format(TIME_FORMAT),
+          });
+        }
+      } else {
+        oldUpdatedSchedule.push(schedule);
+      }
+    });
+    const opts = { where: { userUuid, year, month, speciality } };
+    await Schedule.update(
+      { ...schedule, slotSchedule: oldUpdatedSchedule },
+      opts
+    );
+  };
+
+  this.checkScheduleForOtherSpeciality = async (userUuid, scheduleData) => {
+    const { year, month, speciality } = scheduleData;
+    const opts = { where: { userUuid, year, month }, raw: true };
+    let schedules = await this.getUserAppointmentSchedule(opts, "findAll");
+    schedules = schedules.filter((s) => s.speciality !== speciality);
+    await asyncForEach(schedules, async (schedule) => {
+      await checkCommonScheduleAndUpdate(schedule, scheduleData);
+    });
+  };
+
+  const uniqueSlotDays = (slotDays) => {
+    let days = slotDays.split("||");
+    days = [...new Set(days)];
+    return days.join("||");
+  };
+
   /**
    * Create & updates a schedule if already exist for userUuid
    * @param {string} userUuid
@@ -110,7 +164,7 @@ WHERE
     try {
       const opts = { where: { userUuid, year, month, speciality } };
       const schedule = await this.getUserAppointmentSchedule(opts, "findOne");
-      let update = { slotDays };
+      let update = { slotDays: uniqueSlotDays(slotDays) };
       if (slotSchedule) update.slotSchedule = slotSchedule;
       if (drName) update.drName = drName;
       if (speciality) update.speciality = speciality;
@@ -118,26 +172,31 @@ WHERE
       if (year) update.year = year;
       if (month) update.month = month;
       if (schedule) {
+        await this.checkScheduleForOtherSpeciality(userUuid, update);
         const resp = {
           message: "Appointment updated successfully",
           data: await Schedule.update(update, opts),
         };
-        await this.rescheduleOrCancelAppointment(userUuid);
+        await this.rescheduleOrCancelAppointment(userUuid, update);
 
         return resp;
       } else {
+        const scheduleData = {
+          userUuid,
+          slotDays,
+          slotSchedule,
+          speciality,
+          drName,
+          type,
+          month,
+          year,
+        };
+        await this.checkScheduleForOtherSpeciality(userUuid, scheduleData);
+        const data = await Schedule.create(scheduleData);
+        await this.rescheduleOrCancelAppointment(userUuid, scheduleData);
         return {
           message: "Appointment created successfully",
-          data: await Schedule.create({
-            userUuid,
-            slotDays,
-            slotSchedule,
-            speciality,
-            drName,
-            type,
-            month,
-            year,
-          }),
+          data,
         };
       }
     } catch (error) {
