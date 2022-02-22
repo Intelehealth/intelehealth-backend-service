@@ -108,7 +108,7 @@ WHERE
     year,
   }) => {
     try {
-      const opts = { where: { userUuid, year, month } };
+      const opts = { where: { userUuid, year, month, speciality } };
       const schedule = await this.getUserAppointmentSchedule(opts, "findOne");
       let update = { slotDays };
       if (slotSchedule) update.slotSchedule = slotSchedule;
