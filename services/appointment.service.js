@@ -46,11 +46,11 @@ where
                   ? `Причина: В связи с изменением графика врача`
                   : `Reason : Due to doctor's change in schedule.`,
               regTokens: [token],
-            }).catch((err) => { });
+            }).catch((err) => {});
           }
         });
       }
-    } catch (error) { }
+    } catch (error) {}
   };
 
   const sendCancelNotificationToWebappDoctor = async ({
@@ -84,7 +84,7 @@ WHERE
           }
         });
       }
-    } catch (error) { }
+    } catch (error) {}
   };
 
   const getTodayDate = () => {
@@ -109,7 +109,7 @@ WHERE
   }) => {
     try {
       const opts = { where: { userUuid, year, month } };
-      const schedule = await this.getUserAppointmentSchedule(opts);
+      const schedule = await this.getUserAppointmentSchedule(opts, "findOne");
       let update = { slotDays };
       if (slotSchedule) update.slotSchedule = slotSchedule;
       if (drName) update.drName = drName;
@@ -335,18 +335,18 @@ WHERE
         schedules.forEach((schedule) => {
           const _dates = true
             ? // schedule.type === "month"
-            getMonthSlots({
-              schedule,
-              days,
-              SLOT_DURATION,
-              SLOT_DURATION_UNIT,
-            })
+              getMonthSlots({
+                schedule,
+                days,
+                SLOT_DURATION,
+                SLOT_DURATION_UNIT,
+              })
             : getWeekSlots({
-              schedule,
-              days,
-              SLOT_DURATION,
-              SLOT_DURATION_UNIT,
-            });
+                schedule,
+                days,
+                SLOT_DURATION,
+                SLOT_DURATION_UNIT,
+              });
           dates = dates.concat(_dates);
         });
         const appointments = await Appointment.findAll({
