@@ -34,7 +34,7 @@ where
       if (data && data.length) {
         asyncForEach(data, async (item) => {
           const { token, locale } = item;
-          console.log("locale: ", locale);
+
           if (token) {
             await sendCloudNotification({
               title:
@@ -99,7 +99,6 @@ WHERE
       const idx = slots.findIndex((s) => s.day === schedule.day);
       if (idx !== -1) {
         const { startTime, endTime } = slots[idx];
-        console.log("slots[idx]: ", slots[idx]);
         let newStart = moment(startTime, TIME_FORMAT);
         let newEnd = moment(endTime, TIME_FORMAT);
 
