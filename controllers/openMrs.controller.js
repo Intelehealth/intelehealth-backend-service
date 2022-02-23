@@ -3,6 +3,7 @@ const {
   getVisitCountQueryForGp,
   getVisitCountQuery,
   locationQuery,
+  doctorsQuery,
 } = require("./queries");
 
 /**
@@ -116,7 +117,49 @@ const getLocations = async (req, res, next) => {
   }
 };
 
+const getDoctorDetails = async (req, res, next) => {
+  try {
+    const rawData = await new Promise((resolve, reject) => {
+      openMrsDB.query(doctorsQuery(), (err, results, fields) => {
+        if (err) reject(err);
+        resolve(results);
+      });
+    }).catch((err) => {
+      throw err;
+    });
+    let doctors = {};
+    rawData.forEach((rData) => {
+      if (!doctors[rData.person_id]) doctors[rData.person_id] = {};
+      doctors[rData.person_id].person_id = rData.person_id;
+      doctors[rData.person_id].givenName = rData.givenName;
+      doctors[rData.person_id].gender = rData.gender;
+      doctors[rData.person_id].uuid = rData.uuid;
+      if (!doctors[rData.person_id].attributes)
+        doctors[rData.person_id].attributes = {};
+      if (rData.attrTypeName) {
+        doctors[rData.person_id].attributes[rData.attrTypeName] =
+          rData.value_reference;
+      }
+    });
+    const processedData = [];
+    for (const i in doctors) {
+      if (Object.hasOwnProperty.call(doctors, i)) {
+        processedData.push(doctors[i]);
+      }
+    }
+    res.json({
+      success: true,
+      count: processedData.length,
+      data: processedData,
+    });
+  } catch (error) {
+    res.statusCode = 422;
+    res.json({ status: false, message: error.message });
+  }
+};
+
 module.exports = {
   getVisitCounts,
   getLocations,
+  getDoctorDetails,
 };

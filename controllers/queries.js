@@ -97,5 +97,25 @@ where
 order by
   l.name`;
 
+  this.doctorsQuery = () => `SELECT
+  distinct pa.value_reference,
+  pn.given_name as givenName,
+  p.person_id,
+  p.gender,
+  p.uuid,
+  ur.role,
+  u.username as userName,
+  pat.name as attrTypeName
+FROM
+  users u
+  LEFT JOIN user_role ur ON ur.user_id = u.user_id
+  LEFT JOIN person p ON p.person_id = u.person_id
+  LEFT JOIN person_name pn ON pn.person_id = p.person_id
+  LEFT JOIN provider pdr ON pdr.person_id = p.person_id
+  LEFT JOIN provider_attribute pa ON pdr.provider_id = pa.provider_id
+  LEFT JOIN provider_attribute_type pat ON pat.provider_attribute_type_id = pa.attribute_type_id
+WHERE 
+ur.role like '%Doctor%';`;
+
   return this;
 })();
