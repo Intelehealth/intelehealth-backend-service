@@ -418,18 +418,6 @@ WHERE
         });
 
         if (appointments) {
-          appointments.forEach((apnmt) => {
-            const dateIdx = dates.findIndex(
-              (d) =>
-                d.slotTime === apnmt.slotTime &&
-                d.slotDate === apnmt.slotDate &&
-                d.slotDay === apnmt.slotDay &&
-                d.userUuid === apnmt.userUuid
-            );
-            if (dateIdx != -1) {
-              dates.splice(dateIdx, 1);
-            }
-          });
           dates.forEach((slot) => {
             const slt = uniqueTimeSlots.find(
               (us) => us.slotTime === slot.slotTime
@@ -445,9 +433,22 @@ WHERE
               }
             }
           });
+          appointments.forEach((apnmt) => {
+            const dateIdx = uniqueTimeSlots.findIndex(
+              (d) =>
+                d.slotTime === apnmt.slotTime &&
+                d.slotDate === apnmt.slotDate &&
+                d.slotDay === apnmt.slotDay &&
+                d.userUuid === apnmt.userUuid
+            );
+            if (dateIdx != -1) {
+              uniqueTimeSlots.splice(dateIdx, 1);
+            }
+          });
         }
       }
 
+      console.log('uniqueTimeSlots.length: ', uniqueTimeSlots.length);
       return { len: uniqueTimeSlots.length, dates: uniqueTimeSlots };
     } catch (error) {
       throw error;
