@@ -405,9 +405,10 @@ WHERE
               });
           dates = dates.concat(_dates);
         });
+        if (returnAllSlots) return dates;
         const appointments = await Appointment.findAll({
           where: {
-            speciality,
+            // speciality,
             slotJsDate: {
               [Op.between]: this.getFilterDates(fromDate, toDate),
             },
@@ -415,7 +416,6 @@ WHERE
           },
           raw: true,
         });
-        if (returnAllSlots) return dates;
 
         if (appointments) {
           appointments.forEach((apnmt) => {
@@ -448,7 +448,7 @@ WHERE
         }
       }
 
-      return { dates: uniqueTimeSlots };
+      return { len: uniqueTimeSlots.length, dates: uniqueTimeSlots };
     } catch (error) {
       throw error;
     }
