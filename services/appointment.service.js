@@ -171,7 +171,6 @@ WHERE
       if (year) update.year = year;
       if (month) update.month = month;
       if (schedule) {
-        await this.checkScheduleForOtherSpeciality(userUuid, update);
         const resp = {
           message: "Appointment updated successfully",
           data: await Schedule.update(update, opts),
@@ -190,7 +189,6 @@ WHERE
           month,
           year,
         };
-        await this.checkScheduleForOtherSpeciality(userUuid, scheduleData);
         const data = await Schedule.create(scheduleData);
         await this.rescheduleOrCancelAppointment(userUuid, scheduleData);
         return {
