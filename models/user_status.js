@@ -14,8 +14,8 @@ module.exports = (sequelize, DataTypes) => {
   user_status.init(
     {
       userUuid: DataTypes.STRING,
-      currentTimestamp: DataTypes.DATE,
-      lastSyncTimestamp: DataTypes.DATE,
+      currentTimestamp: { type: DataTypes.DATE, defaultValue: new Date() },
+      lastSyncTimestamp: { type: DataTypes.DATE, defaultValue: new Date() },
       device: DataTypes.STRING,
       version: DataTypes.STRING,
       lastActivity: DataTypes.STRING,

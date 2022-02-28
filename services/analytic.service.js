@@ -1,4 +1,5 @@
-const { analytics } = require("../models");
+const { analytics, active_session } = require("../models");
+const moment = require("moment");
 
 module.exports = (function () {
   this._trackActions = async (data) => {
@@ -22,6 +23,47 @@ module.exports = (function () {
     } catch (error) {
       throw error;
     }
+  };
+
+  this.connect = async ({ uuid: userUuid, device, userType }) => {
+    try {
+      if (userUuid) {
+        await active_session.create({
+          startTime: new Date(),
+          device,
+          userUuid,
+          userType,
+        });
+      }
+    } catch (error) {
+      console.log("error: ", error);
+    }
+  };
+
+  this.disconnect = async ({ uuid: userUuid, userType }) => {
+    try {
+      let session = await active_session.findOne({
+        where: {
+          userUuid,
+          duration: null,
+        },
+      });
+      if (session) {
+        const sessionVal = session.get();
+        session.endTime = new Date();
+        const minutes = moment(sessionVal.startTime).diff(moment(), "minutes");
+        session.duration = Math.abs(minutes);
+        if (minutes > 0) {
+          if (userType) session.userType = userType;
+          await session.save();
+        } else {
+          session.destroy();
+        }
+      }
+    } catch (error) {
+      console.log("error: ", error);
+    }
+    console.log("disconnect:userUuid: ", userUuid);
   };
   return this;
 })();

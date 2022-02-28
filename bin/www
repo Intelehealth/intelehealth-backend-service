@@ -6,27 +6,28 @@
 
 var app = require("../app");
 var debug = require("debug")("mindmapbackend:server");
-// var http = require("http");
-const https = require('https');
-const fs = require('fs');
+var port = normalizePort(process.env.PORT || "3004");
+app.set("port", port);
 /**
  * Get port from environment and store in Express.
  */
-
-const options = {
-  key: fs.readFileSync('/etc/letsencrypt/live/afitraining.ekalarogya.org/privkey.pem'),
-  cert: fs.readFileSync('/etc/letsencrypt/live/afitraining.ekalarogya.org/fullchain.pem')
-};
-
-var port = normalizePort(process.env.PORT || "3004");
-app.set("port", port);
-
-/**
- * Create HTTP server.
- */
-
-var server = https.createServer(options, app);
-//  var server = http.createServer(app);
+const isDevelopment = process.env.NODE_ENV === "development";
+if (isDevelopment) {
+  var http = require("http");
+  var server = http.createServer(app);
+} else {
+  const https = require("https");
+  const fs = require("fs");
+  const options = {
+    key: fs.readFileSync(
+      "/etc/letsencrypt/live/afitraining.ekalarogya.org/privkey.pem"
+    ),
+    cert: fs.readFileSync(
+      "/etc/letsencrypt/live/afitraining.ekalarogya.org/fullchain.pem"
+    ),
+  };
+  var server = https.createServer(options, app);
+}
 require("../handlers/socket")(server);
 
 /**

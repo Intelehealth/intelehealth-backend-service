@@ -1,7 +1,7 @@
 const moment = require("moment");
 const { sendCloudNotification } = require("./helper");
 const { user_settings } = require("../models");
-const { _createUpdateStatus } = require("../services/user.service");
+const { connect, disconnect } = require("../services/analytic.service");
 
 function replaceAll(str, find, replace) {
   const arr = str.split(find);
@@ -15,8 +15,10 @@ module.exports = function (server) {
     if (!users[socket.id]) {
       let name = socket.handshake.query.name || "";
       let device = socket.handshake.query.device || "";
+      let userType = socket.handshake.query.userType || "";
       name = replaceAll(name, "+", " ");
       device = replaceAll(device, "+", " ");
+      userType = replaceAll(userType, "+", " ");
       const uuid =
         socket.handshake.query.userId || socket.handshake.query.userUuid;
       users[socket.id] = {
@@ -24,17 +26,10 @@ module.exports = function (server) {
         status: "online",
         name,
         device,
+        userType,
         loginAt: moment("2022-02-16T14:31:59+05:30"),
       };
-      console.log("users[socket.id]: ", users[socket.id]);
-      await _createUpdateStatus({
-        userUuid: socket.handshake.query.userId,
-        status: "active",
-        device,
-        currentTimestamp: new Date(),
-        lastSyncTimestamp: new Date(),
-      });
-      console.log("socket: >>>>>", uuid, "---", name);
+      await connect(users[socket.id]);
     }
 
     socket.emit("myId", socket.id);
@@ -43,20 +38,10 @@ module.exports = function (server) {
 
     socket.on("disconnect", async () => {
       console.log("disconnected:>> ", socket.id);
-      const login = users[socket.id].loginAt.diff(moment(), "minutes");
-      const min = Math.abs(login) % 60;
-      const hr = Math.floor(Math.abs(login) / 60);
-      if (hr && min) {
-        try {
-          await _createUpdateStatus({
-            userUuid: users[socket.id].uuid,
-            status: "inactive",
-            currentTimestamp: new Date(),
-            lastSyncTimestamp: new Date(),
-          });
-        } catch (error) {
-          console.log("error: ", error);
-        }
+      try {
+        await disconnect(users[socket.id]);
+      } catch (error) {
+        console.log("error: ", error);
       }
       delete users[socket.id];
       io.sockets.emit("allUsers", users);

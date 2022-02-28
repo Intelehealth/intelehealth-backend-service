@@ -4,17 +4,16 @@ const { axiosInstance } = require("../handlers/helper");
 module.exports = (function () {
   this._createUpdateStatus = async (data) => {
     try {
-      const { userUuid, device } = data;
+      const { userUuid = "", device = "", forceUpdate = false } = data;
       const status = await user_status.findOne({
         where: {
           userUuid,
           device,
         },
       });
-      console.log("status: ", status);
       if (status) {
         return await user_status.update(data, { where: { id: status.id } });
-      } else {
+      } else if (!forceUpdate) {
         return await user_status.create(data);
       }
     } catch (error) {
