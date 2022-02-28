@@ -51,8 +51,9 @@ module.exports = (function () {
       if (session) {
         const sessionVal = session.get();
         session.endTime = new Date();
-        const minutes = moment(sessionVal.startTime).diff(moment(), "minutes");
-        session.duration = Math.abs(minutes);
+        const minutes = Math.abs(moment(sessionVal.startTime).diff(moment(), "minutes"));
+        console.log('minutes: >>>>>>>>>>>>>>>>>', minutes);
+        session.duration = minutes;
         if (minutes > 0) {
           if (userType) session.userType = userType;
           await session.save();

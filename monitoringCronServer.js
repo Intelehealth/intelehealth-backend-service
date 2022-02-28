@@ -96,8 +96,7 @@ const mointor = async () => {
   }
   removeOldSessions();
 };
-mointor();
-const cronString = `*/1 * * * *`;
-// const cronString = "0 0 * * *";
-// new CronJob(cronString, mointor, null, true, "Asia/Kolkata");
+// const cronString = `*/1 * * * *`;
+const cronString = "0 0 * * *";
+new CronJob(cronString, mointor, null, true, "Asia/Kolkata");
 console.log("Monitoring Cron started......");
