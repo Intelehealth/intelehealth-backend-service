@@ -1,25 +1,48 @@
+const moment = require("moment");
 const { sendCloudNotification } = require("./helper");
 const { user_settings } = require("../models");
+const { connect, disconnect } = require("../services/analytic.service");
+
+function replaceAll(str, find, replace) {
+  const arr = str.split(find);
+  return arr.join(replace);
+}
 
 module.exports = function (server) {
   const io = require("socket.io")(server);
   global.users = {};
-  io.on("connection", (socket) => {
+  io.on("connection", async (socket) => {
     if (!users[socket.id]) {
+      let name = socket.handshake.query.name || "";
+      let device = socket.handshake.query.device || "";
+      let userType = socket.handshake.query.userType || "";
+      name = replaceAll(name, "+", " ");
+      device = replaceAll(device, "+", " ");
+      userType = replaceAll(userType, "+", " ");
+      const uuid =
+        socket.handshake.query.userId || socket.handshake.query.userUuid;
       users[socket.id] = {
-        uuid: socket.handshake.query.userId,
+        uuid,
         status: "online",
-        name: socket.handshake.query.name,
+        name,
+        device,
+        userType,
+        loginAt: moment("2022-02-16T14:31:59+05:30"),
       };
+      await connect(users[socket.id]);
     }
-    console.log("socket: >>>>>", socket.handshake.query.userId);
 
     socket.emit("myId", socket.id);
 
     io.sockets.emit("allUsers", users);
 
-    socket.on("disconnect", () => {
+    socket.on("disconnect", async () => {
       console.log("disconnected:>> ", socket.id);
+      try {
+        await disconnect(users[socket.id]);
+      } catch (error) {
+        console.log("error: ", error);
+      }
       delete users[socket.id];
       io.sockets.emit("allUsers", users);
     });
