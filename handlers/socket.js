@@ -29,7 +29,6 @@ module.exports = function (server) {
         userType,
         loginAt: moment("2022-02-16T14:31:59+05:30"),
       };
-      await connect(users[socket.id]);
     }
 
     socket.emit("myId", socket.id);
@@ -38,11 +37,6 @@ module.exports = function (server) {
 
     socket.on("disconnect", async () => {
       console.log("disconnected:>> ", socket.id);
-      try {
-        await disconnect(users[socket.id]);
-      } catch (error) {
-        console.log("error: ", error);
-      }
       delete users[socket.id];
       io.sockets.emit("allUsers", users);
     });
