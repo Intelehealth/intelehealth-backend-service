@@ -7,7 +7,7 @@ module.exports = (function () {
   this.TIME_FORMAT = "[H]h [M]m";
 
   const createSession = async (data, duration) => {
-    if (duration) {
+    if (duration && duration <= 20) {
       active_session.create({
         startTime: moment().subtract(duration, "m").toDate(),
         endTime: new Date(),
