@@ -6,16 +6,21 @@ const moment = require("moment");
 module.exports = (function () {
   this.TIME_FORMAT = "[H]h [M]m";
 
-  this._createUpdateStatus = async (data) => {
-    try {
+  const createSession = async (data, duration) => {
+    if (duration) {
       active_session.create({
-        startTime: moment().subtract(15, "m").toDate(),
+        startTime: moment().subtract(duration, "m").toDate(),
         endTime: new Date(),
         device: data.device,
         userUuid: data.userUuid,
         userType: data.userType ? data.userType : "Health Worker",
-        duration: 15,
+        duration,
       });
+    }
+  };
+
+  this._createUpdateStatus = async (data) => {
+    try {
       const { userUuid = "", device = "", forceUpdate = false } = data;
       let status = await user_status.findOne({
         where: {
@@ -25,10 +30,12 @@ module.exports = (function () {
         order: [["updatedAt", "ASC"]],
         raw: true,
       });
+      const updatedAt = (status && status.updatedAt) || new Date();
+      const duration = Math.abs(moment().diff(moment(updatedAt), "m"));
+
       if (status) {
         if (!status.totalTime) status.totalTime = "0h 0m";
         const totalTime = moment(status.totalTime, this.TIME_FORMAT);
-        const duration = Math.abs(moment().diff(moment(status.updatedAt), "m"));
         if (duration > 0) {
           const total = moment
             .duration({
@@ -37,9 +44,11 @@ module.exports = (function () {
             })
             .add(duration, "minutes");
           data.totalTime = this.getHourMins(total.asMinutes());
+          await createSession(data, duration);
         }
         return await user_status.update(data, { where: { id: status.id } });
       } else if (!forceUpdate) {
+        await createSession(data, duration);
         return await user_status.create(data);
       }
     } catch (error) {
