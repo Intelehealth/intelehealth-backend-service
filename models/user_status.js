@@ -27,6 +27,11 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         defaultValue: "active",
       },
+      totalTime: {
+        type: DataTypes.STRING,
+        defaultValue: "0h 0m",
+      },
+      androidVersion: DataTypes.STRING,
       name: DataTypes.STRING,
       userType: {
         type: DataTypes.STRING,

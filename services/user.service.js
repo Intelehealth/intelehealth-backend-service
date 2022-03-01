@@ -1,17 +1,43 @@
-const { user_status } = require("../models");
+const { user_status, active_session } = require("../models");
 const { axiosInstance } = require("../handlers/helper");
 
+const moment = require("moment");
+
 module.exports = (function () {
+  this.TIME_FORMAT = "[H]h [M]m";
+
   this._createUpdateStatus = async (data) => {
     try {
+      active_session.create({
+        startTime: moment().subtract(15, "m").toDate(),
+        endTime: new Date(),
+        device: data.device,
+        userUuid: data.userUuid,
+        userType: data.userType ? data.userType : "Health Worker",
+        duration: 15,
+      });
       const { userUuid = "", device = "", forceUpdate = false } = data;
-      const status = await user_status.findOne({
+      let status = await user_status.findOne({
         where: {
           userUuid,
           device,
         },
+        order: [["updatedAt", "ASC"]],
+        raw: true,
       });
       if (status) {
+        if (!status.totalTime) status.totalTime = "0h 0m";
+        const totalTime = moment(status.totalTime, this.TIME_FORMAT);
+        const duration = Math.abs(moment().diff(moment(status.updatedAt), "m"));
+        if (duration > 0) {
+          const total = moment
+            .duration({
+              minutes: totalTime.get("minutes"),
+              hours: totalTime.get("hours"),
+            })
+            .add(duration, "minutes");
+          data.totalTime = this.getHourMins(total.asMinutes());
+        }
         return await user_status.update(data, { where: { id: status.id } });
       } else if (!forceUpdate) {
         return await user_status.create(data);
@@ -138,6 +164,12 @@ module.exports = (function () {
     } else {
       throw new Error("Data not found!");
     }
+  };
+
+  this.getHourMins = (val = 0) => {
+    const min = Math.abs(val % 60);
+    const hr = Math.abs(Math.floor(val / 60));
+    return `${hr}h ${min}m`;
   };
   return this;
 })();

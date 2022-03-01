@@ -1,8 +1,7 @@
 const CronJob = require("cron").CronJob;
 const { Sequelize, active_session, user_status } = require("./models");
 const moment = require("moment");
-
-const TIME_FORMAT = "[H]h [M]m";
+const { TIME_FORMAT } = require("./services/user.service");
 
 const removeOldSessions = async () => {
   await active_session.destroy({
@@ -15,8 +14,8 @@ const removeOldSessions = async () => {
 };
 
 const mointor = async () => {
-  const dayStart = moment().startOf("day");
-  const dayEnd = moment().endOf("day");
+  const dayStart = moment().startOf("day").toDate();
+  const dayEnd = moment().endOf("day").toDate();
   let session = await active_session.findAll({
     where: {
       endTime: {
@@ -45,7 +44,7 @@ const mointor = async () => {
       while (logins.length && count <= 50) {
         const rec = logins[0];
         if (!Array.isArray(devices[rec.device])) {
-          devices[rec.device] = logins.find((s) => s.device === rec.device);
+          devices[rec.device] = logins.filter((s) => s.device === rec.device);
           logins = logins.filter((s) => s.device !== rec.device);
         }
         count++;
@@ -53,11 +52,18 @@ const mointor = async () => {
       for (const k in devices) {
         if (Object.hasOwnProperty.call(devices, k)) {
           const device = devices[k];
-          const totalDuration = device.duration;
+          let totalDuration = 0;
+          let _device = "";
+          device.forEach((dvc) => {
+            totalDuration += !isNaN(Number(dvc.duration))
+              ? Number(dvc.duration)
+              : 0;
+            _device = dvc.device;
+          });
           const status = await user_status.findOne({
             where: {
               userUuid: uuid,
-              device: device.device,
+              device: _device,
             },
           });
           const min = Math.abs(totalDuration % 60);
@@ -72,19 +78,18 @@ const mointor = async () => {
           };
           if (status) {
             const avgTime = moment(status.avgTimeSpentInADay, TIME_FORMAT);
+
             const newAvgTime = moment(data.avgTimeSpentInADay, TIME_FORMAT);
             if (avgTime.get("hours") > 0 || avgTime.get("minutes") > 0) {
-              const total = moment.duration({
-                minutes: avgTime.get("minutes"),
-                hours: avgTime.get("hours"),
-              });
-              total.add(newAvgTime.get("minutes"), "minutes");
-              total.add(newAvgTime.get("hours"), "hours");
-              const totalMinutes = total.asMinutes();
-              const avgDuration = Math.floor(totalMinutes / 2);
-              const min = Math.abs(avgDuration % 60);
-              const hr = Math.abs(Math.floor(avgDuration / 60));
-              data.avgTimeSpentInADay = `${hr}h ${min}m`;
+              const avg = moment
+                .duration({
+                  minutes: avgTime.get("minutes"),
+                  hours: avgTime.get("hours"),
+                })
+                .add(newAvgTime.get("minutes"), "minutes")
+                .add(newAvgTime.get("hours"), "hours");
+              const avgDuration = Math.floor(avg.asMinutes() / 2);
+              data.avgTimeSpentInADay = getHourMins(avgDuration);
             }
             await user_status.update(data, { where: { id: status.id } });
           } else {
@@ -96,7 +101,26 @@ const mointor = async () => {
   }
   removeOldSessions();
 };
+
+const statusCron = async () => {
+  const start = moment().startOf("day").toDate();
+  const end = moment().subtract(16, "minutes").toDate();
+  await user_status.update(
+    { status: "inactive" },
+    {
+      where: {
+        [Sequelize.Op.or]: [{ status: "Active" }, { status: "active" }],
+        updatedAt: {
+          [Sequelize.Op.between]: [start, end],
+        },
+      },
+    }
+  );
+};
+statusCron();
 // const cronString = `*/1 * * * *`;
+const statusCronString = `*/5 * * * *`;
 const cronString = "0 0 * * *";
 new CronJob(cronString, mointor, null, true, "Asia/Kolkata");
+new CronJob(statusCronString, statusCron, null, true, "Asia/Kolkata");
 console.log("Monitoring Cron started......");
