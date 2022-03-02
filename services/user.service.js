@@ -33,6 +33,7 @@ module.exports = (function () {
       const updatedAt = (status && status.updatedAt) || new Date();
       const duration = Math.abs(moment().diff(moment(updatedAt), "m"));
 
+      data.lastSyncTimestamp = new Date();
       if (status) {
         if (duration > 0 && duration <= 20) {
           if (!status.totalTime) status.totalTime = "0h 0m";
@@ -66,8 +67,8 @@ module.exports = (function () {
       }
       return await user_status.findAll({
         where,
-        offset: query.start ? parseInt(query.start) : 0,
-        limit: query.limit ? parseInt(query.limit) : 10,
+        // offset: query.start ? parseInt(query.start) : 0,
+        // limit: query.limit ? parseInt(query.limit) : 10,
         raw: true,
       });
     } catch (error) {
