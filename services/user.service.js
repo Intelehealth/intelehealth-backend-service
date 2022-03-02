@@ -34,9 +34,9 @@ module.exports = (function () {
       const duration = Math.abs(moment().diff(moment(updatedAt), "m"));
 
       if (status) {
-        if (!status.totalTime) status.totalTime = "0h 0m";
-        const totalTime = moment(status.totalTime, this.TIME_FORMAT);
-        if (duration > 0) {
+        if (duration > 0 && duration <= 20) {
+          if (!status.totalTime) status.totalTime = "0h 0m";
+          const totalTime = moment(status.totalTime, this.TIME_FORMAT);
           const total = moment
             .duration({
               minutes: totalTime.get("minutes"),
@@ -44,8 +44,8 @@ module.exports = (function () {
             })
             .add(duration, "minutes");
           data.totalTime = this.getHourMins(total.asMinutes());
-          await createSession(data, duration);
         }
+        await createSession(data, duration);
         return await user_status.update(data, { where: { id: status.id } });
       } else if (!forceUpdate) {
         await createSession(data, duration);
