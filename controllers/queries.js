@@ -105,6 +105,7 @@ order by
   p.uuid,
   ur.role,
   u.username as userName,
+  u.uuid as userUuid,
   pat.name as attrTypeName
 FROM
   users u

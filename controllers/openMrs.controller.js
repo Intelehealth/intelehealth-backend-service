@@ -5,6 +5,7 @@ const {
   locationQuery,
   doctorsQuery,
 } = require("./queries");
+const { _getStatuses } = require("../services/user.service");
 
 /**
  * To return the visit counts from the openmrs db using custom query
@@ -117,6 +118,19 @@ const getLocations = async (req, res, next) => {
   }
 };
 
+const getStatus = (statuses = [], userUuid) => {
+  let status = "Inactive";
+  statuses.forEach((sts) => {
+    if (
+      sts.userUuid === userUuid &&
+      ["active", "Active"].includes(sts.status)
+    ) {
+      status = "Active";
+    }
+  });
+  return status;
+};
+
 const getDoctorDetails = async (req, res, next) => {
   try {
     const rawData = await new Promise((resolve, reject) => {
@@ -127,6 +141,7 @@ const getDoctorDetails = async (req, res, next) => {
     }).catch((err) => {
       throw err;
     });
+    const statuses = await _getStatuses();
     let doctors = {};
     rawData.forEach((rData) => {
       if (!doctors[rData.person_id]) doctors[rData.person_id] = {};
@@ -134,6 +149,8 @@ const getDoctorDetails = async (req, res, next) => {
       doctors[rData.person_id].givenName = rData.givenName;
       doctors[rData.person_id].gender = rData.gender;
       doctors[rData.person_id].uuid = rData.uuid;
+      doctors[rData.person_id].userUuid = rData.userUuid;
+      doctors[rData.person_id].status = getStatus(statuses, rData.userUuid);
       if (!doctors[rData.person_id].attributes)
         doctors[rData.person_id].attributes = {};
       if (rData.attrTypeName) {
