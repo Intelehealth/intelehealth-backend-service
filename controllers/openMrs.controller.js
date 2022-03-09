@@ -154,6 +154,11 @@ const getDoctorDetails = async (req, res, next) => {
       if (!doctors[rData.person_id].attributes)
         doctors[rData.person_id].attributes = {};
       if (rData.attrTypeName) {
+        if (rData.attrTypeName === "timings") {
+          const [startTime, endTime] = rData.value_reference.split(" - ");
+          doctors[rData.person_id].attributes.startTime = startTime;
+          doctors[rData.person_id].attributes.endTime = endTime;
+        }
         doctors[rData.person_id].attributes[rData.attrTypeName] =
           rData.value_reference;
       }
