@@ -115,8 +115,11 @@ FROM
   LEFT JOIN provider pdr ON pdr.person_id = p.person_id
   LEFT JOIN provider_attribute pa ON pdr.provider_id = pa.provider_id
   LEFT JOIN provider_attribute_type pat ON pat.provider_attribute_type_id = pa.attribute_type_id
-WHERE 
-ur.role like '%Doctor%';`;
+WHERE
+  ur.role like '%Doctor%'
+  OR ur.role like '%Provider%'
+  AND u.retired = 0
+  AND p.voided = 0;`;
 
   return this;
 })();

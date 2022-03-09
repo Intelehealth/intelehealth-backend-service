@@ -131,6 +131,31 @@ const getStatus = (statuses = [], userUuid) => {
   return status;
 };
 
+const setData = (items, statuses) => {
+  let data = {};
+  items.forEach((rData) => {
+    if (!data[rData.person_id]) data[rData.person_id] = {};
+    data[rData.person_id].person_id = rData.person_id;
+    data[rData.person_id].givenName = rData.givenName;
+    data[rData.person_id].gender = rData.gender;
+    data[rData.person_id].uuid = rData.uuid;
+    data[rData.person_id].userUuid = rData.userUuid;
+    data[rData.person_id].status = getStatus(statuses, rData.userUuid);
+    if (!data[rData.person_id].attributes)
+      data[rData.person_id].attributes = {};
+    if (rData.attrTypeName) {
+      if (rData.attrTypeName === "timings") {
+        const [startTime, endTime] = rData.value_reference.split(" - ");
+        data[rData.person_id].attributes.startTime = startTime;
+        data[rData.person_id].attributes.endTime = endTime;
+      }
+      data[rData.person_id].attributes[rData.attrTypeName] =
+        rData.value_reference;
+    }
+  });
+  return data;
+};
+
 const getDoctorDetails = async (req, res, next) => {
   try {
     const rawData = await new Promise((resolve, reject) => {
@@ -142,30 +167,16 @@ const getDoctorDetails = async (req, res, next) => {
       throw err;
     });
     const statuses = await _getStatuses();
-    let doctors = {};
-    rawData.forEach((rData) => {
-      if (!doctors[rData.person_id]) doctors[rData.person_id] = {};
-      doctors[rData.person_id].person_id = rData.person_id;
-      doctors[rData.person_id].givenName = rData.givenName;
-      doctors[rData.person_id].gender = rData.gender;
-      doctors[rData.person_id].uuid = rData.uuid;
-      doctors[rData.person_id].userUuid = rData.userUuid;
-      doctors[rData.person_id].status = getStatus(statuses, rData.userUuid);
-      if (!doctors[rData.person_id].attributes)
-        doctors[rData.person_id].attributes = {};
-      if (rData.attrTypeName) {
-        if (rData.attrTypeName === "timings") {
-          const [startTime, endTime] = rData.value_reference.split(" - ");
-          doctors[rData.person_id].attributes.startTime = startTime;
-          doctors[rData.person_id].attributes.endTime = endTime;
-        }
-        doctors[rData.person_id].attributes[rData.attrTypeName] =
-          rData.value_reference;
-      }
-    });
+    let provider = rawData.filter((d) => d.role.includes("Provider"));
+    let doctor = rawData.filter((d) => d.role.includes("Doctor"));
+    let doctors = setData(doctor, statuses);
+    let providers = setData(provider, statuses);
     const processedData = [];
     for (const i in doctors) {
-      if (Object.hasOwnProperty.call(doctors, i)) {
+      if (
+        Object.hasOwnProperty.call(doctors, i) &&
+        Object.hasOwnProperty.call(providers, i)
+      ) {
         processedData.push(doctors[i]);
       }
     }
