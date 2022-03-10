@@ -116,9 +116,9 @@ FROM
   LEFT JOIN provider_attribute pa ON pdr.provider_id = pa.provider_id
   LEFT JOIN provider_attribute_type pat ON pat.provider_attribute_type_id = pa.attribute_type_id
 WHERE
-  ur.role like '%Doctor%'
+  (ur.role like '%Doctor%'
   OR ur.role like '%Provider%'
-  OR ur.role like '%System Admin%'
+  OR ur.role like '%System Admin%')
   AND u.retired = 0
   AND p.voided = 0;`;
 
