@@ -118,6 +118,7 @@ FROM
 WHERE
   ur.role like '%Doctor%'
   OR ur.role like '%Provider%'
+  OR ur.role like '%System Admin%'
   AND u.retired = 0
   AND p.voided = 0;`;
 

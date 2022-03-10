@@ -169,13 +169,16 @@ const getDoctorDetails = async (req, res, next) => {
     const statuses = await _getStatuses();
     let provider = rawData.filter((d) => d.role.includes("Provider"));
     let doctor = rawData.filter((d) => d.role.includes("Doctor"));
+    let sysAdmin = rawData.filter((d) => d.role.includes("System Admin"));
     let doctors = setData(doctor, statuses);
     let providers = setData(provider, statuses);
+    let sysAdmins = setData(sysAdmin, statuses);
     const processedData = [];
     for (const i in doctors) {
       if (
         Object.hasOwnProperty.call(doctors, i) &&
-        Object.hasOwnProperty.call(providers, i)
+        Object.hasOwnProperty.call(providers, i) &&
+        !Object.hasOwnProperty.call(sysAdmins, i)
       ) {
         processedData.push(doctors[i]);
       }
