@@ -170,13 +170,28 @@ WHERE
       if (type) update.type = type;
       if (year) update.year = year;
       if (month) update.month = month;
-      if (schedule) {
-        const resp = {
-          message: "Appointment updated successfully",
-          data: await Schedule.update(update, opts),
-        };
-        await this.rescheduleOrCancelAppointment(userUuid, update);
+      if (userUuid) update.userUuid = userUuid;
 
+      if (schedule) {
+        const { cancel } = await this.rescheduleOrCancelAppointment(
+          userUuid,
+          update
+        );
+        let resp;
+        if (cancel.length) {
+          resp = {
+            message:
+              "Already scheduled appointments exists, please reschedule to new schedule first!",
+            reschedule: cancel.map((c) => c.appointment),
+            status: false,
+          };
+        } else {
+          delete update.userUuid;
+          resp = {
+            message: "Appointment updated successfully",
+            data: await Schedule.update(update, opts),
+          };
+        }
         return resp;
       } else {
         const scheduleData = {
@@ -352,11 +367,15 @@ WHERE
     toDate,
     speciality,
     returnAllSlots = false,
+    schedule,
   }) => {
     let schedules = await Schedule.findAll({
       where: { speciality },
       raw: true,
     });
+    if (returnAllSlots && schedule) {
+      schedules = [schedule];
+    }
     let setting = await Setting.findOne({ where: {}, raw: true });
 
     const SLOT_DURATION =
@@ -448,7 +467,7 @@ WHERE
         }
       }
 
-      console.log('uniqueTimeSlots.length: ', uniqueTimeSlots.length);
+      console.log("uniqueTimeSlots.length: ", uniqueTimeSlots.length);
       return { len: uniqueTimeSlots.length, dates: uniqueTimeSlots };
     } catch (error) {
       throw error;
@@ -602,7 +621,22 @@ WHERE
     });
   };
 
-  this.rescheduleOrCancelAppointment = async (userUuid) => {
+  const rescheduleAppointment = async ({ apnmt, appointment }) => {
+    let apnmtData = { ...apnmt, ...slot };
+    ["id", "createdAt", "updatedAt", "slotJsDate"].forEach((key) => {
+      delete apnmtData[key];
+    });
+    await this._cancelAppointment(appointment, true, false, true);
+    await this._bookAppointment(apnmtData);
+  };
+
+  const cancelAppointment = async ({ apnmt, appointment }) => {
+    await this._cancelAppointment(appointment, true, false);
+    await sendCancelNotification(apnmt);
+    await sendCancelNotificationToWebappDoctor(apnmt);
+  };
+
+  this.rescheduleOrCancelAppointment = async (userUuid, schedule) => {
     const todayDate = moment.utc().format();
     const data = await Appointment.findAll({
       where: {
@@ -616,6 +650,8 @@ WHERE
       raw: true,
     });
 
+    const reschedule = [];
+    const cancel = [];
     if (data && data.length) {
       const [firstSlot] = data;
       const appointments = await this._getAppointmentSlots({
@@ -623,6 +659,7 @@ WHERE
         toDate: firstSlot.slotDate,
         speciality: firstSlot.speciality,
         returnAllSlots: true,
+        schedule,
       });
 
       const currDrSlots = appointments.filter((a) => a.userUuid === userUuid);
@@ -640,7 +677,7 @@ WHERE
         }
       });
 
-      asyncForEach(data, async (apnmt) => {
+      await asyncForEach(data, async (apnmt) => {
         const appointment = {
           ...apnmt,
           hwUUID: "a4ac4fee-538f-11e6-9cfe-86f436325720", // admin user id, as done by system automatically
@@ -659,19 +696,18 @@ WHERE
           (d) => d.slotTime === apnmt.slotTime && d.slotDate === apnmt.slotDate
         );
         if (slot) {
-          let apnmtData = { ...apnmt, ...slot };
-          ["id", "createdAt", "updatedAt", "slotJsDate"].forEach((key) => {
-            delete apnmtData[key];
-          });
-          await this._cancelAppointment(appointment, true, false, true);
-          await this._bookAppointment(apnmtData);
+          reschedule.push({ appointment, apnmt });
         } else {
-          await this._cancelAppointment(appointment, true, false);
-          await sendCancelNotification(apnmt);
-          await sendCancelNotificationToWebappDoctor(apnmt);
+          cancel.push({ appointment, apnmt });
         }
       });
+      if (!cancel.length) {
+        asyncForEach(reschedule, async (apnmt) => {
+          await rescheduleAppointment(apnmt);
+        });
+      }
     }
+    return { reschedule, cancel };
   };
 
   this._rescheduleAppointment = async ({
