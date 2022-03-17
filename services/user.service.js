@@ -145,10 +145,10 @@ module.exports = (function () {
 
     if (data.results.length) {
       const [user] = data.results;
-      const Gender = user.person.gender || "NA";
+      const Gender = user.person.gender || "";
       let attributes = {};
       user.attributes.forEach((attr) => {
-        attributes[attr.attributeType.display] = attr.value || "NA";
+        attributes[attr.attributeType.display] = attr.value || "";
       });
       const { total, inProgress, completed } = await getVisitsInfo(
         user.uuid,
@@ -157,20 +157,74 @@ module.exports = (function () {
 
       profieData = {
         userName: user.person.display,
-        Designation: attributes.qualification || "NA",
-        AboutMe: attributes.aboutMe || "NA",
+        Designation: attributes.qualification || "",
+        AboutMe: attributes.aboutMe || "",
         patientRegistered: total.length,
         visitInProgress: inProgress.length,
         CompletedConsultation: completed.length,
         personalInformation: {
           Gender,
-          State: attributes.visitState || "NA",
-          Mobile: attributes.phoneNumber || "NA",
-          WhatsApp: attributes.whatsapp || "NA",
-          Email: attributes.emailId || "NA",
+          State: attributes.visitState || "",
+          Mobile: attributes.phoneNumber || "",
+          WhatsApp: attributes.whatsapp || "",
+          Email: attributes.emailId || "",
         },
       };
       return profieData;
+    } else {
+      throw new Error("Data not found!");
+    }
+  };
+  const getUserProviders = async (userUuid) => {
+    const url = `/openmrs/ws/rest/v1/provider?user=${userUuid}&v=custom:(uuid,person:(uuid,display,gender),attributes:(uuid,value,attributeType:(display,uuid)))`;
+    const { data } = await axiosInstance.get(url);
+    return data;
+  };
+
+  this._updateProfile = async (userUuid, dataToUpdate) => {
+    const data = await getUserProviders(userUuid);
+    if (data.results.length) {
+      const [user] = data.results;
+      const {
+        data: { results: attrTypes },
+      } = await axiosInstance.get(
+        `/openmrs/ws/rest/v1//providerattributetype?v=custom:(uuid,name)`
+      );
+      for (const key in dataToUpdate) {
+        if (Object.hasOwnProperty.call(dataToUpdate, key)) {
+          const value = dataToUpdate[key];
+          const attr = attrTypes.find((a) => a.name === key);
+          if (attr) {
+            const usrAttr = user.attributes.find(
+              (ua) => ua.attributeType.display === key
+            );
+            if (usrAttr) {
+              //update
+              const payload = {
+                attributeType: usrAttr.attributeType.uuid,
+                value,
+              };
+              const url = `/openmrs/ws/rest/v1/provider/${user.uuid}/attribute/${usrAttr.uuid}`;
+              await axiosInstance.post(url, payload).catch((err) => {});
+            } else {
+              //create if already exists
+              const payload = {
+                attributeType: attr.uuid,
+                value,
+              };
+              const url = `/openmrs/ws/rest/v1/provider/${user.uuid}/attribute`;
+              await axiosInstance.post(url, payload).catch((err) => {});
+            }
+          }
+        }
+      }
+      let attributes = {};
+      let [userData] = (await getUserProviders(userUuid)).results;
+      userData.attributes.forEach((attr) => {
+        attributes[attr.attributeType.display] = attr.value || "";
+      });
+      userData.attributes = attributes;
+      return userData;
     } else {
       throw new Error("Data not found!");
     }

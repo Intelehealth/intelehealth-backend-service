@@ -74,5 +74,21 @@ module.exports = (function () {
     }
   };
 
+  this.updateProfile = async (req, res) => {
+    try {
+      res.json({
+        status: true,
+        data: await _updateProfile(req.params.userUuid, req.body),
+        message: "Updated successfully!",
+      });
+    } catch (error) {
+      console.log("error: ", error);
+      res.json({
+        status: false,
+        message: error.message,
+      });
+    }
+  };
+
   return this;
 })();
