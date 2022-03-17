@@ -194,6 +194,10 @@ module.exports = (function () {
         if (Object.hasOwnProperty.call(dataToUpdate, key)) {
           const value = dataToUpdate[key];
           const attr = attrTypes.find((a) => a.name === key);
+          if (key === "gender") {
+            const url = `/openmrs/ws/rest/v1/person/${user.person.uuid}`;
+            await axiosInstance.post(url, { gender: value }).catch((err) => {});
+          }
           if (attr) {
             const usrAttr = user.attributes.find(
               (ua) => ua.attributeType.display === key
