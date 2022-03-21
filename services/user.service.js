@@ -5,9 +5,10 @@ const moment = require("moment");
 
 module.exports = (function () {
   this.TIME_FORMAT = "[H]h [M]m";
+  const HEARTBEAT_DURATION = 20;
 
   const createSession = async (data, duration) => {
-    if (duration && duration <= 20) {
+    if (duration && duration <= HEARTBEAT_DURATION) {
       active_session.create({
         startTime: moment().subtract(duration, "m").toDate(),
         endTime: new Date(),
@@ -35,7 +36,7 @@ module.exports = (function () {
 
       data.lastSyncTimestamp = new Date();
       if (status) {
-        if (duration > 0 && duration <= 20) {
+        if (duration > 0 && duration <= HEARTBEAT_DURATION) {
           if (!status.totalTime) status.totalTime = "0h 0m";
           const totalTime = moment(status.totalTime, this.TIME_FORMAT);
           const total = moment
@@ -235,8 +236,10 @@ module.exports = (function () {
   };
 
   this.getHourMins = (val = 0) => {
-    const min = Math.abs(val % 60);
-    const hr = Math.abs(Math.floor(val / 60));
+    let hr = Math.abs(Math.floor(val / 60));
+    let min = Math.abs(val % 60);
+    hr = !isNaN(hr) ? hr : 0;
+    min = !isNaN(min) ? min : 0;
     return `${hr}h ${min}m`;
   };
   return this;

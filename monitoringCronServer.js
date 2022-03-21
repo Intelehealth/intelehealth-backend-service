@@ -80,7 +80,7 @@ const mointor = async () => {
             const avgTime = moment(status.avgTimeSpentInADay, TIME_FORMAT);
 
             const newAvgTime = moment(data.avgTimeSpentInADay, TIME_FORMAT);
-            if (avgTime.get("hours") > 0 || avgTime.get("minutes") > 0) {
+            if (newAvgTime.get("hours") > 0 || newAvgTime.get("minutes") > 0) {
               const avg = moment
                 .duration({
                   minutes: avgTime.get("minutes"),
@@ -117,7 +117,6 @@ const statusCron = async () => {
     }
   );
 };
-statusCron();
 // const cronString = `*/1 * * * *`;
 const statusCronString = `*/5 * * * *`;
 const cronString = "0 0 * * *";
