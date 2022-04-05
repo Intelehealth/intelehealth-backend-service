@@ -293,29 +293,31 @@ WHERE
     //   return days.map((d) => d.normDate);
     // });
     schedule.daysToSchedule.forEach((slot) => {
-      const slotSchedule = slots.find(
+      const slotSchedules = slots.filter(
         (s) => moment(s.date).format(DATE_FORMAT) === slot.normDate
       );
-      if (slotSchedule) {
-        const { startTime, endTime } = slotSchedule;
-        let now = moment(startTime, TIME_FORMAT);
-        let deadline = moment(endTime, TIME_FORMAT);
-        while (now.diff(deadline) < 0) {
-          if (now > moment(now).hour(8)) {
-            dates.push({
-              slotDay: slot.day,
-              slotDate: slot.normDate,
-              slotDuration: SLOT_DURATION,
-              slotDurationUnit: SLOT_DURATION_UNIT,
-              slotTime: now.format(TIME_FORMAT),
-              speciality: schedule.speciality,
-              userUuid: schedule.userUuid,
-              drName: schedule.drName,
-            });
+      slotSchedules.forEach((slotSchedule) => {
+        if (slotSchedule) {
+          const { startTime, endTime } = slotSchedule;
+          let now = moment(startTime, TIME_FORMAT);
+          let deadline = moment(endTime, TIME_FORMAT);
+          while (now.diff(deadline) < 0) {
+            if (now > moment(now).hour(8)) {
+              dates.push({
+                slotDay: slot.day,
+                slotDate: slot.normDate,
+                slotDuration: SLOT_DURATION,
+                slotDurationUnit: SLOT_DURATION_UNIT,
+                slotTime: now.format(TIME_FORMAT),
+                speciality: schedule.speciality,
+                userUuid: schedule.userUuid,
+                drName: schedule.drName,
+              });
+            }
+            now.add(SLOT_DURATION, SLOT_DURATION_UNIT);
           }
-          now.add(SLOT_DURATION, SLOT_DURATION_UNIT);
         }
-      }
+      });
     });
 
     return dates;
