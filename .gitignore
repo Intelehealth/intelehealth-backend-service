@@ -3,3 +3,4 @@
 **/license
 *.zip
 /config/config.json
+/config/serviceAccountKey.json
