@@ -58,20 +58,13 @@ router.post("/subscribe", async (req, res) => {
   }
 });
 
-//for demo server
+//for ezazi server
 const vapidKeys = {
   publicKey:
-    "BG4nDxMHBPV4YtkBZoGjPSOWDPrbyzw-o-vDKaScPhYfAjQs1hclQLwNWKKHYHNut0GZoVyj0jONVZgA5Dzdq0U",
-  privateKey: "SuA1XssVFT4UfSv8DEGx_uRkng2YtEUVxj54729zXkM",
+    "BLDLmm1FrOhRJsumFL3lZ8fgnC_c1rFoNp-mz6KWObQpgPkhWzUh66GCGPzioTWBc4u0SB8P4spimU8SH2eWNfg",
+  privateKey: "ziCGVBiegKF4tTYxp1ruG3xgrDJ3mcC31Euxpekxsto",
   mailTo: "mailto:support@intelehealth.org",
 };
-// For testing server
-// const vapidKeys = {
-//     publicKey:
-//         "BAfolLQ7VpRSmWm6DskG-YyG3jjzq5z0rjKEl5HXLCw2W8CKS9cVmifnCAWnrlJMETgbgjuV1pWKLUf8zlbojH0",
-//     privateKey: "kCDISA3-UoW0pEx_gSTm4VtQASbvza-uw27Mq1x2wEc",
-//     mailTo: "mailto:support@intelehealth.org"
-// };
 
 router.post("/push", (req, res) => {
   try {
