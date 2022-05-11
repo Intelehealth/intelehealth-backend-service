@@ -30,6 +30,49 @@ module.exports = function (server) {
       socket.emit("log", array);
     }
 
+    socket.on("create_or_join_hw", function ({ room }) {
+      log("Received request to create or join room " + room);
+
+      var clientsInRoom = io.sockets.adapter.rooms[room];
+      var numClients = clientsInRoom
+        ? Object.keys(clientsInRoom.sockets).length
+        : 0;
+      log("Room " + room + " now has " + numClients + " client(s)");
+      socket.on("message", function (message) {
+        log("Client said: ", message);
+        io.sockets.in(room).emit("message", message);
+      });
+
+      socket.on("bye", function (data) {
+        console.log("received bye");
+        io.sockets.in(room).emit("message", "bye");
+        io.sockets.in(room).emit("bye");
+        io.sockets.emit("log", ["received bye", data]);
+      });
+
+      socket.on("no_answer", function (data) {
+        console.log("no_answer");
+        io.sockets.in(room).emit("bye");
+        io.sockets.emit("log", ["no_answer", data]);
+      });
+
+      console.log("numClients: ", numClients);
+      if (numClients === 0) {
+        io.sockets.emit("incoming_call", { patientUuid: room });
+        socket.join(room);
+        log("Client ID " + socket.id + " created room " + room);
+        socket.emit("created", room, socket.id);
+      } else if (numClients === 1) {
+        log("Client ID " + socket.id + " joined room " + room);
+        io.sockets.in(room).emit("join", room);
+        socket.join(room);
+        socket.emit("joined", room, socket.id);
+        io.sockets.in(room).emit("ready");
+      } else {
+        socket.emit("full", room);
+      }
+    });
+
     socket.on("create or join", function (room) {
       log("Received request to create or join room " + room);
 
