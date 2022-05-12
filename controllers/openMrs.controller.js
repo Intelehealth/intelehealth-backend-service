@@ -4,8 +4,10 @@ const {
   getVisitCountQuery,
   locationQuery,
   doctorsQuery,
+  getDoctorVisitsData
 } = require("./queries");
 const { _getStatuses } = require("../services/user.service");
+
 
 /**
  * To return the visit counts from the openmrs db using custom query
@@ -13,7 +15,7 @@ const { _getStatuses } = require("../services/user.service");
  * @param {*} res
  * @param {*} next
  */
-const getVisitCounts = async (req, res, next) => {
+ const getVisitCounts = async (req, res, next) => {
   const speciality = req.query.speciality;
   const query =
     speciality === "General Physician"
@@ -131,6 +133,28 @@ const getStatus = (statuses = [], userUuid) => {
   return status;
 };
 
+const getDoctorVisits = async (req, res, next) => {
+  try {
+    const rawData = await new Promise((resolve, reject) => {
+      openMrsDB.query(getDoctorVisitsData(), (err, results, fields) => {
+        if (err) reject(err);
+        resolve(results);
+      });
+    }).catch((err) => {
+      throw err;
+    });
+    // let states = data.filter((d) => d.tag === "State");
+  
+    res.json({
+      rawData,
+      success: true
+    });
+  } catch (error) {
+    res.statusCode = 422;
+    res.json({ status: false, message: error.message });
+  }
+};
+
 const getDoctorDetails = async (req, res, next) => {
   try {
     const rawData = await new Promise((resolve, reject) => {
@@ -184,4 +208,5 @@ module.exports = {
   getVisitCounts,
   getLocations,
   getDoctorDetails,
+  getDoctorVisits
 };
