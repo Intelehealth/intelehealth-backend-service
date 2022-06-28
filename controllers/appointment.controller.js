@@ -180,7 +180,6 @@ module.exports = (function () {
     try {
       const keysAndTypeToCheck = [
         { key: "id", type: "number" },
-        { key: "visitUuid", type: "string" },
       ];
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await _cancelAppointment(req.body);
