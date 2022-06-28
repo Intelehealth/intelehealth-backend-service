@@ -47,11 +47,11 @@ where
                   ? `Причина: В связи с изменением графика врача`
                   : `Reason : Due to doctor's change in schedule.`,
               regTokens: [token],
-            }).catch((err) => { });
+            }).catch((err) => {});
           }
         });
       }
-    } catch (error) { }
+    } catch (error) {}
   };
 
   const sendCancelNotificationToWebappDoctor = async ({
@@ -85,7 +85,7 @@ WHERE
           }
         });
       }
-    } catch (error) { }
+    } catch (error) {}
   };
 
   const getTodayDate = () => {
@@ -336,18 +336,18 @@ WHERE
         schedules.forEach((schedule) => {
           const _dates = true
             ? // schedule.type === "month"
-            getMonthSlots({
-              schedule,
-              days,
-              SLOT_DURATION,
-              SLOT_DURATION_UNIT,
-            })
+              getMonthSlots({
+                schedule,
+                days,
+                SLOT_DURATION,
+                SLOT_DURATION_UNIT,
+              })
             : getWeekSlots({
-              schedule,
-              days,
-              SLOT_DURATION,
-              SLOT_DURATION_UNIT,
-            });
+                schedule,
+                days,
+                SLOT_DURATION,
+                SLOT_DURATION_UNIT,
+              });
           dates = dates.concat(_dates);
         });
         const appointments = await Appointment.findAll({
@@ -527,7 +527,10 @@ WHERE
     const status = reschedule ? "rescheduled" : "cancelled";
     if (appointment) {
       appointment.update({ status, updatedBy: hwUUID, reason });
-      if (notify) sendCancelNotificationToWebappDoctor(appointment);
+      if (notify) {
+        sendCancelNotificationToWebappDoctor(appointment);
+        await sendCancelNotification(apnmt);
+      }
       return {
         status: true,
         message: "Appointment cancelled successfully!",
