@@ -529,7 +529,7 @@ WHERE
       appointment.update({ status, updatedBy: hwUUID, reason });
       if (notify) {
         sendCancelNotificationToWebappDoctor(appointment);
-        await sendCancelNotification(apnmt);
+        await sendCancelNotification(appointment);
       }
       return {
         status: true,
