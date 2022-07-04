@@ -10,6 +10,7 @@ module.exports = function (server) {
         uuid: socket.handshake.query.userId,
         status: "online",
         name: socket.handshake.query.name,
+        callStatus: null,
       };
     }
     console.log("socket: >>>>>", socket.handshake.query.userId);
@@ -30,6 +31,84 @@ module.exports = function (server) {
       socket.emit("log", array);
     }
 
+    function callInRoom(room, count) {
+      let isCalled = false;
+      for (const socketId in users) {
+        if (Object.hasOwnProperty.call(users, socketId)) {
+          const user = users[socketId];
+          if (!isCalled && !user.callStatus && socket.id !== socketId) {
+            io.sockets
+              .to(socketId)
+              .emit("incoming_call", { patientUuid: room });
+            isCalled = true;
+            users[socketId].callStatus = "calling";
+            users[socketId].room = room;
+            if (Array.isArray(users[socketId].called)) {
+              users[socketId].called.push(socket.id);
+            } else {
+              users[socketId].called = [socket.id];
+            }
+            io.sockets.emit("allUsers", users);
+            setTimeout(() => {
+              if (
+                users[socketId] &&
+                users[socketId].callStatus === "calling" &&
+                count < 3
+              ) {
+                callInRoom(room, ++count);
+              }
+            }, 5000);
+          }
+        }
+      }
+      setTimeout(() => {
+        for (const socketId in users) {
+          if (Object.hasOwnProperty.call(users, socketId)) {
+            if (
+              users[socketId] &&
+              users[socketId].room &&
+              users[socketId].room === room &&
+              users[socketId].callStatus === "calling"
+            ) {
+              users[socketId].callStatus = null;
+              io.sockets.emit("allUsers", users);
+            }
+          }
+        }
+      }, 100000);
+    }
+
+    function markConnected(room) {
+      for (const socketId in users) {
+        if (Object.hasOwnProperty.call(users, socketId)) {
+          if (
+            users[socketId] &&
+            users[socketId].room &&
+            users[socketId].room === room
+          ) {
+            users[socketId].callStatus = "In Call";
+            io.sockets.emit("allUsers", users);
+          }
+        }
+      }
+    }
+
+    function markHangUp(room) {
+      for (const socketId in users) {
+        if (Object.hasOwnProperty.call(users, socketId)) {
+          if (
+            users[socketId] &&
+            users[socketId].room &&
+            users[socketId].room === room
+          ) {
+            users[socketId].callStatus = null;
+            users[socketId].room = null;
+            io.sockets.emit("allUsers", users);
+          }
+        }
+      }
+    }
+
     socket.on("create_or_join_hw", function ({ room }) {
       log("Received request to create or join room " + room);
 
@@ -46,6 +125,7 @@ module.exports = function (server) {
 
       socket.on("bye", function (data) {
         console.log("received bye");
+        markHangUp(room);
         io.sockets.in(room).emit("bye");
         io.sockets.emit("log", ["received bye", data]);
       });
@@ -59,7 +139,8 @@ module.exports = function (server) {
       console.log("numClients: ", numClients);
       if (numClients === 0) {
         // socket.broadcast.to(room).emit("incoming_call", { patientUuid: room });
-        io.sockets.emit("incoming_call", { patientUuid: room });
+        callInRoom(room, 1);
+        // io.sockets.emit("incoming_call", { patientUuid: room });
         socket.join(room);
         log("Client ID " + socket.id + " created room " + room);
         socket.emit("created", room, socket.id);
@@ -71,6 +152,10 @@ module.exports = function (server) {
         socket.emit("joined", room, socket.id);
         socket.broadcast.to(room).emit("ready");
         // io.sockets.in(room).emit("ready");
+        if (users[socket.id]) {
+          users[socket.id].room = room;
+        }
+        markConnected(room);
       } else {
         socket.emit("full", room);
       }
