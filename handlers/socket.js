@@ -15,6 +15,7 @@ module.exports = function (server) {
   const DB_NAME = `${config.domain.replace(/\./g, "_")}/rtc_notify`;
   // const DB_NAME = "rtc_notify_dev";
   console.log("DB_NAME:>>>>>>> ", DB_NAME);
+  const rtcNotifyRef = db.ref(DB_NAME);
 
   const io = require("socket.io")(server);
   global.users = {};
