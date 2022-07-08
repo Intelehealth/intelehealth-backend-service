@@ -247,11 +247,6 @@ module.exports = function (server) {
             });
           }
         }, 10000);
-        try {
-          data = await user_settings.findOne({
-            where: { user_uuid: nurseId },
-          });
-        } catch (error) {}
         // if (data && data.device_reg_token) {
         //   const response = await sendCloudNotification({
         //     title: "Incoming call",
@@ -274,6 +269,11 @@ module.exports = function (server) {
         // }
       }
       console.log(nurseId, "----<<>>>");
+      try {
+        data = await user_settings.findOne({
+          where: { user_uuid: nurseId },
+        });
+      } catch (error) {}
 
       await rtcNotifyRef.update({
         [nurseId]: {
