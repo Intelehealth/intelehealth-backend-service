@@ -46,36 +46,49 @@ module.exports = function (server) {
       socket.emit("log", array);
     }
 
-    function callInRoom(room, count) {
-      let isCalled = false;
+    function callInRoom(room, count, connectToDrId) {
       for (const socketId in users) {
         if (Object.hasOwnProperty.call(users, socketId)) {
           const user = users[socketId];
-          if (!isCalled && !user.callStatus && socket.id !== socketId) {
+          if (user && user.uuid === connectToDrId) {
             io.sockets
               .to(socketId)
               .emit("incoming_call", { patientUuid: room });
-            isCalled = true;
             users[socketId].callStatus = "calling";
             users[socketId].room = room;
-            if (Array.isArray(users[socketId].called)) {
-              users[socketId].called.push(socket.id);
-            } else {
-              users[socketId].called = [socket.id];
-            }
-            io.sockets.emit("allUsers", users);
-            setTimeout(() => {
-              if (
-                users[socketId] &&
-                users[socketId].callStatus === "calling" &&
-                count < 3
-              ) {
-                callInRoom(room, ++count);
-              }
-            }, 5000);
           }
         }
       }
+
+      // let isCalled = false;
+      // for (const socketId in users) {
+      //   if (Object.hasOwnProperty.call(users, socketId)) {
+      //     const user = users[socketId];
+      //     if (!isCalled && !user.callStatus && socket.id !== socketId) {
+      //       io.sockets
+      //         .to(socketId)
+      //         .emit("incoming_call", { patientUuid: room });
+      //       isCalled = true;
+      //       users[socketId].callStatus = "calling";
+      //       users[socketId].room = room;
+      //       if (Array.isArray(users[socketId].called)) {
+      //         users[socketId].called.push(socket.id);
+      //       } else {
+      //         users[socketId].called = [socket.id];
+      //       }
+      //       io.sockets.emit("allUsers", users);
+      //       setTimeout(() => {
+      //         if (
+      //           users[socketId] &&
+      //           users[socketId].callStatus === "calling" &&
+      //           count < 3
+      //         ) {
+      //           callInRoom(room, ++count, connectToDrId);
+      //         }
+      //       }, 10000);
+      //     }
+      //   }
+      // }
       setTimeout(() => {
         for (const socketId in users) {
           if (Object.hasOwnProperty.call(users, socketId)) {
@@ -124,7 +137,7 @@ module.exports = function (server) {
       }
     }
 
-    socket.on("create_or_join_hw", function ({ room }) {
+    socket.on("create_or_join_hw", function ({ room, connectToDrId }) {
       log("Received request to create or join room " + room);
 
       var clientsInRoom = io.sockets.adapter.rooms[room];
@@ -154,7 +167,7 @@ module.exports = function (server) {
       console.log("numClients: ", numClients);
       if (numClients === 0) {
         // socket.broadcast.to(room).emit("incoming_call", { patientUuid: room });
-        callInRoom(room, 1);
+        callInRoom(room, 1, connectToDrId);
         // io.sockets.emit("incoming_call", { patientUuid: room });
         socket.join(room);
         log("Client ID " + socket.id + " created room " + room);
