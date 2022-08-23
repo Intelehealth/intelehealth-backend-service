@@ -9,6 +9,9 @@ const {
   _cancelAppointment,
   getAppointment,
   getSlots,
+  getSpecialitySlots,
+  startAppointment,
+  releaseAppointment,
 } = require("../services/appointment.service");
 
 module.exports = (function () {
@@ -80,6 +83,28 @@ module.exports = (function () {
       next(error);
     }
   };
+
+  this.getSpecialitySlots = async (req, res, next) => {
+    try {
+      const keysAndTypeToCheck = [
+        { key: "fromDate", type: "string" },
+        { key: "toDate", type: "string" },
+      ];
+
+      if (validateParams(req.query, keysAndTypeToCheck)) {
+        const speciality = req.params.speciality;
+        const data = await getSpecialitySlots({ ...req.query, speciality });
+        res.json({
+          status: true,
+          data,
+        });
+      }
+    } catch (error) {
+      console.log("error: ", error);
+      next(error);
+    }
+  };
+
   this.getSlots = async (req, res, next) => {
     try {
       const keysAndTypeToCheck = [
@@ -127,8 +152,6 @@ module.exports = (function () {
         { key: "slotDurationUnit", type: "string" },
         { key: "slotTime", type: "string" },
         { key: "speciality", type: "string" },
-        { key: "userUuid", type: "string" },
-        { key: "drName", type: "string" },
         { key: "visitUuid", type: "string" },
         { key: "locationUuid", type: "string" },
         { key: "patientName", type: "string" },
@@ -199,6 +222,36 @@ module.exports = (function () {
       const keysAndTypeToCheck = [{ key: "visitUuid", type: "string" }];
       if (validateParams(req.params, keysAndTypeToCheck)) {
         const data = await getAppointment(req.params);
+        res.json({ status: true, data });
+      }
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  this.startAppointment = async (req, res, next) => {
+    try {
+      const keysAndTypeToCheck = [
+        { key: "appointmentId", type: "number" },
+        { key: "drName", type: "string" },
+        { key: "userUuid", type: "string" },
+      ];
+      if (validateParams(req.body, keysAndTypeToCheck)) {
+        const data = await startAppointment(req.body);
+        res.json({ status: true, data });
+      }
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  this.releaseAppointment = async (req, res, next) => {
+    try {
+      const keysAndTypeToCheck = [
+        { key: "visitUuid", type: "string" },
+      ];
+      if (validateParams(req.body, keysAndTypeToCheck)) {
+        const data = await releaseAppointment(req.body);
         res.json({ status: true, data });
       }
     } catch (error) {

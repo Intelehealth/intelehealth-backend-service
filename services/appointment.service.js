@@ -183,6 +183,24 @@ WHERE
     }
   };
 
+  this.getSpecialitySlots = async ({ speciality, fromDate, toDate }) => {
+    try {
+      const data = await Appointment.findAll({
+        where: {
+          speciality,
+          slotJsDate: {
+            [Op.between]: this.getFilterDates(fromDate, toDate),
+          },
+          status: "booked",
+        },
+        raw: true,
+      });
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  };
+
   this.getSlots = async ({ locationUuid, fromDate, toDate }) => {
     try {
       const data = await Appointment.findAll({
@@ -448,8 +466,6 @@ WHERE
       slotDurationUnit,
       slotTime,
       speciality,
-      userUuid,
-      drName,
       visitUuid,
       patientId,
       openMrsId,
@@ -458,17 +474,35 @@ WHERE
       hwUUID,
     } = params;
     try {
-      const bookedApnmt = await Appointment.findOne({
+      const bookedApnmt = await Appointment.findAll({
         where: {
           slotTime,
           slotDate,
-          userUuid,
+          speciality,
           status: "booked",
         },
         raw: true,
       });
 
-      if (bookedApnmt) {
+      const appntSlots = await this._getAppointmentSlots({
+        fromDate: slotDate,
+        toDate: slotDate,
+        speciality,
+      });
+
+      if (appntSlots && appntSlots.dates && Array.isArray(appntSlots.dates)) {
+        const matchedApmt = appntSlots.dates.filter((apmt) => {
+          return (
+            apmt.slotTime === slotTime &&
+            apmt.slotDate === slotDate &&
+            apmt.speciality === speciality
+          );
+        });
+
+        if (bookedApnmt.length >= matchedApmt.length) {
+          throw new Error("Appointment not available, it's already booked.");
+        }
+      } else {
         throw new Error("Appointment not available, it's already booked.");
       }
 
@@ -494,8 +528,6 @@ WHERE
         slotDurationUnit,
         slotTime,
         speciality,
-        userUuid,
-        drName,
         visitUuid,
         patientId,
       });
@@ -664,6 +696,41 @@ WHERE
       };
     } else {
       return cancelled;
+    }
+  };
+
+  this.startAppointment = async ({ drName, userUuid, appointmentId }) => {
+    let appointment = await Appointment.findOne({
+      where: {
+        id: appointmentId,
+      },
+    });
+
+    if (appointment) {
+      appointment.userUuid = userUuid;
+      appointment.drName = drName;
+      await appointment.save();
+      return appointment;
+    } else {
+      throw new Error("Appointment not found!");
+    }
+  };
+
+  this.releaseAppointment = async ({ visitUuid }) => {
+    let appointment = await Appointment.findOne({
+      where: {
+        visitUuid,
+        status: "booked",
+      },
+    });
+
+    if (appointment) {
+      appointment.userUuid = null;
+      appointment.drName = null;
+      await appointment.save();
+      return appointment;
+    } else {
+      throw new Error("Appointment not found!");
     }
   };
 
