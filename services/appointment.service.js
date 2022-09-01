@@ -388,7 +388,7 @@ WHERE
                 d.slotTime === apnmt.slotTime &&
                 d.slotDate === apnmt.slotDate &&
                 d.slotDay === apnmt.slotDay &&
-                d.userUuid === apnmt.userUuid
+                d.speciality === apnmt.speciality
             );
             if (dateIdx != -1) {
               dates.splice(dateIdx, 1);
@@ -499,7 +499,7 @@ WHERE
           );
         });
 
-        if (bookedApnmt.length >= matchedApmt.length) {
+        if (!matchedApmt.length) {
           throw new Error("Appointment not available, it's already booked.");
         }
       } else {
