@@ -217,6 +217,20 @@ module.exports = (function () {
     }
   };
 
+  this.completeAppointment = async (req, res, next) => {
+    try {
+      const keysAndTypeToCheck = [
+        { key: "visitUuid", type: "string" },
+      ];
+      if (validateParams(req.body, keysAndTypeToCheck)) {
+        const data = await _completeAppointment(req.body);
+        res.json(data);
+      }
+    } catch (error) {
+      next(error);
+    }
+  };
+
   this.getAppointment = async (req, res, next) => {
     try {
       const keysAndTypeToCheck = [{ key: "visitUuid", type: "string" }];

@@ -610,6 +610,32 @@ WHERE
     }
   };
 
+  this._completeAppointment = async (params) => {
+    const { id, visitUuid, hwUUID, reason } = params;
+    let where = {
+      status: "booked",
+    };
+    if (visitUuid) where.visitUuid = visitUuid;
+    if (id) where.id = id;
+
+    const appointment = await Appointment.findOne({
+      where,
+    });
+
+    if (appointment) {
+      appointment.update({ status: "completed", updatedBy: hwUUID });
+      return {
+        status: true,
+        message: "Appointment completed successfully!",
+      };
+    } else {
+      return {
+        status: false,
+        message: "Appointment not found!",
+      };
+    }
+  };
+
   this.getAppointment = async ({ visitUuid }) => {
     return await Appointment.findOne({
       where: { visitUuid, status: "booked" },

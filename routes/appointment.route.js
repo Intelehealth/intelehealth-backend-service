@@ -11,7 +11,8 @@ const {
   getSlots,
   rescheduleAppointment,
   startAppointment,
-  releaseAppointment
+  releaseAppointment,
+  completeAppointment
 } = require("../controllers/appointment.controller");
 const router = express.Router();
 
@@ -28,5 +29,6 @@ router.post("/rescheduleAppointment", rescheduleAppointment);
 router.post("/startAppointment", startAppointment);
 router.post("/releaseAppointment", releaseAppointment);
 router.post("/cancelAppointment", cancelAppointment);
+router.post("/completeAppointment", completeAppointment);
 
 module.exports = router;
