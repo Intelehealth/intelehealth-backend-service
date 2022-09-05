@@ -185,16 +185,53 @@ WHERE
 
   this.getSpecialitySlots = async ({ speciality, fromDate, toDate }) => {
     try {
+      let setting = await Setting.findOne({ where: {}, raw: true });
+
+      const SLOT_DURATION =
+        setting && setting.slotDuration ? setting.slotDuration : 30;
+
+      const nowTime = moment().subtract(SLOT_DURATION, "minutes");
+      console.log("nowTime: ", nowTime.format("hh:mm a"));
+
       const data = await Appointment.findAll({
         where: {
           speciality,
           slotJsDate: {
-            [Op.between]: this.getFilterDates(fromDate, toDate),
+            [Op.between]: [
+              nowTime.format(),
+              this.getFilterDates(fromDate, toDate)[1],
+            ],
+            // [Op.between]: this.getFilterDates(fromDate, toDate),
           },
           status: "booked",
         },
-        raw: true,
       });
+
+      asyncForEach(data, async (apnmt) => {
+        try {
+          const url = `/openmrs/ws/rest/v1/patient?q=${apnmt.openMrsId}&v=custom:(uuid,identifiers:(identifierType:(name),identifier),person)`;
+          const patient = await axiosInstance.get(url).catch((err) => {});
+
+          if (
+            patient &&
+            patient.data &&
+            patient.data.results &&
+            Array.isArray(patient.data.results)
+          ) {
+            const result = patient.data.results[0];
+            if (result && result.person) {
+              const name =
+                result.person.display || result.person.preferredName.display;
+
+              if (apnmt.patientName !== name) {
+                apnmt.patientName = name;
+                await apnmt.save();
+              }
+            }
+          }
+        } catch (error) {}
+      });
+
       return data;
     } catch (error) {
       throw error;

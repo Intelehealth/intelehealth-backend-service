@@ -1,6 +1,9 @@
 const gcm = require("node-gcm");
 const mysql = require("../public/javascripts/mysql/mysql");
 const webpush = require("web-push");
+const axios = require("axios");
+const env = process.env.NODE_ENV || "development";
+const config = require(__dirname + "/../config/config.json")[env];
 
 module.exports = (function () {
   const vapidKeys = {
@@ -19,6 +22,18 @@ module.exports = (function () {
     vapidKeys.publicKey,
     vapidKeys.privateKey
   );
+
+  const baseURL = `https://${config.domain}`;
+
+  this.axiosInstance = axios.create({
+    baseURL,
+    timeout: 50000,
+    headers: {
+      Authorization: `Basic ${Buffer.from(
+        `${config.openMrsUsername}:${config.openMrsPassword}`
+      ).toString("base64")}`,
+    },
+  });
 
   this.sendWebPushNotificaion = async ({ webpush_obj, title, body }) => {
     webpush
