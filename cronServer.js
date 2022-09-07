@@ -1,4 +1,8 @@
 const CronJob = require("cron").CronJob;
+const axios = require("axios");
+const moment = require("moment");
+const querystring = require("querystring");
+
 const {
   getDataFromQuery,
   sendWebPushNotificaion,
@@ -18,6 +22,12 @@ const getVisits = async () => {
     console.log("error:getVisits ", error);
   }
 };
+
+const axiosKaleyra = axios.create({
+  baseURL: "https://api.in.kaleyra.io",
+  timeout: 50000,
+  headers: { "content-type": "application/x-www-form-urlencoded" },
+});
 
 const checkVisit = (encounters, visitType) => {
   return encounters.find(({ display = "" }) => display.includes(visitType));
@@ -109,6 +119,117 @@ const sendNotification = async () => {
   }
 };
 
+const sendSMS = async (docArray = []) => {
+  const visits = await getVisits();
+  try {
+    console.log("Cron hour sms function running......");
+
+    const [awaiting = 0, priority = 0] = await getAwaitingAndPriorityVisits(
+      visits
+    );
+    console.log("awaiting: ", awaiting);
+    console.log("priority: ", priority);
+    if (awaiting > 0 || priority > 0) {
+      const sendMessage = getTemplateOne(awaiting + priority, 1);
+
+      for (let idx = 0; idx < docArray.length; idx++) {
+        const doc = docArray[idx];
+        await postSMSToMobileNumber(doc.mobNo, sendMessage);
+      }
+    }
+
+    console.log(
+      "Cron hour sms completed--------------------------------------------"
+    );
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+const sendSMSToDoctorEveryHour = async () => {
+  const now = moment();
+  const format = "hh:mm:ss";
+  const startTime = moment("07:00:00", format); /** 7 am */
+  const endTime = moment("20:00:00", format); /** 8 pm */
+  const result = now.isBetween(startTime, endTime); // returns true
+  if (result) {
+    const docArray = [
+      { name: "Dr. Manish ", mobNo: "919113320079" },
+      { name: "Dr. Akash ", mobNo: "919422109789" },
+    ];
+    sendSMS(docArray);
+  }
+};
+
+const sendSMSToDoctorTwiceADay = async () => {
+  const now = moment();
+  const format = "HH:mm:ss";
+  const startTime = moment("07:00:00", format); /** 7 am */
+  const endTime = moment("20:00:00", format); /** 8 pm */
+  const result = now.isBetween(startTime, endTime); // returns true
+  if (result) {
+    const docArray = [
+      { name: "Dr. Mukul Bhatia", mobNo: "919608159914" },
+      { name: "Dr. RN Mehta", mobNo: "919426365188" },
+    ];
+    sendSMS(docArray);
+  }
+};
+
+const getTemplateOne = (numOfPatients, sinceHours) => {
+  return `Dear Doctor,Namaskar.${numOfPatients} Patients are eagerly waiting your Expert Consultation (For ${sinceHours} hour/hours).Please attend. Thanks- Ekal Arogya Foundation of India`;
+};
+
+const postSMSToMobileNumber = async (mobNo, message) => {
+  try {
+    const axiosOptions = {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "api-key": "A7b6e3f43afd56b241d4aaf9fcb73d742",
+      },
+    };
+
+    const payload = querystring.stringify({
+      to: mobNo,
+      sender: "AFIEAP",
+      type: "TXN",
+      source: "API",
+      template_id: "1107165751297923593",
+      body: message,
+    });
+
+    await axiosKaleyra
+      .post("/v1/HXIN1739030324IN/messages", payload, axiosOptions)
+      .catch(function (error) {
+        console.log(error);
+      });
+  } catch (error) {}
+};
+
 const cronString = `*/15 * * * *`;
 new CronJob(cronString, sendNotification, null, true, "Asia/Kolkata");
+
+new CronJob(
+  "2 */1 * * *",
+  sendSMSToDoctorEveryHour,
+  null,
+  true,
+  "Asia/Kolkata"
+);
+
+new CronJob(
+  "0 10 */1 * *",
+  sendSMSToDoctorTwiceADay,
+  null,
+  true,
+  "Asia/Kolkata"
+); /** everyday at 10 am */
+new CronJob(
+  "0 14 */1 * *",
+  sendSMSToDoctorTwiceADay,
+  null,
+  true,
+  "Asia/Kolkata"
+); /** everyday at 2 pm */
+
 console.log("Cron started......");
