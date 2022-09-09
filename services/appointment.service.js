@@ -731,6 +731,7 @@ WHERE
     patientId,
     appointmentId,
     reason,
+    webApp,
   }) => {
     const cancelled = await this._cancelAppointment(
       { id: appointmentId, userId: hwUUID, reason },
@@ -738,7 +739,28 @@ WHERE
       null,
       true
     );
+
+    const appointment = await Appointment.findOne({
+      where: {
+        slotDate,
+        slotTime,
+        status: "booked",
+        userUuid,
+      },
+      raw: true,
+    });
+
+    if (appointment) {
+      throw new Error(
+        "Another appointment has already been booked for this time slot."
+      );
+    }
+
     if (cancelled && cancelled.status) {
+      if (!webApp) {
+        userUuid = null;
+        drName = null;
+      }
       return {
         data: await createAppointment({
           openMrsId,

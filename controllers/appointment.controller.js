@@ -178,8 +178,6 @@ module.exports = (function () {
         { key: "slotDurationUnit", type: "string" },
         { key: "slotTime", type: "string" },
         { key: "speciality", type: "string" },
-        { key: "userUuid", type: "string" },
-        { key: "drName", type: "string" },
         { key: "visitUuid", type: "string" },
         { key: "locationUuid", type: "string" },
         { key: "patientName", type: "string" },
