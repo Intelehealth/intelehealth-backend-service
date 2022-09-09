@@ -7,5 +7,6 @@ const {
 
 router.post("/sendMessage", sendMessage);
 router.get("/:fromUser/:toUser/:patientId", getMessages);
+router.post("/sendSMS", sendSMS);
 
 module.exports = router;

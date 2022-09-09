@@ -1,4 +1,4 @@
-const { sendMessage, getMessages } = require("../services/message.service");
+const { sendMessage, getMessages,postSMSToMobileNumber } = require("../services/message.service");
 const { validateParams } = require("../handlers/helper");
 const { user_settings } = require("../models");
 
@@ -83,6 +83,30 @@ module.exports = (function () {
         res.json(data);
       }
     } catch (error) {
+      res.json({
+        status: false,
+        message: error,
+      });
+    }
+  };
+
+  /**
+   * Method for sending sms to patients
+   * @param {*} req
+   * @param {*} res
+   */
+  this.sendSMS = async (req, res) => {
+    const { sevikaName, sevikaMobNo, message, patients = [] } = req.body;
+    try {
+      if (patients) {
+        for (let idx = 0; idx < patients.length; idx++) {
+          const patient = patients[idx];
+          const patientMobNo='';
+          await postSMSToMobileNumber(patientMobNo, message);
+        }
+      }
+    } catch (error) {
+      console.log("error: ", error);
       res.json({
         status: false,
         message: error,
