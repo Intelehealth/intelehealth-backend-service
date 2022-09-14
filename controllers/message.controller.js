@@ -1,4 +1,8 @@
-const { sendMessage, getMessages,postSMSToMobileNumber } = require("../services/message.service");
+const {
+  sendMessage,
+  getMessages,
+  postSMSToMobileNumber,
+} = require("../services/message.service");
 const { validateParams } = require("../handlers/helper");
 const { user_settings } = require("../models");
 
@@ -96,14 +100,17 @@ module.exports = (function () {
    * @param {*} res
    */
   this.sendSMS = async (req, res) => {
-    const { sevikaName, sevikaMobNo, message, patients = [] } = req.body;
+    const { message, patients = [] } = req.body;
     try {
       if (patients) {
         for (let idx = 0; idx < patients.length; idx++) {
-          const patient = patients[idx];
-          const patientMobNo='';
+          const patientMobNo = patients[idx];
           await postSMSToMobileNumber(patientMobNo, message);
         }
+        return res.json({
+          status: true,
+          message: "SMS sent successfully.",
+        });
       }
     } catch (error) {
       console.log("error: ", error);

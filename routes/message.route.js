@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   sendMessage,
   getMessages,
+  sendSMS
 } = require("../controllers/message.controller");
 
 router.post("/sendMessage", sendMessage);
