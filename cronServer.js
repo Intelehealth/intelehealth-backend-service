@@ -212,9 +212,8 @@ const sendSMSToDoctorEveryHour = async () => {
   const result = now.isBetween(startTime, endTime); // returns true
   if (result) {
     const docArray = [
-      // { name: "Zeeshan", mobNo: "919111170025" },
-      { name: "Sagar doke", mobNo: "919503692181" },
-      { name: "Gaurav", mobNo: "919975046872" },
+      { name: "Dr. Manish ", mobNo: "919113320079" },
+      { name: "Dr. Akash ", mobNo: "919422109789" },
     ];
     sendSMS(docArray);
   }
