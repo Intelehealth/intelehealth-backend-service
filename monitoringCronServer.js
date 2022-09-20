@@ -64,7 +64,7 @@ const monitorCron = () => {
             const status = await user_status.findOne({
               where: {
                 userUuid: uuid,
-                device: _device,
+                // device: _device,
               },
             });
             const min = Math.abs(totalDuration % 60);

@@ -26,11 +26,11 @@ module.exports = (function () {
       let status = await user_status.findOne({
         where: {
           userUuid,
-          device,
         },
         order: [["updatedAt", "ASC"]],
         raw: true,
       });
+
       const updatedAt = (status && status.updatedAt) || new Date();
       const duration = Math.abs(moment().diff(moment(updatedAt), "m"));
 

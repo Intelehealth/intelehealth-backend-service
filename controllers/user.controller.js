@@ -9,7 +9,7 @@ module.exports = (function () {
   this.createUpdateStatus = async (req, res) => {
     const keysAndTypeToCheck = [
       { key: "userUuid", type: "string" },
-      { key: "device", type: "string" },
+      // { key: "device", type: "string" },
     ];
     try {
       if (validateParams(req.body, keysAndTypeToCheck)) {
