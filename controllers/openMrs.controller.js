@@ -4,10 +4,10 @@ const {
   getVisitCountQuery,
   locationQuery,
   doctorsQuery,
-  getDoctorVisitsData
+  getDoctorVisitsData,
+  BaselineSurveyPatientsQuery,
 } = require("./queries");
 const { _getStatuses } = require("../services/user.service");
-
 
 /**
  * To return the visit counts from the openmrs db using custom query
@@ -15,7 +15,7 @@ const { _getStatuses } = require("../services/user.service");
  * @param {*} res
  * @param {*} next
  */
- const getVisitCounts = async (req, res, next) => {
+const getVisitCounts = async (req, res, next) => {
   const speciality = req.query.speciality;
   const query =
     speciality === "General Physician"
@@ -144,10 +144,10 @@ const getDoctorVisits = async (req, res, next) => {
       throw err;
     });
     // let states = data.filter((d) => d.tag === "State");
-  
+
     res.json({
       rawData,
-      success: true
+      success: true,
     });
   } catch (error) {
     res.statusCode = 422;
@@ -204,9 +204,36 @@ const getDoctorDetails = async (req, res, next) => {
   }
 };
 
+const getBaselineSurveyPatients = async (req, res, next) => {
+  try {
+    if (validateParams(req.params, [{ key: "location_id", type: "string" }])) {
+      const location_id = req.params.location_id;
+      const data = await new Promise((resolve, reject) => {
+        openMrsDB.query(
+          BaselineSurveyPatientsQuery(location_id),
+          (err, results, fields) => {
+            if (err) reject(err);
+            resolve(results);
+          }
+        );
+      }).catch((err) => {
+        throw err;
+      });
+      res.json({
+        data,
+        success: true,
+      });
+    } 
+  } catch (error) {
+    res.statusCode = 422;
+    res.json({ status: false, message: error.message });
+  }
+};
+
 module.exports = {
   getVisitCounts,
   getLocations,
   getDoctorDetails,
-  getDoctorVisits
+  getDoctorVisits,
+  getBaselineSurveyPatients,
 };
