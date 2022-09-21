@@ -76,7 +76,7 @@ module.exports = (function () {
            end;`;
   };
 
-  this.getDoctorVisitsData =  () => {
+  this.getDoctorVisitsData = () => {
     return `SELECT
     v.visit_id AS visit_id,
     p.patient_id AS patient_id,
@@ -198,5 +198,24 @@ FROM
 WHERE 
 ur.role like '%Doctor%';`;
 
+  this.BaselineSurveyPatientsQuery = (location_id) => {
+    return `select pi.identifier as "OpenMRS_Id",
+  pi.patient_id,
+  pn.given_name as "Patient_Name",
+  max(case when pa.person_attribute_type_id=8 then pa.value end ) as "Telephone_Number",
+  pi.location_id
+from                 patient_identifier pi 
+left join            person_name pn on pi.patient_id=pn.person_id and  pn.voided=0 and pn.preferred=1
+left join            person_attribute pa on pi.patient_id=pa.person_id and pa.voided=0
+where                pi.patient_id 
+not in               (select v.patient_id from visit v)
+and                  pi.location_id =${location_id}
+and                  pi.voided=0  
+and                  pi.preferred=1
+group by             pi.identifier,
+pi.patient_id,
+Patient_name,
+pi.location_id ;`;
+  };
   return this;
 })();
