@@ -2,6 +2,12 @@ const CronJob = require("cron").CronJob;
 const axios = require("axios");
 const moment = require("moment");
 const querystring = require("querystring");
+const {
+  getVisitCountQueryForGp,
+  getVisitCountQuery,
+} = require("./controllers/queries");
+// const openMrsDB = require("../public/javascripts/mysql/mysqlOpenMrs");
+const openMrsDB = require("./public/javascripts/mysql/mysqlOpenMrs");
 
 const {
   getDataFromQuery,
@@ -31,6 +37,60 @@ const axiosKaleyra = axios.create({
 
 const checkVisit = (encounters, visitType) => {
   return encounters.find(({ display = "" }) => display.includes(visitType));
+};
+
+const getVisitCounts = async (speciality = "General Physician") => {
+  const query =
+    speciality === "General Physician"
+      ? getVisitCountQueryForGp()
+      : getVisitCountQuery({ speciality });
+
+  try {
+    return await new Promise((resolve, reject) => {
+      openMrsDB.query(query, (err, results, fields) => {
+        if (err) reject(err);
+        resolve(results);
+      });
+    }).catch((err) => {
+      throw err;
+    });
+  } catch (error) {
+    console.log("error: ", error);
+
+    return [
+      {
+        Total: 0,
+        Status: "Awaiting Consult",
+      },
+      {
+        Total: 0,
+        Status: "Completed Visit",
+      },
+      {
+        Total: 0,
+        Status: "Priority",
+      },
+      {
+        Total: 0,
+        Status: "Visit In Progress",
+      },
+    ];
+  }
+};
+
+const getPriorityAwaitingVisitCount = async () => {
+  try {
+    const data = await getVisitCounts();
+    if (Array.isArray(data)) {
+      const awaiting = data.find((d) => d.Status === "Awaiting Consult").Total;
+      const priority = data.find((d) => d.Status === "Priority").Total;
+      return awaiting + priority;
+    } else {
+      console.log("getVisitCounts - data: ", data);
+    }
+  } catch (error) {
+    console.log("error: ", error);
+  }
 };
 
 const getAwaitingAndPriorityVisits = async (
@@ -120,17 +180,15 @@ const sendNotification = async () => {
 };
 
 const sendSMS = async (docArray = []) => {
-  const visits = await getVisits();
+  // const visits = await getVisits();
   try {
     console.log("Cron hour sms function running......");
 
-    const [awaiting = 0, priority = 0] = await getAwaitingAndPriorityVisits(
-      visits
-    );
-    console.log("awaiting: ", awaiting);
-    console.log("priority: ", priority);
-    if (awaiting > 0 || priority > 0) {
-      const sendMessage = getTemplateOne(awaiting + priority, 1);
+    const priorityAwaitingCount = await getPriorityAwaitingVisitCount();
+    console.log("priorityAwaitingCount: ", priorityAwaitingCount);
+
+    if (priorityAwaitingCount > 0) {
+      const sendMessage = getTemplateOne(priorityAwaitingCount, 1);
 
       for (let idx = 0; idx < docArray.length; idx++) {
         const doc = docArray[idx];
@@ -154,8 +212,9 @@ const sendSMSToDoctorEveryHour = async () => {
   const result = now.isBetween(startTime, endTime); // returns true
   if (result) {
     const docArray = [
-      { name: "Dr. Manish ", mobNo: "919113320079" },
-      { name: "Dr. Akash ", mobNo: "919422109789" },
+      // { name: "Zeeshan", mobNo: "919111170025" },
+      { name: "Sagar doke", mobNo: "919503692181" },
+      { name: "Gaurav", mobNo: "919975046872" },
     ];
     sendSMS(docArray);
   }
