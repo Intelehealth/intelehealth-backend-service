@@ -82,9 +82,13 @@ const getPriorityAwaitingVisitCount = async () => {
   try {
     const data = await getVisitCounts();
     if (Array.isArray(data)) {
-      const awaiting = data.find((d) => d.Status === "Awaiting Consult").Total;
-      const priority = data.find((d) => d.Status === "Priority").Total;
-      return awaiting + priority;
+      const awaiting = data.find((d) => d.Status === "Awaiting Consult");
+      const priority = data.find((d) => d.Status === "Priority");
+
+      return (
+        (awaiting && awaiting.Total ? awaiting.Total : 0) +
+        (priority && priority.Total ? priority.Total : 0)
+      );
     } else {
       console.log("getVisitCounts - data: ", data);
     }
