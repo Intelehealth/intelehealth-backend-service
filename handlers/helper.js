@@ -66,7 +66,7 @@ module.exports = (function () {
     click_action = "FCM_PLUGIN_HOME_ACTIVITY",
   }) => {
     var sender = new gcm.Sender(
-      "AAAAteo0mXw:APA91bHKDO9T4O2sbk_sjYRkabN8F8MR0Gegv5H-Pa7VR-zoGp5GeYTztpac96Awy2F5FT0c09PZM5ryv2yXEcGZy8zwkQmujtJgMXDlHBjUcM0vDFHbOAK4SZ8jKDMzz-OGzm5TzfA0"
+      "AAAA0DrNJRk:APA91bEw_sr5MiqExwmu0ejp9wvEvDiTiWuJqOzMG0NWrAp0V1ULcTKfI46XZ5xyVeTfb3Ub07hR9ssMa1Z5fpggqT4x3MFlzs5fcAHAHaxTwbmM8W789EzmDPFXuIjxyQMXI0Kte9DQ"
     );
 
     var message = new gcm.Message({
