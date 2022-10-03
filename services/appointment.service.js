@@ -393,7 +393,7 @@ WHERE
           });
         }
       }
-
+      uniqueTimeSlots.sort((a, b) => (moment(a.slotTime, "LT") < moment(b.slotTime, "LT")) ? -1 : (moment(a.slotTime, "LT") > moment(b.slotTime, "LT")) ? 1 : 0);
       return { dates: uniqueTimeSlots };
     } catch (error) {
       throw error;
