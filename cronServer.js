@@ -280,18 +280,18 @@ new CronJob(
 );
 
 new CronJob(
-  "0 10 */1 * *",
+  "0 7 */1 * *",
   sendSMSToDoctorTwiceADay,
   null,
   true,
   "Asia/Kolkata"
-); /** everyday at 10 am */
+); /** everyday at 7 am */
 new CronJob(
-  "0 14 */1 * *",
+  "0 20 */1 * *",
   sendSMSToDoctorTwiceADay,
   null,
   true,
   "Asia/Kolkata"
-); /** everyday at 2 pm */
+); /** everyday at 8 pm */
 
 console.log("Cron started......");
