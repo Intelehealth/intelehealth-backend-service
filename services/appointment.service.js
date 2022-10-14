@@ -12,11 +12,14 @@ const {
   getDataFromQuery,
   sendCloudNotification,
 } = require("../handlers/helper");
+const env = process.env.NODE_ENV || "development";
+const config = require("../config/config.json")[env];
 
 module.exports = (function () {
   const DATE_FORMAT = "DD/MM/YYYY";
   const TIME_FORMAT = "LT";
   const FILTER_TIME_DATE_FORMAT = "DD/MM/YYYY HH:mm:ss";
+  const TIMEZONE = config.timezone || "Asia/Kolkata";
 
   const sendCancelNotification = async ({ id, slotTime, patientName }) => {
     const query = `
@@ -351,6 +354,7 @@ WHERE
               });
           dates = dates.concat(_dates);
         });
+
         const appointments = await Appointment.findAll({
           where: {
             speciality,
@@ -383,7 +387,11 @@ WHERE
             if (!slt) {
               const today = moment().format(DATE_FORMAT);
               if (slot.slotDate === today) {
-                if (moment(slot.slotTime, "LT") > moment()) {
+                const tzTime = moment.tz(TIMEZONE);
+                if (
+                  moment(slot.slotTime, "LT") >
+                  moment(tzTime.format("LT"), "LT")
+                ) {
                   uniqueTimeSlots.push(slot);
                 }
               } else {
@@ -393,7 +401,13 @@ WHERE
           });
         }
       }
-      uniqueTimeSlots.sort((a, b) => (moment(a.slotTime, "LT") < moment(b.slotTime, "LT")) ? -1 : (moment(a.slotTime, "LT") > moment(b.slotTime, "LT")) ? 1 : 0);
+      uniqueTimeSlots.sort((a, b) =>
+        moment(a.slotTime, "LT") < moment(b.slotTime, "LT")
+          ? -1
+          : moment(a.slotTime, "LT") > moment(b.slotTime, "LT")
+          ? 1
+          : 0
+      );
       return { dates: uniqueTimeSlots };
     } catch (error) {
       throw error;
