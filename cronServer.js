@@ -40,11 +40,7 @@ const checkVisit = (encounters, visitType) => {
 };
 
 const getVisitCounts = async (speciality = "General Physician") => {
-  const query =
-    speciality === "General Physician"
-      ? getVisitCountQueryForGp()
-      : getVisitCountQuery({ speciality });
-
+  const query = getVisitCountQueryForGp();
   try {
     return await new Promise((resolve, reject) => {
       openMrsDB.query(query, (err, results, fields) => {

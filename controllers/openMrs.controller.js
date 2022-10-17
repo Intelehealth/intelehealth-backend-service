@@ -17,11 +17,7 @@ const { _getStatuses } = require("../services/user.service");
  */
 const getVisitCounts = async (req, res, next) => {
   const speciality = req.query.speciality;
-  const query =
-    speciality === "General Physician"
-      ? getVisitCountQueryForGp()
-      : getVisitCountQuery({ speciality });
-
+  const query = getVisitCountQueryForGp();
   try {
     const data = await new Promise((resolve, reject) => {
       openMrsDB.query(query, (err, results, fields) => {
