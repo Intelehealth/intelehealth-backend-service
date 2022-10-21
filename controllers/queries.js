@@ -68,7 +68,7 @@ from
             max(encounter_id) as max_enc,
             max(
                 case
-                    when encounter_type in (12, 14) then 1
+                    when (encounter_type in (12, 14) or v.date_stopped is not null) then 1
                     else 0
                 end
             ) as com_enc,
