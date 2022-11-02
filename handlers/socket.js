@@ -60,11 +60,18 @@ module.exports = function (server) {
         io.sockets.in(room).emit("message", message);
       });
 
-      socket.on("bye", function (data) {
+      socket.on("bye", async function (data) {
+        const { nurseId } = data;
+        console.log("data: bye ----->", data);
         console.log("received bye");
         io.sockets.in(room).emit("message", "bye");
         io.sockets.in(room).emit("bye");
         io.sockets.emit("log", ["received bye", data]);
+        await rtcNotifyRef
+          .child(nurseId)
+          .child("VIDEO_CALL")
+          .child("callEnded")
+          .set(true);
       });
 
       socket.on("no_answer", function (data) {
@@ -145,15 +152,8 @@ module.exports = function (server) {
 
       await rtcNotifyRef.update({
         [nurseId]: {
-          // TEXT_CHAT: {
-          //   fromUser: "454554-3333-jjfjf-444",
-          //   patientId: "dgddh747744-44848404",
-          //   patientName: "743747444-448480404",
-          //   timestamp: Date.now(),
-          //   toUser: "ererere-335-33-84884jj0990",
-          //   visitId: "4784847333-22-dddu40044",
-          // },
           VIDEO_CALL: {
+            callEnded: false,
             doctorName,
             nurseId,
             roomId,
