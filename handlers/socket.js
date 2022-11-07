@@ -67,11 +67,13 @@ module.exports = function (server) {
         io.sockets.in(room).emit("message", "bye");
         io.sockets.in(room).emit("bye");
         io.sockets.emit("log", ["received bye", data]);
-        await rtcNotifyRef
-          .child(nurseId)
-          .child("VIDEO_CALL")
-          .child("callEnded")
-          .set(true);
+        if (nurseId) {
+          await rtcNotifyRef
+            .child(nurseId)
+            .child("VIDEO_CALL")
+            .child("callEnded")
+            .set(true);
+        }
       });
 
       socket.on("no_answer", function (data) {
