@@ -12,6 +12,7 @@ const {
   getSpecialitySlots,
   startAppointment,
   releaseAppointment,
+  getBookedAppointments,
 } = require("../services/appointment.service");
 
 module.exports = (function () {
@@ -134,9 +135,13 @@ module.exports = (function () {
       ];
       if (validateParams(req.query, keysAndTypeToCheck)) {
         const data = await _getAppointmentSlots(req.query);
+
+        const bookedAppointments = await getBookedAppointments(req.query);
+
         res.json({
           status: true,
           ...data,
+          bookedAppointments,
         });
       }
     } catch (error) {
@@ -217,9 +222,7 @@ module.exports = (function () {
 
   this.completeAppointment = async (req, res, next) => {
     try {
-      const keysAndTypeToCheck = [
-        { key: "visitUuid", type: "string" },
-      ];
+      const keysAndTypeToCheck = [{ key: "visitUuid", type: "string" }];
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await _completeAppointment(req.body);
         res.json(data);
@@ -259,9 +262,7 @@ module.exports = (function () {
 
   this.releaseAppointment = async (req, res, next) => {
     try {
-      const keysAndTypeToCheck = [
-        { key: "visitUuid", type: "string" },
-      ];
+      const keysAndTypeToCheck = [{ key: "visitUuid", type: "string" }];
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await releaseAppointment(req.body);
         res.json({ status: true, data });
