@@ -1,7 +1,21 @@
-const { sendCloudNotification } = require("./helper");
 const { user_settings } = require("../models");
+const admin = require("firebase-admin");
+const env = process.env.NODE_ENV || "development";
+const config = require(__dirname + "/../config/config.json")[env];
+const serviceAccount = require("../config/serviceAccountKey.json");
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL: "https://intelehealth-3-0-default-rtdb.firebaseio.com",
+});
 
 module.exports = function (server) {
+  const db = admin.database();
+  const DB_NAME = `${config.domain.replace(/\./g, "_")}/rtc_notify`;
+  // const DB_NAME = "rtc_notify_dev";
+  console.log("DB_NAME: ", DB_NAME);
+
+  const rtcNotifyRef = db.ref(DB_NAME);
   const io = require("socket.io")(server);
   global.users = {};
   io.on("connection", (socket) => {
@@ -53,7 +67,7 @@ module.exports = function (server) {
       socket.on("no_answer", function (data) {
         console.log("no_answer");
         io.sockets.in(room).emit("bye");
-        io.sockets.emit("log", ["no_answer", data]);
+        io.sockets.in(room).emit("log", ["no_answer", data]);
       });
 
       if (numClients === 0) {
@@ -71,7 +85,8 @@ module.exports = function (server) {
       }
     });
     socket.on("call", async function (dataIds) {
-      const { nurseId } = dataIds;
+      const { nurseId, doctorName, roomId } = dataIds;
+      console.log("dataIds: ", dataIds);
       let isCalling = false;
       for (const socketId in users) {
         if (Object.hasOwnProperty.call(users, socketId)) {
@@ -82,27 +97,68 @@ module.exports = function (server) {
           }
         }
       }
+      let data = "";
       if (!isCalling) {
-        const data = await user_settings.findOne({
+        const room = roomId;
+        setTimeout(() => {
+          var clientsInRoom = io.sockets.adapter.rooms[room];
+          var numClients = clientsInRoom
+            ? Object.keys(clientsInRoom.sockets).length
+            : 0;
+
+          if (numClients < 2) {
+            socket.emit("toast", {
+              duration: 2000,
+              message:
+                "Not able to reach the health worker at this moment. Please try again after sometime.",
+            });
+          }
+        }, 10000);
+        data = await user_settings.findOne({
           where: { user_uuid: nurseId },
         });
-        if (data && data.device_reg_token) {
-          const response = await sendCloudNotification({
-            title: "Incoming call",
-            body: "Doctor is trying to call you.",
-            data: { ...dataIds, actionType: "VIDEO_CALL" },
-            regTokens: [data.device_reg_token],
-          }).catch((err) => {
-            console.log("err: ", err);
-          });
-          io.sockets.emit("log", ["notification response", response, data]);
-        } else {
-          io.sockets.emit("log", [
-            `data/device reg token not found in db for ${nurseId}`,
-            data,
-          ]);
-        }
+        // if (data && data.device_reg_token) {
+        //   const response = await sendCloudNotification({
+        //     title: "Incoming call",
+        //     body: "Doctor is trying to call you.",
+        //     data: {
+        //       ...dataIds,
+        //       actionType: "VIDEO_CALL",
+        //       timestamp: Date.now(),
+        //     },
+        //     regTokens: [data.device_reg_token],
+        //   }).catch((err) => {
+        //     console.log("err: ", err);
+        //   });
+        //   io.sockets.emit("log", ["notification response", response, data]);
+        // } else {
+        //   io.sockets.emit("log", [
+        //     `data/device reg token not found in db for ${nurseId}`,
+        //     data,
+        //   ]);
+        // }
       }
+
+      await rtcNotifyRef.update({
+        [nurseId]: {
+          // TEXT_CHAT: {
+          //   fromUser: "454554-3333-jjfjf-444",
+          //   patientId: "dgddh747744-44848404",
+          //   patientName: "743747444-448480404",
+          //   timestamp: Date.now(),
+          //   toUser: "ererere-335-33-84884jj0990",
+          //   visitId: "4784847333-22-dddu40044",
+          // },
+          VIDEO_CALL: {
+            doctorName,
+            nurseId,
+            roomId,
+            timestamp: Date.now(),
+            device_token:
+              data && data.device_reg_token ? data.device_reg_token : "",
+          },
+        },
+      });
     });
 
     socket.on("ipaddr", function () {

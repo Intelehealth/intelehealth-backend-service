@@ -2,4 +2,4 @@
 **/settings.json
 **/license
 *.zip
-/config/config.json
+/config/

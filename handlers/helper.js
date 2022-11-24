@@ -47,12 +47,12 @@ module.exports = (function () {
         click_action,
       },
       android: {
-        ttl: "30s",
+        ttl: "10s",
         priority: "high",
       },
       webpush: {
         headers: {
-          TTL: "30",
+          TTL: "10",
           Urgency: "high",
         },
       },
