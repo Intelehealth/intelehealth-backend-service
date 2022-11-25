@@ -13,6 +13,7 @@ const {
   startAppointment,
   releaseAppointment,
   getBookedAppointments,
+  getRescheduledAppointments,
 } = require("../services/appointment.service");
 
 module.exports = (function () {
@@ -137,11 +138,15 @@ module.exports = (function () {
         const data = await _getAppointmentSlots(req.query);
 
         const bookedAppointments = await getBookedAppointments(req.query);
+        const rescheduledAppointments = await getRescheduledAppointments(
+          req.query
+        );
 
         res.json({
           status: true,
           ...data,
           bookedAppointments,
+          rescheduledAppointments,
         });
       }
     } catch (error) {
