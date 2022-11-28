@@ -865,5 +865,28 @@ WHERE
     });
   };
 
+  this.getCancelledAppointments = async ({
+    fromDate,
+    toDate,
+    speciality,
+    userUuid,
+  }) => {
+    let where = {
+      slotJsDate: {
+        [Op.between]: this.getFilterDates(fromDate, toDate),
+      },
+      status: "cancelled",
+    };
+
+    if (userUuid) where.userUuid = userUuid;
+    if (speciality) where.speciality = speciality;
+
+    return await Appointment.findAll({
+      where,
+      order: [["slotJsDate", "DESC"]],
+      raw: true,
+    });
+  };
+
   return this;
 })();
