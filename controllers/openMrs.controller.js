@@ -1,4 +1,5 @@
 const openMrsDB = require("../public/javascripts/mysql/mysqlOpenMrs");
+const { sendOtp } = require("../services/openmrs.service");
 
 const getVisitCountQuery = ({ speciality = "General Physician" }) => {
   return `select count(t1.visit_id) as Total,
@@ -109,6 +110,40 @@ const getVisitCounts = async (req, res, next) => {
   }
 };
 
+/**
+ * IDA4 - forget password send OTP API
+ * @param {*} req
+ * @param {*} res
+ * @param {*} next
+ */
+const forgetPasswordSendOtp = async (req, res, next) => {
+  try {
+    const data = await sendOtp(req.body.userName, req.body.email);
+
+    res.json(data);
+  } catch (error) {
+    res.statusCode = 422;
+    res.json({ status: false, message: error.message });
+  }
+};
+
+const forgetPasswordResetPassword = async (req, res, next) => {
+  try {
+    const userUuid = req.params.userUuid;
+    const newPassword = req.body.newPassword;
+    const otp = req.body.otp;
+
+    const data = await resetPassword(userUuid, otp, newPassword);
+
+    res.json(data);
+  } catch (error) {
+    res.statusCode = 422;
+    res.json({ status: false, message: error.message });
+  }
+};
+
 module.exports = {
   getVisitCounts,
+  forgetPasswordSendOtp,
+  forgetPasswordResetPassword,
 };

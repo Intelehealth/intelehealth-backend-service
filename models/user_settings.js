@@ -14,9 +14,13 @@ module.exports = (sequelize, DataTypes) => {
   user_settings.init(
     {
       user_uuid: DataTypes.STRING,
-      snooze_till: DataTypes.STRING,
+      snooze_till: {
+        type: DataTypes.STRING,
+        defaultValue: "",
+      },
       device_reg_token: DataTypes.STRING,
       locale: DataTypes.STRING,
+      otp: DataTypes.STRING,
     },
     {
       sequelize,
