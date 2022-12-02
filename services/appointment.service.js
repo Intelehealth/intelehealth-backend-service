@@ -869,6 +869,7 @@ WHERE
     fromDate,
     toDate,
     speciality,
+    locationUuid,
     userUuid,
   }) => {
     let where = {
@@ -878,6 +879,7 @@ WHERE
       status: "cancelled",
     };
 
+    if (locationUuid) where.locationUuid = locationUuid;
     if (userUuid) where.userUuid = userUuid;
     if (speciality) where.speciality = speciality;
 

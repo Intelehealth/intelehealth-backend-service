@@ -117,9 +117,13 @@ module.exports = (function () {
       ];
       if (validateParams(req.query, keysAndTypeToCheck)) {
         const data = await getSlots(req.query);
+
+        const cancelledAppointments = await getCancelledAppointments(req.query);
+
         res.json({
           status: true,
           data,
+          cancelledAppointments,
         });
       }
     } catch (error) {
@@ -142,14 +146,12 @@ module.exports = (function () {
         const rescheduledAppointments = await getRescheduledAppointments(
           req.query
         );
-        const cancelledAppointments = await getCancelledAppointments(req.query);
 
         res.json({
           status: true,
           ...data,
           bookedAppointments,
           rescheduledAppointments,
-          cancelledAppointments,
         });
       }
     } catch (error) {

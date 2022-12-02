@@ -118,7 +118,7 @@ const getVisitCounts = async (req, res, next) => {
  */
 const forgetPasswordSendOtp = async (req, res, next) => {
   try {
-    const data = await sendOtp(req.body.userName, req.body.email);
+    const data = await sendOtp(req.body.userName, req.body.phoneNumber);
 
     res.json(data);
   } catch (error) {
