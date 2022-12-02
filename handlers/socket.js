@@ -2,23 +2,10 @@ const { user_settings } = require("../models");
 const admin = require("firebase-admin");
 const env = process.env.NODE_ENV || "development";
 const config = require(__dirname + "/../config/config.json")[env];
+const serviceAccountKey = require("../config/serviceAccountKey.json");
 
 admin.initializeApp({
-  credential: admin.credential.cert({
-    type: "service_account",
-    project_id: "intelehealth-3-0",
-    private_key_id: "8f42f95d88efd80e27b003e0d6bf687c0f450213",
-    private_key:
-      "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC2edZlb/COtScM\ntZF6H8ZyNh4qykJ1Rl+z7RsZmG41Ajla7i0DHpYGWwlM5GZM6B/H7fPdPAciin+w\nDu3vw8J2IndRTxxyS2jD9LasAQy7xdVV0FQhpW+uB6mNC0lYknGBEsZD5vaLeO2x\nXwIR8fNyuHtG2WU+ZUFa2m982wlXvOhC6R4IsIkEGkc4xtf6pZt0flnKByWjdoxk\nS5Pk/nkf9aygwjnQ64fuGc9Eh+ClLtufuXSsnN6VHmQcE0SHYrl6y2tiGyU9TIOX\nWsIphS/+KS6rqJWL9rW3s9kc41O/4SlVV9ULTury0eKWp35INWBHgRcLxq5TvrHa\nQ5pRM/m1AgMBAAECggEAHeY/2ZYqeg+3ys7TfAnJ1/wDHGrQ0euKke5Xgu2lnTz0\njfA54ul3lqoDD5zbIF3mmzljvIvx9VhxTLVdimxuqDHEkEegtx+hFn66EdwILJph\ndvKwXmT/tCngP9KqHX+9ZnNflk+5dSgG9onFSpB1HgaZeIX1n3Ay8cKaAwDW+o+b\n5r9ReBD5R2euqxL3UOSR+9gcvoDlYXlRs7xzeVo9KQ4lVBr188h1dSJuSq97C8wI\nfDCyJH4zNco94H1+i0lZ3pivkjKlLxC//XSmCBmI44Rtg+DlHHEEJQ6DwWA+WmEP\nn+avu3wJukJ8Xon/5DU5VlF8FXaI+ONqi01KdKGs7wKBgQDuwgBA8ZYgoMvlYwjw\nMWY3IPaSFfib7nUF3QXzERhiRPvxu+RwME3rcZYUvc3zr3jiCSr6ItwwL4SOvgFD\nzqBDEslI/5Vnb2/e09/uRF/A6f5Whm8u6wyf39IeaT0X81ce8iuQA4y7i8IhEBD9\nzZozLHrHiElatzeD7oQ3Sb67uwKBgQDDp1VmRvNHa7v+hos/yvd+uwPi3ZsJ2/Fk\n14kpEB/Evso7ksrJQ5WVZFUEV6YV7ucc/w1wjolGBBxQk39jrC/SguLRM83JfgyJ\nJxDZhveE9lAUravm7KxTwKuVHArXsbXACHTVchaGK82xmbLG8YO9rc71LN22CNJJ\nhZNcc4fxTwKBgCkn9eU7/7X2Ic+Tx7mnukfsfbRm5yjx7Ogq1li07LAb1hYwXktc\neEIKnWVL5pGIAN1t2SOvGKeRuVblt9AZcRS+y0WzEOz4j58ohKRM0vitHTOLDuVW\njSGN8mldmLNlNfJWql2zzvGRQNB0NYmahGcn1q5IduSVSpOKbO4e3yr7AoGAIUsI\nLS9FlpGum9EpQOG428fXEXPEPhk/KnnCzUoBHemZYCnKeBUYDyPTk7mWeYT9ruF3\n1/9pPJDWgJ+Yvc0/FgNPtWmrSu44E96h72IYHHgNiHdFGTaM3HOcvvLWpX2H//Vw\nbCHN02cAyYft9AyE7nH1FaNc1u0JW5lvSfwe1eECgYABK0231xNRSdavIi6OZQ7J\nGxnESn7uJzpuH0Qz9tCuFYPOozoRMey4RlKJNiQiSv4F/iBhQCr8tHunQxF6l5N4\nnqJFnNMC2c5GTX6Z2xjeYKWP7WJKDdxLitmm1N751Qqqd4NslNQf4VaIZaxIbubw\nxoNuzih3JzCFdGWPkK8idw==\n-----END PRIVATE KEY-----\n",
-    client_email:
-      "firebase-adminsdk-xku2h@intelehealth-3-0.iam.gserviceaccount.com",
-    client_id: "100710305442029555999",
-    auth_uri: "https://accounts.google.com/o/oauth2/auth",
-    token_uri: "https://oauth2.googleapis.com/token",
-    auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
-    client_x509_cert_url:
-      "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-xku2h%40intelehealth-3-0.iam.gserviceaccount.com",
-  }),
+  credential: admin.credential.cert(serviceAccountKey),
   databaseURL: "https://intelehealth-3-0-default-rtdb.firebaseio.com",
 });
 
