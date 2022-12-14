@@ -37,6 +37,8 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         defaultValue: "Health Worker",
       },
+      village: DataTypes.STRING,
+      sanch: DataTypes.STRING,
     },
     {
       sequelize,
