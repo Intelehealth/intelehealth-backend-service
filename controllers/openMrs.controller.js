@@ -1,5 +1,5 @@
 const openMrsDB = require("../public/javascripts/mysql/mysqlOpenMrs");
-const { sendOtp } = require("../services/openmrs.service");
+const { sendOtp, resetPassword } = require("../services/openmrs.service");
 
 const getVisitCountQuery = ({ speciality = "General Physician" }) => {
   return `select count(t1.visit_id) as Total,

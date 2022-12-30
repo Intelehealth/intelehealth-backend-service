@@ -46,11 +46,11 @@ where
                   ? `Причина: В связи с изменением графика врача`
                   : `Reason : Due to doctor's change in schedule.`,
               regTokens: [token],
-            }).catch((err) => {});
+            }).catch((err) => { });
           }
         });
       }
-    } catch (error) {}
+    } catch (error) { }
   };
 
   const sendCancelNotificationToWebappDoctor = async ({
@@ -84,7 +84,7 @@ WHERE
           }
         });
       }
-    } catch (error) {}
+    } catch (error) { }
   };
 
   const getTodayDate = () => {
@@ -210,7 +210,7 @@ WHERE
       asyncForEach(data, async (apnmt) => {
         try {
           const url = `/openmrs/ws/rest/v1/patient?q=${apnmt.openMrsId}&v=custom:(uuid,identifiers:(identifierType:(name),identifier),person)`;
-          const patient = await axiosInstance.get(url).catch((err) => {});
+          const patient = await axiosInstance.get(url).catch((err) => { });
 
           if (
             patient &&
@@ -229,7 +229,7 @@ WHERE
               }
             }
           }
-        } catch (error) {}
+        } catch (error) { }
       });
 
       return data;
@@ -246,11 +246,25 @@ WHERE
           slotJsDate: {
             [Op.between]: this.getFilterDates(fromDate, toDate),
           },
-          status: "booked",
         },
         raw: true,
       });
-      return data;
+      let visits = [];
+      if (data.length) {
+        let ar1 = data;
+        ar1.forEach((visit) => {
+          let visit1 = {} = Object.assign(visit);
+          if(visit.status !== "rescheduled") {
+            visit1["rescheduledAppointments"] = [];
+            let rescheduledAppointment = data.filter(
+              (d1) => d1.visitUuid === visit.visitUuid && d1.status === "rescheduled"
+            );
+            visit1.rescheduledAppointments= rescheduledAppointment;
+            visits.push(visit1);
+          }
+        });
+      }
+      return visits;
     } catch (error) {
       throw error;
     }
@@ -392,18 +406,18 @@ WHERE
         schedules.forEach((schedule) => {
           const _dates = true
             ? // schedule.type === "month"
-              getMonthSlots({
-                schedule,
-                days,
-                SLOT_DURATION,
-                SLOT_DURATION_UNIT,
-              })
+            getMonthSlots({
+              schedule,
+              days,
+              SLOT_DURATION,
+              SLOT_DURATION_UNIT,
+            })
             : getWeekSlots({
-                schedule,
-                days,
-                SLOT_DURATION,
-                SLOT_DURATION_UNIT,
-              });
+              schedule,
+              days,
+              SLOT_DURATION,
+              SLOT_DURATION_UNIT,
+            });
           dates = dates.concat(_dates);
         });
         const appointments = await Appointment.findAll({
@@ -503,6 +517,8 @@ WHERE
       slotDurationUnit,
       slotTime,
       speciality,
+      userUuid,
+      drName,
       visitUuid,
       patientId,
       openMrsId,
@@ -565,6 +581,8 @@ WHERE
         slotDurationUnit,
         slotTime,
         speciality,
+        userUuid,
+        drName,
         visitUuid,
         patientId,
       });
@@ -858,6 +876,18 @@ WHERE
     if (userUuid) where.userUuid = userUuid;
     if (speciality) where.speciality = speciality;
 
+    return await Appointment.findAll({
+      where,
+      order: [["slotJsDate", "DESC"]],
+      raw: true,
+    });
+  };
+
+  this.getRescheduledAppointmentsOfVisit = async ({ visitUuid }) => {
+    let where = {
+      visitUuid,
+      status: "rescheduled",
+    };
     return await Appointment.findAll({
       where,
       order: [["slotJsDate", "DESC"]],

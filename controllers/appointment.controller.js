@@ -14,6 +14,7 @@ const {
   releaseAppointment,
   getBookedAppointments,
   getRescheduledAppointments,
+  getRescheduledAppointmentsOfVisit,
   getCancelledAppointments,
 } = require("../services/appointment.service");
 
@@ -167,6 +168,8 @@ module.exports = (function () {
         { key: "slotDurationUnit", type: "string" },
         { key: "slotTime", type: "string" },
         { key: "speciality", type: "string" },
+        { key: "userUuid", type: "string" },
+        { key: "drName", type: "string" },
         { key: "visitUuid", type: "string" },
         { key: "locationUuid", type: "string" },
         { key: "patientName", type: "string" },
@@ -193,6 +196,8 @@ module.exports = (function () {
         { key: "slotDurationUnit", type: "string" },
         { key: "slotTime", type: "string" },
         { key: "speciality", type: "string" },
+        { key: "userUuid", type: "string" },
+        { key: "drName", type: "string" },
         { key: "visitUuid", type: "string" },
         { key: "locationUuid", type: "string" },
         { key: "patientName", type: "string" },
@@ -247,7 +252,14 @@ module.exports = (function () {
       const keysAndTypeToCheck = [{ key: "visitUuid", type: "string" }];
       if (validateParams(req.params, keysAndTypeToCheck)) {
         const data = await getAppointment(req.params);
-        res.json({ status: true, data });
+        const rescheduledAppointments = await getRescheduledAppointmentsOfVisit(
+          req.params
+        );
+        res.json({
+          status: true,
+           data,
+          rescheduledAppointments,
+        });
       }
     } catch (error) {
       next(error);
