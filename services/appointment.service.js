@@ -35,7 +35,6 @@ where
       if (data && data.length) {
         asyncForEach(data, async (item) => {
           const { token, locale } = item;
-          console.log("locale: ", locale);
           if (token) {
             await sendCloudNotification({
               title:

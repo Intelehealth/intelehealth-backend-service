@@ -1,3 +1,4 @@
+const { log } = require("../handlers/helper");
 const { _trackActions } = require("../services/analytic.service");
 
 module.exports = (function () {
@@ -16,7 +17,7 @@ module.exports = (function () {
         });
       }
     } catch (error) {
-      console.log("error: ", error);
+      log("error: ", error);
       res.json({
         status: false,
         message: error.message,
@@ -32,7 +33,7 @@ module.exports = (function () {
           data: await _getActions(req.params.userUuid, req.query),
         });
     } catch (error) {
-      console.log("error: ", error);
+      log("error: ", error);
       res.json({
         status: false,
         message: error.message,

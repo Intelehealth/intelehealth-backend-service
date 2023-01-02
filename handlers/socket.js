@@ -1,6 +1,7 @@
 // const { sendCloudNotification } = require("./helper");
 const { user_settings } = require("../models");
 const admin = require("firebase-admin");
+const { log } = require("./helper");
 const env = process.env.NODE_ENV || "development";
 const config = require(__dirname + "/../config/config.json")[env];
 
@@ -14,7 +15,7 @@ module.exports = function (server) {
   const db = admin.database();
   const DB_NAME = `${config.domain.replace(/\./g, "_")}/rtc_notify`;
   // const DB_NAME = "rtc_notify_dev";
-  console.log("DB_NAME:>>>>>>> ", DB_NAME);
+  log("DB_NAME:>>>>>>> ", DB_NAME);
 
   const rtcNotifyRef = db.ref(DB_NAME);
   const io = require("socket.io")(server);
@@ -28,14 +29,14 @@ module.exports = function (server) {
         name: socket.handshake.query.name,
       };
     }
-    console.log("socket: >>>>>", socket.handshake.query.userId);
+    log("socket: >>>>>", socket.handshake.query.userId);
 
     socket.emit("myId", socket.id);
 
     io.sockets.emit("allUsers", users);
 
     socket.on("disconnect", () => {
-      console.log("disconnected:>> ", socket.id);
+      log("disconnected:>> ", socket.id);
       delete users[socket.id];
       io.sockets.emit("allUsers", users);
     });
@@ -47,7 +48,7 @@ module.exports = function (server) {
     }
 
     socket.on("create or join", function (room) {
-      console.log("room: ", room);
+      log("room: ", room);
       log("Received request to create or join room " + room);
 
       var clientsInRoom = io.sockets.adapter.rooms[room];
@@ -62,8 +63,8 @@ module.exports = function (server) {
 
       socket.on("bye", async function (data) {
         const { nurseId } = data;
-        console.log("data: bye ----->", data);
-        console.log("received bye");
+        log("data: bye ----->", data);
+        log("received bye");
         io.sockets.in(room).emit("message", "bye");
         io.sockets.in(room).emit("bye");
         io.sockets.emit("log", ["received bye", data]);
@@ -77,7 +78,7 @@ module.exports = function (server) {
       });
 
       socket.on("no_answer", function (data) {
-        console.log("no_answer");
+        log("no_answer");
         io.sockets.in(room).emit("bye");
         io.sockets.in(room).emit("log", ["no_answer", data]);
       });
@@ -98,7 +99,7 @@ module.exports = function (server) {
     });
     socket.on("call", async function (dataIds) {
       const { nurseId, doctorName, roomId } = dataIds;
-      console.log("dataIds: ", dataIds);
+      log("dataIds: ", dataIds);
       let isCalling = false;
       for (const socketId in users) {
         if (Object.hasOwnProperty.call(users, socketId)) {
@@ -140,7 +141,7 @@ module.exports = function (server) {
         //     },
         //     regTokens: [data.device_reg_token],
         //   }).catch((err) => {
-        //     console.log("err: ", err);
+        //     log("err: ", err);
         //   });
         //   io.sockets.emit("log", ["notification response", response, data]);
         // } else {
@@ -150,7 +151,7 @@ module.exports = function (server) {
         //   ]);
         // }
       }
-      console.log(nurseId, "----<<>>>");
+      log(nurseId, "----<<>>>");
 
       await rtcNotifyRef.update({
         [nurseId]: {

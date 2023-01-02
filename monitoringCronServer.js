@@ -2,6 +2,7 @@ const CronJob = require("cron").CronJob;
 const { Sequelize, active_session, user_status } = require("./models");
 const moment = require("moment");
 const { TIME_FORMAT } = require("./services/user.service");
+const { log } = require("./handlers/helper");
 
 const removeOldSessions = async () => {
   await active_session.destroy({
@@ -130,4 +131,4 @@ const statusCronString = `*/5 * * * *`;
 const cronString = "0 0 * * *";
 new CronJob(statusCronString, statusCron, null, true, "Asia/Kolkata");
 new CronJob(cronString, monitorCron, null, true, "Asia/Kolkata");
-console.log("Monitoring Cron started......");
+log("Monitoring Cron started......");

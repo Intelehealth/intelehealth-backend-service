@@ -13,6 +13,7 @@ const {
   getDataFromQuery,
   sendWebPushNotificaion,
   axiosInstance,
+  log,
 } = require("./handlers/helper");
 
 const visitApiUrl =
@@ -25,7 +26,7 @@ const getVisits = async () => {
     const res = await axiosInstance.get(visitApiUrl);
     return res.data.results;
   } catch (error) {
-    console.log("error:getVisits ", error);
+    log("error:getVisits ", error);
   }
 };
 
@@ -51,7 +52,7 @@ const getVisitCounts = async (speciality = "General Physician") => {
       throw err;
     });
   } catch (error) {
-    console.log("error: ", error);
+    log("error: ", error);
 
     return [
       {
@@ -86,10 +87,10 @@ const getPriorityAwaitingVisitCount = async () => {
         (priority && priority.Total ? priority.Total : 0)
       );
     } else {
-      console.log("getVisitCounts - data: ", data);
+      log("getVisitCounts - data: ", data);
     }
   } catch (error) {
-    console.log("error: ", error);
+    log("error: ", error);
   }
 };
 
@@ -137,7 +138,7 @@ const getAwaitingAndPriorityVisits = async (
 
     return [awaiting.length, priority.length];
   } catch (error) {
-    console.log("error:getAwaitingAndPriorityVisits: ", error);
+    log("error:getAwaitingAndPriorityVisits: ", error);
     return [0, 0];
   }
 };
@@ -145,7 +146,7 @@ const getAwaitingAndPriorityVisits = async (
 const sendNotification = async () => {
   const visits = await getVisits();
   try {
-    console.log("Cron function running......");
+    log("Cron function running......");
     const data = await getDataFromQuery(
       "SELECT distinct speciality from pushnotification;"
     );
@@ -159,8 +160,8 @@ const sendNotification = async () => {
           speciality,
           location
         );
-        console.log("awaiting: ", awaiting);
-        console.log("priority: ", priority);
+        log("awaiting: ", awaiting);
+        log("priority: ", priority);
         if (awaiting > 0 || priority > 0) {
           await sendWebPushNotificaion({
             webpush_obj: obj.notification_object,
@@ -173,7 +174,7 @@ const sendNotification = async () => {
         }
       });
     });
-    console.log("Cron completed--------------------------------------------");
+    log("Cron completed--------------------------------------------");
   } catch (error) {
     console.error(error);
   }
@@ -182,10 +183,10 @@ const sendNotification = async () => {
 const sendSMS = async (docArray = []) => {
   // const visits = await getVisits();
   try {
-    console.log("Cron hour sms function running......");
+    log("Cron hour sms function running......");
 
     const priorityAwaitingCount = await getPriorityAwaitingVisitCount();
-    console.log("priorityAwaitingCount: ", priorityAwaitingCount);
+    log("priorityAwaitingCount: ", priorityAwaitingCount);
 
     if (priorityAwaitingCount > 0) {
       const sendMessage = getTemplateOne(priorityAwaitingCount, 1);
@@ -196,9 +197,7 @@ const sendSMS = async (docArray = []) => {
       }
     }
 
-    console.log(
-      "Cron hour sms completed--------------------------------------------"
-    );
+    log("Cron hour sms completed--------------------------------------------");
   } catch (error) {
     console.error(error);
   }
@@ -259,7 +258,7 @@ const postSMSToMobileNumber = async (mobNo, message) => {
     await axiosKaleyra
       .post("/v1/HXIN1739030324IN/messages", payload, axiosOptions)
       .catch(function (error) {
-        console.log(error);
+        log(error);
       });
   } catch (error) {}
 };
@@ -290,4 +289,4 @@ new CronJob(
   "Asia/Kolkata"
 ); /** everyday at 8 pm */
 
-console.log("Cron started......");
+log("Cron started......");

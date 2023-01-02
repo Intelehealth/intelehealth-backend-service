@@ -52,9 +52,9 @@ module.exports = (function () {
         options
       )
       .catch((error) => {
-        console.log("notification:", error.body);
-        console.log("status code: ", error.statusCode);
-        console.log("--------------------------------------------------------");
+        this.log("notification:", error.body);
+        this.log("status code: ", error.statusCode);
+        this.log("--------------------------------------------------------");
       });
   };
 
@@ -126,11 +126,11 @@ module.exports = (function () {
         { registrationTokens: regTokens },
         function (err, response) {
           if (err) {
-            console.log("err: ", err);
+            this.log("err: ", err);
             console.error(err);
             rej(err);
           } else {
-            console.log(response);
+            this.log(response);
             res(response);
           }
         }
@@ -153,12 +153,18 @@ module.exports = (function () {
     return new Promise((resolve, reject) => {
       db.query(query, (err, results) => {
         if (err) {
-          console.log("err: ", err);
+          this.log("err: ", err);
           reject(err.message);
         }
         resolve(results);
       });
     });
+  };
+
+  this.log = (...params) => {
+    if (config && config.debug) {
+      console.log(...params);
+    }
   };
 
   return this;

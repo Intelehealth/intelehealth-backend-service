@@ -1,5 +1,5 @@
 const { user_status, active_session } = require("../models");
-const { axiosInstance } = require("../handlers/helper");
+const { axiosInstance, log } = require("../handlers/helper");
 
 const moment = require("moment");
 
@@ -78,7 +78,6 @@ module.exports = (function () {
   };
 
   this.getHWVisitsInfo = async (userUuid, visits = []) => {
-    console.log(visits);
     const total = [];
     const completed = [];
     const inProgress = [];
@@ -122,7 +121,7 @@ module.exports = (function () {
       const res = await axiosInstance.get(visitApiUrl);
       return res.data.results;
     } catch (error) {
-      console.log("error:getVisits ", error);
+      log("error:getVisits ", error);
     }
   };
 

@@ -1,5 +1,6 @@
 const { analytics, active_session } = require("../models");
 const moment = require("moment");
+const { log } = require("../handlers/helper");
 
 module.exports = (function () {
   this._trackActions = async (data) => {
@@ -36,7 +37,7 @@ module.exports = (function () {
         });
       }
     } catch (error) {
-      console.log("error: ", error);
+      log("error: ", error);
     }
   };
 
@@ -51,8 +52,10 @@ module.exports = (function () {
       if (session) {
         const sessionVal = session.get();
         session.endTime = new Date();
-        const minutes = Math.abs(moment(sessionVal.startTime).diff(moment(), "minutes"));
-        console.log('minutes: >>>>>>>>>>>>>>>>>', minutes);
+        const minutes = Math.abs(
+          moment(sessionVal.startTime).diff(moment(), "minutes")
+        );
+        log("minutes: >>>>>>>>>>>>>>>>>", minutes);
         session.duration = minutes;
         if (minutes > 0) {
           if (userType) session.userType = userType;
@@ -62,9 +65,9 @@ module.exports = (function () {
         }
       }
     } catch (error) {
-      console.log("error: ", error);
+      log("error: ", error);
     }
-    console.log("disconnect:userUuid: ", userUuid);
+    log("disconnect:userUuid: ", userUuid);
   };
   return this;
 })();

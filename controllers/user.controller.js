@@ -3,7 +3,7 @@ const {
   _getStatuses,
   _profile,
 } = require("../services/user.service");
-const { validateParams } = require("../handlers/helper");
+const { validateParams, log } = require("../handlers/helper");
 
 module.exports = (function () {
   this.createUpdateStatus = async (req, res) => {
@@ -19,7 +19,7 @@ module.exports = (function () {
         });
       }
     } catch (error) {
-      console.log("error: ", error);
+      log("error: ", error);
       res.json({
         status: false,
         message: error.message,
@@ -35,7 +35,7 @@ module.exports = (function () {
           data: await _getStatuses(req.params.userUuid, req.query),
         });
     } catch (error) {
-      console.log("error: ", error);
+      log("error: ", error);
       res.json({
         status: false,
         message: error.message,
@@ -50,7 +50,7 @@ module.exports = (function () {
         data: await _getStatuses(null, req.query),
       });
     } catch (error) {
-      console.log("error: ", error);
+      log("error: ", error);
       res.json({
         status: false,
         message: error.message,
@@ -66,7 +66,7 @@ module.exports = (function () {
         message: "Date fetched successfully!",
       });
     } catch (error) {
-      console.log("error: ", error);
+      log("error: ", error);
       res.json({
         status: false,
         message: error.message,
@@ -82,7 +82,7 @@ module.exports = (function () {
         message: "Updated successfully!",
       });
     } catch (error) {
-      console.log("error: ", error);
+      log("error: ", error);
       res.json({
         status: false,
         message: error.message,

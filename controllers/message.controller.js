@@ -3,7 +3,7 @@ const {
   getMessages,
   postSMSToMobileNumber,
 } = require("../services/message.service");
-const { validateParams } = require("../handlers/helper");
+const { validateParams, log } = require("../handlers/helper");
 const { user_settings } = require("../models");
 
 module.exports = (function () {
@@ -54,14 +54,14 @@ module.exports = (function () {
               },
               regTokens: [userSetting.device_reg_token],
             }).catch((err) => {
-              console.log("err: ", err);
+              log("err: ", err);
             });
           }
         }
         res.json({ ...data, notificationResponse });
       }
     } catch (error) {
-      console.log("error: ", error);
+      log("error: ", error);
       res.json({
         status: false,
         message: error,
@@ -113,7 +113,7 @@ module.exports = (function () {
         });
       }
     } catch (error) {
-      console.log("error: ", error);
+      log("error: ", error);
       res.json({
         status: false,
         message: error,

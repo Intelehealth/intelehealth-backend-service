@@ -1,8 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const webpush = require("web-push");
+const { log } = require("../handlers/helper");
 const mysql = require("../public/javascripts/mysql/mysql");
-// console.log(webpush.generateVAPIDKeys(), "---------------");
+// log(webpush.generateVAPIDKeys(), "---------------");
 const days = {
   0: "Sunday",
   1: "Monday",
@@ -76,7 +77,7 @@ const vapidKeys = {
 
 router.post("/push", (req, res) => {
   try {
-    console.log("/push: ", req.body);
+    log("/push: ", req.body);
     mysql.query(
       `Select notification_object, doctor_name, user_uuid from pushnotification where speciality='${req.body.speciality}'`,
       async (err, results) => {
@@ -111,7 +112,7 @@ router.post("/push", (req, res) => {
             mysql.query(
               `SELECT * FROM user_settings WHERE user_uuid IN ('${userUUID}')`,
               (err, results) => {
-                console.log("results: ", results);
+                log("results: ", results);
                 if (err) rej(err);
                 res(results);
               }
@@ -158,7 +159,7 @@ router.post("/push", (req, res) => {
               webpush
                 .sendNotification(JSON.parse(sub.notification_object), payload)
                 .catch((error) => {
-                  console.log("error:skipFlag:second notification ", error);
+                  log("error:skipFlag:second notification ", error);
                 });
             }
           });

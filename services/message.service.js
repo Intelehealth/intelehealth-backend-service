@@ -1,6 +1,7 @@
 const { messages, Sequelize } = require("../models");
 const querystring = require("querystring");
 const axios = require("axios");
+const { log } = require("../handlers/helper");
 
 const axiosKaleyra = axios.create({
   baseURL: "https://api.in.kaleyra.io",
@@ -22,7 +23,7 @@ module.exports = (function () {
         data: await messages.create({ fromUser, toUser, patientId, message }),
       };
     } catch (error) {
-      console.log("error: sendMessage ", error);
+      log("error: sendMessage ", error);
       return {
         success: false,
         data: error,
@@ -54,7 +55,7 @@ module.exports = (function () {
       }
       return { success: true, data };
     } catch (error) {
-      console.log("error: getMessages ", error);
+      log("error: getMessages ", error);
       return {
         success: false,
         data: [],
@@ -69,7 +70,7 @@ module.exports = (function () {
    */
   this.postSMSToMobileNumber = async (mobNo, message) => {
     try {
-      // console.log('message',message);
+      // log('message',message);
       const axiosOptions = {
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
@@ -86,14 +87,13 @@ module.exports = (function () {
         body: message,
       });
 
-      
       await axiosKaleyra
         .post("/v1/HXIN1739030324IN/messages", payload, axiosOptions)
         .catch(function (error) {
-          console.log(error);
+          log(error);
         });
     } catch (error) {
-      console.log("error: ", error);
+      log("error: ", error);
     }
   };
 
