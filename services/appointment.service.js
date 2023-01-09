@@ -106,6 +106,8 @@ WHERE
     type,
     month,
     year,
+    startDate,
+    endDate
   }) => {
     try {
       const opts = { where: { userUuid, year, month } };
@@ -117,6 +119,8 @@ WHERE
       if (type) update.type = type;
       if (year) update.year = year;
       if (month) update.month = month;
+      if (startDate) update.startDate = startDate;
+      if (endDate) update.endDate = endDate;
       if (schedule) {
         const resp = {
           message: "Appointment updated successfully",
@@ -137,6 +141,8 @@ WHERE
             type,
             month,
             year,
+            startDate,
+            endDate
           }),
         };
       }
@@ -157,6 +163,32 @@ WHERE
       throw error;
     }
   };
+
+  this.getScheduledMonths = async ({
+    userUuid, year
+  }) => {
+    try {
+      const data = await Schedule.findAll({
+        where: {
+          userUuid,
+          year
+        },
+        raw: true,
+      });
+      let months = [];
+      if(data) {
+        data.forEach((d1) => {
+          let month = {};
+          month.name = d1.month;
+          month.year = d1.year;
+          months.push(month);
+        });
+      }
+      return months;
+    } catch (error) {
+      throw error;
+    }
+};
 
   this.getFilterDates = (fromDate, toDate) => {
     return [
@@ -254,12 +286,12 @@ WHERE
         let ar1 = data;
         ar1.forEach((visit) => {
           let visit1 = {} = Object.assign(visit);
-          if(visit.status !== "rescheduled") {
+          if (visit.status !== "rescheduled") {
             visit1["rescheduledAppointments"] = [];
             let rescheduledAppointment = data.filter(
               (d1) => d1.visitUuid === visit.visitUuid && d1.status === "rescheduled"
             );
-            visit1.rescheduledAppointments= rescheduledAppointment;
+            visit1.rescheduledAppointments = rescheduledAppointment;
             visits.push(visit1);
           }
         });

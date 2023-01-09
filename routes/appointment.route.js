@@ -12,7 +12,8 @@ const {
   rescheduleAppointment,
   startAppointment,
   releaseAppointment,
-  completeAppointment
+  completeAppointment,
+  getScheduledMonths
 } = require("../controllers/appointment.controller");
 const router = express.Router();
 
@@ -22,7 +23,7 @@ router.get("/getUserSlots/:userUuid", getUserSlots);
 router.get("/getSpecialitySlots/:speciality", getSpecialitySlots);
 router.get("/getSlots", getSlots);
 router.get("/getAppointmentSlots", getAppointmentSlots);
-
+router.get("/getScheduledMonths/:userUuid", getScheduledMonths);
 router.post("/createOrUpdateSchedule", upsertSchedule);
 router.post("/bookAppointment", bookAppointment);
 router.post("/rescheduleAppointment", rescheduleAppointment);
