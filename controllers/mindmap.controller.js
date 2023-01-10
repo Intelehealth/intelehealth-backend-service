@@ -5,6 +5,7 @@ const { rmDir } = require("../public/javascripts/deletefile");
 const { wrMindmap } = require("../public/javascripts/writefile");
 const { zipFolder } = require("../public/javascripts/zip");
 const { getFormattedUrl } = require("../public/javascripts/functions");
+const Sequelize = require('sequelize');
 
 /**
  * Return mindmaps respect to key
@@ -23,7 +24,7 @@ const getMindmapDetails = async (req, res) => {
       where: {
         keyName: key,
       },
-      raw: true,
+      raw: false,
     }),
   });
 };
@@ -169,6 +170,7 @@ const downloadMindmaps = async (req, res) => {
     const licenceData = await licences.findOne({
       where: {
         keyName: key,
+        isActive: true
       },
       raw: true,
     });
@@ -213,6 +215,35 @@ const downloadMindmaps = async (req, res) => {
   }
 };
 
+/**
+ * Add/Update licence key
+ * @param {request} req
+ * @param {response} res
+ */
+const toggleMindmapActiveStatus = async (req, res) => {
+  const { keyName, mindmapName } = req.body;
+  try {
+    if (!(keyName && mindmapName)) {
+      RES(res, { message: "Bad request!", success: false }, 400);
+    }
+    let data = await mindmaps.update({ isActive: Sequelize.literal('NOT isActive') }, {
+      where: { keyName: keyName, name: mindmapName }
+    });
+    if(data && data[0]) {
+      data = await mindmaps.findOne({
+        where: { keyName: keyName, name: mindmapName }
+      })
+      message = "Active status updated successfully!";
+      RES(res, { data, success: true, message });
+    } else {
+      message = "Mindmap not found";
+      RES(res, { data: null, success: false, message });
+    }
+  } catch (error) {
+    RES(res, { message: error.message, success: false }, 422);
+  }
+};
+
 module.exports = {
   getMindmapDetails,
   addUpdateLicenceKey,
@@ -220,4 +251,5 @@ module.exports = {
   addUpdateMindMap,
   deleteMindmapKey,
   downloadMindmaps,
+  toggleMindmapActiveStatus
 };

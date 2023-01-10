@@ -16,7 +16,8 @@ module.exports = (sequelize, DataTypes) => {
   mindmaps.init({
     name: DataTypes.STRING,
     json: DataTypes.TEXT('long'),
-    keyName: DataTypes.STRING
+    keyName: DataTypes.STRING,
+    isActive: DataTypes.BOOLEAN
   }, {
     sequelize,
     modelName: 'mindmaps',
