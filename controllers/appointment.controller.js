@@ -16,6 +16,7 @@ const {
   getRescheduledAppointments,
   getRescheduledAppointmentsOfVisit,
   getCancelledAppointments,
+  getScheduledMonths
 } = require("../services/appointment.service");
 
 module.exports = (function () {
@@ -34,6 +35,8 @@ module.exports = (function () {
       { key: "type", type: "string" },
       { key: "month", type: "string" },
       { key: "year", type: "string" },
+      { key: "startDate", type: "string" },
+      { key: "endDate", type: "string" },
     ];
     try {
       if (validateParams(req.body, keysAndTypeToCheck)) {
@@ -58,6 +61,22 @@ module.exports = (function () {
       if (year) where.year = year;
       if (month) where.month = month;
       const data = await getUserAppointmentSchedule({ where });
+      res.json({
+        status: true,
+        data,
+      });
+    } catch (error) {
+      console.log("error: ", error);
+      next(error);
+    }
+  };
+  
+  this.getScheduledMonths = async (req, res, next) => {
+    try {
+      const userUuid = req.params.userUuid;
+      const year = req.query.year;
+      console.log("userUuid, year",userUuid, year)
+      const data = await getScheduledMonths({userUuid, year});
       res.json({
         status: true,
         data,
