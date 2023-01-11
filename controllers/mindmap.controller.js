@@ -96,6 +96,7 @@ const addUpdateMindMap = async (req, res) => {
       name: body.filename,
       json: body.value,
       keyName: body.key,
+      isActive: data ? data.isActive : true
     };
     if (data) {
       data = await data.update(dataToUpdate);
