@@ -16,7 +16,8 @@ const {
   getRescheduledAppointments,
   getRescheduledAppointmentsOfVisit,
   getCancelledAppointments,
-  getScheduledMonths
+  getScheduledMonths,
+  updateDaysOffSchedule
 } = require("../services/appointment.service");
 
 module.exports = (function () {
@@ -309,6 +310,25 @@ module.exports = (function () {
         res.json({ status: true, data });
       }
     } catch (error) {
+      next(error);
+    }
+  };
+
+  this.updateDaysOff = async (req, res, next) => {
+    const keysAndTypeToCheck = [
+      { key: "userUuid", type: "string" },
+      { key: "daysOff", type: "object" },
+    ];
+    try {
+      if (validateParams(req.body, keysAndTypeToCheck)) {
+        const data = await updateDaysOffSchedule(req.body);
+        res.json({
+          ...data,
+          status: true,
+        });
+      }
+    } catch (error) {
+      console.log("error: ", error);
       next(error);
     }
   };

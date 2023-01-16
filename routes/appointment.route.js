@@ -13,7 +13,8 @@ const {
   startAppointment,
   releaseAppointment,
   completeAppointment,
-  getScheduledMonths
+  getScheduledMonths,
+  updateDaysOff
 } = require("../controllers/appointment.controller");
 const router = express.Router();
 
@@ -31,5 +32,6 @@ router.post("/startAppointment", startAppointment);
 router.post("/releaseAppointment", releaseAppointment);
 router.post("/cancelAppointment", cancelAppointment);
 router.post("/completeAppointment", completeAppointment);
+router.post("/updateDaysOff", updateDaysOff);
 
 module.exports = router;

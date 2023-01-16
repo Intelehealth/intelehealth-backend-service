@@ -952,5 +952,38 @@ WHERE
     });
   };
 
+    /**
+   * updates daysoff schedule if already exist for userUuid
+   * @param {string} userUuid
+   * @param {object} dates
+   */
+     this.updateDaysOffSchedule = async ({
+      userUuid,
+      daysOff
+    }) => {
+      try {
+        const opts = { where: { userUuid} };
+        const schedule = await this.getUserAppointmentSchedule(opts);
+        let update = { daysOff };
+        if (schedule) {
+          const resp = {
+            message: "Schedule updated successfully",
+            data: await Schedule.update(update, opts),
+          };
+          return resp;
+        } else {
+          return {
+            message: "Schedule created successfully",
+            data: await Schedule.create({
+              userUuid,
+              daysOff
+            }),
+          };
+        }
+      } catch (error) {
+        throw error;
+      }
+    };
+
   return this;
 })();
