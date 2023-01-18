@@ -2,8 +2,8 @@ const { user_settings } = require("../models");
 const admin = require("firebase-admin");
 const env = process.env.NODE_ENV || "development";
 const config = require(__dirname + "/../config/config.json")[env];
-const serviceAccount = require("../config/serviceAccountKey.json");
 
+const serviceAccount = require(__dirname + "/../config/serviceAccountKey.json");
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
   databaseURL: "https://intelehealth-3-0-default-rtdb.firebaseio.com",
@@ -13,8 +13,7 @@ module.exports = function (server) {
   const db = admin.database();
   const DB_NAME = `${config.domain.replace(/\./g, "_")}/rtc_notify`;
   // const DB_NAME = "rtc_notify_dev";
-  console.log("DB_NAME: ", DB_NAME);
-
+  console.log("DB_NAME:>>>>>>> ", DB_NAME);
   const rtcNotifyRef = db.ref(DB_NAME);
   const io = require("socket.io")(server);
   global.users = {};
@@ -211,7 +210,7 @@ module.exports = function (server) {
       socket.on("no_answer", function (data) {
         console.log("no_answer");
         io.sockets.in(room).emit("bye");
-        io.sockets.in(room).emit("log", ["no_answer", data]);
+        io.sockets.emit("log", ["no_answer", data]);
       });
 
       if (numClients === 0) {
@@ -228,9 +227,10 @@ module.exports = function (server) {
         socket.emit("full", room);
       }
     });
+
     socket.on("call", async function (dataIds) {
       const { nurseId, doctorName, roomId } = dataIds;
-      console.log("dataIds: ", dataIds);
+      console.log("dataIds: ----->>>> ", dataIds);
       let isCalling = false;
       for (const socketId in users) {
         if (Object.hasOwnProperty.call(users, socketId)) {
