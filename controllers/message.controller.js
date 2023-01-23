@@ -1,4 +1,10 @@
-const { sendMessage, getMessages } = require("../services/message.service");
+const {
+  sendMessage,
+  getMessages,
+  getAllMessages,
+  getPatientMessageList,
+  readMessagesById,
+} = require("../services/message.service");
 const { validateParams } = require("../handlers/helper");
 const { user_settings } = require("../models");
 
@@ -9,7 +15,18 @@ module.exports = (function () {
    * @param {*} res
    */
   this.sendMessage = async (req, res) => {
-    const { fromUser, toUser, patientId, message } = req.body;
+    const {
+      fromUser,
+      toUser,
+      patientId,
+      message,
+      isRead,
+      patientPic,
+      visitId,
+      patientName,
+      hwName,
+      hwPic,
+    } = req.body;
     const keysAndTypeToCheck = [
       { key: "fromUser", type: "string" },
       { key: "toUser", type: "string" },
@@ -19,7 +36,18 @@ module.exports = (function () {
     let isLiveMessageSent = false;
     try {
       if (validateParams(req.body, keysAndTypeToCheck)) {
-        const data = await sendMessage(fromUser, toUser, patientId, message);
+        const data = await sendMessage(
+          fromUser,
+          toUser,
+          patientId,
+          message,
+          isRead,
+          patientPic,
+          visitId,
+          patientName,
+          hwName,
+          hwPic
+        );
         for (const key in users) {
           if (Object.hasOwnProperty.call(users, key)) {
             const user = users[key];
@@ -72,6 +100,7 @@ module.exports = (function () {
    */
   this.getMessages = async (req, res) => {
     const { fromUser, toUser, patientId } = req.params;
+    const visitId = req.query.visitId;
     const keysAndTypeToCheck = [
       { key: "fromUser", type: "string" },
       { key: "toUser", type: "string" },
@@ -79,7 +108,69 @@ module.exports = (function () {
     ];
     try {
       if (validateParams(req.params, keysAndTypeToCheck)) {
-        const data = await getMessages(fromUser, toUser, patientId);
+        const data = await getMessages(fromUser, toUser, patientId, visitId);
+        res.json(data);
+      }
+    } catch (error) {
+      res.json({
+        status: false,
+        message: error,
+      });
+    }
+  };
+
+  /**
+   * return all the messages associated with toUser, fromUser
+   * @param {*} req
+   * @param {*} res
+   */
+  this.getAllMessages = async (req, res) => {
+    const { fromUser, toUser } = req.params;
+    const keysAndTypeToCheck = [
+      { key: "fromUser", type: "string" },
+      { key: "toUser", type: "string" },
+    ];
+    try {
+      if (validateParams(req.params, keysAndTypeToCheck)) {
+        const data = await getAllMessages(fromUser, toUser);
+        res.json(data);
+      }
+    } catch (error) {
+      res.json({
+        status: false,
+        message: error,
+      });
+    }
+  };
+
+  /**
+   * return all the patients messages
+   * @param {*} req
+   * @param {*} res
+   */
+  this.getPatientMessageList = async (req, res) => {
+    try {
+      const data = await getPatientMessageList();
+      res.json(data);
+    } catch (error) {
+      res.json({
+        status: false,
+        message: error,
+      });
+    }
+  };
+
+  /**
+   * return message associated with toUser, fromUser and a patient
+   * @param {*} req
+   * @param {*} res
+   */
+  this.readMessagesById = async (req, res) => {
+    const { messageId } = req.params;
+    const keysAndTypeToCheck = [{ key: "messageId", type: "string" }];
+    try {
+      if (validateParams(req.params, keysAndTypeToCheck)) {
+        const data = await readMessagesById(messageId);
         res.json(data);
       }
     } catch (error) {
