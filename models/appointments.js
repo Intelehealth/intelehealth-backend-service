@@ -32,6 +32,17 @@ module.exports = (sequelize, DataTypes) => {
       createdBy: DataTypes.STRING,
       updatedBy: DataTypes.STRING,
       reason: DataTypes.STRING,
+      patientAge: DataTypes.STRING,
+      patientGender: DataTypes.STRING,
+      patientPic: DataTypes.STRING,
+      hwName: DataTypes.STRING,
+      hwAge: DataTypes.STRING,
+      hwGender: DataTypes.STRING,
+      type: {
+        type: DataTypes.ENUM,
+        values: ["appointment", "followup"],
+        defaultValue: "appointment",
+      },
     },
     {
       sequelize,
