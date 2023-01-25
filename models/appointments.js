@@ -38,6 +38,7 @@ module.exports = (sequelize, DataTypes) => {
       hwName: DataTypes.STRING,
       hwAge: DataTypes.STRING,
       hwGender: DataTypes.STRING,
+      hwPic: DataTypes.STRING,
       type: {
         type: DataTypes.ENUM,
         values: ["appointment", "followup"],

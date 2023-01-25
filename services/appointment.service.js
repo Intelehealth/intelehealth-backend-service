@@ -562,6 +562,7 @@ WHERE
       hwName,
       hwAge,
       hwGender,
+      hwPic,
       type,
     } = params;
     try {
@@ -629,6 +630,7 @@ WHERE
         hwName,
         hwAge,
         hwGender,
+        hwPic,
         type,
       });
       return {

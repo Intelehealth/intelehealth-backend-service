@@ -6,7 +6,6 @@ const getColumns = (Sequelize) => {
     { name: "patientAge", type: Sequelize.STRING },
     { name: "patientGender", type: Sequelize.STRING },
     { name: "patientPic", type: Sequelize.STRING },
-    { name: "patientPic", type: Sequelize.STRING },
     { name: "hwPic", type: Sequelize.STRING },
     { name: "hwName", type: Sequelize.STRING },
     { name: "hwGender", type: Sequelize.STRING },
