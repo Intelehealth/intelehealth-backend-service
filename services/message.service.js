@@ -147,6 +147,7 @@ module.exports = (function () {
             Sequelize.fn("DISTINCT", Sequelize.col("patientName")),
             "patientName",
           ],
+          "patientId",
           "patientPic",
           "message",
           "isRead",
@@ -157,6 +158,12 @@ module.exports = (function () {
           "createdAt",
         ],
         order: [["createdAt", "DESC"]],
+        group: ["patientName"],
+        where: {
+          patientName: {
+            [Sequelize.Op.ne]: null,
+          },
+        },
       });
       return { success: true, data };
     } catch (error) {
@@ -195,6 +202,28 @@ module.exports = (function () {
         return { success: true, data };
       }
       return { success: false, data: [] };
+    } catch (error) {
+      console.log("error: getMessages ", error);
+      return {
+        success: false,
+        data: [],
+      };
+    }
+  };
+
+  /**
+   * Return all the visits for patients
+   * @returns []Array
+   */
+  this.getVisits = async (patientId) => {
+    try {
+      const data = await messages.findAll({
+        attributes: ["visitId", "createdAt"],
+        where: { patientId },
+        order: [["createdAt", "DESC"]],
+        group: ["visitId"],
+      });
+      return { success: true, data };
     } catch (error) {
       console.log("error: getMessages ", error);
       return {

@@ -4,6 +4,7 @@ const {
   getAllMessages,
   getPatientMessageList,
   readMessagesById,
+  getVisits
 } = require("../services/message.service");
 const { validateParams } = require("../handlers/helper");
 const { user_settings } = require("../models");
@@ -171,6 +172,29 @@ module.exports = (function () {
     try {
       if (validateParams(req.params, keysAndTypeToCheck)) {
         const data = await readMessagesById(messageId);
+        res.json(data);
+      }
+    } catch (error) {
+      res.json({
+        status: false,
+        message: error,
+      });
+    }
+  };
+
+  /**
+   * return all the visits associated with patient
+   * @param {*} req
+   * @param {*} res
+   */
+  this.getVisits = async (req, res) => {
+    const { patientId } = req.params;
+    const keysAndTypeToCheck = [
+      { key: "patientId", type: "string" },
+    ];
+    try {
+      if (validateParams(req.params, keysAndTypeToCheck)) {
+        const data = await getVisits(patientId);
         res.json(data);
       }
     } catch (error) {
