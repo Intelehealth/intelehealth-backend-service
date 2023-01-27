@@ -34,7 +34,6 @@ where
       if (data && data.length) {
         asyncForEach(data, async (item) => {
           const { token, locale } = item;
-          console.log("locale: ", locale);
           if (token) {
             await sendCloudNotification({
               title:
@@ -46,11 +45,11 @@ where
                   ? `Причина: В связи с изменением графика врача`
                   : `Reason : Due to doctor's change in schedule.`,
               regTokens: [token],
-            }).catch((err) => { });
+            }).catch((err) => {});
           }
         });
       }
-    } catch (error) { }
+    } catch (error) {}
   };
 
   const sendCancelNotificationToWebappDoctor = async ({
@@ -84,7 +83,7 @@ WHERE
           }
         });
       }
-    } catch (error) { }
+    } catch (error) {}
   };
 
   const getTodayDate = () => {
@@ -107,7 +106,7 @@ WHERE
     month,
     year,
     startDate,
-    endDate
+    endDate,
   }) => {
     try {
       const opts = { where: { userUuid, year, month } };
@@ -142,7 +141,7 @@ WHERE
             month,
             year,
             startDate,
-            endDate
+            endDate,
           }),
         };
       }
@@ -164,19 +163,17 @@ WHERE
     }
   };
 
-  this.getScheduledMonths = async ({
-    userUuid, year
-  }) => {
+  this.getScheduledMonths = async ({ userUuid, year }) => {
     try {
       const data = await Schedule.findAll({
         where: {
           userUuid,
-          year
+          year,
         },
         raw: true,
       });
       let months = [];
-      if(data) {
+      if (data) {
         data.forEach((d1) => {
           let month = {};
           month.name = d1.month;
@@ -188,7 +185,7 @@ WHERE
     } catch (error) {
       throw error;
     }
-};
+  };
 
   this.getFilterDates = (fromDate, toDate) => {
     return [
@@ -223,7 +220,6 @@ WHERE
         setting && setting.slotDuration ? setting.slotDuration : 30;
 
       const nowTime = moment().subtract(SLOT_DURATION, "minutes");
-      console.log("nowTime: ", nowTime.format("hh:mm a"));
 
       const data = await Appointment.findAll({
         where: {
@@ -242,7 +238,7 @@ WHERE
       asyncForEach(data, async (apnmt) => {
         try {
           const url = `/openmrs/ws/rest/v1/patient?q=${apnmt.openMrsId}&v=custom:(uuid,identifiers:(identifierType:(name),identifier),person)`;
-          const patient = await axiosInstance.get(url).catch((err) => { });
+          const patient = await axiosInstance.get(url).catch((err) => {});
 
           if (
             patient &&
@@ -261,7 +257,7 @@ WHERE
               }
             }
           }
-        } catch (error) { }
+        } catch (error) {}
       });
 
       return data;
@@ -285,11 +281,12 @@ WHERE
       if (data.length) {
         let ar1 = data;
         ar1.forEach((visit) => {
-          let visit1 = {} = Object.assign(visit);
+          let visit1 = ({} = Object.assign(visit));
           if (visit.status !== "rescheduled") {
             visit1["rescheduledAppointments"] = [];
             let rescheduledAppointment = data.filter(
-              (d1) => d1.visitUuid === visit.visitUuid && d1.status === "rescheduled"
+              (d1) =>
+                d1.visitUuid === visit.visitUuid && d1.status === "rescheduled"
             );
             visit1.rescheduledAppointments = rescheduledAppointment;
             visits.push(visit1);
@@ -438,18 +435,18 @@ WHERE
         schedules.forEach((schedule) => {
           const _dates = true
             ? // schedule.type === "month"
-            getMonthSlots({
-              schedule,
-              days,
-              SLOT_DURATION,
-              SLOT_DURATION_UNIT,
-            })
+              getMonthSlots({
+                schedule,
+                days,
+                SLOT_DURATION,
+                SLOT_DURATION_UNIT,
+              })
             : getWeekSlots({
-              schedule,
-              days,
-              SLOT_DURATION,
-              SLOT_DURATION_UNIT,
-            });
+                schedule,
+                days,
+                SLOT_DURATION,
+                SLOT_DURATION_UNIT,
+              });
           dates = dates.concat(_dates);
         });
         const appointments = await Appointment.findAll({
@@ -516,6 +513,7 @@ WHERE
     drName,
     visitUuid,
     patientId,
+    ...rest
   }) => {
     return await Appointment.create({
       slotDay,
@@ -538,6 +536,7 @@ WHERE
         "DD/MM/YYYY HH:mm A"
       ).format(),
       createdBy: hwUUID,
+      ...rest,
     });
   };
 
@@ -557,6 +556,14 @@ WHERE
       patientName,
       locationUuid,
       hwUUID,
+      patientAge,
+      patientGender,
+      patientPic,
+      hwName,
+      hwAge,
+      hwGender,
+      hwPic,
+      type,
     } = params;
     try {
       const bookedApnmt = await Appointment.findAll({
@@ -584,7 +591,7 @@ WHERE
           );
         });
 
-        if (!matchedApmt.length) {
+        if (matchedApmt.length) {
           throw new Error("Appointment not available, it's already booked.");
         }
       } else {
@@ -617,6 +624,14 @@ WHERE
         drName,
         visitUuid,
         patientId,
+        patientAge,
+        patientGender,
+        patientPic,
+        hwName,
+        hwAge,
+        hwGender,
+        hwPic,
+        type,
       });
       return {
         data: data.toJSON(),
@@ -952,38 +967,35 @@ WHERE
     });
   };
 
-    /**
+  /**
    * updates daysoff schedule if already exist for userUuid
    * @param {string} userUuid
    * @param {object} dates
    */
-     this.updateDaysOffSchedule = async ({
-      userUuid,
-      daysOff
-    }) => {
-      try {
-        const opts = { where: { userUuid} };
-        const schedule = await this.getUserAppointmentSchedule(opts);
-        let update = { daysOff };
-        if (schedule) {
-          const resp = {
-            message: "Schedule updated successfully",
-            data: await Schedule.update(update, opts),
-          };
-          return resp;
-        } else {
-          return {
-            message: "Schedule created successfully",
-            data: await Schedule.create({
-              userUuid,
-              daysOff
-            }),
-          };
-        }
-      } catch (error) {
-        throw error;
+  this.updateDaysOffSchedule = async ({ userUuid, daysOff }) => {
+    try {
+      const opts = { where: { userUuid } };
+      const schedule = await this.getUserAppointmentSchedule(opts);
+      let update = { daysOff };
+      if (schedule) {
+        const resp = {
+          message: "Schedule updated successfully",
+          data: await Schedule.update(update, opts),
+        };
+        return resp;
+      } else {
+        return {
+          message: "Schedule created successfully",
+          data: await Schedule.create({
+            userUuid,
+            daysOff,
+          }),
+        };
       }
-    };
+    } catch (error) {
+      throw error;
+    }
+  };
 
   return this;
 })();
