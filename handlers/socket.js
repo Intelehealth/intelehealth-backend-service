@@ -7,7 +7,8 @@ const config = require(__dirname + "/../config/config.json")[env];
 const serviceAccount = require(__dirname + "/../config/serviceAccountKey.json");
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  databaseURL: "https://intelehealth-unicef-default-rtdb.asia-southeast1.firebasedatabase.app"
+  databaseURL:
+    "https://intelehealth-unicef-default-rtdb.asia-southeast1.firebasedatabase.app",
 });
 
 module.exports = function (server) {
@@ -86,7 +87,7 @@ module.exports = function (server) {
       }
     });
     socket.on("call", async function (dataIds) {
-      console.log('dataIds: >>>>>>>> ', dataIds);
+      console.log("dataIds: >>>>>>>> ", dataIds);
       const { nurseId, doctorName, roomId } = dataIds;
 
       let isCalling = false;
