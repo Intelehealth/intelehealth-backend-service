@@ -1,7 +1,22 @@
-const { sendCloudNotification } = require("./helper");
+const admin = require("firebase-admin");
+// const { sendCloudNotification } = require("./helper");
 const { user_settings } = require("../models");
+const env = process.env.NODE_ENV || "development";
+const config = require(__dirname + "/../config/config.json")[env];
+
+const serviceAccount = require(__dirname + "/../config/serviceAccountKey.json");
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL: "https://intelehealth-unicef-default-rtdb.asia-southeast1.firebasedatabase.app"
+});
 
 module.exports = function (server) {
+  const db = admin.database();
+  const DB_NAME = `${config.domain.replace(/\./g, "_")}/rtc_notify`;
+  // const DB_NAME = "rtc_notify_dev";
+  console.log("DB_NAME:>>>>>>> ", DB_NAME);
+  const rtcNotifyRef = db.ref(DB_NAME);
+
   const io = require("socket.io")(server);
   global.users = {};
   io.on("connection", (socket) => {
@@ -71,7 +86,9 @@ module.exports = function (server) {
       }
     });
     socket.on("call", async function (dataIds) {
-      const { nurseId } = dataIds;
+      console.log('dataIds: >>>>>>>> ', dataIds);
+      const { nurseId, doctorName, roomId } = dataIds;
+
       let isCalling = false;
       for (const socketId in users) {
         if (Object.hasOwnProperty.call(users, socketId)) {
@@ -82,27 +99,25 @@ module.exports = function (server) {
           }
         }
       }
-      if (!isCalling) {
-        const data = await user_settings.findOne({
+      console.log(nurseId, "----<<>>>");
+      try {
+        data = await user_settings.findOne({
           where: { user_uuid: nurseId },
         });
-        if (data && data.device_reg_token) {
-          const response = await sendCloudNotification({
-            title: "Incoming call",
-            body: "Doctor is trying to call you.",
-            data: { ...dataIds, actionType: "VIDEO_CALL" },
-            regTokens: [data.device_reg_token],
-          }).catch((err) => {
-            console.log("err: ", err);
-          });
-          io.sockets.emit("log", ["notification response", response, data]);
-        } else {
-          io.sockets.emit("log", [
-            `data/device reg token not found in db for ${nurseId}`,
-            data,
-          ]);
-        }
-      }
+      } catch (error) {}
+
+      await rtcNotifyRef.update({
+        [nurseId]: {
+          VIDEO_CALL: {
+            doctorName,
+            nurseId,
+            roomId,
+            timestamp: Date.now(),
+            device_token:
+              data && data.device_reg_token ? data.device_reg_token : "",
+          },
+        },
+      });
     });
 
     socket.on("ipaddr", function () {
