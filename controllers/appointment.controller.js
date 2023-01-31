@@ -223,7 +223,6 @@ module.exports = (function () {
         { key: "patientName", type: "string" },
         { key: "openMrsId", type: "string" },
         { key: "hwUUID", type: "string" },
-        { key: "reason", type: "string" },
         { key: "appointmentId", type: "number" },
       ];
       if (validateParams(req.body, keysAndTypeToCheck)) {
@@ -243,7 +242,7 @@ module.exports = (function () {
       const keysAndTypeToCheck = [
         { key: "id", type: "number" },
         { key: "visitUuid", type: "string" },
-        { key: "reason", type: "string" },
+       // { key: "reason", type: "string" },
         { key: "hwUUID", type: "string" },
       ];
       if (validateParams(req.body, keysAndTypeToCheck)) {
@@ -318,6 +317,8 @@ module.exports = (function () {
     const keysAndTypeToCheck = [
       { key: "userUuid", type: "string" },
       { key: "daysOff", type: "object" },
+      { key: "month", type: "object" },
+      { key: "year", type: "object" }
     ];
     try {
       if (validateParams(req.body, keysAndTypeToCheck)) {
