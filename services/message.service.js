@@ -87,7 +87,6 @@ module.exports = (function () {
           patientId,
           visitId,
         },
-        order: [["createdAt", "DESC"]],
         raw: true,
       });
       for (let i = 0; i < data.length; i++) {
