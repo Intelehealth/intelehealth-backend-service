@@ -822,10 +822,10 @@ WHERE
     }
 
     if (cancelled && cancelled.status) {
-      if (!webApp) {
-        userUuid = null;
-        drName = null;
-      }
+      // if (!webApp) {
+      //   userUuid = null;
+      //   drName = null;
+      // }
       return {
         data: await createAppointment({
           openMrsId,
@@ -972,29 +972,34 @@ WHERE
    * @param {string} userUuid
    * @param {object} dates
    */
-  this.updateDaysOffSchedule = async ({ userUuid, daysOff }) => {
-    try {
-      const opts = { where: { userUuid } };
-      const schedule = await this.getUserAppointmentSchedule(opts);
-      let update = { daysOff };
-      if (schedule) {
-        const resp = {
-          message: "Schedule updated successfully",
-          data: await Schedule.update(update, opts),
-        };
-        return resp;
-      } else {
-        return {
-          message: "Schedule created successfully",
-          data: await Schedule.create({
-            userUuid,
-            daysOff,
-          }),
-        };
+     this.updateDaysOffSchedule = async ({
+      userUuid,
+      daysOff,
+      month,
+      year
+    }) => {
+      try {
+        const opts = { where: { userUuid, month, year} };
+        const schedule = await this.getUserAppointmentSchedule(opts);
+        let update = { daysOff };
+        if (schedule) {
+          const resp = {
+            message: "Schedule updated successfully",
+            data: await Schedule.update(update, opts),
+          };
+          return resp;
+        } else {
+          return {
+            message: "Schedule created successfully",
+            data: await Schedule.create({
+              userUuid,
+              daysOff
+            }),
+          };
+        }
+      } catch (error) {
+        throw error;
       }
-    } catch (error) {
-      throw error;
-    }
   };
 
   return this;
