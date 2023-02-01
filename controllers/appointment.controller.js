@@ -17,7 +17,7 @@ const {
   getRescheduledAppointmentsOfVisit,
   getCancelledAppointments,
   getScheduledMonths,
-  updateDaysOffSchedule
+  updateDaysOffSchedule,
 } = require("../services/appointment.service");
 
 module.exports = (function () {
@@ -71,13 +71,13 @@ module.exports = (function () {
       next(error);
     }
   };
-  
+
   this.getScheduledMonths = async (req, res, next) => {
     try {
       const userUuid = req.params.userUuid;
       const year = req.query.year;
-      console.log("userUuid, year",userUuid, year)
-      const data = await getScheduledMonths({userUuid, year});
+      console.log("userUuid, year", userUuid, year);
+      const data = await getScheduledMonths({ userUuid, year });
       res.json({
         status: true,
         data,
@@ -277,7 +277,7 @@ module.exports = (function () {
         );
         res.json({
           status: true,
-           data,
+          data,
           rescheduledAppointments,
         });
       }
@@ -327,6 +327,18 @@ module.exports = (function () {
           status: true,
         });
       }
+    } catch (error) {
+      console.log("error: ", error);
+      next(error);
+    }
+  };
+
+  this.appointmentPush = async (req, res, next) => {
+    try {
+      res.json({
+        status: true,
+        message:'appointment push successfully!'
+      });
     } catch (error) {
       console.log("error: ", error);
       next(error);

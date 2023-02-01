@@ -4,7 +4,7 @@ const {
   getAllMessages,
   getPatientMessageList,
   readMessagesById,
-  getVisits
+  getVisits,
 } = require("../services/message.service");
 const { validateParams } = require("../handlers/helper");
 const { user_settings } = require("../models");
@@ -151,7 +151,7 @@ module.exports = (function () {
    */
   this.getPatientMessageList = async (req, res) => {
     try {
-      const data = await getPatientMessageList();
+      const data = await getPatientMessageList(req.query.drUuid);
       res.json(data);
     } catch (error) {
       res.json({
@@ -189,9 +189,7 @@ module.exports = (function () {
    */
   this.getVisits = async (req, res) => {
     const { patientId } = req.params;
-    const keysAndTypeToCheck = [
-      { key: "patientId", type: "string" },
-    ];
+    const keysAndTypeToCheck = [{ key: "patientId", type: "string" }];
     try {
       if (validateParams(req.params, keysAndTypeToCheck)) {
         const data = await getVisits(patientId);

@@ -87,6 +87,7 @@ module.exports = (function () {
           patientId,
           visitId,
         },
+        order: [["createdAt", "DESC"]],
         raw: true,
       });
       for (let i = 0; i < data.length; i++) {
@@ -127,7 +128,7 @@ module.exports = (function () {
       }
       return { success: true, data };
     } catch (error) {
-      console.log("error: getMessages ", error);
+      console.log("error: getAllMessages ", error);
       return {
         success: false,
         data: [],
@@ -139,7 +140,7 @@ module.exports = (function () {
    * Return all the chats for patients
    * @returns []Array
    */
-  this.getPatientMessageList = async () => {
+  this.getPatientMessageList = async (drUuid) => {
     try {
       const data = await messages.findAll({
         attributes: [
@@ -155,6 +156,7 @@ module.exports = (function () {
           "toUser",
           "visitId",
           "hwName",
+          "id",
           "createdAt",
         ],
         order: [["createdAt", "DESC"]],
@@ -163,11 +165,15 @@ module.exports = (function () {
           patientName: {
             [Sequelize.Op.ne]: null,
           },
+          [Sequelize.Op.or]: {
+            fromUser: { [Sequelize.Op.in]: [drUuid] },
+            toUser: { [Sequelize.Op.in]: [drUuid] },
+          },
         },
       });
       return { success: true, data };
     } catch (error) {
-      console.log("error: getMessages ", error);
+      console.log("error: getPatientMessageList ", error);
       return {
         success: false,
         data: [],
@@ -203,7 +209,7 @@ module.exports = (function () {
       }
       return { success: false, data: [] };
     } catch (error) {
-      console.log("error: getMessages ", error);
+      console.log("error: readMessagesById ", error);
       return {
         success: false,
         data: [],
@@ -225,7 +231,7 @@ module.exports = (function () {
       });
       return { success: true, data };
     } catch (error) {
-      console.log("error: getMessages ", error);
+      console.log("error: getVisits ", error);
       return {
         success: false,
         data: [],
