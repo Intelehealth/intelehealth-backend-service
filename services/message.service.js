@@ -147,18 +147,18 @@ module.exports = (function () {
             Sequelize.fn("DISTINCT", Sequelize.col("patientName")),
             "patientName",
           ],
+          
+          [Sequelize.fn("max", Sequelize.col("message")), "message"],
+          [Sequelize.fn("max", Sequelize.col("id")), "id"],
           "patientId",
           "patientPic",
-          "message",
           "isRead",
           "fromUser",
           "toUser",
           "visitId",
           "hwName",
-          "id",
           "createdAt",
         ],
-        order: [["createdAt", "DESC"]],
         group: ["patientName"],
         where: {
           patientName: {
