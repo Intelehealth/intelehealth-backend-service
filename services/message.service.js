@@ -1,3 +1,4 @@
+const { asyncForEach } = require("../handlers/helper");
 const { messages, Sequelize } = require("../models");
 
 module.exports = (function () {
@@ -141,13 +142,13 @@ module.exports = (function () {
    */
   this.getPatientMessageList = async (drUuid) => {
     try {
-      const data = await messages.findAll({
+      let data = await messages.findAll({
         attributes: [
           [
             Sequelize.fn("DISTINCT", Sequelize.col("patientName")),
             "patientName",
           ],
-          
+
           [Sequelize.fn("max", Sequelize.col("message")), "message"],
           [Sequelize.fn("max", Sequelize.col("id")), "id"],
           "patientId",
@@ -169,6 +170,16 @@ module.exports = (function () {
             toUser: { [Sequelize.Op.in]: [drUuid] },
           },
         },
+        raw: true,
+      });
+
+      await asyncForEach(data, async (msg, idx) => {
+        data[idx].count = await messages.count({
+          where: {
+            isRead: false,
+            patientId: msg.patientId,
+          },
+        });
       });
       return { success: true, data };
     } catch (error) {
@@ -198,8 +209,20 @@ module.exports = (function () {
           { isRead: true },
           {
             where: {
-              fromUser: [getMessage[0].fromUser],
-              toUser: [getMessage[0].toUser],
+              [Sequelize.Op.or]: {
+                fromUser: {
+                  [Sequelize.Op.in]: [
+                    getMessage[0].fromUser,
+                    getMessage[0].toUser,
+                  ],
+                },
+                toUser: {
+                  [Sequelize.Op.in]: [
+                    getMessage[0].toUser,
+                    getMessage[0].fromUser,
+                  ],
+                },
+              },
               patientId: [getMessage[0].patientId],
             },
           }
