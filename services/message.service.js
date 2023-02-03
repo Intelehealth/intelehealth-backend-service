@@ -204,6 +204,23 @@ module.exports = (function () {
         },
       });
 
+      setTimeout(() => {
+        try {
+          const toUser = getMessage[0].toUser;
+          const fromUser = getMessage[0].fromUser;
+          for (const key in users) {
+            if (Object.hasOwnProperty.call(users, key)) {
+              const user = users[key];
+              if (user && [fromUser, toUser].includes(user.uuid)) {
+                io.to(key).emit("isread", getMessage);
+              }
+            }
+          }
+        } catch (error) {
+          console.log("error:isread socket ", error);
+        }
+      }, 1000);
+
       if (getMessage) {
         const data = await messages.update(
           { isRead: true },
@@ -227,8 +244,10 @@ module.exports = (function () {
             },
           }
         );
+
         return { success: true, data };
       }
+
       return { success: false, data: [] };
     } catch (error) {
       console.log("error: readMessagesById ", error);
