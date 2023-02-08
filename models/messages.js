@@ -21,10 +21,15 @@ module.exports = (sequelize, DataTypes) => {
       hwName: DataTypes.STRING,
       patientPic: DataTypes.STRING,
       hwPic: DataTypes.STRING,
-      visitId:DataTypes.STRING,
+      visitId: DataTypes.STRING,
       isRead: {
         type: DataTypes.BOOLEAN,
         defaultValue: false,
+      },
+      /** possible values - text/attachment */
+      type: {
+        type: DataTypes.STRING,
+        defaultValue: "text",
       },
     },
     {

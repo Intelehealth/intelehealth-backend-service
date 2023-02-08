@@ -27,6 +27,7 @@ module.exports = (function () {
       patientName,
       hwName,
       hwPic,
+      type,
     } = req.body;
     const keysAndTypeToCheck = [
       { key: "fromUser", type: "string" },
@@ -47,7 +48,8 @@ module.exports = (function () {
           visitId,
           patientName,
           hwName,
-          hwPic
+          hwPic,
+          type
         );
         for (const key in users) {
           if (Object.hasOwnProperty.call(users, key)) {

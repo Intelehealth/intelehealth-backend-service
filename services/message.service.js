@@ -18,23 +18,28 @@ module.exports = (function () {
     visitId,
     patientName,
     hwName,
-    hwPic
+    hwPic,
+    type
   ) => {
     try {
+      let msg = {
+        fromUser,
+        toUser,
+        patientId,
+        message,
+        isRead,
+        patientPic,
+        visitId,
+        patientName,
+        hwName,
+        hwPic,
+      };
+
+      if (msg.type) msg.type = type;
+
       return {
         success: true,
-        data: await messages.create({
-          fromUser,
-          toUser,
-          patientId,
-          message,
-          isRead,
-          patientPic,
-          visitId,
-          patientName,
-          hwName,
-          hwPic,
-        }),
+        data: await messages.create(msg),
       };
     } catch (error) {
       console.log("error: sendMessage ", error);
