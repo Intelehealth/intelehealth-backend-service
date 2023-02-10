@@ -152,7 +152,7 @@ module.exports = function (server) {
       socket.on("bye", function (data) {
         console.log("received bye");
         markHangUp(room);
-        io.sockets.in(room).emit("bye");
+        io.sockets.in(room).emit("bye", data);
         io.sockets.emit("log", ["received bye", data]);
       });
 
@@ -200,11 +200,38 @@ module.exports = function (server) {
         io.sockets.in(room).emit("message", message);
       });
 
-      socket.on("bye", function (data) {
+      socket.on("videoOff", function (data) {
+        io.sockets.in(room).emit("videoOff", data);
+      });
+
+      socket.on("videoOn", function (data) {
+        io.sockets.in(room).emit("videoOn", data);
+      });
+
+      socket.on("audioOff", function (data) {
+        io.sockets.in(room).emit("audioOff", data);
+      });
+
+      socket.on("audioOn", function (data) {
+        io.sockets.in(room).emit("audioOn", data);
+      });
+
+      socket.on("bye", async function (data) {
+        const { nurseId } = data;
+
+        markHangUp(room);
         console.log("received bye");
         io.sockets.in(room).emit("message", "bye");
-        io.sockets.in(room).emit("bye");
+        io.sockets.in(room).emit("bye", data);
         io.sockets.emit("log", ["received bye", data]);
+
+        if (nurseId) {
+          await rtcNotifyRef
+            .child(nurseId)
+            .child("VIDEO_CALL")
+            .child("callEnded")
+            .set(true);
+        }
       });
 
       socket.on("no_answer", function (data) {
@@ -228,7 +255,7 @@ module.exports = function (server) {
       }
     });
 
-    socket.on("call", async function (dataIds) {
+    socket.on("call", async function (dataIds = {}) {
       const { nurseId, doctorName, roomId } = dataIds;
       console.log("dataIds: ----->>>> ", dataIds);
       let isCalling = false;
@@ -288,15 +315,9 @@ module.exports = function (server) {
 
       await rtcNotifyRef.update({
         [nurseId]: {
-          // TEXT_CHAT: {
-          //   fromUser: "454554-3333-jjfjf-444",
-          //   patientId: "dgddh747744-44848404",
-          //   patientName: "743747444-448480404",
-          //   timestamp: Date.now(),
-          //   toUser: "ererere-335-33-84884jj0990",
-          //   visitId: "4784847333-22-dddu40044",
-          // },
           VIDEO_CALL: {
+            ...dataIds,
+            callEnded: false,
             doctorName,
             nurseId,
             roomId,
