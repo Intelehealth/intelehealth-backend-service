@@ -58,35 +58,6 @@ module.exports = function (server) {
         }
       }
 
-      // let isCalled = false;
-      // for (const socketId in users) {
-      //   if (Object.hasOwnProperty.call(users, socketId)) {
-      //     const user = users[socketId];
-      //     if (!isCalled && !user.callStatus && socket.id !== socketId) {
-      //       io.sockets
-      //         .to(socketId)
-      //         .emit("incoming_call", { patientUuid: room });
-      //       isCalled = true;
-      //       users[socketId].callStatus = "calling";
-      //       users[socketId].room = room;
-      //       if (Array.isArray(users[socketId].called)) {
-      //         users[socketId].called.push(socket.id);
-      //       } else {
-      //         users[socketId].called = [socket.id];
-      //       }
-      //       io.sockets.emit("allUsers", users);
-      //       setTimeout(() => {
-      //         if (
-      //           users[socketId] &&
-      //           users[socketId].callStatus === "calling" &&
-      //           count < 3
-      //         ) {
-      //           callInRoom(room, ++count, connectToDrId);
-      //         }
-      //       }, 10000);
-      //     }
-      //   }
-      // }
       setTimeout(() => {
         for (const socketId in users) {
           if (Object.hasOwnProperty.call(users, socketId)) {
@@ -217,7 +188,7 @@ module.exports = function (server) {
       });
 
       socket.on("bye", async function (data) {
-        const { nurseId } = data;
+        const nurseId = data?.nurseId;
 
         markHangUp(room);
         console.log("received bye");
@@ -285,26 +256,6 @@ module.exports = function (server) {
             });
           }
         }, 10000);
-        // if (data && data.device_reg_token) {
-        //   const response = await sendCloudNotification({
-        //     title: "Incoming call",
-        //     body: "Doctor is trying to call you.",
-        //     data: {
-        //       ...dataIds,
-        //       actionType: "VIDEO_CALL",
-        //       timestamp: Date.now(),
-        //     },
-        //     regTokens: [data.device_reg_token],
-        //   }).catch((err) => {
-        //     console.log("err: ", err);
-        //   });
-        //   io.sockets.emit("log", ["notification response", response, data]);
-        // } else {
-        //   io.sockets.emit("log", [
-        //     `data/device reg token not found in db for ${nurseId}`,
-        //     data,
-        //   ]);
-        // }
       }
       console.log(nurseId, "----<<>>>");
       try {
@@ -313,9 +264,28 @@ module.exports = function (server) {
         });
       } catch (error) {}
 
+      function generateUUID() {
+        let d = new Date().getTime();
+        if (
+          typeof performance !== "undefined" &&
+          typeof performance.now === "function"
+        ) {
+          d += performance.now(); //use high-precision timer if available
+        }
+        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
+          /[xy]/g,
+          function (c) {
+            let r = (d + Math.random() * 16) % 16 | 0;
+            d = Math.floor(d / 16);
+            return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+          }
+        );
+      }
+
       await rtcNotifyRef.update({
         [nurseId]: {
           VIDEO_CALL: {
+            id: generateUUID(),
             ...dataIds,
             callEnded: false,
             doctorName,
