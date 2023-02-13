@@ -541,18 +541,8 @@ WHERE
   };
 
   this._bookAppointment = async (params) => {
-    const { slotDate, slotTime, speciality, visitUUID } = params;
+    const { slotDate, slotTime, speciality, visitUuid } = params;
     try {
-      await Appointment.findAll({
-        where: {
-          slotTime,
-          slotDate,
-          speciality,
-          status: "booked",
-        },
-        raw: true,
-      });
-
       const appntSlots = await this._getAppointmentSlots({
         fromDate: slotDate,
         toDate: slotDate,
@@ -568,7 +558,7 @@ WHERE
           );
         });
 
-        if (matchedApmt.length) {
+        if (!matchedApmt.length) {
           throw new Error("Appointment not available, it's already booked.");
         }
       } else {
@@ -577,7 +567,7 @@ WHERE
 
       const visitApnmt = await Appointment.findOne({
         where: {
-          visitUuid: visitUUID,
+          visitUuid,
           status: "booked",
         },
         raw: true,

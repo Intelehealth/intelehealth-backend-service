@@ -190,7 +190,7 @@ module.exports = (function () {
         { key: "speciality", type: "string" },
         { key: "userUuid", type: "string" },
         { key: "drName", type: "string" },
-        { key: "visitUUID", type: "string" },
+        { key: "visitUuid", type: "string" },
         { key: "locationUuid", type: "string" },
         { key: "patientName", type: "string" },
         { key: "openMrsId", type: "string" },
