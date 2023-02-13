@@ -62,7 +62,7 @@ module.exports = function (server) {
       });
 
       socket.on("bye", async function (data) {
-        const { nurseId } = data;
+        const nurseId = data && data.nurseId;
         log("data: bye ----->", data);
         log("received bye");
         io.sockets.in(room).emit("message", "bye");
