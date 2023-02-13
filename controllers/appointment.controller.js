@@ -190,7 +190,7 @@ module.exports = (function () {
         { key: "speciality", type: "string" },
         { key: "userUuid", type: "string" },
         { key: "drName", type: "string" },
-        { key: "visitUuid", type: "string" },
+        { key: "visitUUID", type: "string" },
         { key: "locationUuid", type: "string" },
         { key: "patientName", type: "string" },
         { key: "openMrsId", type: "string" },
@@ -242,7 +242,7 @@ module.exports = (function () {
       const keysAndTypeToCheck = [
         { key: "id", type: "number" },
         { key: "visitUuid", type: "string" },
-       // { key: "reason", type: "string" },
+        // { key: "reason", type: "string" },
         { key: "hwUUID", type: "string" },
       ];
       if (validateParams(req.body, keysAndTypeToCheck)) {
@@ -318,7 +318,7 @@ module.exports = (function () {
       { key: "userUuid", type: "string" },
       { key: "daysOff", type: "object" },
       { key: "month", type: "object" },
-      { key: "year", type: "object" }
+      { key: "year", type: "object" },
     ];
     try {
       if (validateParams(req.body, keysAndTypeToCheck)) {
@@ -336,12 +336,29 @@ module.exports = (function () {
 
   this.appointmentPush = async (req, res, next) => {
     try {
-      res.json({
-        status: true,
-        message:'appointment push successfully!'
-      });
+      const keysAndTypeToCheck = [
+        { key: "slotDay", type: "string" },
+        { key: "slotDuration", type: "number" },
+        { key: "slotDurationUnit", type: "string" },
+        { key: "slotTime", type: "string" },
+        { key: "speciality", type: "string" },
+        { key: "userUuid", type: "string" },
+        { key: "drName", type: "string" },
+        { key: "visitUuid", type: "string" },
+        { key: "locationUuid", type: "string" },
+        { key: "patientName", type: "string" },
+        { key: "openMrsId", type: "string" },
+        { key: "hwUUID", type: "string" },
+      ];
+      if (validateParams(req.body, keysAndTypeToCheck)) {
+        await _bookAppointment(req.body);
+
+        res.json({
+          status: true,
+          message: "appointment push successfully!",
+        });
+      }
     } catch (error) {
-      console.log("error: ", error);
       next(error);
     }
   };

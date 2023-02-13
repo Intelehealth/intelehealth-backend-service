@@ -541,32 +541,9 @@ WHERE
   };
 
   this._bookAppointment = async (params) => {
-    const {
-      slotDay,
-      slotDate,
-      slotDuration,
-      slotDurationUnit,
-      slotTime,
-      speciality,
-      userUuid,
-      drName,
-      visitUuid,
-      patientId,
-      openMrsId,
-      patientName,
-      locationUuid,
-      hwUUID,
-      patientAge,
-      patientGender,
-      patientPic,
-      hwName,
-      hwAge,
-      hwGender,
-      hwPic,
-      type,
-    } = params;
+    const { slotDate, slotTime, speciality, visitUUID } = params;
     try {
-      const bookedApnmt = await Appointment.findAll({
+      await Appointment.findAll({
         where: {
           slotTime,
           slotDate,
@@ -600,7 +577,7 @@ WHERE
 
       const visitApnmt = await Appointment.findOne({
         where: {
-          visitUuid,
+          visitUuid: visitUUID,
           status: "booked",
         },
         raw: true,
@@ -609,30 +586,7 @@ WHERE
         throw new Error("Appointment for this visit is already present.");
       }
 
-      const data = await createAppointment({
-        openMrsId,
-        patientName,
-        locationUuid,
-        hwUUID,
-        slotDay,
-        slotDate,
-        slotDuration,
-        slotDurationUnit,
-        slotTime,
-        speciality,
-        userUuid,
-        drName,
-        visitUuid,
-        patientId,
-        patientAge,
-        patientGender,
-        patientPic,
-        hwName,
-        hwAge,
-        hwGender,
-        hwPic,
-        type,
-      });
+      const data = await createAppointment(params);
       return {
         data: data.toJSON(),
       };
@@ -972,34 +926,29 @@ WHERE
    * @param {string} userUuid
    * @param {object} dates
    */
-     this.updateDaysOffSchedule = async ({
-      userUuid,
-      daysOff,
-      month,
-      year
-    }) => {
-      try {
-        const opts = { where: { userUuid, month, year} };
-        const schedule = await this.getUserAppointmentSchedule(opts);
-        let update = { daysOff };
-        if (schedule) {
-          const resp = {
-            message: "Schedule updated successfully",
-            data: await Schedule.update(update, opts),
-          };
-          return resp;
-        } else {
-          return {
-            message: "Schedule created successfully",
-            data: await Schedule.create({
-              userUuid,
-              daysOff
-            }),
-          };
-        }
-      } catch (error) {
-        throw error;
+  this.updateDaysOffSchedule = async ({ userUuid, daysOff, month, year }) => {
+    try {
+      const opts = { where: { userUuid, month, year } };
+      const schedule = await this.getUserAppointmentSchedule(opts);
+      let update = { daysOff };
+      if (schedule) {
+        const resp = {
+          message: "Schedule updated successfully",
+          data: await Schedule.update(update, opts),
+        };
+        return resp;
+      } else {
+        return {
+          message: "Schedule created successfully",
+          data: await Schedule.create({
+            userUuid,
+            daysOff,
+          }),
+        };
       }
+    } catch (error) {
+      throw error;
+    }
   };
 
   return this;
