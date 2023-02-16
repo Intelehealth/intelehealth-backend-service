@@ -35,7 +35,8 @@ module.exports = (function () {
       { key: "patientId", type: "string" },
       { key: "message", type: "string" },
     ];
-    let isLiveMessageSent = false;
+    let isLiveMessageSent = false,
+      messages = [];
     try {
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await sendMessage(
@@ -51,6 +52,9 @@ module.exports = (function () {
           hwPic,
           type
         );
+        try {
+          messages = await getMessages(fromUser, toUser, patientId, visitId);
+        } catch (error) {}
         for (const key in users) {
           if (Object.hasOwnProperty.call(users, key)) {
             const user = users[key];
@@ -59,6 +63,7 @@ module.exports = (function () {
                 data.data.dataValues.createdAt = new Date(
                   data.data.dataValues.createdAt
                 ).toGMTString();
+                data.data.dataValues.allMessages = messages.data;
               } catch (error) {}
               io.to(key).emit("updateMessage", data.data);
               isLiveMessageSent = true;
