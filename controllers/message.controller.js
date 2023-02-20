@@ -8,6 +8,7 @@ const {
 } = require("../services/message.service");
 const { validateParams } = require("../handlers/helper");
 const { user_settings } = require("../models");
+const { uploadFile } = require("../handlers/file.handler");
 
 module.exports = (function () {
   /**
@@ -51,7 +52,8 @@ module.exports = (function () {
           hwName,
           hwPic,
           type
-        );
+          );
+          console.log('type: ', type);
         try {
           messages = await getMessages(fromUser, toUser, patientId, visitId);
         } catch (error) {}
@@ -206,6 +208,29 @@ module.exports = (function () {
       res.json({
         status: false,
         message: error,
+      });
+    }
+  };
+
+  /**
+   * Upload file to s3
+   */
+  this.upload = async (req, res) => {
+    try {
+      if (!req.files.length) {
+        throw new Error("File must be passed!");
+      }
+      const file = req.files[0];
+      const data = await uploadFile(file, "zeetest");
+
+      res.json({
+        data,
+        success: true,
+      });
+    } catch (error) {
+      res.json({
+        status: false,
+        message: error.message,
       });
     }
   };

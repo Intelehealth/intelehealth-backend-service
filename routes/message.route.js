@@ -6,10 +6,13 @@ const {
   getAllMessages,
   getPatientMessageList,
   readMessagesById,
-  getVisits
+  getVisits,
+  upload,
 } = require("../controllers/message.controller");
+const { fileParser } = require("../handlers/file.handler");
 
 router.post("/sendMessage", sendMessage);
+router.post("/upload", fileParser, upload);
 // router.get("/:fromUser/:toUser/:patientId", getMessages);
 router.get("/:fromUser/:toUser/:patientId", getMessages);
 router.get("/:fromUser/:toUser", getAllMessages);

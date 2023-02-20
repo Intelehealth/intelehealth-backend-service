@@ -35,7 +35,7 @@ module.exports = (function () {
         hwPic,
       };
 
-      if (msg.type) msg.type = type;
+      if (type) msg.type = type;
 
       return {
         success: true,
