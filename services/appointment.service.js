@@ -291,6 +291,12 @@ WHERE
     return dates;
   };
 
+  const sortBySlotTime = (dates) => {
+    return dates.sort((a, b) =>
+      moment(a.slotTime, "LT") > moment(b.slotTime, "LT") ? 1 : -1
+    );
+  };
+
   this._getAppointmentSlots = async ({
     fromDate,
     toDate,
@@ -359,7 +365,7 @@ WHERE
           },
           raw: true,
         });
-        if (returnAllSlots) return dates;
+        if (returnAllSlots) return sortBySlotTime(dates);
 
         if (appointments) {
           appointments.forEach((apnmt) => {
@@ -392,7 +398,7 @@ WHERE
         }
       }
 
-      return { dates: uniqueTimeSlots };
+      return { dates: sortBySlotTime(uniqueTimeSlots) };
     } catch (error) {
       throw error;
     }
