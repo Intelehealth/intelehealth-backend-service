@@ -21,6 +21,7 @@ module.exports = (sequelize, DataTypes) => {
       device_reg_token: DataTypes.STRING,
       locale: DataTypes.STRING,
       otp: DataTypes.STRING,
+      otpFor: { type: DataTypes.ENUM, values: ['U', 'P', 'A'] }
     },
     {
       sequelize,

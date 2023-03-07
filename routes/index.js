@@ -10,6 +10,8 @@ const {
   toggleMindmapActiveStatus
 } = require("../controllers/mindmap.controller");
 
+var authRoutes = require('../modules/auth/routes');
+
 router.post("/mindmap/upload", addUpdateMindMap);
 router.get("/mindmap", getMindmapKeys);
 
@@ -24,5 +26,6 @@ router.use("/mindmap", require("./notification.route"));
 router.use("/messages", require("./message.route"));
 router.use("/openmrs", require("./openmrs.route"));
 router.use("/appointment", require("./appointment.route"));
+router.use('/auth', authRoutes);
 
 module.exports = router;
