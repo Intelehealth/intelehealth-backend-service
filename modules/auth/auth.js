@@ -2,10 +2,13 @@ const openMrsDB = require("../../public/javascripts/mysql/mysqlOpenMrs");
 const axios = require('axios');
 const { user_settings } = require("../../models");
 const { axiosInstance } = require("../../handlers/helper");
+const functions = require("../../handlers/functions");
 const moment = require("moment");
+const otpGenerator = require('otp-generator');
+const fs = require('fs');
+const config = require('../../config/config.json');
 
 class AuthService {
-
 
     async saveOtp(userUuid, otp, otpFor) {
         let user = await user_settings.findOne({
@@ -30,7 +33,8 @@ class AuthService {
 
     async requestOtp(email, phoneNumber, countryCode, username, otpFor) {
         try {
-            let query, data;
+            const env = process.env.NODE_ENV ? process.env.NODE_ENV : "production";
+            let query, data;            
             switch (otpFor) {
                 case 'username':
                     query = `SELECT pa.value_reference AS attributeValue, pat.name AS attributeTypeName, p.provider_id, p.person_id, u.username, u.uuid FROM provider_attribute pa LEFT JOIN provider_attribute_type pat ON pa.attribute_type_id = pat.provider_attribute_type_id LEFT JOIN provider p ON p.provider_id = pa.provider_id LEFT JOIN users u ON u.person_id = p.person_id WHERE (pat.name = 'emailId' OR pat.name = 'phoneNumber') AND pa.value_reference = '${ (phoneNumber) ? phoneNumber : email }' AND p.retired = 0 AND u.retired = 0`;
@@ -46,7 +50,7 @@ class AuthService {
                         for (let i = 0; i < data.length; i++) {
                             if (data[i].attributeTypeName == 'phoneNumber') {
                                 // Make send OTP request
-                                const otp = await axios.get(`https://2factor.in/API/V1/5025bb5d-b9b0-11ed-81b6-0200cd936042/SMS/+${countryCode}${phoneNumber}/AUTOGEN2`).catch(error => {
+                                const otp = await axios.get(`https://2factor.in/API/V1/${config[env].apiKey2Factor}/SMS/+${countryCode}${phoneNumber}/AUTOGEN2`).catch(error => {
                                     throw new Error(error.message);
                                 });
                                 if (otp) {
@@ -57,6 +61,15 @@ class AuthService {
 
                             if (data[i].attributeTypeName == 'emailId') {
                                 // Send email here
+                                const randomOtp = otpGenerator.generate(6, { lowerCaseAlphabets: false, upperCaseAlphabets: false, specialChars: false });
+                                let otpTemplate = fs.readFileSync('./common/emailtemplates/otpTemplate.html', 'utf8').toString();
+                                otpTemplate = otpTemplate.replace('$otpFor', 'forgot username').replace('$otp', randomOtp);
+                                const mail = await functions.sendEmail(email, "Verification code for forgot username", otpTemplate).catch((error) =>  { throw error });
+                                // const mail = functions.sendEmail(email, "OTP for forgot username", `${randomOtp} is your otp for forgot username verification at Intelehealth application.`).catch((error) =>  { throw error });
+                                if (mail.messageId) {
+                                    // Save OTP in database for verification
+                                    await this.saveOtp(data[i].uuid, randomOtp, 'U');
+                                }
                             }
                         }
                         return {
@@ -115,15 +128,31 @@ class AuthService {
                             // If phoneNumber and countryCode exists
                             if (phoneNumber && countryCode) {
                                 // Make request
-                                const otp = await axios.get(`https://2factor.in/API/V1/5025bb5d-b9b0-11ed-81b6-0200cd936042/SMS/+${countryCode}${phoneNumber}/AUTOGEN2`).catch(error => {
+                                const otp = await axios.get(`https://2factor.in/API/V1/${config[env].apiKey2Factor}/SMS/+${countryCode}${phoneNumber}/AUTOGEN2`).catch(error => {
                                     throw new Error(error.message);
                                 });
                                 if (otp) {
                                     // Save OTP in database for verification
                                     await this.saveOtp(data[0].userUuid, otp.data.OTP, 'P');
+
+                                    if (email) {
+                                        let otpTemplate = fs.readFileSync('./common/emailtemplates/otpTemplate.html', 'utf8').toString();
+                                        otpTemplate = otpTemplate.replace('$otpFor', 'forgot password').replace('$otp', otp.data.OTP);
+                                        const mail = await functions.sendEmail(email, "Verification code for forgot password", otpTemplate).catch((error) =>  { throw error });
+                                        // const mail = functions.sendEmail(email, "OTP for forgot password", `${otp.data.OTP} is your otp for forgot password verification at Intelehealth application.`).catch((error) =>  { throw error });
+                                    }
                                 }
                             } else if (email) {
                                 // Send email here
+                                const randomOtp = otpGenerator.generate(6, { lowerCaseAlphabets: false, upperCaseAlphabets: false, specialChars: false });
+                                let otpTemplate = fs.readFileSync('./common/emailTemplates/otpTemplate.html', 'utf8').toString();
+                                otpTemplate = otpTemplate.replace('$otpFor', 'forgot password').replace('$otp', randomOtp);
+                                const mail = await functions.sendEmail(email, "Verification code for forgot password", otpTemplate).catch((error) =>  { throw error });
+                                // const mail = functions.sendEmail(email, "OTP for forgot password", `${randomOtp} is your otp for forgot password verification at Intelehealth application.`).catch((error) =>  { throw error });
+                                if (mail.messageId) {
+                                    // Save OTP in database for verification
+                                    await this.saveOtp(data[i].uuid, randomOtp, 'U');
+                                }
                             }
 
                             return {
@@ -154,7 +183,7 @@ class AuthService {
                     break;
 
                 case 'verification':
-                    query = `SELECT pa.value_reference AS attributeValue, pat.name AS attributeTypeName, p.provider_id, p.person_id, u.username, u.uuid FROM provider_attribute pa LEFT JOIN provider_attribute_type pat ON pa.attribute_type_id = pat.provider_attribute_type_id LEFT JOIN provider p ON p.provider_id = pa.provider_id LEFT JOIN users u ON u.person_id = p.person_id WHERE (pat.name = 'emailId' OR pat.name = 'phoneNumber') AND pa.value_reference = '${ (phoneNumber) ? phoneNumber : email }' AND p.retired = 0 AND u.retired = 0`;
+                    query = `SELECT pa.value_reference AS attributeValue, pat.name AS attributeTypeName, p.provider_id, p.person_id, u.username, u.uuid FROM provider_attribute pa LEFT JOIN provider_attribute_type pat ON pa.attribute_type_id = pat.provider_attribute_type_id LEFT JOIN provider p ON p.provider_id = pa.provider_id LEFT JOIN users u ON u.person_id = p.person_id WHERE (pat.name = 'emailId' OR pat.name = 'phoneNumber') AND pa.value_reference = '${ (phoneNumber) ? phoneNumber : email }' AND u.username = '${username}' AND p.retired = 0 AND u.retired = 0`;
                     data = await new Promise((resolve, reject) => {
                         openMrsDB.query(query, (err, results, fields) => {
                           if (err) reject(err);
@@ -167,7 +196,7 @@ class AuthService {
                         for (let i = 0; i < data.length; i++) {
                             if (data[i].attributeTypeName == 'phoneNumber') {
                                 // Make send OTP request
-                                const otp = await axios.get(`https://2factor.in/API/V1/5025bb5d-b9b0-11ed-81b6-0200cd936042/SMS/+${countryCode}${phoneNumber}/AUTOGEN2`).catch(error => {
+                                const otp = await axios.get(`https://2factor.in/API/V1/${config[env].apiKey2Factor}/SMS/+${countryCode}${phoneNumber}/AUTOGEN2`).catch(error => {
                                     throw new Error(error.message);
                                 });
                                 if (otp) {
@@ -178,6 +207,15 @@ class AuthService {
 
                             if (data[i].attributeTypeName == 'emailId') {
                                 // Send email here
+                                const randomOtp = otpGenerator.generate(6, { lowerCaseAlphabets: false, upperCaseAlphabets: false, specialChars: false });
+                                let otpTemplate = fs.readFileSync('./common/emailtemplates/otpTemplate.html', 'utf8').toString();
+                                otpTemplate = otpTemplate.replace('$otpFor', 'sign in').replace('$otp', randomOtp);
+                                const mail = await functions.sendEmail(email, "Verification code for sign in", otpTemplate).catch((error) =>  { throw error });
+                                // const mail = functions.sendEmail(email, "OTP for verification", `${randomOtp} is your otp for verification at Intelehealth application.`).catch((error) =>  { throw error });
+                                if (mail.messageId) {
+                                    // Save OTP in database for verification
+                                    await this.saveOtp(data[i].uuid, randomOtp, 'A');
+                                }
                             }
                         }
                         return {
@@ -197,6 +235,12 @@ class AuthService {
                     break;
 
                 default:
+                    return {
+                        code: 400,
+                        success: false,
+                        message: "Bad request! Invalid arguments.",
+                        data: null
+                    }
                     break;
             }
         } catch (error) {
@@ -210,6 +254,7 @@ class AuthService {
 
     async verfifyOtp(email, phoneNumber, username, verifyFor, otp) {
         try {
+            const env = process.env.NODE_ENV ? process.env.NODE_ENV : "production";
             let query, data, user;
             switch (verifyFor) {
                 case 'username':
@@ -223,7 +268,7 @@ class AuthService {
                         throw err;
                     });
                     if (data.length) {
-                        let user;
+                        let user, index;
                         for (let i = 0; i < data.length; i++) {
                             user = await user_settings.findOne({
                                 where: {
@@ -233,6 +278,7 @@ class AuthService {
                                 },
                             }); 
                             if (user) {
+                                index = i;
                                 break;
                             }
                         }
@@ -240,7 +286,34 @@ class AuthService {
                         if (user) {
                             if (moment(user.updatedAt).diff(moment(), "minutes") < 5) {
                                 // Send username here
+                                if (phoneNumber) {
+                                    // const body = new URLSearchParams();
+                                    // body.append('module', 'TRANS_SMS');
+                                    // body.append('apikey', config[env].apiKey2Factor);
+                                    // body.append('to', `+${countryCode}${phoneNumber}`);
+                                    // body.append('from', 'HEADER');
+                                    // body.append('msg', `Welcome to Intelehealth. Please use the username ${data[index].username} to sign in at Intelehealth.`);
+                                    // body.append('from', 'HEADER');
+                                    // const otp = await axios.post(`https://2factor.in/API/R1/`, body, {
+                                    //     headers: { 
+                                    //       "Content-Type": "application/x-www-form-urlencoded"
+                                    //     }
+                                    // }).catch(error => {
+                                    //     throw new Error(error.message);
+                                    // });
+                                    // if (otp) {
 
+                                    // }
+                                }
+
+                                if (email) {
+                                    let usernameTemplate = fs.readFileSync('./common/emailtemplates/usernameTemplate.html', 'utf8').toString();
+                                    usernameTemplate = usernameTemplate.replace('$username', data[index].username);
+                                    const mail = await functions.sendEmail(email, "Your account credentials at Intelehealth", usernameTemplate).catch((error) =>  { throw error });
+                                    if (mail.messageId) {
+                                        
+                                    }
+                                }
                                 return {
                                     code: 200,
                                     success: true,
