@@ -7,10 +7,10 @@ const {
   addUpdateMindMap,
   deleteMindmapKey,
   downloadMindmaps,
-  toggleMindmapActiveStatus
+  toggleMindmapActiveStatus,
 } = require("../controllers/mindmap.controller");
 
-var authRoutes = require('../modules/auth/routes');
+var authRoutes = require("../modules/auth/routes");
 
 router.post("/mindmap/upload", addUpdateMindMap);
 router.get("/mindmap", getMindmapKeys);
@@ -21,11 +21,11 @@ router.post("/mindmap/delete/:key", deleteMindmapKey);
 router.get("/mindmap/download", downloadMindmaps);
 router.post("/mindmap/toggleStatus", toggleMindmapActiveStatus);
 
-
 router.use("/mindmap", require("./notification.route"));
 router.use("/messages", require("./message.route"));
 router.use("/openmrs", require("./openmrs.route"));
 router.use("/appointment", require("./appointment.route"));
-router.use('/auth', authRoutes);
+router.use("/links", require("./links.route"));
+router.use("/auth", authRoutes);
 
 module.exports = router;
