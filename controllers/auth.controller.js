@@ -1,91 +1,107 @@
-const service = require('./auth');
+const { RES }  = require("../handlers/helper");
+const { requestOtp, verfifyOtp, resetPassword } = require("../services/auth.service");
 
-const controller = {
-    requestOtp: async (req, res) => {
+module.exports = (function () {
+    /**
+    * Request otp for forgot-username or forgot-password and sing in verification
+    * @param {*} req
+    * @param {*} res
+    */
+    this.requestOtp = async (req, res) => {
         try {
             const { email, phoneNumber, countryCode = 91, username, otpFor } = req.body;
             if ((email || phoneNumber || username) && otpFor) {
                 if (phoneNumber) {
                     if (!countryCode) {
-                        res.status(400).send({
+                        RES(res, {  
                             success: false,
                             message: "Bad request! Invalid arguments.",
                             data: null
-                        });
+                        }, 400);
                     }
                 }
-                const data = await service.authService().requestOtp(email, phoneNumber, countryCode, username, otpFor);
-                res.status(data.code).send({
+                const data = await requestOtp(email, phoneNumber, countryCode, username, otpFor);
+                RES(res, {  
                     success: data.success,
                     message: data.message,
                     data: data.data
-                });
+                }, data.code);
             } else {
-                res.status(400).send({
+                RES(res, {  
                     success: false,
                     message: "Bad request! Invalid arguments.",
                     data: null
-                });
+                }, 400);
             }
         } catch (error) {
             if(error.code === null || error.code === undefined){
                 error.code = 500;
             }
-            res.status(error.code).send({ success: false, data: error.data, message: error.message });
+            RES(res, { success: false, data: error.data, message: error.message }, error.code);
         }
-    },
+    };
 
-    verifyOtp: async (req, res) => {
+    /**
+    * Verify otp sent for forgot-username or forgot-password and sing in verification and perform the appropiate action further required like send username, update new password etc.
+    * @param {*} req
+    * @param {*} res
+    */
+    this.verifyOtp = async (req, res) => {
         try {
             const { email, phoneNumber, username, verifyFor, otp } = req.body;
             if ((email || phoneNumber || username) && verifyFor && otp) {
-                const data = await service.authService().verfifyOtp(email, phoneNumber, username, verifyFor, otp);
-                res.status(data.code).send({
+                const data = await verfifyOtp(email, phoneNumber, username, verifyFor, otp);
+                RES(res, {  
                     success: data.success,
                     message: data.message,
                     data: data.data
-                });
+                }, data.code);
             } else {
-                res.status(400).send({
+                RES(res, {  
                     success: false,
                     message: "Bad request! Invalid arguments.",
                     data: null
-                });
+                }, 400);
             }
         } catch (error) {
             if(error.code === null || error.code === undefined){
                 error.code = 500;
             }
-            res.status(error.code).send({ success: false, data: error.data, message: error.message });
+            RES(res, { success: false, data: error.data, message: error.message }, error.code);
         }
-    },
-
-    resetPassword: async (req, res) => {
+    };
+    
+    /**
+    * update new password if otp is validated.
+    * @param {*} req
+    * @param {*} res
+    */
+    this.resetPassword = async (req, res) => {
         try {
             const userUuid = req.params.userUuid;
             const newPassword = req.body.newPassword;
 
             if (userUuid && newPassword) {
-                const data = await service.authService().resetPassword(userUuid, newPassword);
-                res.status(data.code).send({
+                const data = await resetPassword(userUuid, newPassword);
+                RES(res, {  
                     success: data.success,
                     message: data.message,
                     data: data.data
-                });
+                }, data.code);
             } else {
-                res.status(400).send({
+                RES(res, {  
                     success: false,
                     message: "Bad request! Invalid arguments.",
                     data: null
-                });
+                }, 400);
             }
         } catch (error) {
             if(error.code === null || error.code === undefined){
                 error.code = 500;
             }
-            res.status(error.code).send({ success: false, data: error.data, message: error.message });
+            RES(res, { success: false, data: error.data, message: error.message }, error.code);
         }
-    }
-}
+    };
 
-module.exports = controller;
+    return this;
+})();

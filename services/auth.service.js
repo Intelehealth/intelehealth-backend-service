@@ -1,16 +1,15 @@
-const openMrsDB = require("../../public/javascripts/mysql/mysqlOpenMrs");
+const openMrsDB = require("../public/javascripts/mysql/mysqlOpenMrs");
 const axios = require('axios');
-const { user_settings } = require("../../models");
-const { axiosInstance } = require("../../handlers/helper");
-const functions = require("../../handlers/functions");
+const { user_settings } = require("../models");
+const { axiosInstance } = require("../handlers/helper");
+const functions = require("../handlers/functions");
 const moment = require("moment");
 const otpGenerator = require('otp-generator');
 const fs = require('fs');
-const config = require('../../config/config.json');
+const config = require('../config/config.json');
 
-class AuthService {
-
-    async saveOtp(userUuid, otp, otpFor) {
+module.exports = (function () {
+    this.saveOtp = async function (userUuid, otp, otpFor) {
         let user = await user_settings.findOne({
             where: {
               user_uuid: userUuid,
@@ -29,9 +28,9 @@ class AuthService {
             });
         }
         return user;
-    }
+    };
 
-    async requestOtp(email, phoneNumber, countryCode, username, otpFor) {
+    this.requestOtp = async function (email, phoneNumber, countryCode, username, otpFor) {
         try {
             const env = process.env.NODE_ENV ? process.env.NODE_ENV : "production";
             let query, data;            
@@ -250,9 +249,9 @@ class AuthService {
             return { code: error.code, success: false, data: error.data, message: error.message };
         }
         
-    }
+    };
 
-    async verfifyOtp(email, phoneNumber, username, verifyFor, otp) {
+    this.verfifyOtp = async function (email, phoneNumber, username, verifyFor, otp) {
         try {
             const env = process.env.NODE_ENV ? process.env.NODE_ENV : "production";
             let query, data, user;
@@ -471,9 +470,9 @@ class AuthService {
             }
             return { code: error.code, success: false, data: error.data, message: error.message };
         }
-    }
+    };
 
-    async resetPassword(userUuid, newPassword) {
+    this.resetPassword = async function (userUuid, newPassword) {
         try {
             const url = `/openmrs/ws/rest/v1/password/${userUuid}`;
             let user = await user_settings.findOne({
@@ -510,11 +509,6 @@ class AuthService {
             }
             return { code: error.code, success: false, data: error.data, message: error.message };
         }
-    }
-}
-
-module.exports = {
-    authService: function () {
-      return new AuthService();
-    },
-};
+    };
+    return this;
+})();
