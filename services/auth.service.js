@@ -182,7 +182,7 @@ module.exports = (function () {
                     break;
 
                 case 'verification':
-                    query = `SELECT pa.value_reference AS attributeValue, pat.name AS attributeTypeName, p.provider_id, p.person_id, u.username, u.uuid FROM provider_attribute pa LEFT JOIN provider_attribute_type pat ON pa.attribute_type_id = pat.provider_attribute_type_id LEFT JOIN provider p ON p.provider_id = pa.provider_id LEFT JOIN users u ON u.person_id = p.person_id WHERE (pat.name = 'emailId' OR pat.name = 'phoneNumber') AND pa.value_reference = '${ (phoneNumber) ? phoneNumber : email }' AND u.username = '${username}' AND p.retired = 0 AND u.retired = 0`;
+                    query = `SELECT pa.value_reference AS attributeValue, pat.name AS attributeTypeName, p.provider_id, p.person_id, u.username, u.uuid FROM provider_attribute pa LEFT JOIN provider_attribute_type pat ON pa.attribute_type_id = pat.provider_attribute_type_id LEFT JOIN provider p ON p.provider_id = pa.provider_id LEFT JOIN users u ON u.person_id = p.person_id WHERE (pat.name = 'emailId' OR pat.name = 'phoneNumber') AND pa.value_reference = '${ (phoneNumber) ? phoneNumber : email }' AND (u.username = '${username}' OR u.system_id = '${username}') AND p.retired = 0 AND u.retired = 0`;
                     data = await new Promise((resolve, reject) => {
                         openMrsDB.query(query, (err, results, fields) => {
                           if (err) reject(err);
@@ -403,7 +403,7 @@ module.exports = (function () {
                     break;
 
                 case 'verification':
-                    query = `SELECT pa.value_reference AS attributeValue, pat.name AS attributeTypeName, p.provider_id, p.person_id, u.username, u.uuid FROM provider_attribute pa LEFT JOIN provider_attribute_type pat ON pa.attribute_type_id = pat.provider_attribute_type_id LEFT JOIN provider p ON p.provider_id = pa.provider_id LEFT JOIN users u ON u.person_id = p.person_id WHERE (pat.name = 'emailId' OR pat.name = 'phoneNumber') AND pa.value_reference = '${ (phoneNumber) ? phoneNumber : email }' AND p.retired = 0 AND u.retired = 0`;
+                    query = `SELECT pa.value_reference AS attributeValue, pat.name AS attributeTypeName, p.provider_id, p.person_id, u.username, u.uuid FROM provider_attribute pa LEFT JOIN provider_attribute_type pat ON pa.attribute_type_id = pat.provider_attribute_type_id LEFT JOIN provider p ON p.provider_id = pa.provider_id LEFT JOIN users u ON u.person_id = p.person_id WHERE (pat.name = 'emailId' OR pat.name = 'phoneNumber') AND pa.value_reference = '${ (phoneNumber) ? phoneNumber : email }' AND (u.username = '${username}' OR u.system_id = '${username}') AND p.retired = 0 AND u.retired = 0`;
                     data = await new Promise((resolve, reject) => {
                         openMrsDB.query(query, (err, results, fields) => {
                           if (err) reject(err);
