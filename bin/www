@@ -9,16 +9,6 @@ const debug = require("debug")("mindmapbackend:server");
 const https = require("https");
 const http = require("http");
 const fs = require("fs");
-
-const options = {
-  key: fs.readFileSync(
-    "/etc/letsencrypt/live/development.mysmartcaredoc.com/privkey.pem"
-  ),
-  cert: fs.readFileSync(
-    "/etc/letsencrypt/live/development.mysmartcaredoc.com/fullchain.pem"
-  ),
-};
-
 /**
  * Get port from environment and store in Express.
  */
@@ -30,9 +20,18 @@ app.set("port", port);
  */
 
 let server;
+console.log("process.env.NODE_ENV: ", process.env.NODE_ENV);
 if (process.env.NODE_ENV === "development") {
   server = http.createServer(app);
 } else {
+  const options = {
+    key: fs.readFileSync(
+      "/etc/letsencrypt/live/development.mysmartcaredoc.com/privkey.pem"
+    ),
+    cert: fs.readFileSync(
+      "/etc/letsencrypt/live/development.mysmartcaredoc.com/fullchain.pem"
+    ),
+  };
   server = https.createServer(options, app);
 }
 /**
