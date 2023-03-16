@@ -1,13 +1,16 @@
-var express = require("express");
-var path = require("path");
-var cookieParser = require("cookie-parser");
-var bodyParser = require("body-parser");
-var logger = require("morgan");
+const express = require("express");
+const path = require("path");
+const cookieParser = require("cookie-parser");
+const bodyParser = require("body-parser");
+const logger = require("morgan");
+const cookieSession = require("cookie-session");
 
-var indexRouter = require("./routes/index");
-var pushRouter = require("./routes/pushNotification");
+const indexRouter = require("./routes/index");
+const pushRouter = require("./routes/pushNotification");
+const env = process.env.NODE_ENV || "development";
+const config = require(__dirname + "/config/config.json")[env];
 
-var app = express();
+const app = express();
 
 app.use(function (req, res, next) {
   res.header("Access-Control-Allow-Origin", "*");
@@ -25,6 +28,13 @@ app.use(express.urlencoded({ limit: "50mb", extended: false }));
 app.use(bodyParser.text());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
+app.use(
+  cookieSession({
+    name: "session",
+    keys: [config.domain],
+    maxAge: 15 * 24 * 60 * 60 * 1000, /** 15 days */
+  })
+);
 
 app.use("/api", indexRouter);
 app.use("/notification", pushRouter);
