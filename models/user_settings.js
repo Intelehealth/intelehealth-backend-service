@@ -16,7 +16,6 @@ module.exports = (sequelize, DataTypes) => {
       user_uuid: DataTypes.STRING,
       snooze_till: DataTypes.STRING,
       device_reg_token: DataTypes.STRING,
-      locale: DataTypes.STRING,
     },
     {
       sequelize,

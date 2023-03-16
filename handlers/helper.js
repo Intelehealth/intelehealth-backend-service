@@ -1,22 +1,55 @@
 const gcm = require("node-gcm");
 const mysql = require("../public/javascripts/mysql/mysql");
+const openMrsDB = require("../public/javascripts/mysql/mysqlOpenMrs");
 const webpush = require("web-push");
+const axios = require("axios");
+const admin = require("firebase-admin");
+
+const env = process.env.NODE_ENV || "development";
+const config = require(__dirname + "/../config/config.json")[env];
+const serviceAccount = require(__dirname + "/../config/serviceAccountKey.json");
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL:
+    "https://smartcaredoc-f7646-default-rtdb.asia-southeast1.firebasedatabase.app",
+  //  databaseURL: "https://intelehealth-ekalarogya.firebaseio.com",
+});
 
 module.exports = (function () {
   const vapidKeys = {
     publicKey:
-    "BJJvSw6ltFPN5GDxIOwbRtJUBBJp2CxftaRNGbntvE0kvzpe05D9zKr-SknKvNBihXDoyd09KuHrWwC3lFlTe54",
-    privateKey: "7A59IAQ78P3qbnLL0uICspWr2BJ8II1FnxTatMNelkI",
+      "BHkKl1nW4sC_os9IRMGhrSZ4JJp0RHl2_PxTdV_rElOjnHe-dq1hx2zw_bTgrkc4ulFD-VD4x6P63qN1Giroe7U",
+    privateKey: "YAL9dkVltWw5qj_nYg2zQFQe4viFysX89xxTV6aPRk8",
     mailTo: "mailto:support@intelehealth.org",
   };
+  // For ekal afi prod server
+  // const vapidKeys = {
+  //   publicKey:
+  //     "BO4jQA2_cu-WSdDY0HCbB9OKplPYpCRvjDwmjEPQd7K7m1bIrtjeW7FXCntUUkm2V0eAKh9AGKqmpR4-_gYSYX8",
+  //   privateKey: "ghU6K-grKvUMVdEmqNBoiM0olBsxD3FCpm2QDa8eR_U",
+  //   mailTo: "mailto:support@intelehealth.org",
+  // };
   webpush.setVapidDetails(
     vapidKeys.mailTo,
     vapidKeys.publicKey,
     vapidKeys.privateKey
   );
+  const baseURL = `https://${config.domain}`;
 
-  this.sendWebPushNotificaion = async ({ webpush_obj, title, body }) => {
-    webpush
+  this.axiosInstance = axios.create({
+    baseURL,
+    timeout: 50000,
+    headers: { Authorization: "Basic c3lzbnVyc2U6SUhOdXJzZSMx" },
+  });
+
+  this.sendWebPushNotificaion = async ({
+    webpush_obj,
+    title,
+    body,
+    options = {},
+  }) => {
+    await webpush
       .sendNotification(
         JSON.parse(webpush_obj),
         JSON.stringify({
@@ -25,10 +58,13 @@ module.exports = (function () {
             body,
             vibrate: [100, 50, 100],
           },
-        })
+        }),
+        options
       )
       .catch((error) => {
-        console.log("appointment notification error", error);
+        this.log("notification:", error.body);
+        this.log("status code: ", error.statusCode);
+        this.log("--------------------------------------------------------");
       });
   };
 
@@ -37,14 +73,14 @@ module.exports = (function () {
       keysAndTypeToCheck.forEach((obj) => {
         if (!params[obj.key] && typeof params[obj.key] !== obj.type) {
           if (!params[obj.key]) {
-            throw `Invalid request, ${obj.key} is missing.`;
-            return false;
+            throw new Error(`Invalid request, ${obj.key} is missing.`);
           }
           if (!params[obj.key]) {
-            throw `Wrong param type for ${obj.key}(${typeof params[
-              obj.key
-            ]}), required type is ${obj.type}.`;
-            return false;
+            throw new Error(
+              `Wrong param type for ${obj.key}(${typeof params[
+                obj.key
+              ]}), required type is ${obj.type}.`
+            );
           }
         }
       });
@@ -60,16 +96,13 @@ module.exports = (function () {
     icon = "ic_launcher",
     data = {},
     regTokens,
-    android = {},
-    webpush = {},
-    apns = {},
     click_action = "FCM_PLUGIN_HOME_ACTIVITY",
   }) => {
-    var sender = new gcm.Sender(
-      "AAAA0DrNJRk:APA91bEw_sr5MiqExwmu0ejp9wvEvDiTiWuJqOzMG0NWrAp0V1ULcTKfI46XZ5xyVeTfb3Ub07hR9ssMa1Z5fpggqT4x3MFlzs5fcAHAHaxTwbmM8W789EzmDPFXuIjxyQMXI0Kte9DQ"
-    );
+    console.log("regTokens: ---111======", regTokens);
+    const admin = this.getFirebaseAdmin();
+    const messaging = admin.messaging();
 
-    var message = new gcm.Message({
+    var payload = {
       data,
       notification: {
         title,
@@ -77,39 +110,20 @@ module.exports = (function () {
         body,
         click_action,
       },
-      android: {
-        ttl: "30s",
-        priority: "high",
-      },
-      webpush: {
-        headers: {
-          TTL: "30",
-          Urgency: "high",
-        },
-      },
-      apns: {
-        headers: {
-          "apns-priority": "5",
-        },
-      },
-    });
+    };
 
-    return new Promise((res, rej) => {
-      sender.send(
-        message,
-        { registrationTokens: regTokens },
-        function (err, response) {
-          if (err) {
-            console.log("err: ", err);
-            console.error(err);
-            rej(err);
-          } else {
-            console.log(response);
-            res(response);
-          }
-        }
-      );
-    });
+    const options = {
+      priority: "high",
+    };
+
+    return messaging
+      .sendToDevice(regTokens, payload, options)
+      .then((result) => {
+        console.log(result);
+      })
+      .catch((err) => {
+        console.log("err: ", err);
+      });
   };
 
   this.RES = (res, data, statusCode = 200) => {
@@ -122,16 +136,27 @@ module.exports = (function () {
     }
   };
 
-  this.getDataFromQuery = (query) => {
+  this.getDataFromQuery = (query, openMrs = false) => {
+    const db = openMrs ? openMrsDB : mysql;
     return new Promise((resolve, reject) => {
-      mysql.query(query, (err, results) => {
+      db.query(query, (err, results) => {
         if (err) {
-          console.log("err: ", err);
+          this.log("err: ", err);
           reject(err.message);
         }
         resolve(results);
       });
     });
+  };
+
+  this.log = (...params) => {
+    if (config && config.debug) {
+      console.log(...params);
+    }
+  };
+
+  this.getFirebaseAdmin = () => {
+    return admin;
   };
 
   return this;

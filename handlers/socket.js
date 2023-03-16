@@ -1,26 +1,15 @@
-// const { sendCloudNotification } = require("./helper");
 const { user_settings } = require("../models");
-const admin = require("firebase-admin");
+const { log } = require("./helper");
+const { getFirebaseAdmin } = require("./helper");
 const env = process.env.NODE_ENV || "development";
 const config = require(__dirname + "/../config/config.json")[env];
 
-try {
-  const serviceAccount = require(__dirname +
-    "/../config/serviceAccountKey.json");
-
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    databaseURL: "https://syriana-7d290-default-rtdb.firebaseio.com",
-  });
-} catch (error) {
-  console.log("Check if config/serviceAccountKey.json file is missing.", error);
-}
-
 module.exports = function (server) {
+  const admin = getFirebaseAdmin();
   const db = admin.database();
   const DB_NAME = `${config.domain.replace(/\./g, "_")}/rtc_notify`;
-
-  console.log("DB_NAME:>>>>>>> ", DB_NAME);
+  // const DB_NAME = "rtc_notify_dev";
+  log("DB_NAME:>>>>>>> ", DB_NAME);
 
   const rtcNotifyRef = db.ref(DB_NAME);
   const io = require("socket.io")(server);
@@ -34,14 +23,14 @@ module.exports = function (server) {
         name: socket.handshake.query.name,
       };
     }
-    console.log("socket: >>>>>", socket.handshake.query.userId);
+    log("socket: >>>>>", socket.handshake.query.userId);
 
     socket.emit("myId", socket.id);
 
     io.sockets.emit("allUsers", users);
 
     socket.on("disconnect", () => {
-      console.log("disconnected:>> ", socket.id);
+      log("disconnected:>> ", socket.id);
       delete users[socket.id];
       io.sockets.emit("allUsers", users);
     });
@@ -53,7 +42,7 @@ module.exports = function (server) {
     }
 
     socket.on("create or join", function (room) {
-      console.log("room: ", room);
+      log("room: ", room);
       log("Received request to create or join room " + room);
 
       var clientsInRoom = io.sockets.adapter.rooms[room];
@@ -66,15 +55,24 @@ module.exports = function (server) {
         io.sockets.in(room).emit("message", message);
       });
 
-      socket.on("bye", function (data) {
-        console.log("received bye");
+      socket.on("bye", async function (data) {
+        const nurseId = data && data.nurseId;
+        log("data: bye ----->", data);
+        log("received bye");
         io.sockets.in(room).emit("message", "bye");
         io.sockets.in(room).emit("bye");
         io.sockets.emit("log", ["received bye", data]);
+        if (nurseId) {
+          await rtcNotifyRef
+            .child(nurseId)
+            .child("VIDEO_CALL")
+            .child("callEnded")
+            .set(true);
+        }
       });
 
       socket.on("no_answer", function (data) {
-        console.log("no_answer");
+        log("no_answer");
         io.sockets.in(room).emit("bye");
         io.sockets.in(room).emit("log", ["no_answer", data]);
       });
@@ -95,7 +93,7 @@ module.exports = function (server) {
     });
     socket.on("call", async function (dataIds) {
       const { nurseId, doctorName, roomId } = dataIds;
-
+      console.log("dataIds: ", dataIds);
       let isCalling = false;
       for (const socketId in users) {
         if (Object.hasOwnProperty.call(users, socketId)) {
@@ -126,19 +124,31 @@ module.exports = function (server) {
         data = await user_settings.findOne({
           where: { user_uuid: nurseId },
         });
+        // if (data && data.device_reg_token) {
+        //   const response = await sendCloudNotification({
+        //     title: "Incoming call",
+        //     body: "Doctor is trying to call you.",
+        //     data: {
+        //       ...dataIds,
+        //       actionType: "VIDEO_CALL",
+        //       timestamp: Date.now(),
+        //     },
+        //     regTokens: [data.device_reg_token],
+        //   }).catch((err) => {
+        //     log("err: ", err);
+        //   });
+        //   io.sockets.emit("log", ["notification response", response, data]);
+        // } else {
+        //   io.sockets.emit("log", [
+        //     `data/device reg token not found in db for ${nurseId}`,
+        //     data,
+        //   ]);
+        // }
       }
-      console.log(nurseId, "----<<>>>");
+      log(nurseId, "----<<>>>");
 
       await rtcNotifyRef.update({
         [nurseId]: {
-          // TEXT_CHAT: {
-          //   fromUser: "454554-3333-jjfjf-444",
-          //   patientId: "dgddh747744-44848404",
-          //   patientName: "743747444-448480404",
-          //   timestamp: Date.now(),
-          //   toUser: "ererere-335-33-84884jj0990",
-          //   visitId: "4784847333-22-dddu40044",
-          // },
           VIDEO_CALL: {
             doctorName,
             nurseId,

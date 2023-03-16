@@ -11,15 +11,13 @@ const {
   asyncForEach,
   getDataFromQuery,
   sendCloudNotification,
+  sendWebPushNotificaion,
 } = require("../handlers/helper");
-const env = process.env.NODE_ENV || "development";
-const config = require("../config/config.json")[env];
 
 module.exports = (function () {
   const DATE_FORMAT = "DD/MM/YYYY";
   const TIME_FORMAT = "LT";
   const FILTER_TIME_DATE_FORMAT = "DD/MM/YYYY HH:mm:ss";
-  const TIMEZONE = config.timezone || "Asia/Kolkata";
 
   const sendCancelNotification = async ({ id, slotTime, patientName }) => {
     const query = `
@@ -37,7 +35,6 @@ where
       if (data && data.length) {
         asyncForEach(data, async (item) => {
           const { token, locale } = item;
-          console.log("locale: ", locale);
           if (token) {
             await sendCloudNotification({
               title:
@@ -225,31 +222,29 @@ WHERE
     //   return days.map((d) => d.normDate);
     // });
     schedule.daysToSchedule.forEach((slot) => {
-      const slotSchedules = slots.filter(
+      const slotSchedule = slots.find(
         (s) => moment(s.date).format(DATE_FORMAT) === slot.normDate
       );
-      slotSchedules.forEach((slotSchedule) => {
-        if (slotSchedule) {
-          const { startTime, endTime } = slotSchedule;
-          let now = moment(startTime, TIME_FORMAT);
-          let deadline = moment(endTime, TIME_FORMAT);
-          while (now.diff(deadline) < 0) {
-            if (now > moment(now).hour(8)) {
-              dates.push({
-                slotDay: slot.day,
-                slotDate: slot.normDate,
-                slotDuration: SLOT_DURATION,
-                slotDurationUnit: SLOT_DURATION_UNIT,
-                slotTime: now.format(TIME_FORMAT),
-                speciality: schedule.speciality,
-                userUuid: schedule.userUuid,
-                drName: schedule.drName,
-              });
-            }
-            now.add(SLOT_DURATION, SLOT_DURATION_UNIT);
+      if (slotSchedule) {
+        const { startTime, endTime } = slotSchedule;
+        let now = moment(startTime, TIME_FORMAT);
+        let deadline = moment(endTime, TIME_FORMAT);
+        while (now.diff(deadline) < 0) {
+          if (now > moment(now).hour(8)) {
+            dates.push({
+              slotDay: slot.day,
+              slotDate: slot.normDate,
+              slotDuration: SLOT_DURATION,
+              slotDurationUnit: SLOT_DURATION_UNIT,
+              slotTime: now.format(TIME_FORMAT),
+              speciality: schedule.speciality,
+              userUuid: schedule.userUuid,
+              drName: schedule.drName,
+            });
           }
+          now.add(SLOT_DURATION, SLOT_DURATION_UNIT);
         }
-      });
+      }
     });
 
     return dates;
@@ -294,6 +289,12 @@ WHERE
     });
 
     return dates;
+  };
+
+  const sortBySlotTime = (dates) => {
+    return dates.sort((a, b) =>
+      moment(a.slotTime, "LT") > moment(b.slotTime, "LT") ? 1 : -1
+    );
   };
 
   this._getAppointmentSlots = async ({
@@ -354,7 +355,6 @@ WHERE
               });
           dates = dates.concat(_dates);
         });
-
         const appointments = await Appointment.findAll({
           where: {
             speciality,
@@ -365,7 +365,7 @@ WHERE
           },
           raw: true,
         });
-        if (returnAllSlots) return dates;
+        if (returnAllSlots) return sortBySlotTime(dates);
 
         if (appointments) {
           appointments.forEach((apnmt) => {
@@ -387,11 +387,7 @@ WHERE
             if (!slt) {
               const today = moment().format(DATE_FORMAT);
               if (slot.slotDate === today) {
-                const tzTime = moment.tz(TIMEZONE);
-                if (
-                  moment(slot.slotTime, "LT") >
-                  moment(tzTime.format("LT"), "LT")
-                ) {
+                if (moment(slot.slotTime, "LT") > moment()) {
                   uniqueTimeSlots.push(slot);
                 }
               } else {
@@ -401,14 +397,8 @@ WHERE
           });
         }
       }
-      uniqueTimeSlots.sort((a, b) =>
-        moment(a.slotTime, "LT") < moment(b.slotTime, "LT")
-          ? -1
-          : moment(a.slotTime, "LT") > moment(b.slotTime, "LT")
-          ? 1
-          : 0
-      );
-      return { dates: uniqueTimeSlots };
+
+      return { dates: sortBySlotTime(uniqueTimeSlots) };
     } catch (error) {
       throw error;
     }
@@ -542,7 +532,10 @@ WHERE
     const status = reschedule ? "rescheduled" : "cancelled";
     if (appointment) {
       appointment.update({ status, updatedBy: hwUUID, reason });
-      if (notify) sendCancelNotificationToWebappDoctor(appointment);
+      if (notify) {
+        sendCancelNotificationToWebappDoctor(appointment);
+        await sendCancelNotification(appointment);
+      }
       return {
         status: true,
         message: "Appointment cancelled successfully!",

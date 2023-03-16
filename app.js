@@ -6,8 +6,10 @@ var logger = require("morgan");
 
 var indexRouter = require("./routes/index");
 var pushRouter = require("./routes/pushNotification");
+const { log } = require("./handlers/helper");
 
 var app = express();
+global.log = log;
 
 app.use(function (req, res, next) {
   res.header("Access-Control-Allow-Origin", "*");

@@ -1,4 +1,4 @@
-const { validateParams } = require("../handlers/helper");
+const { validateParams, log } = require("../handlers/helper");
 const {
   getUserAppointmentSchedule,
   upsertAppointmentSchedule,
@@ -37,7 +37,7 @@ module.exports = (function () {
         });
       }
     } catch (error) {
-      console.log("error: ", error);
+      log("error: ", error);
       next(error);
     }
   };
@@ -56,7 +56,7 @@ module.exports = (function () {
         data,
       });
     } catch (error) {
-      console.log("error: ", error);
+      log("error: ", error);
       next(error);
     }
   };
@@ -76,7 +76,7 @@ module.exports = (function () {
         });
       }
     } catch (error) {
-      console.log("error: ", error);
+      log("error: ", error);
       next(error);
     }
   };
@@ -95,7 +95,7 @@ module.exports = (function () {
         });
       }
     } catch (error) {
-      console.log("error: ", error);
+      log("error: ", error);
       next(error);
     }
   };
@@ -162,7 +162,6 @@ module.exports = (function () {
         { key: "patientName", type: "string" },
         { key: "openMrsId", type: "string" },
         { key: "hwUUID", type: "string" },
-        { key: "reason", type: "string" },
         { key: "appointmentId", type: "number" },
       ];
       if (validateParams(req.body, keysAndTypeToCheck)) {
@@ -179,12 +178,7 @@ module.exports = (function () {
 
   this.cancelAppointment = async (req, res, next) => {
     try {
-      const keysAndTypeToCheck = [
-        { key: "id", type: "number" },
-        { key: "visitUuid", type: "string" },
-        { key: "reason", type: "string" },
-        { key: "hwUUID", type: "string" },
-      ];
+      const keysAndTypeToCheck = [{ key: "id", type: "number" }];
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await _cancelAppointment(req.body);
         res.json(data);

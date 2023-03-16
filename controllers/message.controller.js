@@ -1,5 +1,13 @@
-const { sendMessage, getMessages } = require("../services/message.service");
-const { validateParams, sendCloudNotification } = require("../handlers/helper");
+const {
+  sendMessage,
+  getMessages,
+  postSMSToMobileNumber,
+} = require("../services/message.service");
+const {
+  validateParams,
+  log,
+  sendCloudNotification,
+} = require("../handlers/helper");
 const { user_settings } = require("../models");
 
 module.exports = (function () {
@@ -40,24 +48,25 @@ module.exports = (function () {
             where: { user_uuid: toUser },
           });
           if (userSetting && userSetting.device_reg_token) {
+            console.log("userSetting: -----111----", userSetting.device_reg_token);
             notificationResponse = await sendCloudNotification({
               title: "New chat message",
               body: message,
               data: {
                 ...req.body,
-                ...data.data.dataValues,
+                // ...data.data.dataValues,
                 actionType: "TEXT_CHAT",
               },
               regTokens: [userSetting.device_reg_token],
             }).catch((err) => {
-              console.log("err: ", err);
+              log("err: ", err);
             });
           }
         }
         res.json({ ...data, notificationResponse });
       }
     } catch (error) {
-      console.log("error: ", error);
+      log("error: ", error);
       res.json({
         status: false,
         message: error,
@@ -83,6 +92,33 @@ module.exports = (function () {
         res.json(data);
       }
     } catch (error) {
+      res.json({
+        status: false,
+        message: error,
+      });
+    }
+  };
+
+  /**
+   * Method for sending sms to patients
+   * @param {*} req
+   * @param {*} res
+   */
+  this.sendSMS = async (req, res) => {
+    const { message, patients = [] } = req.body;
+    try {
+      if (patients) {
+        for (let idx = 0; idx < patients.length; idx++) {
+          const patientMobNo = patients[idx];
+          await postSMSToMobileNumber(patientMobNo, message);
+        }
+        return res.json({
+          status: true,
+          message: "SMS sent successfully.",
+        });
+      }
+    } catch (error) {
+      log("error: ", error);
       res.json({
         status: false,
         message: error,

@@ -197,9 +197,9 @@ const downloadMindmaps = async (req, res) => {
         const data = mindmapsData[i];
         wrMindmap(data.name, data.json);
       }
-      if (licenceData.imageName) {
-        wrMindmap(licenceData.imageName, licenceData.imageValue);
-      }
+      //if (licenceData.imageName) {
+      //  wrMindmap(licenceData.imageName, licenceData.imageValue);
+      //}
       await zipFolder(key);
       const host = getFormattedUrl(req);
       rmDir("./public/key");

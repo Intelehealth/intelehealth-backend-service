@@ -1,4 +1,13 @@
 const { messages, Sequelize } = require("../models");
+const querystring = require("querystring");
+const axios = require("axios");
+const { log } = require("../handlers/helper");
+
+const axiosKaleyra = axios.create({
+  baseURL: "https://api.in.kaleyra.io",
+  timeout: 50000,
+  headers: { "content-type": "application/x-www-form-urlencoded" },
+});
 
 module.exports = (function () {
   /**
@@ -14,7 +23,7 @@ module.exports = (function () {
         data: await messages.create({ fromUser, toUser, patientId, message }),
       };
     } catch (error) {
-      console.log("error: sendMessage ", error);
+      log("error: sendMessage ", error);
       return {
         success: false,
         data: error,
@@ -46,11 +55,45 @@ module.exports = (function () {
       }
       return { success: true, data };
     } catch (error) {
-      console.log("error: getMessages ", error);
+      log("error: getMessages ", error);
       return {
         success: false,
         data: [],
       };
+    }
+  };
+
+  /**
+   * Send message to patients on their mobile number
+   * @param {string} mobNo
+   * @param {string} message
+   */
+  this.postSMSToMobileNumber = async (mobNo, message) => {
+    try {
+      // log('message',message);
+      const axiosOptions = {
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "api-key": "A7b6e3f43afd56b241d4aaf9fcb73d742",
+        },
+      };
+
+      const payload = querystring.stringify({
+        to: mobNo,
+        sender: "AFIEAP",
+        type: "TXN",
+        source: "API",
+        template_id: "1107165751285758329",
+        body: message,
+      });
+
+      await axiosKaleyra
+        .post("/v1/HXIN1739030324IN/messages", payload, axiosOptions)
+        .catch(function (error) {
+          log(error);
+        });
+    } catch (error) {
+      log("error: ", error);
     }
   };
 

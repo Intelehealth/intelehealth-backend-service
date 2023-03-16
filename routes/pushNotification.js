@@ -1,8 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const webpush = require("web-push");
+const { log } = require("../handlers/helper");
 const mysql = require("../public/javascripts/mysql/mysql");
-// console.log(webpush.generateVAPIDKeys(),"---------------");
+// log(webpush.generateVAPIDKeys(), "---------------");
 const days = {
   0: "Sunday",
   1: "Monday",
@@ -23,6 +24,7 @@ router.post("/subscribe", async (req, res) => {
     date_created: new Date(),
     user_uuid: req.body.user_uuid,
     finger_print: req.body.finger_print,
+    location: req.body.location,
   };
   const pushnotification = await new Promise((res, rej) => {
     mysql.query(
@@ -36,7 +38,7 @@ router.post("/subscribe", async (req, res) => {
 
   if (pushnotification && pushnotification.length) {
     mysql.query(
-      `UPDATE pushnotification SET notification_object='${details.notification_object},locale='${details.locale}'
+      `UPDATE pushnotification SET notification_object='${details.notification_object}', location='${details.location}'
        WHERE user_uuid='${details.user_uuid}' and finger_print='${details.finger_print}'`,
       (err, results, fields) => {
         if (err) res.status(400).json({ message: err.message });
@@ -58,23 +60,24 @@ router.post("/subscribe", async (req, res) => {
   }
 });
 
-//for demo server
+//for ekal afitraining server
 const vapidKeys = {
   publicKey:
-    "BJJvSw6ltFPN5GDxIOwbRtJUBBJp2CxftaRNGbntvE0kvzpe05D9zKr-SknKvNBihXDoyd09KuHrWwC3lFlTe54",
-  privateKey: "7A59IAQ78P3qbnLL0uICspWr2BJ8II1FnxTatMNelkI",
+    "BHkKl1nW4sC_os9IRMGhrSZ4JJp0RHl2_PxTdV_rElOjnHe-dq1hx2zw_bTgrkc4ulFD-VD4x6P63qN1Giroe7U",
+  privateKey: "YAL9dkVltWw5qj_nYg2zQFQe4viFysX89xxTV6aPRk8",
   mailTo: "mailto:support@intelehealth.org",
 };
-// For testing server
+// For ekal afi prod server
 // const vapidKeys = {
-//     publicKey:
-//         "BAfolLQ7VpRSmWm6DskG-YyG3jjzq5z0rjKEl5HXLCw2W8CKS9cVmifnCAWnrlJMETgbgjuV1pWKLUf8zlbojH0",
-//     privateKey: "kCDISA3-UoW0pEx_gSTm4VtQASbvza-uw27Mq1x2wEc",
-//     mailTo: "mailto:support@intelehealth.org"
+//   publicKey:
+//     "BO4jQA2_cu-WSdDY0HCbB9OKplPYpCRvjDwmjEPQd7K7m1bIrtjeW7FXCntUUkm2V0eAKh9AGKqmpR4-_gYSYX8",
+//   privateKey: "ghU6K-grKvUMVdEmqNBoiM0olBsxD3FCpm2QDa8eR_U",
+//   mailTo: "mailto:support@intelehealth.org",
 // };
 
 router.post("/push", (req, res) => {
   try {
+    log("/push: ", req.body);
     mysql.query(
       `Select notification_object, doctor_name, user_uuid from pushnotification where speciality='${req.body.speciality}'`,
       async (err, results) => {
@@ -109,7 +112,7 @@ router.post("/push", (req, res) => {
             mysql.query(
               `SELECT * FROM user_settings WHERE user_uuid IN ('${userUUID}')`,
               (err, results) => {
-                console.log("results: ", results);
+                log("results: ", results);
                 if (err) rej(err);
                 res(results);
               }
@@ -156,14 +159,17 @@ router.post("/push", (req, res) => {
               webpush
                 .sendNotification(JSON.parse(sub.notification_object), payload)
                 .catch((error) => {
-                  console.log("error:skipFlag:second notification ", error);
+                  log("error:skipFlag:second notification ", error);
                 });
             }
           });
-
-          Promise.all(allNotifications).then((response) => {
-            res.status(200).json({ message: "Notification sent" });
-          });
+          if (![undefined, null, ""].includes(req.body.skipFlag)) {
+            Promise.all(allNotifications).then((response) => {
+              res.status(200).json({ message: "Notification sent" });
+            });
+          } else {
+            res.status(200).json({ message: "Notification sent." });
+          }
         } else
           res
             .status(200)
