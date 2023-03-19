@@ -3,7 +3,10 @@ const path = require("path");
 const cookieParser = require("cookie-parser");
 const bodyParser = require("body-parser");
 const logger = require("morgan");
-const cookieSession = require("cookie-session");
+const Sequelize = require("sequelize");
+const session = require("express-session");
+const SequelizeStore = require("connect-session-sequelize")(session.Store);
+const db = require("./models");
 
 const indexRouter = require("./routes/index");
 const pushRouter = require("./routes/pushNotification");
@@ -12,8 +15,18 @@ const config = require(__dirname + "/config/config.json")[env];
 
 const app = express();
 
+let ALLOWED_ORIGINS = [
+  "http://localhost:4200",
+  "https://uiux.intelehealth.org",
+];
+
 app.use(function (req, res, next) {
-  res.header("Access-Control-Allow-Origin", "*");
+  const origin = req.headers.origin;
+  const theOrigin =
+    ALLOWED_ORIGINS.indexOf(origin) >= 0 ? origin : ALLOWED_ORIGINS[0];
+
+  res.header("Access-Control-Allow-Origin", theOrigin);
+  res.header("Access-Control-Allow-Credentials", "true");
   res.header("Access-Control-Allow-Methods", "*");
   res.header(
     "Access-Control-Allow-Headers",
@@ -28,11 +41,29 @@ app.use(express.urlencoded({ limit: "50mb", extended: false }));
 app.use(bodyParser.text());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
+
+app.set("trust proxy", 1); // trust first proxy
+
+db.sequelize.define("Session", {
+  sid: {
+    type: Sequelize.STRING,
+    primaryKey: true,
+  },
+  rememberme: Sequelize.BOOLEAN,
+  expires: Sequelize.DATE,
+  data: Sequelize.TEXT,
+});
+
+app.set("trust proxy", 1);
 app.use(
-  cookieSession({
-    name: "session",
-    keys: [config.domain],
-    maxAge: 15 * 24 * 60 * 60 * 1000, /** 15 days */
+  session({
+    name: "app.sid",
+    secret: config.domain,
+    store: new SequelizeStore({
+      db: db.sequelize,
+      checkExpirationInterval: 15 * 60 * 1000, // The interval at which to cleanup expired sessions in milliseconds.
+      expiration: 15 * 24 * 60 * 60 * 1000, // The maximum age (in milliseconds) of a valid session.
+    }),
   })
 );
 
