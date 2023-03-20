@@ -7,10 +7,19 @@ const {
   validateParams,
   log,
   sendCloudNotification,
+  getFirebaseAdmin,
 } = require("../handlers/helper");
 const { user_settings } = require("../models");
+const env = process.env.NODE_ENV || "development";
+const config = require(__dirname + "/../config/config.json")[env];
 
 module.exports = (function () {
+  const admin = getFirebaseAdmin();
+  const db = admin.database();
+  const DB_NAME = `${config.domain.replace(/\./g, "_")}/TEXT_CHAT`;
+  console.log("DB_NAME: ", DB_NAME);
+  const textChatRef = db.ref(DB_NAME);
+
   /**
    * Method to create message entry and transmit it to socket on realtime
    * @param {*} req
@@ -48,7 +57,10 @@ module.exports = (function () {
             where: { user_uuid: toUser },
           });
           if (userSetting && userSetting.device_reg_token) {
-            console.log("userSetting: -----111----", userSetting.device_reg_token);
+            console.log(
+              "userSetting: -----111----",
+              userSetting.device_reg_token
+            );
             notificationResponse = await sendCloudNotification({
               title: "New chat message",
               body: message,
@@ -61,6 +73,14 @@ module.exports = (function () {
             }).catch((err) => {
               log("err: ", err);
             });
+          }
+
+          try {
+            await textChatRef.update({
+              [req.body.visitId]: req.body,
+            });
+          } catch (error) {
+            console.log("error: ", error);
           }
         }
         res.json({ ...data, notificationResponse });
