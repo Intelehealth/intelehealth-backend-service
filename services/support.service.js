@@ -139,6 +139,7 @@ module.exports = (function () {
                     to: { [Sequelize.Op.in]: [to, from] },
                 },
                 attributes: [
+                    "id",
                     "message",
                     "from",
                     "to",
