@@ -1,11 +1,19 @@
 const gcm = require("node-gcm");
 const mysql = require("../public/javascripts/mysql/mysql");
 const webpush = require("web-push");
+const admin = require("firebase-admin");
+
+const serviceAccount = require(__dirname + "/../config/serviceAccountKey.json");
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL: "https://syriana-7d290-default-rtdb.firebaseio.com",
+});
 
 module.exports = (function () {
   const vapidKeys = {
     publicKey:
-    "BJJvSw6ltFPN5GDxIOwbRtJUBBJp2CxftaRNGbntvE0kvzpe05D9zKr-SknKvNBihXDoyd09KuHrWwC3lFlTe54",
+      "BJJvSw6ltFPN5GDxIOwbRtJUBBJp2CxftaRNGbntvE0kvzpe05D9zKr-SknKvNBihXDoyd09KuHrWwC3lFlTe54",
     privateKey: "7A59IAQ78P3qbnLL0uICspWr2BJ8II1FnxTatMNelkI",
     mailTo: "mailto:support@intelehealth.org",
   };
@@ -60,16 +68,12 @@ module.exports = (function () {
     icon = "ic_launcher",
     data = {},
     regTokens,
-    android = {},
-    webpush = {},
-    apns = {},
     click_action = "FCM_PLUGIN_HOME_ACTIVITY",
   }) => {
-    var sender = new gcm.Sender(
-      "AAAA0DrNJRk:APA91bEw_sr5MiqExwmu0ejp9wvEvDiTiWuJqOzMG0NWrAp0V1ULcTKfI46XZ5xyVeTfb3Ub07hR9ssMa1Z5fpggqT4x3MFlzs5fcAHAHaxTwbmM8W789EzmDPFXuIjxyQMXI0Kte9DQ"
-    );
+    const admin = this.getFirebaseAdmin();
+    const messaging = admin.messaging();
 
-    var message = new gcm.Message({
+    var payload = {
       data,
       notification: {
         title,
@@ -77,39 +81,20 @@ module.exports = (function () {
         body,
         click_action,
       },
-      android: {
-        ttl: "30s",
-        priority: "high",
-      },
-      webpush: {
-        headers: {
-          TTL: "30",
-          Urgency: "high",
-        },
-      },
-      apns: {
-        headers: {
-          "apns-priority": "5",
-        },
-      },
-    });
+    };
 
-    return new Promise((res, rej) => {
-      sender.send(
-        message,
-        { registrationTokens: regTokens },
-        function (err, response) {
-          if (err) {
-            console.log("err: ", err);
-            console.error(err);
-            rej(err);
-          } else {
-            console.log(response);
-            res(response);
-          }
-        }
-      );
-    });
+    const options = {
+      priority: "high",
+    };
+
+    return messaging
+      .sendToDevice(regTokens, payload, options)
+      .then((result) => {
+        console.log(result);
+      })
+      .catch((err) => {
+        console.log("err: ", err);
+      });
   };
 
   this.RES = (res, data, statusCode = 200) => {
@@ -132,6 +117,28 @@ module.exports = (function () {
         resolve(results);
       });
     });
+  };
+
+  this.getFirebaseAdmin = () => {
+    return admin;
+  };
+
+  this.generateUUID = () => {
+    let d = new Date().getTime();
+    if (
+      typeof performance !== "undefined" &&
+      typeof performance.now === "function"
+    ) {
+      d += performance.now(); //use high-precision timer if available
+    }
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
+      /[xy]/g,
+      function (c) {
+        let r = (d + Math.random() * 16) % 16 | 0;
+        d = Math.floor(d / 16);
+        return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+      }
+    );
   };
 
   return this;
