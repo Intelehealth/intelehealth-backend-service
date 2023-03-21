@@ -1,8 +1,19 @@
 const { sendMessage, getMessages } = require("../services/message.service");
-const { validateParams, sendCloudNotification } = require("../handlers/helper");
+const {
+  validateParams,
+  sendCloudNotification,
+  getFirebaseAdmin,
+} = require("../handlers/helper");
 const { user_settings } = require("../models");
+const env = process.env.NODE_ENV || "development";
+const config = require(__dirname + "/../config/config.json")[env];
 
 module.exports = (function () {
+  const admin = getFirebaseAdmin();
+  const db = admin.database();
+  const DB_NAME = `${config.domain.replace(/\./g, "_")}/TEXT_CHAT`;
+  console.log("DB_NAME: ", DB_NAME);
+  const textChatRef = db.ref(DB_NAME);
   /**
    * Method to create message entry and transmit it to socket on realtime
    * @param {*} req
@@ -40,18 +51,30 @@ module.exports = (function () {
             where: { user_uuid: toUser },
           });
           if (userSetting && userSetting.device_reg_token) {
+            console.log(
+              "userSetting: -----111----",
+              userSetting.device_reg_token
+            );
             notificationResponse = await sendCloudNotification({
               title: "New chat message",
               body: message,
               data: {
                 ...req.body,
-                ...data.data.dataValues,
+                // ...data.data.dataValues,
                 actionType: "TEXT_CHAT",
               },
               regTokens: [userSetting.device_reg_token],
             }).catch((err) => {
-              console.log("err: ", err);
+              log("err: ", err);
             });
+          }
+
+          try {
+            await textChatRef.update({
+              [req.body.visitId]: req.body,
+            });
+          } catch (error) {
+            console.log("error: ", error);
           }
         }
         res.json({ ...data, notificationResponse });
