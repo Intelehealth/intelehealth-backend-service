@@ -89,7 +89,7 @@ module.exports = (function () {
                     if (Object.hasOwnProperty.call(users, key)) {
                         const user = users[key];
                         if (user && systemAdministrators.concat([fromUser, toUser]).includes(user.uuid)) {
-                            io.to(key).emit("isreadSupport", null);
+                            io.to(key).emit("isreadSupport", { msgTo: toUser, msgFrom: fromUser });
                         }
                     }
                 }
