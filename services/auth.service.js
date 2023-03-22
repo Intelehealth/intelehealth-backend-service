@@ -484,7 +484,7 @@ module.exports = (function () {
         
             if (user) {
                 const payload = {
-                    newPassword
+                    newPassword,
                 };
                 const data = await axiosInstance.post(url, payload).catch((err) => {
                     console.log("Openmrs API - err: ", err.body);
@@ -493,7 +493,7 @@ module.exports = (function () {
                     code: 200,
                     success: true,
                     message: "Password reset successful.",
-                    data: data
+                    data: null
                 };
             } else {
                 return {

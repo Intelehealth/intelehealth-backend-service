@@ -180,6 +180,7 @@ module.exports = (function () {
                         to: { [Sequelize.Op.eq]: ['System Administrator'] },
                     },
                     group: ['from'],
+                    order: [[Sequelize.col("createdAt"), "DESC"]],
                     raw: true
                 });
 
@@ -193,9 +194,9 @@ module.exports = (function () {
                     throw err;
                 });
                 let doctorList = [];
-                for (const doc of queryResult) {
-                    const m = data.find(d => d.from == doc.userUuid);
-                    doctorList.push({ ...doc, ...m });
+                for (const chat of data) {
+                    const m = queryResult.find(d => chat.from == d.userUuid);
+                    doctorList.push({ ...chat, ...m });
                 }
                 return {
                     code: 200,
