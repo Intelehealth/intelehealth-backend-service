@@ -1,17 +1,11 @@
-// const { sendCloudNotification } = require("./helper");
 const { user_settings } = require("../models");
-const admin = require("firebase-admin");
-const { log } = require("./helper");
+const { log, generateUUID, getFirebaseAdmin } = require("./helper");
 const env = process.env.NODE_ENV || "development";
 const config = require(__dirname + "/../config/config.json")[env];
 
-const serviceAccount = require(__dirname + "/../config/serviceAccountKey.json");
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  databaseURL: "https://intelehealth-ekalarogya.firebaseio.com",
-});
-
 module.exports = function (server) {
+  const admin = getFirebaseAdmin();
+
   const db = admin.database();
   const DB_NAME = `${config.domain.replace(/\./g, "_")}/rtc_notify`;
   // const DB_NAME = "rtc_notify_dev";
@@ -63,7 +57,6 @@ module.exports = function (server) {
 
       socket.on("bye", async function (data) {
         const nurseId = data && data.nurseId;
-        log("data: bye ----->", data);
         log("received bye");
         io.sockets.in(room).emit("message", "bye");
         io.sockets.in(room).emit("bye");
@@ -130,32 +123,14 @@ module.exports = function (server) {
         data = await user_settings.findOne({
           where: { user_uuid: nurseId },
         });
-        // if (data && data.device_reg_token) {
-        //   const response = await sendCloudNotification({
-        //     title: "Incoming call",
-        //     body: "Doctor is trying to call you.",
-        //     data: {
-        //       ...dataIds,
-        //       actionType: "VIDEO_CALL",
-        //       timestamp: Date.now(),
-        //     },
-        //     regTokens: [data.device_reg_token],
-        //   }).catch((err) => {
-        //     log("err: ", err);
-        //   });
-        //   io.sockets.emit("log", ["notification response", response, data]);
-        // } else {
-        //   io.sockets.emit("log", [
-        //     `data/device reg token not found in db for ${nurseId}`,
-        //     data,
-        //   ]);
-        // }
       }
       log(nurseId, "----<<>>>");
 
       await rtcNotifyRef.update({
         [nurseId]: {
           VIDEO_CALL: {
+            id: generateUUID(),
+            ...dataIds,
             callEnded: false,
             doctorName,
             nurseId,

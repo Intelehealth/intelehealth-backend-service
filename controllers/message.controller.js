@@ -3,10 +3,20 @@ const {
   getMessages,
   postSMSToMobileNumber,
 } = require("../services/message.service");
-const { validateParams, log } = require("../handlers/helper");
+const { validateParams, log, getFirebaseAdmin } = require("../handlers/helper");
 const { user_settings } = require("../models");
+const env = process.env.NODE_ENV || "development";
+const config = require(__dirname + "/../config/config.json")[env];
 
 module.exports = (function () {
+  const admin = getFirebaseAdmin();
+  const db = admin.database();
+  const DB_NAME = `${config.domain.replace(/\./g, "_")}/TEXT_CHAT`;
+  console.log("DB_NAME: ", DB_NAME);
+  const textChatRef = db.ref(DB_NAME);
+  textChatRef.update({
+    test:1
+  })
   /**
    * Method to create message entry and transmit it to socket on realtime
    * @param {*} req
@@ -58,6 +68,15 @@ module.exports = (function () {
             });
           }
         }
+
+        try {
+          await textChatRef.update({
+            [req.body.visitId]: req.body,
+          });
+        } catch (error) {
+          console.log("error: ", error);
+        }
+
         res.json({ ...data, notificationResponse });
       }
     } catch (error) {
