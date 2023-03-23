@@ -15,8 +15,8 @@ module.exports = (function () {
   console.log("DB_NAME: ", DB_NAME);
   const textChatRef = db.ref(DB_NAME);
   textChatRef.update({
-    test:1
-  })
+    test: 1,
+  });
   /**
    * Method to create message entry and transmit it to socket on realtime
    * @param {*} req
@@ -59,7 +59,6 @@ module.exports = (function () {
               body: message,
               data: {
                 ...req.body,
-                ...data.data.dataValues,
                 actionType: "TEXT_CHAT",
               },
               regTokens: [userSetting.device_reg_token],
