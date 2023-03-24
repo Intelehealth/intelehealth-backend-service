@@ -120,10 +120,11 @@ module.exports = function (server) {
             });
           }
         }, 10000);
-        data = await user_settings.findOne({
-          where: { user_uuid: nurseId },
-        });
       }
+
+      data = await user_settings.findOne({
+        where: { user_uuid: nurseId },
+      });
       log(nurseId, "----<<>>>");
 
       await rtcNotifyRef.update({
