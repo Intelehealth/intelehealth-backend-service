@@ -14,7 +14,10 @@ module.exports = (sequelize, DataTypes) => {
     }
   };
   obs.init({
-    obs_id: DataTypes.INTEGER,
+    obs_id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true
+    },
     person_id: DataTypes.INTEGER,
     concept_id: DataTypes.INTEGER,
     encounter_id: DataTypes.INTEGER,

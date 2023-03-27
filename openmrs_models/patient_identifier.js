@@ -14,7 +14,10 @@ module.exports = (sequelize, DataTypes) => {
     }
   };
   patient_identifier.init({
-    patient_identifier_id: DataTypes.INTEGER,
+    patient_identifier_id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true
+    },
     patient_id: DataTypes.INTEGER,
     identifier: DataTypes.STRING,
     identifier_type: DataTypes.INTEGER,

@@ -14,7 +14,10 @@ module.exports = (sequelize, DataTypes) => {
     }
   };
   concept_name.init({
-    concept_name_id: DataTypes.INTEGER,
+    concept_name_id:{
+      type: DataTypes.INTEGER,
+      primaryKey: true
+    },
     concept_id: DataTypes.INTEGER,
     name: DataTypes.STRING,
     locale: DataTypes.STRING,

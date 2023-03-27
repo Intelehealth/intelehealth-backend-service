@@ -14,7 +14,10 @@ module.exports = (sequelize, DataTypes) => {
     }
   };
   provider.init({
-    provider_id: DataTypes.INTEGER,
+    provider_id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true
+    },
     person_id: DataTypes.INTEGER,
     name: DataTypes.STRING,
     identifier: DataTypes.STRING,

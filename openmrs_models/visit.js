@@ -13,7 +13,10 @@ module.exports = (sequelize, DataTypes) => {
   }
   visit.init(
     {
-      visit_id: DataTypes.INTEGER,
+      visit_id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true
+      },
       patient_id: DataTypes.INTEGER,
       visit_type_id: DataTypes.INTEGER,
       indication_concept_id: DataTypes.INTEGER,

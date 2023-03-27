@@ -14,7 +14,10 @@ module.exports = (sequelize, DataTypes) => {
     }
   };
   location.init({
-    location_id: DataTypes.INTEGER,
+    location_id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true
+    },
     name: DataTypes.STRING,
     description: DataTypes.STRING,
     address1: DataTypes.STRING,

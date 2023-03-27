@@ -14,7 +14,10 @@ module.exports = (sequelize, DataTypes) => {
     }
   };
   visit_attribute_type.init({
-    visit_attribute_type_id: DataTypes.INTEGER,
+    visit_attribute_type_id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true
+    },
     name: DataTypes.STRING,
     description: DataTypes.STRING,
     datatype: DataTypes.STRING,

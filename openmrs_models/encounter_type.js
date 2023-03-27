@@ -14,7 +14,10 @@ module.exports = (sequelize, DataTypes) => {
     }
   };
   encounter_type.init({
-    encounter_type_id: DataTypes.INTEGER,
+    encounter_type_id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true
+    },
     name: DataTypes.STRING,
     description: DataTypes.TEXT,
     creator: DataTypes.INTEGER,

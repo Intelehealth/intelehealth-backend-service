@@ -14,7 +14,10 @@ module.exports = (sequelize, DataTypes) => {
     }
   };
   encounter_provider.init({
-    encounter_provider_id: DataTypes.INTEGER,
+    encounter_provider_id:{
+      type: DataTypes.INTEGER,
+      primaryKey: true
+    },
     encounter_id: DataTypes.INTEGER,
     provider_id: DataTypes.INTEGER,
     encounter_role_id: DataTypes.INTEGER,

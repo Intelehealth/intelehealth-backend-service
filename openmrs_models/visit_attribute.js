@@ -14,7 +14,10 @@ module.exports = (sequelize, DataTypes) => {
     }
   };
   visit_attribute.init({
-    visit_attribute_id: DataTypes.INTEGER,
+    visit_attribute_id:{
+      type: DataTypes.INTEGER,
+      primaryKey: true
+    },
     visit_id: DataTypes.INTEGER,
     attribute_type_id: DataTypes.INTEGER,
     value_reference: DataTypes.TEXT,

@@ -14,7 +14,10 @@ module.exports = (sequelize, DataTypes) => {
     }
   };
   encounter_role.init({
-    encounter_role_id: DataTypes.INTEGER,
+    encounter_role_id:{
+      type: DataTypes.INTEGER,
+      primaryKey: true
+    },
     name: DataTypes.STRING,
     description: DataTypes.STRING,
     creator: DataTypes.INTEGER,

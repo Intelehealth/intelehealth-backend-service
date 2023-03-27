@@ -14,7 +14,10 @@ module.exports = (sequelize, DataTypes) => {
     }
   };
   concept.init({
-    concept_id: DataTypes.INTEGER,
+    concept_id:{
+      type: DataTypes.INTEGER,
+      primaryKey: true
+    },
     retired: DataTypes.BOOLEAN,
     short_name: DataTypes.STRING,
     description: DataTypes.TEXT,

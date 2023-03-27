@@ -14,20 +14,23 @@ module.exports = (sequelize, DataTypes) => {
     }
   };
   person.init({
-    person_id: DataTypes.INTEGER,
+    person_id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true
+    },
     gender: DataTypes.STRING,
     birthdate: DataTypes.DATE,
     birthdate_estimated: DataTypes.BOOLEAN,
-    dead:DataTypes.BOOLEAN,
+    dead: DataTypes.BOOLEAN,
     death_date: DataTypes.DATE,
-    cause_of_death:DataTypes.INTEGER,
-    creator:DataTypes.INTEGER,
+    cause_of_death: DataTypes.INTEGER,
+    creator: DataTypes.INTEGER,
     date_created: DataTypes.DATE,
-    changed_by:DataTypes.INTEGER,
-    date_changed:DataTypes.DATE,
-    voided:DataTypes.BOOLEAN,
-    voided_by:DataTypes.INTEGER,
-    date_voided:DataTypes.DATE,
+    changed_by: DataTypes.INTEGER,
+    date_changed: DataTypes.DATE,
+    voided: DataTypes.BOOLEAN,
+    voided_by: DataTypes.INTEGER,
+    date_voided: DataTypes.DATE,
     void_reason: DataTypes.STRING,
     uuid: DataTypes.STRING,
     deathdate_estimated: DataTypes.BOOLEAN,
