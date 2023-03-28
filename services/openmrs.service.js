@@ -345,7 +345,6 @@ module.exports = (function () {
       const visits = await visit.findAll({
         where: {
           visit_id: { [Op.notIn]: otherThanAwaiting },
-          "$encounters.encounter_type$": { [Op.in]: [9] },
           voided: false,
         },
         attributes: ["visit_id", "uuid"],
@@ -358,7 +357,7 @@ module.exports = (function () {
               {
                 model: obs,
                 as: "obs",
-                attributes: ["value_text"],
+                attributes: ["value_text", "concept_id"],
               },
               {
                 model: encounter_type,
@@ -436,6 +435,10 @@ module.exports = (function () {
       });
 
       const filteredVisits = visits.filter((visit) => {
+        const visitNote = visit.encounters.find(
+          (enc) => enc?.type?.name === "Visit Note"
+        );
+
         const visitState = visit?.attributes?.find(
           (attr) => attr?.attribute_type?.name === "Visit State"
         );
@@ -444,11 +447,12 @@ module.exports = (function () {
         );
 
         if (state === "All") {
-          return visitSpeciality?.value_reference === speciality;
+          return visitSpeciality?.value_reference === speciality && !!visitNote;
         } else {
           return (
             visitState?.value_reference === state &&
-            visitSpeciality?.value_reference === speciality
+            visitSpeciality?.value_reference === speciality &&
+            !!visitNote
           );
         }
       });
@@ -460,9 +464,27 @@ module.exports = (function () {
 
   this._getCompletedVisits = async (state, speciality) => {
     try {
+      const otherVisitIds = await visit.findAll({
+        required: true,
+        attributes: ["visit_id"],
+        where: {
+          "$encounters.encounter_type$": { [Op.in]: [12, 14] },
+          voided: false,
+        },
+        include: [
+          {
+            required: true,
+            model: encounter,
+            as: "encounters",
+            attributes: ["encounter_type"],
+          },
+        ],
+      });
+
       const visits = await visit.findAll({
         where: {
-          "$encounters.encounter_type$": { [Op.in]: [14] },
+          visit_id: { [Op.notIn]: otherVisitIds },
+          // "$encounters.encounter_type$": { [Op.in]: [14] },
           voided: false,
         },
         attributes: ["visit_id", "uuid"],
@@ -475,17 +497,7 @@ module.exports = (function () {
               {
                 model: obs,
                 as: "obs",
-                attributes: ["value_text"],
-                // where: {
-                //   value_text: { [Op.ne]: null },
-                //   concept_id: 163212,
-                // },
-                // include: [
-                //   {
-                //     model: concept,
-                //     as: "concept",
-                //   },
-                // ],
+                attributes: ["value_text", "concept_id"],
               },
               {
                 model: encounter_type,
@@ -563,6 +575,10 @@ module.exports = (function () {
       });
 
       const filteredVisits = visits.filter((visit) => {
+        const visitCompleted = visit.encounters.find(
+          (enc) => enc?.type?.name === "Visit Complete"
+        );
+
         const visitState = visit?.attributes?.find(
           (attr) => attr?.attribute_type?.name === "Visit State"
         );
@@ -571,11 +587,14 @@ module.exports = (function () {
         );
 
         if (state === "All") {
-          return visitSpeciality?.value_reference === speciality;
+          return (
+            visitSpeciality?.value_reference === speciality && !!visitCompleted
+          );
         } else {
           return (
             visitState?.value_reference === state &&
-            visitSpeciality?.value_reference === speciality
+            visitSpeciality?.value_reference === speciality &&
+            !!visitCompleted
           );
         }
       });
