@@ -8,6 +8,7 @@ const {
   BaselineSurveyPatientsQuery,
 } = require("./queries");
 const { _getStatuses } = require("../services/user.service");
+const { _getAwaitingVisits } = require("../services/openmrs.service");
 
 /**
  * To return the visit counts from the openmrs db using custom query
@@ -219,7 +220,21 @@ const getBaselineSurveyPatients = async (req, res, next) => {
         data,
         success: true,
       });
-    } 
+    }
+  } catch (error) {
+    res.statusCode = 422;
+    res.json({ status: false, message: error.message });
+  }
+};
+
+const getAwaitingVisits = async (req, res, next) => {
+  try {
+    const data = await _getAwaitingVisits();
+    res.json({
+      length: data.length,
+      data,
+      success: true,
+    });
   } catch (error) {
     res.statusCode = 422;
     res.json({ status: false, message: error.message });
@@ -232,4 +247,5 @@ module.exports = {
   getDoctorDetails,
   getDoctorVisits,
   getBaselineSurveyPatients,
+  getAwaitingVisits,
 };
