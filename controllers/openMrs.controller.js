@@ -8,7 +8,12 @@ const {
   BaselineSurveyPatientsQuery,
 } = require("./queries");
 const { _getStatuses } = require("../services/user.service");
-const { _getAwaitingVisits } = require("../services/openmrs.service");
+const {
+  _getAwaitingVisits,
+  _getPriorityVisits,
+  _getInProgressVisits,
+  _getCompletedVisits,
+} = require("../services/openmrs.service");
 
 /**
  * To return the visit counts from the openmrs db using custom query
@@ -244,6 +249,57 @@ const getAwaitingVisits = async (req, res, next) => {
   }
 };
 
+const getPriorityVisits = async (req, res, next) => {
+  try {
+    const data = await _getPriorityVisits(
+      req.query.state,
+      req.query.speciality
+    );
+    res.json({
+      count: data.length,
+      data,
+      success: true,
+    });
+  } catch (error) {
+    res.statusCode = 422;
+    res.json({ status: false, message: error.message });
+  }
+};
+
+const getInProgressVisits = async (req, res, next) => {
+  try {
+    const data = await _getInProgressVisits(
+      req.query.state,
+      req.query.speciality
+    );
+    res.json({
+      count: data.length,
+      data,
+      success: true,
+    });
+  } catch (error) {
+    res.statusCode = 422;
+    res.json({ status: false, message: error.message });
+  }
+};
+
+const getCompletedVisits = async (req, res, next) => {
+  try {
+    const data = await _getCompletedVisits(
+      req.query.state,
+      req.query.speciality
+    );
+    res.json({
+      count: data.length,
+      data,
+      success: true,
+    });
+  } catch (error) {
+    res.statusCode = 422;
+    res.json({ status: false, message: error.message });
+  }
+};
+
 module.exports = {
   getVisitCounts,
   getLocations,
@@ -251,4 +307,7 @@ module.exports = {
   getDoctorVisits,
   getBaselineSurveyPatients,
   getAwaitingVisits,
+  getPriorityVisits,
+  getInProgressVisits,
+  getCompletedVisits,
 };
