@@ -13,6 +13,11 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: "visit_id",
         sourceKey: "visit_id",
       });
+      this.hasMany(models.visit_attribute, {
+        as: "attributes",
+        foreignKey: "visit_id",
+        sourceKey: "visit_id",
+      });
       this.hasOne(models.patient_identifier, {
         as: "patient",
         foreignKey: "patient_id",

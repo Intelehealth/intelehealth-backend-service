@@ -19,6 +19,18 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: "encounter_type_id",
         sourceKey: "encounter_type",
       });
+
+      this.hasOne(models.encounter_provider, {
+        as: "encounter_provider",
+        foreignKey: "encounter_id",
+        sourceKey: "encounter_id",
+      });
+
+      this.hasMany(models.obs, {
+        as: "obs",
+        foreignKey: "encounter_id",
+        sourceKey: "encounter_id",
+      });
     }
   }
   encounter.init(

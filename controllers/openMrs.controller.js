@@ -231,7 +231,7 @@ const getAwaitingVisits = async (req, res, next) => {
   try {
     const data = await _getAwaitingVisits();
     res.json({
-      length: data.length,
+      count: data.length,
       data,
       success: true,
     });

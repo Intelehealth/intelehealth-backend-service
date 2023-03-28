@@ -1,7 +1,5 @@
-'use strict';
-const {
-  Model
-} = require('sequelize');
+"use strict";
+const { Model } = require("sequelize");
 module.exports = (sequelize, DataTypes) => {
   class provider extends Model {
     /**
@@ -11,29 +9,37 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate(models) {
       // define association here
+      this.hasOne(models.person, {
+        as: "person",
+        foreignKey: "person_id",
+        sourceKey: "person_id",
+      });
     }
-  };
-  provider.init({
-    provider_id: {
-      type: DataTypes.INTEGER,
-      primaryKey: true
+  }
+  provider.init(
+    {
+      provider_id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+      },
+      person_id: DataTypes.INTEGER,
+      name: DataTypes.STRING,
+      identifier: DataTypes.STRING,
+      creator: DataTypes.INTEGER,
+      date_created: DataTypes.DATE,
+      changed_by: DataTypes.INTEGER,
+      date_changed: DataTypes.DATE,
+      retired: DataTypes.BOOLEAN,
+      retired_by: DataTypes.INTEGER,
+      date_retired: DataTypes.DATE,
+      retire_reason: DataTypes.STRING,
+      uuid: DataTypes.STRING,
+      provider_role_id: DataTypes.INTEGER,
     },
-    person_id: DataTypes.INTEGER,
-    name: DataTypes.STRING,
-    identifier: DataTypes.STRING,
-    creator: DataTypes.INTEGER,
-    date_created: DataTypes.DATE,
-    changed_by: DataTypes.INTEGER,
-    date_changed: DataTypes.DATE,
-    retired: DataTypes.BOOLEAN,
-    retired_by: DataTypes.INTEGER,
-    date_retired: DataTypes.DATE,
-    retire_reason: DataTypes.STRING,
-    uuid: DataTypes.STRING,
-    provider_role_id: DataTypes.INTEGER
-  }, {
-    sequelize,
-    modelName: 'provider',
-  });
+    {
+      sequelize,
+      modelName: "provider",
+    }
+  );
   return provider;
 };
