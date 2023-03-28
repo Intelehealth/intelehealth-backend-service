@@ -8,6 +8,7 @@ const {
   person,
   provider,
   concept,
+  location,
   visit_attribute,
   visit_attribute_type,
   obs,
@@ -132,6 +133,15 @@ module.exports = (function () {
             model: person,
             as: "person",
             attributes: ["uuid", "gender", "birthdate"],
+          },
+          {
+            model: location,
+            as: "location",
+            attributes: [
+              "name",
+              ["city_village", "village"],
+              ["state_province", "state"],
+            ],
           },
         ],
       });

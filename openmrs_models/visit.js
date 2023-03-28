@@ -33,6 +33,11 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: "person_id",
         sourceKey: "patient_id",
       });
+      this.hasOne(models.location, {
+        as: "location",
+        foreignKey: "location_id",
+        sourceKey: "location_id",
+      });
     }
   }
   visit.init(
