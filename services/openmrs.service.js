@@ -154,10 +154,14 @@ module.exports = (function () {
           (attr) => attr?.attribute_type?.name === "Visit Speciality"
         );
 
-        return (
-          visitState?.value_reference === state &&
-          visitSpeciality?.value_reference === speciality
-        );
+        if (state === "All") {
+          return visitSpeciality?.value_reference === speciality;
+        } else {
+          return (
+            visitState?.value_reference === state &&
+            visitSpeciality?.value_reference === speciality
+          );
+        }
       });
       return filteredVisits;
     } catch (error) {
