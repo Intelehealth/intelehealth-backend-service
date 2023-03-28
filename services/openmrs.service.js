@@ -463,7 +463,7 @@ module.exports = (function () {
     try {
       const visits = await visit.findAll({
         where: {
-          "$encounters.encounter_type$": { [Op.in]: [14, 15] },
+          "$encounters.encounter_type$": { [Op.in]: [14] },
           voided: false,
         },
         attributes: ["visit_id", "uuid"],
