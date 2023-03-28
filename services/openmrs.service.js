@@ -48,7 +48,6 @@ module.exports = (function () {
       const otherThanAwaiting = otherVisitIds.map((visit) => visit?.visit_id);
 
       const visits = await visit.findAll({
-        required: true,
         where: {
           visit_id: { [Op.notIn]: otherThanAwaiting },
           voided: false,
@@ -200,10 +199,8 @@ module.exports = (function () {
       const otherThanAwaiting = otherVisitIds.map((visit) => visit?.visit_id);
 
       const visits = await visit.findAll({
-        required: true,
         where: {
           visit_id: { [Op.notIn]: otherThanAwaiting },
-          "$encounters.encounter_type$": { [Op.in]: [15] },
           voided: false,
         },
         attributes: ["visit_id", "uuid"],
@@ -216,7 +213,7 @@ module.exports = (function () {
               {
                 model: obs,
                 as: "obs",
-                // attributes: ["value_text"],
+                attributes: ["value_text", "concept_id"],
                 // where: {
                 //   value_text: { [Op.ne]: null },
                 //   concept_id: 163212,
@@ -256,13 +253,11 @@ module.exports = (function () {
             ],
           },
           {
-            required: true,
             model: visit_attribute,
             as: "attributes",
             attributes: ["value_reference"],
             include: [
               {
-                required: true,
                 model: visit_attribute_type,
                 as: "attribute_type",
                 attributes: ["name"],
@@ -300,6 +295,9 @@ module.exports = (function () {
       });
 
       const filteredVisits = visits.filter((visit) => {
+        const priority = visit.encounters.find(
+          (enc) => enc?.type?.name === "Flagged"
+        );
         const visitState = visit?.attributes?.find(
           (attr) => attr?.attribute_type?.name === "Visit State"
         );
@@ -308,15 +306,16 @@ module.exports = (function () {
         );
 
         if (state === "All") {
-          return visitSpeciality?.value_reference === speciality;
+          return visitSpeciality?.value_reference === speciality && !!priority;
         } else {
           return (
             visitState?.value_reference === state &&
-            visitSpeciality?.value_reference === speciality
+            visitSpeciality?.value_reference === speciality &&
+            !!priority
           );
         }
       });
-      return visits;
+      return filteredVisits;
     } catch (error) {
       throw error;
     }
