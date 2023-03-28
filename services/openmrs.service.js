@@ -328,7 +328,7 @@ module.exports = (function () {
         required: true,
         attributes: ["visit_id"],
         where: {
-          "$encounters.encounter_type$": { [Op.in]: [12, 15] },
+          "$encounters.encounter_type$": { [Op.in]: [12, 14] },
           voided: false,
         },
         include: [
@@ -344,15 +344,14 @@ module.exports = (function () {
       const otherThanAwaiting = otherVisitIds.map((visit) => visit?.visit_id);
 
       const visits = await visit.findAll({
-        required: true,
         where: {
           visit_id: { [Op.notIn]: otherThanAwaiting },
+          "$encounters.encounter_type$": { [Op.in]: [9] },
           voided: false,
         },
         attributes: ["visit_id", "uuid"],
         include: [
           {
-            required: true,
             model: encounter,
             as: "encounters",
             attributes: ["encounter_datetime"],
@@ -361,25 +360,13 @@ module.exports = (function () {
                 model: obs,
                 as: "obs",
                 attributes: ["value_text"],
-                where: {
-                  value_text: { [Op.ne]: null },
-                  concept_id: 163212,
-                },
-                // include: [
-                //   {
-                //     model: concept,
-                //     as: "concept",
-                //   },
-                // ],
               },
               {
-                required: true,
                 model: encounter_type,
                 as: "type",
                 attributes: ["name"],
               },
               {
-                required: true,
                 model: encounter_provider,
                 as: "encounter_provider",
                 attributes: ["uuid"],
@@ -408,13 +395,11 @@ module.exports = (function () {
             ],
           },
           {
-            required: true,
             model: visit_attribute,
             as: "attributes",
             attributes: ["value_reference"],
             include: [
               {
-                required: true,
                 model: visit_attribute_type,
                 as: "attribute_type",
                 attributes: ["name"],
@@ -476,35 +461,14 @@ module.exports = (function () {
 
   this._getCompletedVisits = async (state, speciality) => {
     try {
-      const otherVisitIds = await visit.findAll({
-        required: true,
-        attributes: ["visit_id"],
-        where: {
-          "$encounters.encounter_type$": { [Op.in]: [9, 12, 15] },
-          voided: false,
-        },
-        include: [
-          {
-            required: true,
-            model: encounter,
-            as: "encounters",
-            attributes: ["encounter_type"],
-          },
-        ],
-      });
-
-      const otherThanAwaiting = otherVisitIds.map((visit) => visit?.visit_id);
-
       const visits = await visit.findAll({
-        required: true,
         where: {
-          visit_id: { [Op.notIn]: otherThanAwaiting },
+          "$encounters.encounter_type$": { [Op.in]: [14, 15] },
           voided: false,
         },
         attributes: ["visit_id", "uuid"],
         include: [
           {
-            required: true,
             model: encounter,
             as: "encounters",
             attributes: ["encounter_datetime"],
@@ -513,10 +477,10 @@ module.exports = (function () {
                 model: obs,
                 as: "obs",
                 attributes: ["value_text"],
-                where: {
-                  value_text: { [Op.ne]: null },
-                  concept_id: 163212,
-                },
+                // where: {
+                //   value_text: { [Op.ne]: null },
+                //   concept_id: 163212,
+                // },
                 // include: [
                 //   {
                 //     model: concept,
@@ -525,13 +489,11 @@ module.exports = (function () {
                 // ],
               },
               {
-                required: true,
                 model: encounter_type,
                 as: "type",
                 attributes: ["name"],
               },
               {
-                required: true,
                 model: encounter_provider,
                 as: "encounter_provider",
                 attributes: ["uuid"],
@@ -560,13 +522,11 @@ module.exports = (function () {
             ],
           },
           {
-            required: true,
             model: visit_attribute,
             as: "attributes",
             attributes: ["value_reference"],
             include: [
               {
-                required: true,
                 model: visit_attribute_type,
                 as: "attribute_type",
                 attributes: ["name"],
