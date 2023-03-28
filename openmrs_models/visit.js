@@ -23,6 +23,11 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: "patient_id",
         sourceKey: "patient_id",
       });
+      this.hasOne(models.person, {
+        as: "person",
+        foreignKey: "person_id",
+        sourceKey: "patient_id",
+      });
       this.hasOne(models.person_name, {
         as: "patient_name",
         foreignKey: "person_id",

@@ -16,11 +16,11 @@ const {
 const Op = Sequelize.Op;
 
 module.exports = (function () {
-  this._getAwaitingVisits = async (data) => {
+  this._getAwaitingVisits = async (state, speciality) => {
     try {
       const otherVisitIds = await visit.findAll({
         required: true,
-        attributes: ["visit_id", "uuid"],
+        attributes: ["visit_id"],
         where: {
           "$encounters.encounter_type$": { [Op.in]: [9, 12, 15] },
           voided: false,
@@ -37,7 +37,7 @@ module.exports = (function () {
 
       const otherThanAwaiting = otherVisitIds.map((visit) => visit?.visit_id);
 
-      return await visit.findAll({
+      const visits = await visit.findAll({
         required: true,
         where: {
           visit_id: { [Op.notIn]: otherThanAwaiting },
@@ -57,6 +57,7 @@ module.exports = (function () {
                 attributes: ["value_text"],
                 where: {
                   value_text: { [Op.ne]: null },
+                  concept_id: 163212,
                 },
                 // include: [
                 //   {
@@ -101,29 +102,54 @@ module.exports = (function () {
             ],
           },
           {
+            required: true,
             model: visit_attribute,
             as: "attributes",
             attributes: ["value_reference"],
             include: [
               {
+                required: true,
                 model: visit_attribute_type,
                 as: "attribute_type",
                 attributes: ["name"],
+                where: {
+                  name: { [Op.in]: ["Visit State", "Visit Speciality"] },
+                },
               },
             ],
           },
           {
             model: patient_identifier,
             as: "patient",
-            attributes: ["identifier", "uuid"],
+            attributes: ["identifier"],
           },
           {
             model: person_name,
             as: "patient_name",
             attributes: ["given_name", "family_name"],
           },
+          {
+            model: person,
+            as: "person",
+            attributes: ["uuid", "gender", "birthdate"],
+          },
         ],
       });
+
+      const filteredVisits = visits.filter((visit) => {
+        const visitState = visit?.attributes?.find(
+          (attr) => attr?.attribute_type?.name === "Visit State"
+        );
+        const visitSpeciality = visit?.attributes?.find(
+          (attr) => attr?.attribute_type?.name === "Visit Speciality"
+        );
+
+        return (
+          visitState?.value_reference === state &&
+          visitSpeciality?.value_reference === speciality
+        );
+      });
+      return filteredVisits;
     } catch (error) {
       throw error;
     }

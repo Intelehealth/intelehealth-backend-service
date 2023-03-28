@@ -229,7 +229,10 @@ const getBaselineSurveyPatients = async (req, res, next) => {
 
 const getAwaitingVisits = async (req, res, next) => {
   try {
-    const data = await _getAwaitingVisits();
+    const data = await _getAwaitingVisits(
+      req.query.state,
+      req.query.speciality
+    );
     res.json({
       count: data.length,
       data,
