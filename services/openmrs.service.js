@@ -152,6 +152,7 @@ module.exports = (function () {
             ],
           },
         ],
+        order: [["visit_id", "DESC"]],
       });
 
       const filteredVisits = visits.filter((visit) => {
@@ -292,6 +293,7 @@ module.exports = (function () {
             ],
           },
         ],
+        order: [["visit_id", "DESC"]],
       });
 
       const filteredVisits = visits.filter((visit) => {
@@ -432,6 +434,7 @@ module.exports = (function () {
             ],
           },
         ],
+        order: [["visit_id", "DESC"]],
       });
 
       const filteredVisits = visits.filter((visit) => {
@@ -572,6 +575,7 @@ module.exports = (function () {
             ],
           },
         ],
+        order: [["visit_id", "DESC"]],
       });
 
       const filteredVisits = visits.filter((visit) => {
