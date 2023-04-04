@@ -236,7 +236,8 @@ const getAwaitingVisits = async (req, res, next) => {
   try {
     const data = await _getAwaitingVisits(
       req.query.state,
-      req.query.speciality
+      req.query.speciality,
+      req.query.page
     );
     res.json({
       count: data.length,
@@ -253,7 +254,8 @@ const getPriorityVisits = async (req, res, next) => {
   try {
     const data = await _getPriorityVisits(
       req.query.state,
-      req.query.speciality
+      req.query.speciality,
+      req.query.page
     );
     res.json({
       count: data.length,
@@ -270,7 +272,8 @@ const getInProgressVisits = async (req, res, next) => {
   try {
     const data = await _getInProgressVisits(
       req.query.state,
-      req.query.speciality
+      req.query.speciality,
+      req.query.page
     );
     res.json({
       count: data.length,
@@ -287,7 +290,8 @@ const getCompletedVisits = async (req, res, next) => {
   try {
     const data = await _getCompletedVisits(
       req.query.state,
-      req.query.speciality
+      req.query.speciality,
+      req.query.page
     );
     res.json({
       count: data.length,

@@ -17,7 +17,7 @@ let sequelize = new Sequelize("openmrs", config.username, config.password, {
   pool: {
     max: 5,
     min: 0,
-    idle: 10000,
+    idle: 5000,
   },
 });
 
