@@ -19,6 +19,7 @@ let sequelize = new Sequelize("openmrs", config.username, config.password, {
     min: 0,
     idle: 5000,
   },
+  logging: false,
 });
 
 fs.readdirSync(__dirname)
