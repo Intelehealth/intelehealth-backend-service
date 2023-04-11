@@ -8,6 +8,12 @@ const {
   BaselineSurveyPatientsQuery,
 } = require("./queries");
 const { _getStatuses } = require("../services/user.service");
+const {
+  _getAwaitingVisits,
+  _getPriorityVisits,
+  _getInProgressVisits,
+  _getCompletedVisits,
+} = require("../services/openmrs.service");
 
 /**
  * To return the visit counts from the openmrs db using custom query
@@ -219,7 +225,79 @@ const getBaselineSurveyPatients = async (req, res, next) => {
         data,
         success: true,
       });
-    } 
+    }
+  } catch (error) {
+    res.statusCode = 422;
+    res.json({ status: false, message: error.message });
+  }
+};
+
+const getAwaitingVisits = async (req, res, next) => {
+  try {
+    const data = await _getAwaitingVisits(
+      req.query.state,
+      req.query.speciality,
+      req.query.page
+    );
+    res.json({
+      count: data.length,
+      data,
+      success: true,
+    });
+  } catch (error) {
+    res.statusCode = 422;
+    res.json({ status: false, message: error.message });
+  }
+};
+
+const getPriorityVisits = async (req, res, next) => {
+  try {
+    const data = await _getPriorityVisits(
+      req.query.state,
+      req.query.speciality,
+      req.query.page
+    );
+    res.json({
+      count: data.length,
+      data,
+      success: true,
+    });
+  } catch (error) {
+    res.statusCode = 422;
+    res.json({ status: false, message: error.message });
+  }
+};
+
+const getInProgressVisits = async (req, res, next) => {
+  try {
+    const data = await _getInProgressVisits(
+      req.query.state,
+      req.query.speciality,
+      req.query.page
+    );
+    res.json({
+      count: data.length,
+      data,
+      success: true,
+    });
+  } catch (error) {
+    res.statusCode = 422;
+    res.json({ status: false, message: error.message });
+  }
+};
+
+const getCompletedVisits = async (req, res, next) => {
+  try {
+    const data = await _getCompletedVisits(
+      req.query.state,
+      req.query.speciality,
+      req.query.page
+    );
+    res.json({
+      count: data.length,
+      data,
+      success: true,
+    });
   } catch (error) {
     res.statusCode = 422;
     res.json({ status: false, message: error.message });
@@ -232,4 +310,8 @@ module.exports = {
   getDoctorDetails,
   getDoctorVisits,
   getBaselineSurveyPatients,
+  getAwaitingVisits,
+  getPriorityVisits,
+  getInProgressVisits,
+  getCompletedVisits,
 };
