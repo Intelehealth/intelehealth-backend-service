@@ -3,8 +3,13 @@ const {
   getMessages,
   postSMSToMobileNumber,
 } = require("../services/message.service");
-const { validateParams, log, getFirebaseAdmin } = require("../handlers/helper");
-const { user_settings } = require("../models");
+const {
+  validateParams,
+  log,
+  getFirebaseAdmin,
+  sendWebPushNotificaion,
+} = require("../handlers/helper");
+const { user_settings, pushnotification } = require("../models");
 const env = process.env.NODE_ENV || "development";
 const config = require(__dirname + "/../config/config.json")[env];
 
@@ -48,29 +53,44 @@ module.exports = (function () {
             }
           }
         }
-        let notificationResponse = "";
-        if (!isLiveMessageSent) {
-          const userSetting = await user_settings.findOne({
-            where: { user_uuid: toUser },
-          });
-          if (userSetting && userSetting.device_reg_token) {
-            notificationResponse = await sendCloudNotification({
-              title: "New chat message",
-              body: message,
-              data: {
-                ...req.body,
-                actionType: "TEXT_CHAT",
-              },
-              regTokens: [userSetting.device_reg_token],
-            }).catch((err) => {
-              log("err: ", err);
-            });
-          }
-        }
-
         try {
+          let notificationResponse = "";
+          if (!isLiveMessageSent) {
+            const userSetting = await user_settings.findOne({
+              where: { user_uuid: toUser },
+            });
+            if (userSetting && userSetting.device_reg_token) {
+              notificationResponse = await sendCloudNotification({
+                title: "New chat message",
+                body: message,
+                data: {
+                  ...req.body,
+                  actionType: "TEXT_CHAT",
+                },
+                regTokens: [userSetting.device_reg_token],
+              }).catch((err) => {
+                log("err: ", err);
+              });
+            }
+          }
+
           await textChatRef.update({
             [req.body.visitId]: req.body,
+          });
+
+          const devices = await pushnotification.findAll({
+            where: { user_uuid: toUser },
+          });
+          devices.forEach(async (device) => {
+            sendWebPushNotificaion({
+              webpush_obj: device.notification_object,
+              title: "New chat message",
+              body: message,
+              options: {
+                TTL: "3600000",
+              },
+              isObject: true,
+            });
           });
         } catch (error) {
           console.log("error: ", error);

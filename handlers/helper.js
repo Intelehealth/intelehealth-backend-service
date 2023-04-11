@@ -46,10 +46,11 @@ module.exports = (function () {
     title,
     body,
     options = {},
+    isObject = false,
   }) => {
     await webpush
       .sendNotification(
-        JSON.parse(webpush_obj),
+        isObject ? webpush_obj : JSON.parse(webpush_obj),
         JSON.stringify({
           notification: {
             title,
