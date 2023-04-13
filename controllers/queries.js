@@ -84,7 +84,7 @@ from
             LEFT JOIN visit_attribute va using (visit_id)
         where
             v.voided = 0
-            -- and date_stopped is null
+            and date_stopped is null
             and e.voided = 0
         group by
             v.visit_id,
@@ -157,7 +157,7 @@ from
             LEFT JOIN visit_attribute va on (va.visit_id= v.visit_id and va.voided = 0 and va.attribute_type_id = 5)
         where
             v.voided = 0
-            -- and date_stopped is null
+            and date_stopped is null
             and e.voided = 0
         group by
             v.visit_id,
