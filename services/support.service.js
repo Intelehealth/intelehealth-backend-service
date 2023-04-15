@@ -1,5 +1,6 @@
 const openMrsDB = require("../public/javascripts/mysql/mysqlOpenMrs");
-const { supportmessages, Sequelize } = require("../models");
+const { supportmessages, Sequelize, sequelize } = require("../models");
+const { QueryTypes } = require('sequelize');
 
 module.exports = (function () {
 
@@ -172,7 +173,6 @@ module.exports = (function () {
                         [Sequelize.fn("DISTINCT", Sequelize.col("from")), "from"],
                         [Sequelize.fn("max", Sequelize.col("id")), "id"],
                         "from",
-                        [Sequelize.fn("max", Sequelize.col("message")), "message"],
                         [Sequelize.fn("max", Sequelize.col("createdAt")), "createdAt"],
                     ],
                     where: {
@@ -183,6 +183,8 @@ module.exports = (function () {
                     order: [[Sequelize.col("createdAt"), "DESC"]],
                     raw: true
                 });
+
+                const unreadcount = await sequelize.query("SELECT COUNT(sm.message) AS unread, sm.from FROM supportmessages sm WHERE sm.to = 'System Administrator' AND sm.isRead = 0  GROUP BY sm.from", { type: QueryTypes.SELECT });
 
                 const query = "SELECT u.uuid AS userUuid, p.uuid AS personUuid, CONCAT(pn.given_name, ' ', pn.middle_name, ' ', pn.family_name) AS doctorName FROM users u LEFT JOIN person p ON p.person_id = u.person_id LEFT JOIN person_name pn ON pn.person_id = u.person_id WHERE u.uuid IN ('" + data.map(d => d.from).join("','") + "') AND pn.preferred = 1 AND u.retired = 0";
                 const queryResult = await new Promise((resolve, reject) => {
@@ -196,7 +198,8 @@ module.exports = (function () {
                 let doctorList = [];
                 for (const chat of data) {
                     const m = queryResult.find(d => chat.from == d.userUuid);
-                    doctorList.push({ ...chat, ...m });
+                    const c = unreadcount.find(d => chat.from == d.from);
+                    doctorList.push({ ...chat, ...m, unread: (c?.unread)?c?.unread : 0 });
                 }
                 return {
                     code: 200,
