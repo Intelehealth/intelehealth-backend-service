@@ -86,11 +86,13 @@ module.exports = (function () {
                 const toUser = message[0].to;
                 const fromUser = message[0].from;
                 const systemAdministrators = (await this.getSystemAdministrators()).map(u => u.uuid);
+                const unreadcount = await sequelize.query("SELECT COUNT(sm.message) AS unread FROM supportmessages sm WHERE sm.to = 'System Administrator' AND sm.isRead = 0", { type: QueryTypes.SELECT });
                 for (const key in users) {
                     if (Object.hasOwnProperty.call(users, key)) {
                         const user = users[key];
                         if (user && systemAdministrators.concat([fromUser, toUser]).includes(user.uuid)) {
                             io.to(key).emit("isreadSupport", { msgTo: toUser, msgFrom: fromUser });
+                            io.to(key).emit("adminUnreadCount", unreadcount[0].unread);
                         }
                     }
                 }

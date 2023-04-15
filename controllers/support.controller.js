@@ -6,6 +6,8 @@ const {
     getSystemAdministrators,
     getDoctorsList
 } = require("../services/support.service");
+const { sequelize } = require("../models");
+const { QueryTypes } = require('sequelize');
 
 module.exports = (function () {
     /**
@@ -21,6 +23,7 @@ module.exports = (function () {
                 const messages = await getMessages(from, to);
                 if (data.data.dataValues.to == 'System Administrator') {
                     const systemAdministrators = (await getSystemAdministrators()).map(u => u.uuid);
+                    const unreadcount = await sequelize.query("SELECT COUNT(sm.message) AS unread FROM supportmessages sm WHERE sm.to = 'System Administrator' AND sm.isRead = 0", { type: QueryTypes.SELECT });
                     for (const key in users) {
                         if (Object.hasOwnProperty.call(users, key)) {
                             const user = users[key];
@@ -29,6 +32,7 @@ module.exports = (function () {
                                     data.data.dataValues.createdAt = new Date(data.data.dataValues.createdAt).toGMTString();
                                     data.data.dataValues.allMessages = messages.data;
                                     io.to(key).emit("supportMessage", data.data);
+                                    io.to(key).emit("adminUnreadCount", unreadcount[0].unread);
                                 }
                             }
                         }
