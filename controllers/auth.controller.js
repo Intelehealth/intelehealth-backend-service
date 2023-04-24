@@ -3,6 +3,7 @@ const {
   requestOtp,
   verfifyOtp,
   resetPassword,
+  checkProviderAttribute
 } = require("../services/auth.service");
 
 module.exports = (function () {
@@ -181,6 +182,67 @@ module.exports = (function () {
       rememberme: req.session.rememberme,
       userUuid: req.session.userUuid,
     });
+  };
+
+  /**
+   * Check if provider attribute phoneNumber/emailId value already exists or not
+   * @param {*} req
+   * @param {*} res
+   */
+  this.checkProviderAttribute = async (req, res) => {
+    try {
+      const {
+        attributeType,
+        attributeValue,
+        providerUuid,
+      } = req.body;
+      if (attributeType && attributeValue && providerUuid) {
+        if (!['emailId','phoneNumber'].includes(attributeType)) {
+          RES(
+              res,
+              {
+                success: false,
+                message: "Bad request! Attribute type should be emailId/phoneNumber.",
+                data: null,
+              },
+              400
+          );
+        }
+        const data = await checkProviderAttribute(
+          attributeType,
+          attributeValue,
+          providerUuid
+        );
+        RES(
+          res,
+          {
+            success: data.success,
+            message: data.message,
+            data: data.data,
+          },
+          data.code
+        );
+      } else {
+        RES(
+          res,
+          {
+            success: false,
+            message: "Bad request! Invalid arguments.",
+            data: null,
+          },
+          400
+        );
+      }
+    } catch (error) {
+      if (error.code === null || error.code === undefined) {
+        error.code = 500;
+      }
+      RES(
+        res,
+        { success: false, data: error.data, message: error.message },
+        error.code
+      );
+    }
   };
 
   return this;
