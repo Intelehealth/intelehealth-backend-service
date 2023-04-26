@@ -43,13 +43,15 @@ module.exports = (function () {
 
   this.getVisitCountQueryForGp = () => {
     return `select
-    count(t1.patient_id) as Total,
+    count(t1.visit_id) as Total,
     case
-        when (
-            encounter_type = 14
-            or encounter_type = 12
-            or com_enc = 1
+		when (
+            sas_enc = 1
         ) then "Completed Visit"
+        when (
+            encounter_type = 12
+            or com_enc = 1
+        ) then "ended_visits"
         when (encounter_type = 9) then "Visit In Progress"
         when (encounter_type) = 15 then "Priority"
         when (
@@ -74,6 +76,12 @@ from
             ) as com_enc,
             max(
                 case
+                    when (encounter_type in (14) ) then 1
+                    else 0
+                end
+            ) as sas_enc,
+            max(
+                case
                     when attribute_type_id = 5 then value_reference
                     else null
                 end
@@ -81,10 +89,10 @@ from
         from
             visit v
             LEFT JOIN encounter e using (visit_id)
-            LEFT JOIN visit_attribute va using (visit_id)
+            LEFT JOIN visit_attribute va on (va.visit_id= v.visit_id and va.voided = 0 and va.attribute_type_id = 5)
         where
             v.voided = 0
-            and date_stopped is null
+            -- and date_stopped is null
             and e.voided = 0
         group by
             v.visit_id,
@@ -95,14 +103,15 @@ where
     and (
         speciality is null
         or speciality = 'General Physician'
-    )
-group by
-    case
-        when (
-            encounter_type = 14
-            or encounter_type = 12
-            or com_enc = 1
+    )   
+ group by case
+		when (
+            sas_enc = 1
         ) then "Completed Visit"
+        when (
+            encounter_type = 12
+            or com_enc = 1
+        ) then "ended_visits"
         when (encounter_type = 9) then "Visit In Progress"
         when (encounter_type) = 15 then "Priority"
         when (
@@ -111,7 +120,8 @@ group by
                 or encounter_type = 6
             )
         ) then "Awaiting Consult"
-    end;`;
+    end
+order by 2;`;
   };
 
   this.getVisitCountV2 = () => {
