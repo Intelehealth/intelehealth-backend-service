@@ -112,8 +112,8 @@ module.exports = (function () {
             as: "attributes",
             attributes: ["value_reference", "attribute_type_id"],
             where: {
-              attribute_type_id: { [Op.in]: [5, 6] },
-              value_reference: { [Op.in]: value_reference },
+              attribute_type_id: { [Op.in]: [5, 6, 8] },
+              // value_reference: { [Op.in]: value_reference },
             },
           },
           {
