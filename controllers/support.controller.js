@@ -1,4 +1,7 @@
 const { RES } = require("../handlers/helper");
+const { sendNotification, getSubscriptions } = require("../handlers/web-push");
+const { user_settings } = require("../models");
+
 const {
     sendMessage,
     readMessage,
@@ -6,7 +9,7 @@ const {
     getSystemAdministrators,
     getDoctorsList
 } = require("../services/support.service");
-const { sequelize } = require("../models");
+const { Sequelize, sequelize } = require("../models");
 const { QueryTypes } = require('sequelize');
 
 module.exports = (function () {
@@ -37,6 +40,26 @@ module.exports = (function () {
                             }
                         }
                     }
+
+                    // Send push notification
+                    const uss = await user_settings.findAll({
+                        where: {
+                            user_uuid: { [Sequelize.Op.in]: systemAdministrators },
+                        },
+                    });
+                    if (uss.length) {
+                        uss.forEach(async (us) => {
+                            if (us && us?.notification) {
+                                const subscriptions = await getSubscriptions(us.user_uuid);
+                                if (subscriptions.length) {
+                                    subscriptions.forEach(async (sub) => {
+                                        await sendNotification(JSON.parse(sub.notification_object), 'Hey! You got new chat message for support', message);
+                                    });
+                                }
+                            }
+                        });
+                    }
+                    
                 } else {
                     for (const key in users) {
                         if (Object.hasOwnProperty.call(users, key)) {
@@ -48,8 +71,23 @@ module.exports = (function () {
                           }
                         }
                     }
+
+                    // Send push notification
+                    const us = await user_settings.findOne({
+                        where: {
+                            user_uuid: to,
+                        },
+                    });
+                    if (us && us?.notification) {
+                        const subscriptions = await getSubscriptions(us.user_uuid);
+                        if (subscriptions.length) {
+                            subscriptions.forEach(async (sub) => {
+                                await sendNotification(JSON.parse(sub.notification_object), 'Hey! You got new chat message from support', message);
+                            });
+                        }
+                    }
                 }
-                
+
                 RES(
                     res,
                     {
