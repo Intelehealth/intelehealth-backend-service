@@ -1,8 +1,19 @@
-const { sendCloudNotification } = require("./helper");
 const { user_settings } = require("../models");
+const { log, generateUUID, getFirebaseAdmin } = require("./helper");
+const env = process.env.NODE_ENV || "development";
+const config = require(__dirname + "/../config/config.json")[env];
 
 module.exports = function (server) {
+  const admin = getFirebaseAdmin();
+
+  const db = admin.database();
+  const DB_NAME = `${config.domain.replace(/\./g, "_")}/rtc_notify`;
+  log("DB_NAME:>>>>>>> ", DB_NAME);
+
+  const rtcNotifyRef = db.ref(DB_NAME);
   const io = require("socket.io")(server);
+
+  io.origins("*:*");
   global.users = {};
   io.on("connection", (socket) => {
     if (!users[socket.id]) {
@@ -12,14 +23,14 @@ module.exports = function (server) {
         name: socket.handshake.query.name,
       };
     }
-    console.log("socket: >>>>>", socket.handshake.query.userId);
+    log("socket: >>>>>", socket.handshake.query.userId);
 
     socket.emit("myId", socket.id);
 
     io.sockets.emit("allUsers", users);
 
     socket.on("disconnect", () => {
-      console.log("disconnected:>> ", socket.id);
+      log("disconnected:>> ", socket.id);
       delete users[socket.id];
       io.sockets.emit("allUsers", users);
     });
@@ -31,6 +42,7 @@ module.exports = function (server) {
     }
 
     socket.on("create or join", function (room) {
+      log("room: ", room);
       log("Received request to create or join room " + room);
 
       var clientsInRoom = io.sockets.adapter.rooms[room];
@@ -43,17 +55,25 @@ module.exports = function (server) {
         io.sockets.in(room).emit("message", message);
       });
 
-      socket.on("bye", function (data) {
-        console.log("received bye");
+      socket.on("bye", async function (data) {
+        const nurseId = data && data.nurseId;
+        log("received bye");
         io.sockets.in(room).emit("message", "bye");
         io.sockets.in(room).emit("bye");
         io.sockets.emit("log", ["received bye", data]);
+        if (nurseId) {
+          await rtcNotifyRef
+            .child(nurseId)
+            .child("VIDEO_CALL")
+            .child("callEnded")
+            .set(true);
+        }
       });
 
       socket.on("no_answer", function (data) {
-        console.log("no_answer");
+        log("no_answer");
         io.sockets.in(room).emit("bye");
-        io.sockets.emit("log", ["no_answer", data]);
+        io.sockets.in(room).emit("log", ["no_answer", data]);
       });
 
       if (numClients === 0) {
@@ -71,7 +91,8 @@ module.exports = function (server) {
       }
     });
     socket.on("call", async function (dataIds) {
-      const { nurseId } = dataIds;
+      const { nurseId, doctorName, roomId } = dataIds;
+      log("dataIds: ", dataIds);
       let isCalling = false;
       for (const socketId in users) {
         if (Object.hasOwnProperty.call(users, socketId)) {
@@ -82,27 +103,45 @@ module.exports = function (server) {
           }
         }
       }
+      let data = "";
       if (!isCalling) {
-        const data = await user_settings.findOne({
-          where: { user_uuid: nurseId },
-        });
-        if (data && data.device_reg_token) {
-          const response = await sendCloudNotification({
-            title: "Incoming call",
-            body: "Doctor is trying to call you.",
-            data: { ...dataIds, actionType: "VIDEO_CALL" },
-            regTokens: [data.device_reg_token],
-          }).catch((err) => {
-            console.log("err: ", err);
-          });
-          io.sockets.emit("log", ["notification response", response, data]);
-        } else {
-          io.sockets.emit("log", [
-            `data/device reg token not found in db for ${nurseId}`,
-            data,
-          ]);
-        }
+        const room = roomId;
+        setTimeout(() => {
+          var clientsInRoom = io.sockets.adapter.rooms[room];
+          var numClients = clientsInRoom
+            ? Object.keys(clientsInRoom.sockets).length
+            : 0;
+
+          if (numClients < 2) {
+            socket.emit("toast", {
+              duration: 2000,
+              message:
+                "Not able to reach the health worker at this moment. Please try again after sometime.",
+            });
+          }
+        }, 10000);
       }
+
+      data = await user_settings.findOne({
+        where: { user_uuid: nurseId },
+      });
+      log(nurseId, "----<<>>>");
+
+      await rtcNotifyRef.update({
+        [nurseId]: {
+          VIDEO_CALL: {
+            id: generateUUID(),
+            ...dataIds,
+            callEnded: false,
+            doctorName,
+            nurseId,
+            roomId,
+            timestamp: Date.now(),
+            device_token:
+              data && data.device_reg_token ? data.device_reg_token : "",
+          },
+        },
+      });
     });
 
     socket.on("ipaddr", function () {

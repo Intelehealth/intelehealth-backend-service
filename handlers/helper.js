@@ -1,11 +1,21 @@
-const gcm = require("node-gcm");
 const mysql = require("../public/javascripts/mysql/mysql");
 const webpush = require("web-push");
+const admin = require("firebase-admin");
+const env = process.env.NODE_ENV || "development";
+const config = require(__dirname + "/../config/config.json")[env];
+
+const serviceAccount = require(__dirname + "/../config/serviceAccountKey.json");
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL:
+    "https://nashik-arogya-sampada-master-default-rtdb.asia-southeast1.firebasedatabase.app",
+});
 
 module.exports = (function () {
   const vapidKeys = {
     publicKey:
-    "BJPw_8oVG_SU7Tyfj-Od3zhgMmfC3ElvKLG37iYJhWtWElqz929WWLkZjR410YkA4cywJF7K0QwOGWWLWw03MPY",
+      "BJPw_8oVG_SU7Tyfj-Od3zhgMmfC3ElvKLG37iYJhWtWElqz929WWLkZjR410YkA4cywJF7K0QwOGWWLWw03MPY",
     privateKey: "d0oUbsVoSXowtzvit3VsMC_VKLvcMkdVVeyegdqxauU",
     mailTo: "mailto:support@intelehealth.org",
   };
@@ -60,16 +70,12 @@ module.exports = (function () {
     icon = "ic_launcher",
     data = {},
     regTokens,
-    android = {},
-    webpush = {},
-    apns = {},
     click_action = "FCM_PLUGIN_HOME_ACTIVITY",
   }) => {
-    var sender = new gcm.Sender(
-      "AAAAteo0mXw:APA91bHKDO9T4O2sbk_sjYRkabN8F8MR0Gegv5H-Pa7VR-zoGp5GeYTztpac96Awy2F5FT0c09PZM5ryv2yXEcGZy8zwkQmujtJgMXDlHBjUcM0vDFHbOAK4SZ8jKDMzz-OGzm5TzfA0"
-    );
+    const admin = this.getFirebaseAdmin();
+    const messaging = admin.messaging();
 
-    var message = new gcm.Message({
+    var payload = {
       data,
       notification: {
         title,
@@ -77,39 +83,20 @@ module.exports = (function () {
         body,
         click_action,
       },
-      android: {
-        ttl: "30s",
-        priority: "high",
-      },
-      webpush: {
-        headers: {
-          TTL: "30",
-          Urgency: "high",
-        },
-      },
-      apns: {
-        headers: {
-          "apns-priority": "5",
-        },
-      },
-    });
+    };
 
-    return new Promise((res, rej) => {
-      sender.send(
-        message,
-        { registrationTokens: regTokens },
-        function (err, response) {
-          if (err) {
-            console.log("err: ", err);
-            console.error(err);
-            rej(err);
-          } else {
-            console.log(response);
-            res(response);
-          }
-        }
-      );
-    });
+    const options = {
+      priority: "high",
+    };
+
+    return messaging
+      .sendToDevice(regTokens, payload, options)
+      .then((result) => {
+        console.log(result);
+      })
+      .catch((err) => {
+        console.log("err: ", err);
+      });
   };
 
   this.RES = (res, data, statusCode = 200) => {
@@ -132,6 +119,34 @@ module.exports = (function () {
         resolve(results);
       });
     });
+  };
+
+  this.log = (...params) => {
+    if (config && config.debug) {
+      console.log(...params);
+    }
+  };
+
+  this.getFirebaseAdmin = () => {
+    return admin;
+  };
+
+  this.generateUUID = () => {
+    let d = new Date().getTime();
+    if (
+      typeof performance !== "undefined" &&
+      typeof performance.now === "function"
+    ) {
+      d += performance.now(); //use high-precision timer if available
+    }
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
+      /[xy]/g,
+      function (c) {
+        let r = (d + Math.random() * 16) % 16 | 0;
+        d = Math.floor(d / 16);
+        return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+      }
+    );
   };
 
   return this;
