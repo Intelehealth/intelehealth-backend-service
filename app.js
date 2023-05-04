@@ -17,7 +17,7 @@ const app = express();
 
 let ALLOWED_ORIGINS = [
   "http://localhost:4200",
-  "https://uiux.intelehealth.org",
+  "https://dev.intelehealth.org",
 ];
 
 app.use(function (req, res, next) {

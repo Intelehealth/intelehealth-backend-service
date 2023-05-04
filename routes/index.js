@@ -26,5 +26,6 @@ router.use("/appointment", require("./appointment.route"));
 router.use('/auth', require("./auth.route"));
 router.use("/links", require("./links.route"));
 router.use("/support", require("./support.route"));
+router.use("/openai", require("./openai.route"));
 
 module.exports = router;
