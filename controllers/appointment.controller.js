@@ -9,6 +9,7 @@ const {
   _cancelAppointment,
   getAppointment,
   getSlots,
+  getAllSlotsBwDates,
 } = require("../services/appointment.service");
 
 module.exports = (function () {
@@ -100,6 +101,25 @@ module.exports = (function () {
     }
   };
 
+  this.getAllSlotsBwDates = async (req, res, next) => {
+    try {
+      const keysAndTypeToCheck = [
+        { key: "fromDate", type: "string" },
+        { key: "toDate", type: "string" },
+      ];
+      if (validateParams(req.query, keysAndTypeToCheck)) {
+        const data = await getAllSlotsBwDates(req.query);
+        res.json({
+          status: true,
+          data,
+        });
+      }
+    } catch (error) {
+      log("error: ", error);
+      next(error);
+    }
+  };
+
   this.getAppointmentSlots = async (req, res, next) => {
     try {
       const keysAndTypeToCheck = [
@@ -180,7 +200,7 @@ module.exports = (function () {
     try {
       const keysAndTypeToCheck = [{ key: "id", type: "number" }];
       if (validateParams(req.body, keysAndTypeToCheck)) {
-        const data = await _cancelAppointment(req.body);
+        const data = await _cancelAppointment(req.body, true, true, false);
         res.json(data);
       }
     } catch (error) {

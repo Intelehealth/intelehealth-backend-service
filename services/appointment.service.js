@@ -46,7 +46,9 @@ where
                   ? `Причина: В связи с изменением графика врача`
                   : `Reason : Due to doctor's change in schedule.`,
               regTokens: [token],
-            }).catch((err) => {});
+            }).catch((err) => {
+              console.log("err: sendCancelNotification", err);
+            });
           }
         });
       }
@@ -188,6 +190,23 @@ WHERE
       const data = await Appointment.findAll({
         where: {
           locationUuid,
+          slotJsDate: {
+            [Op.between]: this.getFilterDates(fromDate, toDate),
+          },
+          status: "booked",
+        },
+        raw: true,
+      });
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  this.getAllSlotsBwDates = async ({ locationUuid, fromDate, toDate }) => {
+    try {
+      const data = await Appointment.findAll({
+        where: {
           slotJsDate: {
             [Op.between]: this.getFilterDates(fromDate, toDate),
           },
