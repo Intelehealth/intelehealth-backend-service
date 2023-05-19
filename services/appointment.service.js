@@ -23,8 +23,7 @@ module.exports = (function () {
     const query = `
     select
     a.id,
-    u.device_reg_token as token,
-    u.locale as locale
+    u.device_reg_token as token
 from
     appointments a
     INNER JOIN user_settings u ON u.user_uuid = a.hwUUID
@@ -63,8 +62,7 @@ where
   }) => {
     const query = `SELECT
     a.id,
-    s.notification_object as webpush_obj,
-    s.locale  as locale
+    s.notification_object as webpush_obj
 FROM
     appointments a
     INNER JOIN pushnotification s ON a.userUuid = s.user_uuid
@@ -552,6 +550,7 @@ WHERE
     if (appointment) {
       appointment.update({ status, updatedBy: hwUUID, reason });
       if (notify) {
+
         sendCancelNotificationToWebappDoctor(appointment);
         await sendCancelNotification(appointment);
       }
