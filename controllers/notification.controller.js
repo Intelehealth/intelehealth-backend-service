@@ -164,8 +164,93 @@ const setUserSettings = async ({ body }, res) => {
   });
 };
 
+const getNotificationStatus = async ( req, res) => {
+  try {
+    const { uuid } = req.params;
+    if (uuid) {
+      let user = await user_settings.findOne({
+        where: {
+          user_uuid: uuid,
+        },
+      });
+      RES(
+        res,
+        {
+          success: true,
+          message: 'Notification status retrieved successfully!',
+          data: { notification_status: (user) ? user.notification : false }
+        },
+        200
+      );
+    } else {
+      RES(
+        res, 
+        { success: false, message: "Bad request! Invalid arguments.", data: null }, 
+        400
+      );
+    }
+  } catch (error) {
+    if (error.code === null || error.code === undefined) {
+      error.code = 500;
+    }
+    RES(
+      res,
+      { success: false, data: error.data, message: error.message },
+      error.code
+    );
+  }
+};
+
+const toggleNotificationStatus = async ( req, res) => {
+  try {
+    const { uuid } = req.params;
+    if (uuid) {
+      let user = await user_settings.findOne({
+        where: {
+          user_uuid: uuid,
+        },
+      });
+      if (user) {
+        user.notification = (user.notification) ? 0 : 1;
+        await user.save();
+      } else {
+        user = await user_settings.create({
+          user_uuid: uuid,
+          notification: 1
+        });
+      }
+      RES(
+        res,
+        {
+          success: true,
+          message: 'Notification status changed successfully!',
+          data: { notification_status: (user) ? user.notification : false }
+        },
+        200
+      );
+    } else {
+      RES(
+        res, 
+        { success: false, message: "Bad request! Invalid arguments.", data: null }, 
+        400
+      );
+    }
+  } catch (error) {
+    if (error.code === null || error.code === undefined) {
+      error.code = 500;
+    }
+    RES(
+      res,
+      { success: false, data: error.data, message: error.message },
+      error.code
+    );
+  }
+};
+
 module.exports = {
   snoozeNotification,
   getUserSettings,
   setUserSettings,
+  getNotificationStatus,
+  toggleNotificationStatus
 };

@@ -61,8 +61,8 @@ router.post("/subscribe", async (req, res) => {
 //for ezazi server
 const vapidKeys = {
   publicKey:
-    "BLDLmm1FrOhRJsumFL3lZ8fgnC_c1rFoNp-mz6KWObQpgPkhWzUh66GCGPzioTWBc4u0SB8P4spimU8SH2eWNfg",
-  privateKey: "ziCGVBiegKF4tTYxp1ruG3xgrDJ3mcC31Euxpekxsto",
+  "BM4tUVW1UwkMpfAWh2mwhA-wwdIC2rCF1MFypbFpjn23qYMQXaeAaYi6ydGslRb_Vdr2Ws0MW5RSUH9InEbYNhA",
+  privateKey: "2x0DTVhRpzAaBfbcdWJNrBk7yTTE2gJivTavfLjQXhY",
   mailTo: "mailto:support@intelehealth.org",
 };
 
