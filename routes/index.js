@@ -22,5 +22,6 @@ router.use("/mindmap", require("./notification.route"));
 router.use("/messages", require("./message.route"));
 router.use("/openmrs", require("./openmrs.route"));
 router.use("/epartogram", require("./epartogram.route"));
+router.use("/support", require("./support.route"));
 
 module.exports = router;

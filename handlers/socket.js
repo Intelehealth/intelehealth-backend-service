@@ -1,8 +1,10 @@
 // const { sendCloudNotification } = require("./helper");
-// const { user_settings } = require("../models");
+const { user_settings } = require("../models");
 const admin = require("firebase-admin");
 const env = process.env.NODE_ENV || "development";
 const config = require(__dirname + "/../config/config.json")[env];
+const { sequelize } = require("../models");
+const { QueryTypes } = require('sequelize');
 
 const serviceAccount = require(__dirname + "/../config/serviceAccountKey.json");
 admin.initializeApp({
@@ -319,6 +321,11 @@ module.exports = function (server) {
           }
         });
       }
+    });
+
+    socket.on("getAdminUnreadCount", async function () {
+      const unreadcount = await sequelize.query("SELECT COUNT(sm.message) AS unread FROM supportmessages sm WHERE sm.to = 'System Administrator' AND sm.isRead = 0", { type: QueryTypes.SELECT });
+      socket.emit("adminUnreadCount", unreadcount[0].unread);
     });
   });
   global.io = io;
