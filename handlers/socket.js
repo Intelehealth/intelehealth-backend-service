@@ -327,6 +327,12 @@ module.exports = function (server) {
       const unreadcount = await sequelize.query("SELECT COUNT(sm.message) AS unread FROM supportmessages sm WHERE sm.to = 'System Administrator' AND sm.isRead = 0", { type: QueryTypes.SELECT });
       socket.emit("adminUnreadCount", unreadcount[0].unread);
     });
+
+    socket.on("getDrUnreadCount", async function (data) {
+      const unreadcount = await sequelize.query(`SELECT COUNT(sm.message) AS unread FROM supportmessages sm WHERE sm.to = '${data}' AND sm.isRead = 0`, { type: QueryTypes.SELECT });
+      socket.emit("drUnreadCount", unreadcount[0].unread);
+    });
+
   });
   global.io = io;
 };

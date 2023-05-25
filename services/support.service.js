@@ -94,6 +94,9 @@ module.exports = (function () {
                             io.to(key).emit("isreadSupport", { msgTo: toUser, msgFrom: fromUser });
                             io.to(key).emit("adminUnreadCount", unreadcount[0].unread);
                         }
+                        if (user && user.uuid == userId) {
+                            io.to(key).emit("drUnreadCount", unreadcount[0].unread);
+                        }
                     }
                 }
             }, 1000);
