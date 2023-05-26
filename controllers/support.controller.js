@@ -49,12 +49,14 @@ module.exports = (function () {
                     });
                     if (uss.length) {
                         uss.forEach(async (us) => {
-                            if (us && us?.notification) {
-                                const subscriptions = await getSubscriptions(us.user_uuid);
-                                if (subscriptions.length) {
-                                    subscriptions.forEach(async (sub) => {
-                                        await sendNotification(JSON.parse(sub.notification_object), 'Hey! You got new chat message for support', message);
-                                    });
+                            if (us && us?.notification) { 
+                                if ((us?.snooze_till) ? (new Date().valueOf() > us?.snooze_till) : true) {
+                                    const subscriptions = await getSubscriptions(us.user_uuid);
+                                    if (subscriptions.length) {
+                                        subscriptions.forEach(async (sub) => {
+                                            await sendNotification(JSON.parse(sub.notification_object), 'Hey! You got new chat message for support', message);
+                                        });
+                                    }
                                 }
                             }
                         });
@@ -81,11 +83,13 @@ module.exports = (function () {
                         },
                     });
                     if (us && us?.notification) {
-                        const subscriptions = await getSubscriptions(us.user_uuid);
-                        if (subscriptions.length) {
-                            subscriptions.forEach(async (sub) => {
-                                await sendNotification(JSON.parse(sub.notification_object), 'Hey! You got new chat message from support', message);
-                            });
+                        if ((us?.snooze_till) ? (new Date().valueOf() > us?.snooze_till) : true) {
+                            const subscriptions = await getSubscriptions(us.user_uuid);
+                            if (subscriptions.length) {
+                                subscriptions.forEach(async (sub) => {
+                                    await sendNotification(JSON.parse(sub.notification_object), 'Hey! You got new chat message from support', message);
+                                });
+                            }
                         }
                     }
                 }
