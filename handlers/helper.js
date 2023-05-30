@@ -25,10 +25,15 @@ module.exports = (function () {
     vapidKeys.privateKey
   );
 
-  this.sendWebPushNotificaion = async ({ webpush_obj, title, body }) => {
+  this.sendWebPushNotificaion = async ({
+    webpush_obj,
+    title,
+    body,
+    isObject,
+  }) => {
     webpush
       .sendNotification(
-        JSON.parse(webpush_obj),
+        isObject ? webpush_obj : JSON.parse(webpush_obj),
         JSON.stringify({
           notification: {
             title,

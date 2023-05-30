@@ -20,11 +20,12 @@ module.exports = (sequelize, DataTypes) => {
       user_uuid: DataTypes.STRING,
       finger_print: DataTypes.STRING,
       locale: DataTypes.STRING,
-      createdAt: "date_created",
     },
     {
       sequelize,
       modelName: "pushnotification",
+      timestamps: true,
+      freezeTableName: true,
     }
   );
   pushnotification.removeAttribute("updatedAt");
