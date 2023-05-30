@@ -1,6 +1,9 @@
 const { sendMessage, getMessages } = require("../services/message.service");
-const { validateParams } = require("../handlers/helper");
-const { user_settings } = require("../models");
+const {
+  validateParams,
+  sendWebPushNotificaion,
+} = require("../handlers/helper");
+const { user_settings, pushnotification } = require("../models");
 
 module.exports = (function () {
   /**
@@ -45,7 +48,6 @@ module.exports = (function () {
               body: message,
               data: {
                 ...req.body,
-                ...data.data.dataValues,
                 actionType: "TEXT_CHAT",
               },
               regTokens: [userSetting.device_reg_token],
@@ -54,6 +56,23 @@ module.exports = (function () {
             });
           }
         }
+
+        const devices = await pushnotification.findAll({
+          where: { user_uuid: toUser },
+        });
+
+        devices.forEach(async (device) => {
+          sendWebPushNotificaion({
+            webpush_obj: device.notification_object,
+            title: "New chat message",
+            body: message,
+            options: {
+              TTL: "3600000",
+            },
+            isObject: true,
+          });
+        });
+
         res.json({ ...data, notificationResponse });
       }
     } catch (error) {
