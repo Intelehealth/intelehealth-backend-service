@@ -16,7 +16,7 @@ module.exports = (function () {
                 messages: [
                     {
                         role: "user",
-                        content: `Please provide a likelihood-likelihood-matrix of differential diagnosis for the symptoms - ${payload}`
+                        content: `Provide a Differential diagnosis with likelihood-likelihood-matrix in a two column table format with Diagnosis and the Likelihood numeric score (out of 10) for the symptoms. Keep in mind the age & gender of the patient - ${payload}`
                     }
                 ]
             });
