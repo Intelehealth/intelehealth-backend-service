@@ -19,14 +19,20 @@ const getVisitCountQuery = () => {
               or encounter_type = 6
           )
       ) then "Awaiting Consult"
-  end as "Status"
+  end as "Status",
+  case
+	when SUBSTRING_INDEX(SUBSTRING(LEFT(value_text,80),5),'</b>',1) in ('Follow up visit','Follow up in person','Follow up over telephone')
+    then 'Followup case'
+    else 'Non Followup case'
+    end as followup_status
 from
-  encounter,
+  encounter e,
   (
       select
           v.visit_id,
           v.patient_id,
           max(encounter_id) as max_enc,
+          max(case when encounter_type = 1 then encounter_id else null end) as adi_enc,
           max(
               case
                   when (encounter_type in (12, 14) or v.date_stopped is not null) then 1
@@ -56,13 +62,18 @@ from
       group by
           v.visit_id,
           v.patient_id
-  ) as t1
+  ) as t1,
+  obs o
 where
-  encounter_id = max_enc
-  and (
+  e.encounter_id = max_enc
+  /*and (
       speciality is null
       or speciality = 'General Physician'
-  )   
+      or speciality = 'Pediatrician'
+  )*/
+and o.encounter_id = t1.adi_enc
+and o.concept_id = 163212
+and o.voided = 0
 group by case
   when (
           sas_enc = 1
@@ -79,7 +90,12 @@ group by case
               or encounter_type = 6
           )
       ) then "Awaiting Consult"
-  end
+  end,
+  case
+	when SUBSTRING_INDEX(SUBSTRING(LEFT(value_text,80),5),'</b>',1) in ('Follow up visit','Follow up in person','Follow up over telephone')
+    then 'Followup case'
+    else 'Non Followup case'
+    end
 order by 2;`;
 };
 
