@@ -16,6 +16,8 @@ module.exports = (sequelize, DataTypes) => {
       user_uuid: DataTypes.STRING,
       snooze_till: { type: DataTypes.STRING, defaultValue: "" },
       device_reg_token: DataTypes.STRING,
+      otp: DataTypes.STRING,
+      otpFor: { type: DataTypes.ENUM, values: ['U', 'P', 'A'] },
       notification: { type: DataTypes.BOOLEAN, defaultValue: 0 }
     },
     {

@@ -23,5 +23,6 @@ router.use("/messages", require("./message.route"));
 router.use("/openmrs", require("./openmrs.route"));
 router.use("/epartogram", require("./epartogram.route"));
 router.use("/support", require("./support.route"));
+router.use('/auth', require("./auth.route"));
 
 module.exports = router;
