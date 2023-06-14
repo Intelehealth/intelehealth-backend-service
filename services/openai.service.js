@@ -2,7 +2,7 @@ const config = require('../config/config.json');
 const { Configuration, OpenAIApi } = require("openai");
 const env = process.env.NODE_ENV ? process.env.NODE_ENV : "production";
 const configuration = new Configuration({
-    organization: config[env].openaiOrganizationId,
+    // organization: config[env].openaiOrganizationId,
     apiKey: config[env].openaiApiKey,
 });
 const openai = new OpenAIApi(configuration);
@@ -25,7 +25,7 @@ module.exports = (function () {
                 gptInput = customInput;
             }
             const response = await openai.createChatCompletion({
-                model: 'gpt-3.5-turbo',
+                model: 'gpt-4-0613',
                 messages: [
                     {
                         role: "user",
