@@ -106,6 +106,8 @@ WHERE
     type,
     month,
     year,
+    startDate,
+    endDate,
   }) => {
     try {
       const opts = { where: { userUuid, year, month } };
@@ -117,6 +119,8 @@ WHERE
       if (type) update.type = type;
       if (year) update.year = year;
       if (month) update.month = month;
+      if (startDate) update.startDate = startDate;
+      if (endDate) update.endDate = endDate;
       if (schedule) {
         const resp = {
           message: "Appointment updated successfully",
@@ -137,6 +141,8 @@ WHERE
             type,
             month,
             year,
+            startDate,
+            endDate,
           }),
         };
       }
