@@ -34,6 +34,17 @@ router.post("/subscribe", async (req, res) => {
     );
   });
 
+  // Delete pushNotification records for another user with the same M/C logged in
+  const deletePushNotificationObject = await new Promise((res, rej) => {
+    mysql.query(
+      `DELETE * FROM pushnotification WHERE user_uuid !='${details.user_uuid}' AND finger_print='${details.finger_print}'`,
+      (err, results) => {
+        if (!err) res(results);
+        else rej(err);
+      }
+    );
+  });
+
   if (pushnotification && pushnotification.length) {
     mysql.query(
       `UPDATE pushnotification SET notification_object='${details.notification_object}'
