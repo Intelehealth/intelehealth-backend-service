@@ -206,5 +206,34 @@ module.exports = (function () {
     }
   };
 
+  this.appointmentPush = async (req, res, next) => {
+    try {
+      const keysAndTypeToCheck = [
+        { key: "slotDay", type: "string" },
+        { key: "slotDuration", type: "number" },
+        { key: "slotDurationUnit", type: "string" },
+        { key: "slotTime", type: "string" },
+        { key: "speciality", type: "string" },
+        { key: "userUuid", type: "string" },
+        { key: "drName", type: "string" },
+        { key: "visitUuid", type: "string" },
+        { key: "locationUuid", type: "string" },
+        { key: "patientName", type: "string" },
+        { key: "openMrsId", type: "string" },
+        { key: "hwUUID", type: "string" },
+      ];
+      if (validateParams(req.body, keysAndTypeToCheck)) {
+        await _bookAppointment(req.body);
+
+        res.json({
+          status: true,
+          message: "appointment push successfully!",
+        });
+      }
+    } catch (error) {
+      next(error);
+    }
+  };
+
   return this;
 })();
