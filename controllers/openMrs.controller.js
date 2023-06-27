@@ -134,6 +134,63 @@ group by case
        end;`;
 };
 
+const getFollowupVisitsQuery = () => {
+  return `select
+  pi.identifier as "patientID" ,
+  concat(pn.given_name," ", pn.middle_name, " ", pn.family_name ) as "patientName",
+      case when pa.person_attribute_type_id = 8 then pa.value else null end as "phoneNo",
+      pe.gender as "gender",
+  floor(datediff(curdate(),pe.birthdate)/365) as "age",
+      l.name as "visitLocation",
+      CONCAT(pnd.given_name, ' ', pnd.family_name) AS provider,
+  e.encounter_datetime as "lastSeen",
+  group_concat(distinct case when o.concept_id = 163219
+  then o.value_text else null end) as "diagnosis" ,
+  max(case when o.concept_id = 163345
+  then STR_TO_DATE(SUBSTRING_INDEX(o.value_text,",",1),'%d-%m-%Y') else null end) as "followUpDate" ,
+  pe.uuid as patientId,
+  va.uuid as visitId
+from
+(select v.patient_id , max(v.visit_id) as visit_id
+  from visit v
+  left join encounter e on (e.visit_id = v.visit_id and e.encounter_type = 14 and e.voided = 0 )
+  where v.date_started >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 2 MONTH), '%Y-%m-01')
+  AND v.date_started < DATE_ADD(CURDATE(), INTERVAL 1 DAY) and v.voided =0
+  group by  v.patient_id) t
+left join patient_identifier pi
+on (pi.patient_id = t.patient_id and pi.voided =0 and pi.preferred = 1)
+left join person_name pn
+on (pn.person_id = t.patient_id and pn.voided =0 and pn.preferred = 1)
+left join person_attribute pa
+on (pa.person_id = t.patient_id and pa.voided =0 and pa.person_attribute_type_id =8)
+left join person pe
+on (pe.person_id = t.patient_id and pe.voided =0 )
+left join  visit va
+on (t.visit_id = va.visit_id and va.voided =0 )
+left join location l
+on (l.location_id = va.location_id)
+left join  encounter e
+on (t.visit_id = e.visit_id and e.voided =0 and e.encounter_type in ( 9))
+left join obs o
+on (o.encounter_id = e.encounter_id and o.voided =0 and o.concept_id in (163219,163345))
+left join users u
+on (u.user_id = e.creator )
+left join person_name pnd
+ON (u.person_id = pnd.person_id AND pnd.voided = 0)
+group by 	t.patient_id,
+    pi.identifier,
+    concat(pn.given_name," ", pn.middle_name, " ", pn.family_name ) ,
+    case when pa.person_attribute_type_id = 8 then pa.value else null end ,
+    pe.gender ,
+    floor(datediff(curdate(),pe.birthdate)/365) ,
+    CONCAT(pnd.given_name, ' ', pnd.family_name),
+    e.encounter_datetime,
+    pi.uuid,
+    va.uuid
+having followUpDate is not null
+order by followUpDate desc;`;
+};
+
 /**
  * To return the visit counts from the openmrs db using custom query
  * @param {*} req
@@ -163,6 +220,28 @@ const getVisitCounts = async (req, res, next) => {
   }
 };
 
+const getFollowupVisits = async (req, res, next) => {
+  const query = getFollowupVisitsQuery();
+  try {
+    const data = await new Promise((resolve, reject) => {
+      openMrsDB.query(query, (err, results, fields) => {
+        if (err) reject(err);
+        resolve(results);
+      });
+    }).catch((err) => {
+      throw err;
+    });
+    res.json({
+      data,
+      message: "Followup Visits fetched successfully",
+    });
+  } catch (error) {
+    res.statusCode = 422;
+    res.json({ status: false, message: err.message });
+  }
+};
+
 module.exports = {
   getVisitCounts,
+  getFollowupVisits
 };
