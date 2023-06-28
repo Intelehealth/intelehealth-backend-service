@@ -27,6 +27,8 @@ module.exports = (function () {
       { key: "type", type: "string" },
       { key: "month", type: "string" },
       { key: "year", type: "string" },
+      { key: "startDate", type: "string" },
+      { key: "endDate", type: "string" }
     ];
     try {
       if (validateParams(req.body, keysAndTypeToCheck)) {

@@ -21,6 +21,9 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       month: DataTypes.STRING,
       year: DataTypes.STRING,
+      startDate: DataTypes.STRING,
+      endDate: DataTypes.STRING,
+      daysOff: DataTypes.JSON
     },
     {
       sequelize,
