@@ -330,6 +330,16 @@ module.exports = function (server) {
       );
       socket.emit("drUnreadCount", unreadcount[0].unread);
     });
+
+    socket.on("hw_call_reject", async function (toUserUuid) {
+      for (const socketId in users) {
+        if (Object.hasOwnProperty.call(users, socketId)) {
+          if (users[socketId].uuid === toUserUuid) {
+            io.to(socketId).emit("hw_call_reject", "app");
+          }
+        }
+      }
+    });
   });
   global.io = io;
 };
