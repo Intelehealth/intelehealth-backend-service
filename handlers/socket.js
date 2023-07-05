@@ -1,10 +1,9 @@
-// const { sendCloudNotification } = require("./helper");
 const { user_settings } = require("../models");
 const admin = require("firebase-admin");
 const env = process.env.NODE_ENV || "development";
 const config = require(__dirname + "/../config/config.json")[env];
 const { sequelize } = require("../models");
-const { QueryTypes } = require('sequelize');
+const { QueryTypes } = require("sequelize");
 
 const serviceAccount = require(__dirname + "/../config/serviceAccountKey.json");
 admin.initializeApp({
@@ -48,14 +47,12 @@ module.exports = function (server) {
       socket.emit("log", array);
     }
 
-    function callInRoom(room, count, connectToDrId) {
+    function callInRoom(room, data) {
       for (const socketId in users) {
         if (Object.hasOwnProperty.call(users, socketId)) {
           const user = users[socketId];
-          if (user && user.uuid === connectToDrId) {
-            io.sockets
-              .to(socketId)
-              .emit("incoming_call", { patientUuid: room });
+          if (user && user.uuid === data.connectToDrId) {
+            io.sockets.to(socketId).emit("incoming_call", data);
             users[socketId].callStatus = "calling";
             users[socketId].room = room;
           }
@@ -139,7 +136,8 @@ module.exports = function (server) {
       }
     }
 
-    socket.on("create_or_join_hw", function ({ room, connectToDrId }) {
+    socket.on("create_or_join_hw", function (hwData) {
+      const { patientId: room } = hwData;
       log("Received request to create or join room " + room);
 
       var clientsInRoom = io.sockets.adapter.rooms[room];
@@ -167,9 +165,10 @@ module.exports = function (server) {
       });
 
       console.log("numClients: ", numClients);
+      callInRoom(room, hwData);
       if (numClients === 0) {
         // socket.broadcast.to(room).emit("incoming_call", { patientUuid: room });
-        callInRoom(room, 1, connectToDrId);
+        // callInRoom(room, 1, connectToDrId);
         // io.sockets.emit("incoming_call", { patientUuid: room });
         socket.join(room);
         log("Client ID " + socket.id + " created room " + room);
@@ -262,26 +261,6 @@ module.exports = function (server) {
             });
           }
         }, 10000);
-        // if (data && data.device_reg_token) {
-        //   const response = await sendCloudNotification({
-        //     title: "Incoming call",
-        //     body: "Doctor is trying to call you.",
-        //     data: {
-        //       ...dataIds,
-        //       actionType: "VIDEO_CALL",
-        //       timestamp: Date.now(),
-        //     },
-        //     regTokens: [data.device_reg_token],
-        //   }).catch((err) => {
-        //     console.log("err: ", err);
-        //   });
-        //   io.sockets.emit("log", ["notification response", response, data]);
-        // } else {
-        //   io.sockets.emit("log", [
-        //     `data/device reg token not found in db for ${nurseId}`,
-        //     data,
-        //   ]);
-        // }
       }
       console.log(nurseId, "----<<>>>");
       try {
@@ -290,17 +269,30 @@ module.exports = function (server) {
         });
       } catch (error) {}
 
+      function generateUUID() {
+        let d = new Date().getTime();
+        if (
+          typeof performance !== "undefined" &&
+          typeof performance.now === "function"
+        ) {
+          d += performance.now(); //use high-precision timer if available
+        }
+        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
+          /[xy]/g,
+          function (c) {
+            let r = (d + Math.random() * 16) % 16 | 0;
+            d = Math.floor(d / 16);
+            return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+          }
+        );
+      }
+
       await rtcNotifyRef.update({
         [nurseId]: {
-          // TEXT_CHAT: {
-          //   fromUser: "454554-3333-jjfjf-444",
-          //   patientId: "dgddh747744-44848404",
-          //   patientName: "743747444-448480404",
-          //   timestamp: Date.now(),
-          //   toUser: "ererere-335-33-84884jj0990",
-          //   visitId: "4784847333-22-dddu40044",
-          // },
           VIDEO_CALL: {
+            id: generateUUID(),
+            ...dataIds,
+            callEnded: false,
             doctorName,
             nurseId,
             roomId,
@@ -324,15 +316,20 @@ module.exports = function (server) {
     });
 
     socket.on("getAdminUnreadCount", async function () {
-      const unreadcount = await sequelize.query("SELECT COUNT(sm.message) AS unread FROM supportmessages sm WHERE sm.to = 'System Administrator' AND sm.isRead = 0", { type: QueryTypes.SELECT });
+      const unreadcount = await sequelize.query(
+        "SELECT COUNT(sm.message) AS unread FROM supportmessages sm WHERE sm.to = 'System Administrator' AND sm.isRead = 0",
+        { type: QueryTypes.SELECT }
+      );
       socket.emit("adminUnreadCount", unreadcount[0].unread);
     });
 
     socket.on("getDrUnreadCount", async function (data) {
-      const unreadcount = await sequelize.query(`SELECT COUNT(sm.message) AS unread FROM supportmessages sm WHERE sm.to = '${data}' AND sm.isRead = 0`, { type: QueryTypes.SELECT });
+      const unreadcount = await sequelize.query(
+        `SELECT COUNT(sm.message) AS unread FROM supportmessages sm WHERE sm.to = '${data}' AND sm.isRead = 0`,
+        { type: QueryTypes.SELECT }
+      );
       socket.emit("drUnreadCount", unreadcount[0].unread);
     });
-
   });
   global.io = io;
 };
