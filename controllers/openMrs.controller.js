@@ -1,5 +1,12 @@
 const openMrsDB = require("../public/javascripts/mysql/mysqlOpenMrs");
 const { sendOtp, resetPassword } = require("../services/openmrs.service");
+const {
+  _getAwaitingVisits,
+  _getPriorityVisits,
+  _getInProgressVisits,
+  _getCompletedVisits,
+  _getEndedVisits
+} = require("../services/openmrs.service");
 
 const getVisitCountQuery = ({ speciality = "General Physician" }) => {
   return `select count(t1.visit_id) as Total,
@@ -196,9 +203,109 @@ const forgetPasswordResetPassword = async (req, res, next) => {
   }
 };
 
+const getAwaitingVisits = async (req, res, next) => {
+  try {
+    const data = await _getAwaitingVisits(
+      // req.query.state,
+      req.query.speciality,
+      req.query.page
+    );
+    res.json({
+      count: data.currentCount,
+      totalCount: data.totalCount,
+      data: data.visits,
+      success: true,
+    });
+  } catch (error) {
+    res.statusCode = 422;
+    res.json({ status: false, message: error.message });
+  }
+};
+
+const getPriorityVisits = async (req, res, next) => {
+  try {
+    const data = await _getPriorityVisits(
+      // req.query.state,
+      req.query.speciality,
+      req.query.page
+    );
+    res.json({
+      count: data.currentCount,
+      totalCount: data.totalCount,
+      data: data.visits,
+      success: true,
+    });
+  } catch (error) {
+    res.statusCode = 422;
+    res.json({ status: false, message: error.message });
+  }
+};
+
+const getInProgressVisits = async (req, res, next) => {
+  try {
+    const data = await _getInProgressVisits(
+      // req.query.state,
+      req.query.speciality,
+      req.query.page
+    );
+    res.json({
+      count: data.currentCount,
+      totalCount: data.totalCount,
+      data: data.visits,
+      success: true,
+    });
+  } catch (error) {
+    res.statusCode = 422;
+    res.json({ status: false, message: error.message });
+  }
+};
+
+const getCompletedVisits = async (req, res, next) => {
+  try {
+    const data = await _getCompletedVisits(
+      // req.query.state,
+      req.query.speciality,
+      req.query.page
+    );
+    res.json({
+      count: data.currentCount,
+      totalCount: data.totalCount,
+      data: data.visits,
+      success: true,
+    });
+  } catch (error) {
+    res.statusCode = 422;
+    res.json({ status: false, message: error.message });
+  }
+};
+
+const getEndedVisits = async (req, res, next) => {
+  try {
+    const data = await _getEndedVisits(
+      // req.query.state,
+      req.query.speciality,
+      req.query.page
+    );
+    res.json({
+      count: data.currentCount,
+      totalCount: data.totalCount,
+      data: data.visits,
+      success: true,
+    });
+  } catch (error) {
+    res.statusCode = 422;
+    res.json({ status: false, message: error.message });
+  }
+};
+
 module.exports = {
   getVisitCounts,
   getFollowUpVisit,
   forgetPasswordSendOtp,
   forgetPasswordResetPassword,
+  getAwaitingVisits,
+  getPriorityVisits,
+  getInProgressVisits,
+  getCompletedVisits,
+  getEndedVisits
 };

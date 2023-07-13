@@ -13,6 +13,19 @@ const {
   sendCloudNotification,
 } = require("../handlers/helper");
 
+const {
+  visit,
+  encounter,
+  patient_identifier,
+  person_name,
+  encounter_type,
+  encounter_provider,
+  person,
+  provider,
+  location,
+  obs
+} = require("../openmrs_models");
+
 module.exports = (function () {
   const DATE_FORMAT = "DD/MM/YYYY";
   const TIME_FORMAT = "LT";
@@ -206,7 +219,60 @@ WHERE
         },
         raw: true,
       });
-      return data;
+
+      const visitIds = data.map((v) => v?.visitUuid);
+
+      const visits = await visit.findAll({
+        where: {
+          uuid: { [Op.in]: visitIds },
+        },
+        attributes: ["uuid"],
+        include: [
+          {
+            model: encounter,
+            as: "encounters",
+            attributes: ["encounter_datetime"],
+            include: [
+              {
+                model: obs,
+                as: "obs",
+                attributes: ["value_text", "concept_id", "value_numeric"],
+                // where: {
+                //   concept_id: 163212
+                // },
+                required: false
+              },
+              {
+                model: encounter_type,
+                as: "type",
+                attributes: ["name"],
+              }
+            ],
+          },
+          {
+            model: patient_identifier,
+            as: "patient",
+            attributes: ["identifier"],
+          },
+          {
+            model: person_name,
+            as: "patient_name",
+            attributes: ["given_name", "family_name"],
+          },
+          {
+            model: person,
+            as: "person",
+            attributes: ["uuid", "gender", "birthdate"],
+          },
+          {
+            model: location,
+            as: "location",
+            attributes: ["name"],
+          },
+        ]
+      });
+      const mergedArray = data.map(x=> ({ ...x, visit: visits.find(y=>y.uuid==x.visitUuid)?.dataValues }));
+      return mergedArray;
     } catch (error) {
       throw error;
     }
