@@ -9,9 +9,17 @@ var pushRouter = require("./routes/pushNotification");
 
 var app = express();
 
+let ALLOWED_ORIGINS = [
+  "http://localhost:4200",
+  "https://telemedui.intelehealth.org",
+];
 app.use(function (req, res, next) {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "*");
+  const origin = req.headers.origin;
+  const theOrigin =
+    ALLOWED_ORIGINS.indexOf(origin) >= 0 ? origin : ALLOWED_ORIGINS[0];
+  res.header("Access-Control-Allow-Origin", theOrigin);
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, PATCH, DELETE");
   res.header(
     "Access-Control-Allow-Headers",
     "Origin, X-Requested-With, Content-Type, Accept"
