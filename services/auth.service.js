@@ -296,7 +296,7 @@ module.exports = (function () {
                         }
 
                         if (user) {
-                            if (moment(user.updatedAt).diff(moment(), "minutes") < 5) {
+                            if (moment().diff(moment(user.updatedAt), "minutes") < 5) {
                                 // Send username here
                                 if (phoneNumber) {
                                     // const body = new URLSearchParams();
@@ -390,7 +390,7 @@ module.exports = (function () {
                             },
                         });
                         if (user) {
-                            if (moment(user.updatedAt).diff(moment(), "minutes") < 5) {
+                            if (moment().diff(moment(user.updatedAt), "minutes") < 5) {
                                 // Send username here
                                 
                                 return {
@@ -454,7 +454,7 @@ module.exports = (function () {
                         }
 
                         if (user) {
-                            if (moment(user.updatedAt).diff(moment(), "minutes") < 5) {
+                            if (moment().diff(moment(user.updatedAt), "minutes") < 5) {
                                 return {
                                     code: 200,
                                     success: true,
