@@ -6,7 +6,8 @@ const configuration = new Configuration({
     apiKey: config[env].openaiApiKey,
 });
 const openai = new OpenAIApi(configuration);
-const { gptinputs, Sequelize, sequelize } = require("../models");
+const { gptinputs, gptmodels, Sequelize, sequelize } = require("../models");
+const axios = require("axios");
 
 module.exports = (function () {
 
@@ -24,21 +25,43 @@ module.exports = (function () {
             if (inputtype == 'custom') {
                 gptInput = customInput;
             }
-            const response = await openai.createChatCompletion({
-                model: 'gpt-4-0613',
-                messages: [
-                    {
-                        role: "user",
-                        content: `${gptInput} ${payload}`
-                    }
-                ]
+            let gptModel = 'gpt-4-0613';
+            const gptModels = await gptmodels.findAll({
+                where: {
+                    isDefault: true
+                }
             });
-            return {
-                code: 200,
-                success: true,
-                message: "Chat completion created successfully!",
-                data: response.data
-            };
+            gptModel = gptModels.length ? gptModels[0].model : 'gpt-4-0613';
+
+            if (gptModel == 'specialized-llm') {
+                const axiosInstance = axios.create({
+                    baseURL: 'https://ci.intelehealth.org',
+                    timeout: 50000,
+                });
+                const response = await axiosInstance.post('/ask', { question: `${gptInput} ${payload}` });
+                return {
+                    code: 200,
+                    success: true,
+                    message: "Chat completion created successfully!",
+                    data: { output: { choices: [{ message: { content: response.data.data } }] }, model: gptModel }
+                };
+            } else {
+                const response = await openai.createChatCompletion({
+                    model: gptModel,
+                    messages: [
+                        {
+                            role: "user",
+                            content: `${gptInput} ${payload}`
+                        }
+                    ]
+                });
+                return {
+                    code: 200,
+                    success: true,
+                    message: "Chat completion created successfully!",
+                    data: { output: response.data, model: gptModel }
+                };
+            }
         } catch (error) {
             if(error.code === null || error.code === undefined){
                 error.code = 500;
@@ -82,7 +105,7 @@ module.exports = (function () {
             return {
                 code: 200,
                 success: true,
-                message: "GPT Input added successfully successfully!",
+                message: "GPT Input added successfully!",
                 data: data
             };
         } catch (error) {
@@ -143,6 +166,120 @@ module.exports = (function () {
                     code: 200,
                     success: true,
                     message: "GPT Input deleted successfully!",
+                    data: null
+                };
+            } else {
+                return {
+                    code: 200,
+                    success: false,
+                    message: "Can't delete default GPT Input/No GPT Input with such id exists!",
+                    data: null
+                };
+            }
+            
+        } catch (error) {
+            if(error.code === null || error.code === undefined){
+                error.code = 500;
+            }
+            return { code: error.code, success: false, data: error.data, message: error.message };
+        }
+    };
+
+    this.getGPTModels = async function () {
+        try {
+            const response = await gptmodels.findAll({
+                where: {
+                    id: {
+                        [Sequelize.Op.not]: null
+                    }
+                },
+                order: [
+                    ['id', 'DESC']
+                ],
+            });
+            return {
+                code: 200,
+                success: true,
+                message: "List of GPT models retreived successfully!",
+                data: response
+            };
+        } catch (error) {
+            if(error.code === null || error.code === undefined){
+                error.code = 500;
+            }
+            return { code: error.code, success: false, data: error.data, message: error.message };
+        }
+    };
+
+    this.addGPTModel = async function (model) {
+        try {
+            const data = await gptmodels.create({
+               model
+            });
+            return {
+                code: 200,
+                success: true,
+                message: "GPT model added successfully!",
+                data: data
+            };
+        } catch (error) {
+            if(error.code === null || error.code === undefined){
+                error.code = 500;
+            }
+            return { code: error.code, success: false, data: error.data, message: error.message };
+        }
+    };
+
+    this.setAsDefaultGPTModel = async function (id) {
+        try {
+
+            const response = await gptmodels.update(
+                { isDefault: false },
+                {
+                  where: {
+                    id: {
+                        [Sequelize.Op.not] : id
+                    }
+                  }
+                }
+            );
+            const data = await gptmodels.update(
+                { isDefault: true },
+                {
+                  where: {
+                    id: id
+                  }
+                }
+            );
+            return {
+                code: 200,
+                success: true,
+                message: "GPT model set as default successfully!",
+                data: data
+            };
+        } catch (error) {
+            if(error.code === null || error.code === undefined){
+                error.code = 500;
+            }
+            return { code: error.code, success: false, data: error.data, message: error.message };
+        }
+    };
+
+    this.deleteGPTModel = async function (id) {
+        try {
+            const data = await gptmodels.destroy(
+                {
+                  where: {
+                    id: id,
+                    isDefault: false
+                  }
+                }
+            );
+            if (data) {
+                return {
+                    code: 200,
+                    success: true,
+                    message: "GPT model deleted successfully!",
                     data: null
                 };
             } else {
