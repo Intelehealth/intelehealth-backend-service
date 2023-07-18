@@ -16,6 +16,8 @@ const CALL_STATUSES = {
   IN_CALL: "in_call",
   DR_REJECTED: "dr_rejected",
   HW_REJECTED: "hw_rejected",
+  DR_CANCELLED: "dr_cancelled",
+  HW_CANCELLED: "hw_cancelled",
   IDLE: "available",
 };
 
@@ -181,6 +183,40 @@ module.exports = function (server) {
 
     socket.on("call-connected", async function (data) {
       markConnected(data);
+    });
+
+    socket.on("cancel_hw", async function (data) {
+      for (const socketId in users) {
+        if (Object.hasOwnProperty.call(users, socketId)) {
+          if (users[socketId].uuid === data?.connectToDrId) {
+            users[socketId].callStatus = CALL_STATUSES.HW_CANCELLED;
+            users[socketId].room = null;
+            emitAllUserStatus();
+            setTimeout(() => {
+              users[socketId].callStatus = CALL_STATUSES.IDLE;
+              emitAllUserStatus();
+            }, 2000);
+            io.to(socketId).emit("cancel_hw", "app");
+          }
+        }
+      }
+    });
+
+    socket.on("cancel_dr", async function (data) {
+      for (const socketId in users) {
+        if (Object.hasOwnProperty.call(users, socketId)) {
+          if (users[socketId].uuid === data?.nurseId) {
+            users[socketId].callStatus = CALL_STATUSES.DR_CANCELLED;
+            users[socketId].room = null;
+            emitAllUserStatus();
+            setTimeout(() => {
+              users[socketId].callStatus = CALL_STATUSES.IDLE;
+              emitAllUserStatus();
+            }, 2000);
+            io.to(socketId).emit("cancel_hw", "webapp");
+          }
+        }
+      }
     });
 
     socket.on("hw_call_reject", async function (toUserUuid) {
