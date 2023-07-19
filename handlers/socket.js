@@ -213,7 +213,7 @@ module.exports = function (server) {
               users[socketId].callStatus = CALL_STATUSES.IDLE;
               emitAllUserStatus();
             }, 2000);
-            io.to(socketId).emit("cancel_hw", "webapp");
+            io.to(socketId).emit("cancel_dr", "webapp");
           }
         }
       }
