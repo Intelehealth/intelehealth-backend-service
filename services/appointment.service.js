@@ -34,7 +34,6 @@ where
       if (data && data.length) {
         asyncForEach(data, async (item) => {
           const { token, locale } = item;
-          console.log("locale: ", locale);
           if (token) {
             await sendCloudNotification({
               title:
@@ -419,6 +418,7 @@ WHERE
     drName,
     visitUuid,
     patientId,
+    ...rest
   }) => {
     return await Appointment.create({
       slotDay,
@@ -441,6 +441,7 @@ WHERE
         "DD/MM/YYYY HH:mm A"
       ).format(),
       createdBy: hwUUID,
+      ...rest,
     });
   };
 
@@ -460,6 +461,13 @@ WHERE
       patientName,
       locationUuid,
       hwUUID,
+      patientAge,
+      patientGender,
+      patientPic,
+      hwName,
+      hwAge,
+      hwGender,
+      type,
     } = params;
     try {
       const bookedApnmt = await Appointment.findOne({
@@ -502,6 +510,13 @@ WHERE
         drName,
         visitUuid,
         patientId,
+        patientAge,
+        patientGender,
+        patientPic,
+        hwName,
+        hwAge,
+        hwGender,
+        type,
       });
       return {
         data: data.toJSON(),
