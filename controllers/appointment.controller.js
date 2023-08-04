@@ -8,6 +8,7 @@ const {
   getUserSlots,
   _cancelAppointment,
   getAppointment,
+  getAllAppointments,
   getSlots,
 } = require("../services/appointment.service");
 
@@ -201,6 +202,18 @@ module.exports = (function () {
       const keysAndTypeToCheck = [{ key: "visitUuid", type: "string" }];
       if (validateParams(req.params, keysAndTypeToCheck)) {
         const data = await getAppointment(req.params);
+        res.json({ status: true, data });
+      }
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  this.getAllAppointments = async (req, res, next) => {
+    try {
+      const keysAndTypeToCheck = [{ key: "visitUuid", type: "string" }];
+      if (validateParams(req.params, keysAndTypeToCheck)) {
+        const data = await getAllAppointments(req.params);
         res.json({ status: true, data });
       }
     } catch (error) {

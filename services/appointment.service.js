@@ -566,6 +566,12 @@ WHERE
     });
   };
 
+  this.getAllAppointments = async ({ visitUuid }) => {
+    return await Appointment.findAll({
+      where: { visitUuid },
+    });
+  };
+
   this.rescheduleOrCancelAppointment = async (userUuid) => {
     const todayDate = moment.utc().format();
     const data = await Appointment.findAll({
