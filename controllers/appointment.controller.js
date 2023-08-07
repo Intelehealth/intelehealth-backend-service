@@ -10,6 +10,15 @@ const {
   getAppointment,
   getAllAppointments,
   getSlots,
+  getSpecialitySlots,
+  startAppointment,
+  releaseAppointment,
+  getBookedAppointments,
+  getRescheduledAppointments,
+  getRescheduledAppointmentsOfVisit,
+  getCancelledAppointments,
+  getScheduledMonths,
+  updateDaysOffSchedule
 } = require("../services/appointment.service");
 
 module.exports = (function () {
@@ -64,6 +73,22 @@ module.exports = (function () {
     }
   };
 
+  this.getScheduledMonths = async (req, res, next) => {
+    try {
+      const userUuid = req.params.userUuid;
+      const year = req.query.year;
+      console.log("userUuid, year", userUuid, year);
+      const data = await getScheduledMonths({ userUuid, year });
+      res.json({
+        status: true,
+        data,
+      });
+    } catch (error) {
+      console.log("error: ", error);
+      next(error);
+    }
+  };
+
   this.getUserSlots = async (req, res, next) => {
     try {
       const keysAndTypeToCheck = [
@@ -83,6 +108,27 @@ module.exports = (function () {
       next(error);
     }
   };
+
+  this.getSpecialitySlots = async (req, res, next) => {
+    try {
+      const keysAndTypeToCheck = [
+        { key: "fromDate", type: "string" },
+        { key: "toDate", type: "string" },
+      ];
+      if (validateParams(req.query, keysAndTypeToCheck)) {
+        const speciality = req.params.speciality;
+        const data = await getSpecialitySlots({ ...req.query, speciality });
+        res.json({
+          status: true,
+          data,
+        });
+      }
+    } catch (error) {
+      console.log("error: ", error);
+      next(error);
+    }
+  };
+
   this.getSlots = async (req, res, next) => {
     try {
       const keysAndTypeToCheck = [
@@ -92,9 +138,11 @@ module.exports = (function () {
       ];
       if (validateParams(req.query, keysAndTypeToCheck)) {
         const data = await getSlots(req.query);
+        const cancelledAppointments = await getCancelledAppointments(req.query);
         res.json({
           status: true,
           data,
+          cancelledAppointments,
         });
       }
     } catch (error) {
@@ -112,9 +160,15 @@ module.exports = (function () {
       ];
       if (validateParams(req.query, keysAndTypeToCheck)) {
         const data = await _getAppointmentSlots(req.query);
+        const bookedAppointments = await getBookedAppointments(req.query);
+        const rescheduledAppointments = await getRescheduledAppointments(
+          req.query
+        );
         res.json({
           status: true,
           ...data,
+          bookedAppointments,
+          rescheduledAppointments,
         });
       }
     } catch (error) {
@@ -165,7 +219,6 @@ module.exports = (function () {
         { key: "patientName", type: "string" },
         { key: "openMrsId", type: "string" },
         { key: "hwUUID", type: "string" },
-        { key: "reason", type: "string" },
         { key: "appointmentId", type: "number" },
       ];
       if (validateParams(req.body, keysAndTypeToCheck)) {
@@ -185,11 +238,23 @@ module.exports = (function () {
       const keysAndTypeToCheck = [
         { key: "id", type: "number" },
         { key: "visitUuid", type: "string" },
-        { key: "reason", type: "string" },
+        // { key: "reason", type: "string" },
         { key: "hwUUID", type: "string" },
       ];
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await _cancelAppointment(req.body);
+        res.json(data);
+      }
+    } catch (error) {
+      next(error);
+    }
+  };
+  
+  this.completeAppointment = async (req, res, next) => {
+    try {
+      const keysAndTypeToCheck = [{ key: "visitUuid", type: "string" }];
+      if (validateParams(req.body, keysAndTypeToCheck)) {
+        const data = await _completeAppointment(req.body);
         res.json(data);
       }
     } catch (error) {
@@ -202,9 +267,65 @@ module.exports = (function () {
       const keysAndTypeToCheck = [{ key: "visitUuid", type: "string" }];
       if (validateParams(req.params, keysAndTypeToCheck)) {
         const data = await getAppointment(req.params);
+        const rescheduledAppointments = await getRescheduledAppointmentsOfVisit(
+          req.params
+        );
+        res.json({ 
+          status: true, 
+          data, 
+          rescheduledAppointments, 
+        });
+      }
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  this.startAppointment = async (req, res, next) => {
+    try {
+      const keysAndTypeToCheck = [
+        { key: "appointmentId", type: "number" },
+        { key: "drName", type: "string" },
+        { key: "userUuid", type: "string" },
+      ];
+      if (validateParams(req.body, keysAndTypeToCheck)) {
+        const data = await startAppointment(req.body);
         res.json({ status: true, data });
       }
     } catch (error) {
+      next(error);
+    }
+  };
+
+  this.releaseAppointment = async (req, res, next) => {
+    try {
+      const keysAndTypeToCheck = [{ key: "visitUuid", type: "string" }];
+      if (validateParams(req.body, keysAndTypeToCheck)) {
+        const data = await releaseAppointment(req.body);
+        res.json({ status: true, data });
+      }
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  this.updateDaysOff = async (req, res, next) => {
+    const keysAndTypeToCheck = [
+      { key: "userUuid", type: "string" },
+      { key: "daysOff", type: "object" },
+      { key: "month", type: "object" },
+      { key: "year", type: "object" },
+    ];
+    try {
+      if (validateParams(req.body, keysAndTypeToCheck)) {
+        const data = await updateDaysOffSchedule(req.body);
+        res.json({
+          ...data,
+          status: true,
+        });
+      }
+    } catch (error) {
+      console.log("error: ", error);
       next(error);
     }
   };

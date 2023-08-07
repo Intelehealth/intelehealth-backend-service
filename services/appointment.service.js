@@ -13,6 +13,19 @@ const {
   sendCloudNotification,
 } = require("../handlers/helper");
 
+const {
+  visit,
+  encounter,
+  patient_identifier,
+  person_name,
+  encounter_type,
+  encounter_provider,
+  person,
+  provider,
+  location,
+  obs
+} = require("../openmrs_models");
+
 module.exports = (function () {
   const DATE_FORMAT = "DD/MM/YYYY";
   const TIME_FORMAT = "LT";
@@ -163,6 +176,30 @@ WHERE
     }
   };
 
+  this.getScheduledMonths = async ({ userUuid, year }) => {
+    try {
+      const data = await Schedule.findAll({
+        where: {
+          userUuid,
+          year,
+        },
+        raw: true,
+      });
+      let months = [];
+      if (data) {
+        data.forEach((d1) => {
+          let month = {};
+          month.name = d1.month;
+          month.year = d1.year;
+          months.push(month);
+        });
+      }
+      return months;
+    } catch (error) {
+      throw error;
+    }
+  };
+
   this.getFilterDates = (fromDate, toDate) => {
     return [
       moment.utc(`${fromDate} 00:00:00`, FILTER_TIME_DATE_FORMAT).format(),
@@ -182,7 +219,61 @@ WHERE
         },
         raw: true,
       });
-      return data;
+
+      const visitIds = data.map((v) => v?.visitUuid);
+
+      const visits = await visit.findAll({
+        where: {
+          uuid: { [Op.in]: visitIds },
+        },
+        attributes: ["uuid"],
+        include: [
+          {
+            model: encounter,
+            as: "encounters",
+            attributes: ["encounter_datetime"],
+            include: [
+              {
+                model: obs,
+                as: "obs",
+                attributes: ["value_text", "concept_id", "value_numeric"],
+                // where: {
+                //   concept_id: 163212
+                // },
+                required: false
+              },
+              {
+                model: encounter_type,
+                as: "type",
+                attributes: ["name"],
+              }
+            ],
+          },
+          {
+            model: patient_identifier,
+            as: "patient",
+            attributes: ["identifier"],
+          },
+          {
+            model: person_name,
+            as: "patient_name",
+            attributes: ["given_name", "family_name"],
+          },
+          {
+            model: person,
+            as: "person",
+            attributes: ["uuid", "gender", "birthdate"],
+          },
+          {
+            model: location,
+            as: "location",
+            attributes: ["name"],
+          },
+        ]
+      });
+      const mergedArray = data.map(x=> ({ ...x, visit: visits.find(y=>y.uuid==x.visitUuid)?.dataValues }));
+      return mergedArray;
+
     } catch (error) {
       throw error;
     }
@@ -196,11 +287,26 @@ WHERE
           slotJsDate: {
             [Op.between]: this.getFilterDates(fromDate, toDate),
           },
-          status: "booked",
         },
         raw: true,
       });
-      return data;
+      let visits = [];
+      if (data.length) {
+        let ar1 = data;
+        ar1.forEach((visit) => {
+          let visit1 = ({} = Object.assign(visit));
+          if (visit.status !== "rescheduled") {
+            visit1["rescheduledAppointments"] = [];
+            let rescheduledAppointment = data.filter(
+              (d1) =>
+                d1.visitUuid === visit.visitUuid && d1.status === "rescheduled"
+            );
+            visit1.rescheduledAppointments = rescheduledAppointment;
+            visits.push(visit1);
+          }
+        });
+      }
+      return visits;
     } catch (error) {
       throw error;
     }
@@ -227,29 +333,31 @@ WHERE
     //   return days.map((d) => d.normDate);
     // });
     schedule.daysToSchedule.forEach((slot) => {
-      const slotSchedule = slots.find(
+      const slotSchedules = slots.filter(
         (s) => moment(s.date).format(DATE_FORMAT) === slot.normDate
       );
-      if (slotSchedule) {
-        const { startTime, endTime } = slotSchedule;
-        let now = moment(startTime, TIME_FORMAT);
-        let deadline = moment(endTime, TIME_FORMAT);
-        while (now.diff(deadline) < 0) {
-          if (now > moment(now).hour(8)) {
-            dates.push({
-              slotDay: slot.day,
-              slotDate: slot.normDate,
-              slotDuration: SLOT_DURATION,
-              slotDurationUnit: SLOT_DURATION_UNIT,
-              slotTime: now.format(TIME_FORMAT),
-              speciality: schedule.speciality,
-              userUuid: schedule.userUuid,
-              drName: schedule.drName,
-            });
+      slotSchedules.forEach((slotSchedule) => {
+        if (slotSchedule) {
+          const { startTime, endTime } = slotSchedule;
+          let now = moment(startTime, TIME_FORMAT);
+          let deadline = moment(endTime, TIME_FORMAT);
+          while (now.diff(deadline) < 0) {
+            if (now > moment(now).hour(8)) {
+              dates.push({
+                slotDay: slot.day,
+                slotDate: slot.normDate,
+                slotDuration: SLOT_DURATION,
+                slotDurationUnit: SLOT_DURATION_UNIT,
+                slotTime: now.format(TIME_FORMAT),
+                speciality: schedule.speciality,
+                userUuid: schedule.userUuid,
+                drName: schedule.drName,
+              });
+            }
+            now.add(SLOT_DURATION, SLOT_DURATION_UNIT);
           }
-          now.add(SLOT_DURATION, SLOT_DURATION_UNIT);
         }
-      }
+      });
     });
 
     return dates;
@@ -373,7 +481,7 @@ WHERE
                 d.slotTime === apnmt.slotTime &&
                 d.slotDate === apnmt.slotDate &&
                 d.slotDay === apnmt.slotDay &&
-                d.userUuid === apnmt.userUuid
+                d.speciality === apnmt.speciality
             );
             if (dateIdx != -1) {
               dates.splice(dateIdx, 1);
@@ -446,41 +554,27 @@ WHERE
   };
 
   this._bookAppointment = async (params) => {
-    const {
-      slotDay,
-      slotDate,
-      slotDuration,
-      slotDurationUnit,
-      slotTime,
-      speciality,
-      userUuid,
-      drName,
-      visitUuid,
-      patientId,
-      openMrsId,
-      patientName,
-      locationUuid,
-      hwUUID,
-      patientAge,
-      patientGender,
-      patientPic,
-      hwName,
-      hwAge,
-      hwGender,
-      type,
-    } = params;
+    const { slotDate, slotTime, speciality, visitUuid } = params;
     try {
-      const bookedApnmt = await Appointment.findOne({
-        where: {
-          slotTime,
-          slotDate,
-          userUuid,
-          status: "booked",
-        },
-        raw: true,
+      const appntSlots = await this._getAppointmentSlots({
+        fromDate: slotDate,
+        toDate: slotDate,
+        speciality,
       });
 
-      if (bookedApnmt) {
+      if (appntSlots && appntSlots.dates && Array.isArray(appntSlots.dates)) {
+        const matchedApmt = appntSlots.dates.filter((apmt) => {
+          return (
+            apmt.slotTime === slotTime &&
+            apmt.slotDate === slotDate &&
+            apmt.speciality === speciality
+          );
+        });
+
+        if (!matchedApmt.length) {
+          throw new Error("Appointment not available, it's already booked.");
+        }
+      } else {
         throw new Error("Appointment not available, it's already booked.");
       }
 
@@ -495,29 +589,7 @@ WHERE
         throw new Error("Appointment for this visit is already present.");
       }
 
-      const data = await createAppointment({
-        openMrsId,
-        patientName,
-        locationUuid,
-        hwUUID,
-        slotDay,
-        slotDate,
-        slotDuration,
-        slotDurationUnit,
-        slotTime,
-        speciality,
-        userUuid,
-        drName,
-        visitUuid,
-        patientId,
-        patientAge,
-        patientGender,
-        patientPic,
-        hwName,
-        hwAge,
-        hwGender,
-        type,
-      });
+      const data = await createAppointment(params);
       return {
         data: data.toJSON(),
       };
@@ -551,6 +623,32 @@ WHERE
       return {
         status: true,
         message: "Appointment cancelled successfully!",
+      };
+    } else {
+      return {
+        status: false,
+        message: "Appointment not found!",
+      };
+    }
+  };
+
+  this._completeAppointment = async (params) => {
+    const { id, visitUuid, hwUUID, reason } = params;
+    let where = {
+      status: "booked",
+    };
+    if (visitUuid) where.visitUuid = visitUuid;
+    if (id) where.id = id;
+
+    const appointment = await Appointment.findOne({
+      where,
+    });
+
+    if (appointment) {
+      appointment.update({ status: "completed", updatedBy: hwUUID });
+      return {
+        status: true,
+        message: "Appointment completed successfully!",
       };
     } else {
       return {
@@ -661,13 +759,7 @@ WHERE
     patientId,
     appointmentId,
     reason,
-    patientAge,
-    patientGender,
-    patientPic,
-    hwName,
-    hwAge,
-    hwGender,
-    type,
+    webApp
   }) => {
     const cancelled = await this._cancelAppointment(
       { id: appointmentId, userId: hwUUID, reason },
@@ -675,6 +767,23 @@ WHERE
       null,
       true
     );
+
+    const appointment = await Appointment.findOne({
+      where: {
+        slotDate,
+        slotTime,
+        status: "booked",
+        userUuid,
+      },
+      raw: true,
+    });
+
+    if (appointment) {
+      throw new Error(
+        "Another appointment has already been booked for this time slot."
+      );
+    }
+
     if (cancelled && cancelled.status) {
       return {
         data: await createAppointment({
@@ -692,13 +801,6 @@ WHERE
           drName,
           visitUuid,
           patientId,
-          patientAge,
-          patientGender,
-          patientPic,
-          hwName,
-          hwAge,
-          hwGender,
-          type,
         }),
       };
     } else {
@@ -706,5 +808,139 @@ WHERE
     }
   };
 
+  this.startAppointment = async ({ drName, userUuid, appointmentId }) => {
+    let appointment = await Appointment.findOne({
+      where: {
+        id: appointmentId,
+      },
+    });
+    if (appointment) {
+      appointment.userUuid = userUuid;
+      appointment.drName = drName;
+      await appointment.save();
+      return appointment;
+    } else {
+      throw new Error("Appointment not found!");
+    }
+  };
+  this.releaseAppointment = async ({ visitUuid }) => {
+    let appointment = await Appointment.findOne({
+      where: {
+        visitUuid,
+        status: "booked",
+      },
+    });
+    if (appointment) {
+      appointment.userUuid = null;
+      appointment.drName = null;
+      await appointment.save();
+      return appointment;
+    } else {
+      throw new Error("Appointment not found!");
+    }
+  };
+  this.getBookedAppointments = async ({
+    fromDate,
+    toDate,
+    speciality,
+    userUuid,
+  }) => {
+    let where = {
+      slotJsDate: {
+        [Op.between]: this.getFilterDates(fromDate, toDate),
+      },
+      status: "booked",
+    };
+    if (userUuid) where.userUuid = userUuid;
+    if (speciality) where.speciality = speciality;
+    return await Appointment.findAll({
+      where,
+      order: [["slotJsDate", "DESC"]],
+      raw: true,
+    });
+  };
+  this.getRescheduledAppointments = async ({
+    fromDate,
+    toDate,
+    speciality,
+    userUuid,
+  }) => {
+    let where = {
+      slotJsDate: {
+        [Op.between]: this.getFilterDates(fromDate, toDate),
+      },
+      status: "rescheduled",
+    };
+    if (userUuid) where.userUuid = userUuid;
+    if (speciality) where.speciality = speciality;
+    return await Appointment.findAll({
+      where,
+      order: [["slotJsDate", "DESC"]],
+      raw: true,
+    });
+  };
+  this.getRescheduledAppointmentsOfVisit = async ({ visitUuid }) => {
+    let where = {
+      visitUuid,
+      status: "rescheduled",
+    };
+    return await Appointment.findAll({
+      where,
+      order: [["slotJsDate", "DESC"]],
+      raw: true,
+    });
+  };
+  this.getCancelledAppointments = async ({
+    fromDate,
+    toDate,
+    speciality,
+    locationUuid,
+    userUuid,
+  }) => {
+    let where = {
+      slotJsDate: {
+        [Op.between]: this.getFilterDates(fromDate, toDate),
+      },
+      status: "cancelled",
+    };
+    if (locationUuid) where.locationUuid = locationUuid;
+    if (userUuid) where.userUuid = userUuid;
+    if (speciality) where.speciality = speciality;
+    return await Appointment.findAll({
+      where,
+      order: [["slotJsDate", "DESC"]],
+      raw: true,
+    });
+  };
+  /**
+   * updates daysoff schedule if already exist for userUuid
+   * @param {string} userUuid
+   * @param {object} dates
+   */
+  this.updateDaysOffSchedule = async ({ userUuid, daysOff, month, year }) => {
+    try {
+      const opts = { where: { userUuid, month, year } };
+      const schedule = await this.getUserAppointmentSchedule(opts);
+      let update = { daysOff };
+      if (schedule) {
+        const resp = {
+          message: "Schedule updated successfully",
+          data: await Schedule.update(update, opts),
+        };
+        return resp;
+      } else {
+        return {
+          message: "Schedule created successfully",
+          data: await Schedule.create({
+            userUuid,
+            daysOff,
+          }),
+        };
+      }
+    } catch (error) {
+      throw error;
+    }
+  };
+  
   return this;
 })();
