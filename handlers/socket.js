@@ -1,15 +1,12 @@
 const { user_settings } = require("../models");
-const admin = require("firebase-admin");
+// const admin = require("firebase-admin");
 const env = process.env.NODE_ENV || "development";
 const config = require(__dirname + "/../config/config.json")[env];
 const { sequelize } = require("../models");
 const { QueryTypes } = require("sequelize");
+const { getFirebaseAdmin } = require("./helper");
 
-const serviceAccount = require(__dirname + "/../config/serviceAccountKey.json");
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  databaseURL: "https://ezazi-8712a-default-rtdb.firebaseio.com",
-});
+const admin = getFirebaseAdmin();
 
 const CALL_STATUSES = {
   CALLING: "calling",
