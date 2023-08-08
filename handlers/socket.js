@@ -5,6 +5,7 @@ const config = require(__dirname + "/../config/config.json")[env];
 const { sequelize } = require("../models");
 const { QueryTypes } = require("sequelize");
 const { getFirebaseAdmin } = require("./helper");
+const { deliveredById } = require("../services/message.service");
 
 const admin = getFirebaseAdmin();
 
@@ -176,6 +177,10 @@ module.exports = function (server) {
         }
       }
       emitAllUserStatus();
+    });
+
+    socket.on("ack_msg_received", function (data) {
+      deliveredById(data?.messageId);
     });
 
     socket.on("call-connected", async function (data) {
