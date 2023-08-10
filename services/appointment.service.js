@@ -759,6 +759,13 @@ WHERE
     patientId,
     appointmentId,
     reason,
+    patientAge,
+    patientGender,
+    patientPic,
+    hwName,
+    hwAge,
+    hwGender,
+    type,
     webApp
   }) => {
     const cancelled = await this._cancelAppointment(
@@ -801,6 +808,13 @@ WHERE
           drName,
           visitUuid,
           patientId,
+          patientAge,
+          patientGender,
+          patientPic,
+          hwName,
+          hwAge,
+          hwGender,
+          type
         }),
       };
     } else {
