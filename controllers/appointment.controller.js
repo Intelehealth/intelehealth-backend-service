@@ -18,6 +18,7 @@ const {
   getCancelledAppointments,
   getScheduledMonths,
   updateDaysOffSchedule,
+  _completeAppointment
 } = require("../services/appointment.service");
 
 module.exports = (function () {

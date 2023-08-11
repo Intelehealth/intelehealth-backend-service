@@ -3,7 +3,7 @@ const openMrsDB = require("../public/javascripts/mysql/mysqlOpenMrs");
 const { user_settings } = require("../models");
 const { axiosInstance } = require("../handlers/helper");
 const { QueryTypes } = require("sequelize");
-const { getVisitCountV2 } = require("../controllers/queries");
+const { getVisitCountV3 } = require("../controllers/queries");
 const {
   visit,
   encounter,
