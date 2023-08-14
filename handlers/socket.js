@@ -180,7 +180,12 @@ module.exports = function (server) {
     });
 
     socket.on("ack_msg_received", function (data) {
-      deliveredById(data?.messageId);
+      if (typeof data === "string") {
+        data = JSON.parse(data);
+        deliveredById(data?.messageId);
+      } else {
+        deliveredById(data?.messageId);
+      }
     });
 
     socket.on("call-connected", async function (data) {
@@ -216,6 +221,24 @@ module.exports = function (server) {
               emitAllUserStatus();
             }, 2000);
             io.to(socketId).emit("cancel_dr", "webapp");
+          }
+        }
+      }
+    });
+
+    socket.on("call_time_up", async function (toUserUuid) {
+      console.log("toUserUuid: ", toUserUuid);
+      for (const socketId in users) {
+        if (Object.hasOwnProperty.call(users, socketId)) {
+          if (users[socketId].uuid === toUserUuid) {
+            users[socketId].callStatus = CALL_STATUSES.IDLE;
+            users[socketId].room = null;
+            emitAllUserStatus();
+            setTimeout(() => {
+              users[socketId].callStatus = CALL_STATUSES.IDLE;
+              emitAllUserStatus();
+            }, 2000);
+            io.to(socketId).emit("call_time_up", toUserUuid);
           }
         }
       }

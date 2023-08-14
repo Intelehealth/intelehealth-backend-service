@@ -99,7 +99,7 @@ module.exports = (function () {
         try {
           data[i].createdAt = new Date(data[i].createdAt).toGMTString();
           data[i].isRead = Boolean(data[i].isRead);
-          data[i].isDelivered = Boolean(data[i].isDelivered);
+          data[i].isDelivered = Boolean(Number(data[i].isDelivered));
         } catch (error) {}
       }
       return { success: true, data };
