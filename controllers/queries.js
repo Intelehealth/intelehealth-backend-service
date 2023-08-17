@@ -185,6 +185,7 @@ module.exports = (function () {
     this.getVisitCountV3 = () => {
         return `select
         t1.visit_id,
+        t1.uuid,
         case
           when (ended = 1) then "Ended Visit"
             when (
@@ -208,6 +209,7 @@ module.exports = (function () {
             select
                 v.visit_id,
                 v.patient_id,
+                v.uuid,
                 max(encounter_id) as max_enc,
                 max(
                     case

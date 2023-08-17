@@ -1,6 +1,6 @@
 const moment = require("moment");
 const openMrsDB = require("../public/javascripts/mysql/mysqlOpenMrs");
-const { user_settings } = require("../models");
+const { user_settings, appointments: Appointment } = require("../models");
 const { axiosInstance } = require("../handlers/helper");
 const { QueryTypes } = require("sequelize");
 const { getVisitCountV3 } = require("../controllers/queries");
@@ -194,9 +194,20 @@ module.exports = (function () {
       const visits = await sequelize.query(getVisitCountV3(), {
         type: QueryTypes.SELECT,
       });
-
+      let appointmentVisitIds = [];
+      if(type === "Awaiting Consult"){
+        const data = await Appointment.findAll({
+          attributes: ['visitUuid'],
+          where: {
+            speciality: speciality,
+            status: "booked",
+          },
+          raw: true,
+        });
+        appointmentVisitIds = data.map(i=>i.visitUuid);
+      }
       return Array.isArray(visits)
-        ? visits.filter((v) => v?.Status === type && v.speciality == speciality).map((v) => v?.visit_id)
+        ? visits.filter((v) => v?.Status === type && v.speciality == speciality && !appointmentVisitIds.includes(v.uuid)).map((v) => v?.visit_id)
         : [];
     }
   };
