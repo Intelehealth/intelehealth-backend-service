@@ -1,5 +1,6 @@
 const { RES } = require("../handlers/helper");
-const { createCompletion, getGTPInputs, addGTPInput, setAsDefaultGTPInput, deleteGPTInput, getGPTModels, addGPTModel, setAsDefaultGPTModel, deleteGPTModel } = require("../services/openai.service");
+const { createCompletion, createCompletion2, translateExcel, getGTPInputs, addGTPInput, setAsDefaultGTPInput, deleteGPTInput, getGPTModels, addGPTModel, setAsDefaultGPTModel, deleteGPTModel } = require("../services/openai.service");
+const fs = require('fs');
 
 module.exports = (function () {
     /**
@@ -12,6 +13,48 @@ module.exports = (function () {
         const { payload, inputtype, customInput } = req.body;
         if (payload && ((inputtype == 'default' && customInput == null) || (inputtype == 'custom' && customInput != null))) {
           const data = await createCompletion(payload, inputtype, customInput);
+          RES(
+            res,
+            {
+              success: data.success,
+              message: data.message,
+              data: data.data,
+            },
+            data.code
+          );
+        } else {
+          RES(
+            res,
+            {
+              success: false,
+              message: "Bad request! Invalid arguments.",
+              data: null,
+            },
+            400
+          );
+        }
+      } catch (error) {
+        if (error.code === null || error.code === undefined) {
+          error.code = 500;
+        }
+        RES(
+          res,
+          { success: false, data: error.data, message: error.message },
+          error.code
+        );
+      }
+    };
+
+    /**
+     * 
+     * @param {*} req
+     * @param {*} res
+     */
+    this.createCompletion2 = async (req, res) => {
+      try {
+        const { payload } = req.body;
+        if (payload) {
+          const data = await createCompletion2(payload);
           RES(
             res,
             {
@@ -331,6 +374,53 @@ module.exports = (function () {
             },
             data.code
           );
+        } else {
+          RES(
+            res,
+            {
+              success: false,
+              message: "Bad request! Invalid arguments.",
+              data: null,
+            },
+            400
+          );
+        }
+      } catch (error) {
+        if (error.code === null || error.code === undefined) {
+          error.code = 500;
+        }
+        RES(
+          res,
+          { success: false, data: error.data, message: error.message },
+          error.code
+        );
+      }
+    };
+
+    /**
+     * 
+     * @param {*} req
+     * @param {*} res
+     */
+    this.translateExcel = async (req, res) => {
+      try {
+        const file = req.file;
+        const { language } = req.body;
+        if (file && language) {
+          const data = await translateExcel(file, language);
+          if (data.success) {
+            res.download('public/translate/translated.xlsx');
+          } else {
+            RES(
+              res,
+              {
+                success: data.success,
+                message: data.message,
+                data: data.data,
+              },
+              data.code
+            );
+          }
         } else {
           RES(
             res,

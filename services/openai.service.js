@@ -8,6 +8,9 @@ const configuration = new Configuration({
 const openai = new OpenAIApi(configuration);
 const { gptinputs, gptmodels, Sequelize, sequelize } = require("../models");
 const axios = require("axios");
+const readXlsxFile = require('read-excel-file/node');
+const xlsx = require('node-xlsx').default;
+const fs = require('fs');
 
 module.exports = (function () {
 
@@ -63,12 +66,38 @@ module.exports = (function () {
                 };
             }
         } catch (error) {
-            if(error.code === null || error.code === undefined){
+            if (error.code === null || error.code === undefined) {
                 error.code = 500;
             }
             return { code: error.code, success: false, data: error.data, message: error.message };
         }
-        
+
+    };
+
+    this.createCompletion2 = async function (payload) {
+        try {
+            const response = await openai.createChatCompletion({
+                model: 'gpt-3.5-turbo-0613',
+                messages: [
+                    {
+                        role: "user",
+                        content: `Translate the below words/sentences to russian language in a json object format where key is the word/sentence and value will be the translation:  ${payload}`
+                    }
+                ]
+            });
+            return {
+                code: 200,
+                success: true,
+                message: "Chat completion created successfully!",
+                data: response.data
+            };
+        } catch (error) {
+            if (error.code === null || error.code === undefined) {
+                error.code = 500;
+            }
+            return { code: error.code, success: false, data: error.data, message: error.message };
+        }
+
     };
 
     this.getGTPInputs = async function () {
@@ -90,7 +119,7 @@ module.exports = (function () {
                 data: response
             };
         } catch (error) {
-            if(error.code === null || error.code === undefined){
+            if (error.code === null || error.code === undefined) {
                 error.code = 500;
             }
             return { code: error.code, success: false, data: error.data, message: error.message };
@@ -100,7 +129,7 @@ module.exports = (function () {
     this.addGTPInput = async function (gptinput) {
         try {
             const data = await gptinputs.create({
-               gptinput
+                gptinput
             });
             return {
                 code: 200,
@@ -109,7 +138,7 @@ module.exports = (function () {
                 data: data
             };
         } catch (error) {
-            if(error.code === null || error.code === undefined){
+            if (error.code === null || error.code === undefined) {
                 error.code = 500;
             }
             return { code: error.code, success: false, data: error.data, message: error.message };
@@ -122,19 +151,19 @@ module.exports = (function () {
             const response = await gptinputs.update(
                 { isDefault: false },
                 {
-                  where: {
-                    id: {
-                        [Sequelize.Op.not] : id
+                    where: {
+                        id: {
+                            [Sequelize.Op.not]: id
+                        }
                     }
-                  }
                 }
             );
             const data = await gptinputs.update(
                 { isDefault: true },
                 {
-                  where: {
-                    id: id
-                  }
+                    where: {
+                        id: id
+                    }
                 }
             );
             return {
@@ -144,7 +173,7 @@ module.exports = (function () {
                 data: data
             };
         } catch (error) {
-            if(error.code === null || error.code === undefined){
+            if (error.code === null || error.code === undefined) {
                 error.code = 500;
             }
             return { code: error.code, success: false, data: error.data, message: error.message };
@@ -155,10 +184,10 @@ module.exports = (function () {
         try {
             const data = await gptinputs.destroy(
                 {
-                  where: {
-                    id: id,
-                    isDefault: false
-                  }
+                    where: {
+                        id: id,
+                        isDefault: false
+                    }
                 }
             );
             if (data) {
@@ -176,9 +205,9 @@ module.exports = (function () {
                     data: null
                 };
             }
-            
+
         } catch (error) {
-            if(error.code === null || error.code === undefined){
+            if (error.code === null || error.code === undefined) {
                 error.code = 500;
             }
             return { code: error.code, success: false, data: error.data, message: error.message };
@@ -204,7 +233,7 @@ module.exports = (function () {
                 data: response
             };
         } catch (error) {
-            if(error.code === null || error.code === undefined){
+            if (error.code === null || error.code === undefined) {
                 error.code = 500;
             }
             return { code: error.code, success: false, data: error.data, message: error.message };
@@ -214,7 +243,7 @@ module.exports = (function () {
     this.addGPTModel = async function (model) {
         try {
             const data = await gptmodels.create({
-               model
+                model
             });
             return {
                 code: 200,
@@ -223,7 +252,7 @@ module.exports = (function () {
                 data: data
             };
         } catch (error) {
-            if(error.code === null || error.code === undefined){
+            if (error.code === null || error.code === undefined) {
                 error.code = 500;
             }
             return { code: error.code, success: false, data: error.data, message: error.message };
@@ -236,19 +265,19 @@ module.exports = (function () {
             const response = await gptmodels.update(
                 { isDefault: false },
                 {
-                  where: {
-                    id: {
-                        [Sequelize.Op.not] : id
+                    where: {
+                        id: {
+                            [Sequelize.Op.not]: id
+                        }
                     }
-                  }
                 }
             );
             const data = await gptmodels.update(
                 { isDefault: true },
                 {
-                  where: {
-                    id: id
-                  }
+                    where: {
+                        id: id
+                    }
                 }
             );
             return {
@@ -258,7 +287,7 @@ module.exports = (function () {
                 data: data
             };
         } catch (error) {
-            if(error.code === null || error.code === undefined){
+            if (error.code === null || error.code === undefined) {
                 error.code = 500;
             }
             return { code: error.code, success: false, data: error.data, message: error.message };
@@ -269,10 +298,10 @@ module.exports = (function () {
         try {
             const data = await gptmodels.destroy(
                 {
-                  where: {
-                    id: id,
-                    isDefault: false
-                  }
+                    where: {
+                        id: id,
+                        isDefault: false
+                    }
                 }
             );
             if (data) {
@@ -290,13 +319,97 @@ module.exports = (function () {
                     data: null
                 };
             }
-            
+
         } catch (error) {
-            if(error.code === null || error.code === undefined){
+            if (error.code === null || error.code === undefined) {
                 error.code = 500;
             }
             return { code: error.code, success: false, data: error.data, message: error.message };
         }
+    };
+
+    this.translateExcel = async function (file, language) {
+        try {
+            const data = await readXlsxFile(file.path);
+            // const workSheetsFromFile = xlsx.parse(file.path);
+            let words = [];
+            let jsonObject = { };
+            for (let i = 1; i < data.length; i++) {
+                if (data[i][0]) {
+                    words.push(data[i][0]);
+                    jsonObject[data[i][0]] = null;
+                }
+            }
+            let pages = Math.ceil(words.length/25);
+            for (let i = 0; i < pages; i++) {
+                console.log("Page:", i);
+                let input = words.slice(i*25, ((i+1)*25) - 1).join("\n");
+                const response = await openai.createChatCompletion({
+                    model: 'gpt-3.5-turbo-16k-0613',
+                    messages: [
+                        {
+                            role: "user",
+                            content: `Translate the below words/sentences to ${language} language in a json object format where key is the word/sentence and value will be the translation:  ${input}`
+                        }
+                    ]
+                });
+                if (response.data.choices[0].message.content.endsWith('}')) {
+                    const translation = JSON.parse(response.data.choices[0].message.content);
+                    for (const key in translation) {
+                        if (translation.hasOwnProperty(key)) {
+                            // console.log(`${key}: ${translation[key]}`);
+                            jsonObject[key] = translation[key];
+                        }
+                    }
+                } else {
+                    for (let j = 0; j < 2; j++) {
+                        let input = words.slice(i*25, ((i+1)*25) - 1).slice(j*13, ((j+1)*13) - 1).join("\n");
+                        const response = await openai.createChatCompletion({
+                            model: 'gpt-3.5-turbo-16k-0613',
+                            messages: [
+                                {
+                                    role: "user",
+                                    content: `Translate the below words/sentences to ${language} language in a json object format where key is the word/sentence and value will be the translation:  ${input}`
+                                }
+                            ]
+                        });
+                        const translation = JSON.parse(response.data.choices[0].message.content);
+                        for (const key in translation) {
+                            if (translation.hasOwnProperty(key)) {
+                                // console.log(`${key}: ${translation[key]}`);
+                                jsonObject[key] = translation[key];
+                            }
+                        }
+                    }
+                }
+            }
+            // console.log(jsonObject);
+            let translateddata = [];
+            for (let i = 0; i < data.length; i++) {
+                if (data[i][0]) {
+                    if (i == 0) {
+                        translateddata.push(data[i])
+                    } else {
+                        translateddata.push([data[i][0], data[i][1], jsonObject[data[i][0]]]);
+                    }
+                }
+            }
+            const buffer = xlsx.build([{name: 'translation', data: translateddata}]);
+            fs.writeFileSync('public/translate/translated.xlsx', buffer);
+            fs.unlinkSync(file.path);
+            return {
+                code: 200,
+                success: true,
+                message: "Chat completion created successfully!",
+                data: buffer
+            };
+        } catch (error) {
+            if (error.code === null || error.code === undefined) {
+                error.code = 500;
+            }
+            return { code: error.code, success: false, data: error.data, message: error.message };
+        }
+
     };
 
     return this;
