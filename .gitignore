@@ -6,3 +6,5 @@
 
 /livekit-token-microservice/node_modules
 /livekit-token-microservice/.env
+/public/translate/uploads/*
+/public/translate/translated.xlsx
