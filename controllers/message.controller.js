@@ -2,6 +2,7 @@ const {
   sendMessage,
   getMessages,
   postSMSToMobileNumber,
+  readMessagesById,
 } = require("../services/message.service");
 const {
   validateParams,
