@@ -1,5 +1,5 @@
 const openMrsDB = require("../public/javascripts/mysql/mysqlOpenMrs");
-const { supportmessages, Sequelize, sequelize } = require("../models");
+const { supportmessages, Sequelize, sequelize, supporttickets } = require("../models");
 const { QueryTypes } = require('sequelize');
 
 module.exports = (function () {
@@ -224,5 +224,27 @@ module.exports = (function () {
             return { code: error.code, success: false, data: error.data, message: error.message };
         }
     };
+
+    this.createTicket = async function (userId, ticketnumber) {
+        try {
+            
+            const data = await supporttickets.create({
+                userId,
+                ticketnumber
+            });
+            return {
+                code: 200,
+                success: true,
+                message: "Ticket created successfully.",
+                data: data
+            }
+        } catch (error) {
+            if(error.code === null || error.code === undefined){
+                error.code = 500;
+            }
+            return { code: error.code, success: false, data: error.data, message: error.message };
+        }
+    };
+
     return this;
 })();

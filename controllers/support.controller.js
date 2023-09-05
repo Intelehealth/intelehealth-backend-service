@@ -7,7 +7,8 @@ const {
     readMessage,
     getMessages,
     getSystemAdministrators,
-    getDoctorsList
+    getDoctorsList,
+    createTicket
 } = require("../services/support.service");
 const { Sequelize, sequelize } = require("../models");
 const { QueryTypes } = require('sequelize');
@@ -202,6 +203,45 @@ module.exports = (function () {
             const { userId } = req.params;
             if (userId) {
                 const data = await getDoctorsList(userId);
+                RES(
+                    res,
+                    {
+                      success: data.success,
+                      message: data.message,
+                      data: data.data,
+                    },
+                    data.code
+                );
+            } else {
+                RES(
+                    res, 
+                    { success: false, message: "Bad request! Invalid arguments.", data: null }, 
+                    400
+                );
+            }
+        } catch (error) {
+            if (error.code === null || error.code === undefined) {
+                error.code = 500;
+            }
+            RES(
+                res,
+                { success: false, data: error.data, message: error.message },
+                error.code
+            );
+        }
+    };
+
+    /**
+     * Get Dr's list raised support messages.
+     * @param {*} req
+     * @param {*} res
+     */
+    this.createTicket = async (req, res) => {
+        try {
+            const { userId } = req.params;
+            const { ticketnumber } = req.body;
+            if (userId && ticketnumber) {
+                const data = await createTicket(userId, ticketnumber);
                 RES(
                     res,
                     {
