@@ -150,22 +150,13 @@ module.exports = (function () {
       let data = await messages.findAll({
         attributes: [
           [
-            Sequelize.fn("DISTINCT", Sequelize.col("patientName")),
-            "patientName",
+            Sequelize.fn("DISTINCT", Sequelize.col("patientId")),
+            "patientId",
           ],
-
-          [Sequelize.fn("max", Sequelize.col("message")), "message"],
           [Sequelize.fn("max", Sequelize.col("id")), "id"],
-          "patientId",
-          "patientPic",
-          "isRead",
-          "fromUser",
-          "toUser",
-          "visitId",
-          "hwName",
-          "createdAt",
         ],
-        group: ["patientName"],
+        group: ["patientId"],
+        order: [[Sequelize.col("id"), "DESC"]],
         where: {
           patientName: {
             [Sequelize.Op.ne]: null,
@@ -185,6 +176,28 @@ module.exports = (function () {
             patientId: msg.patientId,
           },
         });
+
+        const record = await messages.findOne({
+          attributes: [
+            "message",
+            "patientName",
+            "patientPic",
+            "hwName",
+            "visitId",
+            "fromUser",
+            "toUser"
+          ],
+          where: {
+            id: msg.id
+          }
+        });
+        data[idx].message = record.message;
+        data[idx].patientName = record.patientName;
+        data[idx].patientPic = record.patientPic;
+        data[idx].hwName = record.hwName;
+        data[idx].visitId = record.visitId;
+        data[idx].fromUser = record.fromUser;
+        data[idx].toUser = record.toUser;
       });
       return { success: true, data };
     } catch (error) {
