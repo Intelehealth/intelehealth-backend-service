@@ -1,4 +1,9 @@
 const openMrsDB = require("../public/javascripts/mysql/mysqlOpenMrs");
+const {
+  _getPriorityVisits,
+  _getInProgressVisits,
+  _getCompletedVisits
+} = require("../services/openmrs.service");
 
 const getVisitCountQuery = ({ speciality = "General Physician" }) => {
   return `select count(t1.visit_id) as Total,
@@ -109,6 +114,69 @@ const getVisitCounts = async (req, res, next) => {
   }
 };
 
+const getPriorityVisits = async (req, res, next) => {
+  try {
+    let page = req.query.page ? Number(req.query.page) : 1;
+    let limit =  req.query.limit ? Number(req.query.limit) : 1000;
+    const data = await _getPriorityVisits(
+      page,
+      limit
+    );
+    res.json({
+      count: data.currentCount,
+      totalCount: data.totalCount,
+      data: data.visits,
+      success: true,
+    });
+  } catch (error) {
+    res.statusCode = 422;
+    res.json({ status: false, message: error.message });
+  }
+};
+
+const getInProgressVisits = async (req, res, next) => {
+  try {
+    let page = req.query.page ? Number(req.query.page) : 1;
+    let limit =  req.query.limit ? Number(req.query.limit) : 1000;
+    const data = await _getInProgressVisits(
+      page,
+      limit
+    );
+    res.json({
+      count: data.currentCount,
+      totalCount: data.totalCount,
+      data: data.visits,
+      success: true,
+    });
+  } catch (error) {
+    res.statusCode = 422;
+    res.json({ status: false, message: error.message });
+  }
+};
+
+const getCompletedVisits = async (req, res, next) => {
+  try {
+    let page = req.query.page ? Number(req.query.page) : 1;
+    let limit =  req.query.limit ? Number(req.query.limit) : 1000;
+    const data = await _getCompletedVisits(
+      page,
+      limit
+    );
+    res.json({
+      count: data.currentCount,
+      totalCount: data.totalCount,
+      data: data.visits,
+      success: true,
+    });
+  } catch (error) {
+    res.statusCode = 422;
+    res.json({ status: false, message: error.message });
+  }
+};
+
 module.exports = {
   getVisitCounts,
+  getPriorityVisits,
+  getInProgressVisits,
+  getCompletedVisits
 };
