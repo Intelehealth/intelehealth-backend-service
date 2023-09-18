@@ -96,22 +96,24 @@ module.exports = (function () {
     data = {},
     regTokens,
     click_action = "FCM_PLUGIN_HOME_ACTIVITY",
+    opts = {},
   }) => {
     const admin = this.getFirebaseAdmin();
     const messaging = admin.messaging();
 
     var payload = {
       data,
-      notification: {
-        title,
-        icon,
-        body,
-        click_action,
-      },
+      // notification: {
+      //   title,
+      //   icon,
+      //   body,
+      //   click_action,
+      // },
     };
 
     const options = {
       priority: "high",
+      ...opts,
     };
 
     return messaging
