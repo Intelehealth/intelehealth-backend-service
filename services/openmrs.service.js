@@ -74,28 +74,21 @@ module.exports = (function () {
             const visitIds = await this.getVisits(type, limit, offset);
             
             let visits = await visit.findAll({
-                attributes: ["uuid", "date_stopped", "date_started"],
+                attributes: ["uuid", "date_stopped", "date_started", "voided"],
                 where: {
                     visit_id: { [Op.in]: visitIds.map((v) => v?.visit_id) },
-                    voided: false
                 },
                 include: [
                     {
                         model: encounter,
                         as: "encounters",
-                        attributes: ["encounter_datetime","uuid"],
+                        attributes: ["encounter_datetime","uuid","voided"],
                         order: [["encounter_id","DESC"]],
-                        where: {
-                            voided: false
-                        },
                         include: [
                             {
                                 model: obs,
                                 as: "obs",
-                                attributes: ["value_text", "value_numeric", "comments","uuid"],
-                                where: {
-                                    voided: false
-                                },
+                                attributes: ["value_text", "value_numeric", "comments","uuid","voided"],
                                 include: [
                                     {
                                         model: concept,
@@ -105,7 +98,7 @@ module.exports = (function () {
                                             {
                                                 model: concept_name,
                                                 as: "concept_name",
-                                                attributes: ["name"]
+                                                attributes: ["name","voided"]
                                             }
                                         ]
                                     }
@@ -119,7 +112,7 @@ module.exports = (function () {
                             {
                                 model: encounter_provider,
                                 as: "encounter_provider",
-                                attributes: ["uuid"],
+                                attributes: ["uuid","voided"],
                                 include: [
                                     {
                                         model: provider,
@@ -147,11 +140,7 @@ module.exports = (function () {
                     {
                       model: visit_attribute,
                       as: "attributes",
-                      attributes: ["value_reference","uuid"],
-                      where: {
-                        attribute_type_id: { [Op.in]: [5, 7, 8] },
-                        voided: false
-                      },
+                      attributes: ["value_reference","uuid","voided"],
                       include: [
                         {
                             model: visit_attribute_type,
