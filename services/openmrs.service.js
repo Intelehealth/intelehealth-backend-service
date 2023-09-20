@@ -52,6 +52,23 @@ module.exports = (function () {
         }
     };
 
+    this.getCompVisits = async (limit, offset) => {
+        let visits = await sequelize.query(getVisitCountV3(), {
+            type: QueryTypes.SELECT,
+        });
+        let filteredVisits = Array.isArray(visits) ? visits.filter((v) => v?.Status === 'Completed Visit') : [];
+        let currentPageVisits = [...filteredVisits.slice(offset, offset + limit)];
+        if (Array.isArray(currentPageVisits)) {
+            for (let i = 0; i < currentPageVisits.length; i++) {
+                const obs = await sequelize.query(getVisitScore(currentPageVisits[i].max_enc), {
+                    type: QueryTypes.SELECT,
+                });
+                currentPageVisits[i].score = obs.length ? obs[0].total_score : 0;
+            }
+        }
+        return Array.isArray(currentPageVisits) ? { visits: [...currentPageVisits.map((v) => { return { visit_id: v?.visit_id, score: v?.score } })], totalCount: filteredVisits.length } : { visits: [], totalCount: filteredVisits.length };
+    };
+
     /**
      * Encounter type
      * 1 - ADULTINITIAL
@@ -178,6 +195,120 @@ module.exports = (function () {
         }
     };
 
+    this.getCompletedTypeVisits = async (
+        page = 1,
+        limit = 1000
+    ) => {
+        try {
+            let offset = limit * (page - 1);
+
+            if (limit > 5000) limit = 5000;
+            const compVisits = await this.getCompVisits(limit, offset);
+            const visitIds = compVisits.visits;
+            const totalCount = compVisits.totalCount;
+            let visits = await visit.findAll({
+                attributes: ["uuid", "date_stopped", "date_started", "voided"],
+                where: {
+                    visit_id: { [Op.in]: [...visitIds.map((v) => v?.visit_id)] },
+                },
+                include: [
+                    {
+                        model: encounter,
+                        as: "encounters",
+                        attributes: ["encounter_datetime","uuid","voided"],
+                        order: [["encounter_id","DESC"]],
+                        include: [
+                            {
+                                model: obs,
+                                as: "obs",
+                                attributes: ["value_text", "value_numeric", "comments","uuid","voided"],
+                                include: [
+                                    {
+                                        model: concept,
+                                        as: "concept",
+                                        attributes: ["uuid"],
+                                        include: [
+                                            {
+                                                model: concept_name,
+                                                as: "concept_name",
+                                                attributes: ["name","voided"]
+                                            }
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                model: encounter_type,
+                                as: "type",
+                                attributes: ["name"],
+                            },
+                            {
+                                model: encounter_provider,
+                                as: "encounter_provider",
+                                attributes: ["uuid","voided"],
+                                include: [
+                                    {
+                                        model: provider,
+                                        as: "provider",
+                                        attributes: ["identifier", "uuid"],
+                                        include: [
+                                            {
+                                                model: person,
+                                                as: "person",
+                                                attributes: ["gender"],
+                                                include: [
+                                                    {
+                                                        model: person_name,
+                                                        as: "person_name",
+                                                        attributes: ["given_name", "family_name"],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                      model: visit_attribute,
+                      as: "attributes",
+                      attributes: ["value_reference","uuid","voided"],
+                      include: [
+                        {
+                            model: visit_attribute_type,
+                            as: "attribute_type",
+                            attributes: ["name","uuid"]
+                        }
+                      ]
+                    },
+                    {
+                        model: patient_identifier,
+                        as: "patient",
+                        attributes: ["identifier"],
+                    },
+                    {
+                        model: person_name,
+                        as: "patient_name",
+                        attributes: ["given_name", "family_name"],
+                    },
+                    {
+                        model: person,
+                        as: "person",
+                        attributes: ["uuid", "gender", "birthdate"],
+                    }
+                ],
+                order: [["visit_id", "DESC"]]
+            });
+
+            const visitsData = visits.map((v) => v.get({ plain: true })); 
+            const finalarr = visitsData.map((item, i) => Object.assign({}, item, visitIds[i]));
+            return { totalCount: totalCount, currentCount: visits.length, visits: finalarr };
+        } catch (error) {
+            throw error;
+        }
+    };
+
     this._getPriorityVisits = async (
         page = 1,
         limit = 1000
@@ -213,8 +344,7 @@ module.exports = (function () {
         limit = 1000
     ) => {
         try {
-            return await getVisitsByType(
-                "Completed Visit",
+            return await getCompletedTypeVisits(
                 page,
                 limit
             );
