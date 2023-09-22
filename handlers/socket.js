@@ -1,11 +1,11 @@
 const { user_settings } = require("../models");
-// const admin = require("firebase-admin");
 const env = process.env.NODE_ENV || "development";
 const config = require(__dirname + "/../config/config.json")[env];
 const { sequelize } = require("../models");
 const { QueryTypes } = require("sequelize");
-const { getFirebaseAdmin } = require("./helper");
+const { getFirebaseAdmin, sendCloudNotification } = require("./helper");
 const { deliveredById } = require("../services/message.service");
+const { provider } = require("../openmrs_models");
 
 const admin = getFirebaseAdmin();
 
@@ -398,6 +398,30 @@ module.exports = function (server) {
         { type: QueryTypes.SELECT }
       );
       socket.emit("drUnreadCount", unreadcount[0].unread);
+    });
+
+    socket.on("shiftChanged", async function (payload) {
+      try {
+        const py = JSON.parse(payload);
+        const { toHwUserUuid } = JSON.parse(payload);
+        let userSetting = await user_settings.findOne({
+          where: { user_uuid: toHwUserUuid },
+        });
+        let notificationResponse;
+        if (userSetting && userSetting.device_reg_token) {
+          notificationResponse = await sendCloudNotification({
+            title: "New Patient Assigned",
+            body: "New patient has been assigned to you by another HW.",
+            data: {
+              ...py,
+              actionType: "SHIFT_CHANGE",
+            },
+            regTokens: [userSetting.device_reg_token],
+          }).catch((err) => {
+            console.log("err: ", err);
+          });
+        }
+      } catch (error) {}
     });
   });
   global.io = io;
