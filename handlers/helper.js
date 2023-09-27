@@ -91,12 +91,12 @@ module.exports = (function () {
 
     var payload = {
       data,
-      notification: {
-        title,
-        icon,
-        body,
-        click_action,
-      },
+      // notification: {
+      //   title,
+      //   icon,
+      //   body,
+      //   click_action,
+      // },
     };
 
     const options = {
