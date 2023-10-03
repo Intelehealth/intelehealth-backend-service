@@ -19,22 +19,40 @@ const {
 } = require("../openmrs_models");
 const { forEach } = require("lodash");
 const Op = Sequelize.Op;
-
+const openMrsDB = require("../public/javascripts/mysql/mysqlOpenMrs");
 module.exports = (function () {
 
     this.getVisits = async (type, limit, offset) => {
         if (!type) {
             return [];
         } else {
-            let visits = await sequelize.query(getVisitCountV3(), {
-                type: QueryTypes.SELECT,
+            // let visits = await sequelize.query(getVisitCountV3(), {
+            //     type: QueryTypes.SELECT,
+            // });
+            let query = getVisitCountV3();
+            let visits = await new Promise((resolve, reject) => {
+                openMrsDB.query(query, (err, results, fields) => {
+                    if (err) reject(err);
+                    resolve(results);
+                });
+            }).catch((err) => {
+                throw err;
             });
             let filteredVisits = Array.isArray(visits) ? visits.filter((v) => v?.Status === (type === 'Priority'? 'Visit In Progress': type)) : [];
             
             if (Array.isArray(filteredVisits)) {
                 for (let i = 0; i < filteredVisits.length; i++) {
-                    const obs = await sequelize.query(getVisitScore(filteredVisits[i].max_enc), {
-                        type: QueryTypes.SELECT,
+                    // const obs = await sequelize.query(getVisitScore(filteredVisits[i].max_enc), {
+                    //     type: QueryTypes.SELECT,
+                    // });
+                    let query2 = getVisitScore(filteredVisits[i].max_enc);
+                    const obs = await new Promise((resolve, reject) => {
+                        openMrsDB.query(query2, (err, results, fields) => {
+                            if (err) reject(err);
+                            resolve(results);
+                        });
+                    }).catch((err) => {
+                        throw err;
                     });
                     filteredVisits[i].score = obs.length ? obs[0].total_score : 0;
                 }
@@ -53,15 +71,33 @@ module.exports = (function () {
     };
 
     this.getCompVisits = async (limit, offset) => {
-        let visits = await sequelize.query(getVisitCountV3(), {
-            type: QueryTypes.SELECT,
+        // let visits = await sequelize.query(getVisitCountV3(), {
+        //     type: QueryTypes.SELECT,
+        // });
+        let query = getVisitCountV3();
+        let visits = await new Promise((resolve, reject) => {
+            openMrsDB.query(query, (err, results, fields) => {
+                if (err) reject(err);
+                resolve(results);
+            });
+        }).catch((err) => {
+            throw err;
         });
         let filteredVisits = Array.isArray(visits) ? visits.filter((v) => v?.Status === 'Completed Visit') : [];
         let currentPageVisits = [...filteredVisits.slice(offset, offset + limit)];
         if (Array.isArray(currentPageVisits)) {
             for (let i = 0; i < currentPageVisits.length; i++) {
-                const obs = await sequelize.query(getVisitScore(currentPageVisits[i].max_enc), {
-                    type: QueryTypes.SELECT,
+                // const obs = await sequelize.query(getVisitScore(currentPageVisits[i].max_enc), {
+                //     type: QueryTypes.SELECT,
+                // });
+                let query2 = getVisitScore(filteredVisits[i].max_enc);
+                const obs = await new Promise((resolve, reject) => {
+                    openMrsDB.query(query2, (err, results, fields) => {
+                        if (err) reject(err);
+                        resolve(results);
+                    });
+                }).catch((err) => {
+                    throw err;
                 });
                 currentPageVisits[i].score = obs.length ? obs[0].total_score : 0;
             }
@@ -314,7 +350,7 @@ module.exports = (function () {
         limit = 1000
     ) => {
         try {
-            return await getVisitsByType(
+            return await this.getVisitsByType(
                 "Priority",
                 page,
                 limit
@@ -329,7 +365,7 @@ module.exports = (function () {
         limit = 1000
     ) => {
         try {
-            return await getVisitsByType(
+            return await this.getVisitsByType(
                 "Visit In Progress",
                 page,
                 limit
@@ -344,7 +380,7 @@ module.exports = (function () {
         limit = 1000
     ) => {
         try {
-            return await getCompletedTypeVisits(
+            return await this.getCompletedTypeVisits(
                 page,
                 limit
             );
