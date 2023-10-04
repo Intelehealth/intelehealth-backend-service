@@ -46,7 +46,7 @@ module.exports = (function () {
                     //     type: QueryTypes.SELECT,
                     // });
                     let query2 = getVisitScore(filteredVisits[i].max_enc);
-                    const obs = await new Promise((resolve, reject) => {
+                    const obser = await new Promise((resolve, reject) => {
                         openMrsDB.query(query2, (err, results, fields) => {
                             if (err) reject(err);
                             resolve(results);
@@ -54,7 +54,7 @@ module.exports = (function () {
                     }).catch((err) => {
                         throw err;
                     });
-                    filteredVisits[i].score = obs.length ? obs[0].total_score : 0;
+                    filteredVisits[i].score = obser.length ? obser[0].total_score : 0;
                 }
             }
             if (type === "Priority" || type === "Visit In Progress") {
@@ -91,7 +91,7 @@ module.exports = (function () {
                 //     type: QueryTypes.SELECT,
                 // });
                 let query2 = getVisitScore(filteredVisits[i].max_enc);
-                const obs = await new Promise((resolve, reject) => {
+                const obser = await new Promise((resolve, reject) => {
                     openMrsDB.query(query2, (err, results, fields) => {
                         if (err) reject(err);
                         resolve(results);
@@ -99,7 +99,7 @@ module.exports = (function () {
                 }).catch((err) => {
                     throw err;
                 });
-                currentPageVisits[i].score = obs.length ? obs[0].total_score : 0;
+                currentPageVisits[i].score = obser.length ? obser[0].total_score : 0;
             }
         }
         return Array.isArray(currentPageVisits) ? { visits: [...currentPageVisits.map((v) => { return { visit_id: v?.visit_id, score: v?.score } })], totalCount: filteredVisits.length } : { visits: [], totalCount: filteredVisits.length };
@@ -126,11 +126,8 @@ module.exports = (function () {
             if (limit > 5000) limit = 5000;
             const visitIds = await this.getVisits(type, limit, offset);
             
-            let visits = await visit.findAll({
+            let visits1 = await visit.findAll({
                 attributes: ["uuid", "date_stopped", "date_started", "voided"],
-                where: {
-                    visit_id: { [Op.in]: visitIds.map((v) => v?.visit_id) },
-                },
                 include: [
                     {
                         model: encounter,
@@ -191,18 +188,6 @@ module.exports = (function () {
                         ],
                     },
                     {
-                      model: visit_attribute,
-                      as: "attributes",
-                      attributes: ["value_reference","uuid","voided"],
-                      include: [
-                        {
-                            model: visit_attribute_type,
-                            as: "attribute_type",
-                            attributes: ["name","uuid"]
-                        }
-                      ]
-                    },
-                    {
                         model: patient_identifier,
                         as: "patient",
                         attributes: ["identifier"],
@@ -218,14 +203,42 @@ module.exports = (function () {
                         attributes: ["uuid", "gender", "birthdate"],
                     }
                 ],
+                where: {
+                    visit_id: { [Op.in]: visitIds.map((v) => v?.visit_id) },
+                },
+                order: [["visit_id", "DESC"]],
+                limit,
+                offset
+            });
+            let visits2 = await visit.findAll({
+                attributes: ["uuid"],
+                include: [
+                    {
+                      model: visit_attribute,
+                      as: "attributes",
+                      attributes: ["value_reference","uuid","voided"],
+                      include: [
+                        {
+                            model: visit_attribute_type,
+                            as: "attribute_type",
+                            attributes: ["name","uuid"]
+                        }
+                      ]
+                    }
+                ],
+                where: {
+                    visit_id: { [Op.in]: visitIds.map((v) => v?.visit_id) },
+                },
                 order: [["visit_id", "DESC"]],
                 limit,
                 offset
             });
             const currentPageVisitIds = visitIds.slice(offset, offset+limit).map(o => { return { score: o.score } });
-            const visitsData = visits.map((v) => v.get({ plain: true })); 
-            const finalarr = visitsData.map((item, i) => Object.assign({}, item, currentPageVisitIds[i]));
-            return { totalCount: visitIds.length, currentCount: visits.length, visits: finalarr };
+            const visitsData1 = visits1.map((v) => v.get({ plain: true }));
+            const visitsData2 = visits2.map((v) => v.get({ plain: true })); 
+            const finalarr1 = visitsData1.map((item, i) => Object.assign({}, item, currentPageVisitIds[i]));
+            const finalarr2 = visitsData2.map((item, i) => Object.assign({}, item, finalarr1[i]));
+            return { totalCount: visitIds.length, currentCount: visits1.length, visits: finalarr2 };
         } catch (error) {
             throw error;
         }
@@ -242,17 +255,14 @@ module.exports = (function () {
             const compVisits = await this.getCompVisits(limit, offset);
             const visitIds = compVisits.visits;
             const totalCount = compVisits.totalCount;
-            let visits = await visit.findAll({
+            const ids = visitIds.map((v) => v?.visit_id);
+            let visits1 = await visit.findAll({
                 attributes: ["uuid", "date_stopped", "date_started", "voided"],
-                where: {
-                    visit_id: { [Op.in]: [...visitIds.map((v) => v?.visit_id)] },
-                },
                 include: [
                     {
                         model: encounter,
                         as: "encounters",
                         attributes: ["encounter_datetime","uuid","voided"],
-                        order: [["encounter_id","DESC"]],
                         include: [
                             {
                                 model: obs,
@@ -305,18 +315,7 @@ module.exports = (function () {
                                 ],
                             },
                         ],
-                    },
-                    {
-                      model: visit_attribute,
-                      as: "attributes",
-                      attributes: ["value_reference","uuid","voided"],
-                      include: [
-                        {
-                            model: visit_attribute_type,
-                            as: "attribute_type",
-                            attributes: ["name","uuid"]
-                        }
-                      ]
+                        order: [["encounter_id","DESC"]]
                     },
                     {
                         model: patient_identifier,
@@ -334,12 +333,38 @@ module.exports = (function () {
                         attributes: ["uuid", "gender", "birthdate"],
                     }
                 ],
+                where: {
+                    visit_id: { [Op.in]: ids },
+                },
+                order: [["visit_id", "DESC"]]
+            });
+            let visits2 = await visit.findAll({
+                attributes: ["uuid"],
+                include: [
+                    {
+                      model: visit_attribute,
+                      as: "attributes",
+                      attributes: ["value_reference","uuid","voided"],
+                      include: [
+                        {
+                            model: visit_attribute_type,
+                            as: "attribute_type",
+                            attributes: ["name","uuid"]
+                        }
+                      ]
+                    }
+                ],
+                where: {
+                    visit_id: { [Op.in]: ids },
+                },
                 order: [["visit_id", "DESC"]]
             });
 
-            const visitsData = visits.map((v) => v.get({ plain: true })); 
-            const finalarr = visitsData.map((item, i) => Object.assign({}, item, visitIds[i]));
-            return { totalCount: totalCount, currentCount: visits.length, visits: finalarr };
+            const visitsData1 = visits1.map((v) => v.get({ plain: true })); 
+            const visitsData2 = visits2.map((v) => v.get({ plain: true })); 
+            const finalarr1 = visitsData1.map((item, i) => Object.assign({}, item, visitIds[i]));
+            const finalarr2 = visitsData2.map((item, i) => Object.assign({}, item, finalarr1[i]));
+            return { totalCount: totalCount, currentCount: visits1.length, visits: finalarr2 };
         } catch (error) {
             throw error;
         }
