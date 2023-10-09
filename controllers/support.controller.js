@@ -51,17 +51,20 @@ module.exports = (function () {
                     if (uss.length) {
                         uss.forEach(async (us) => {
                             if (us && us?.notification) {
-                                const subscriptions = await getSubscriptions(us.user_uuid);
-                                if (subscriptions.length) {
-                                    subscriptions.forEach(async (sub) => {
-                                        await sendNotification(JSON.parse(sub.notification_object), 'Hey! You got new chat message for support', message);
-                                    });
+                                if ((us?.snooze_till) ? (new Date().valueOf() > us?.snooze_till) : true) {
+                                    const subscriptions = await getSubscriptions(us.user_uuid);
+                                    if (subscriptions.length) {
+                                        subscriptions.forEach(async (sub) => {
+                                            await sendNotification(JSON.parse(sub.notification_object), 'Hey! You got new chat message for support', message);
+                                        });
+                                    }
                                 }
                             }
                         });
                     }
                     
                 } else {
+                    const unreadcount = await sequelize.query(`SELECT COUNT(sm.message) AS unread FROM supportmessages sm WHERE sm.to = '${to}' AND sm.isRead = 0`, { type: QueryTypes.SELECT });
                     for (const key in users) {
                         if (Object.hasOwnProperty.call(users, key)) {
                           const user = users[key];
@@ -69,6 +72,7 @@ module.exports = (function () {
                             data.data.dataValues.createdAt = new Date(data.data.dataValues.createdAt).toGMTString();
                             data.data.dataValues.allMessages = messages.data;
                             io.to(key).emit("supportMessage", data.data);
+                            io.to(key).emit("drUnreadCount", unreadcount[0].unread);
                           }
                         }
                     }
@@ -80,11 +84,13 @@ module.exports = (function () {
                         },
                     });
                     if (us && us?.notification) {
-                        const subscriptions = await getSubscriptions(us.user_uuid);
-                        if (subscriptions.length) {
-                            subscriptions.forEach(async (sub) => {
-                                await sendNotification(JSON.parse(sub.notification_object), 'Hey! You got new chat message from support', message);
-                            });
+                        if ((us?.snooze_till) ? (new Date().valueOf() > us?.snooze_till) : true) {
+                            const subscriptions = await getSubscriptions(us.user_uuid);
+                            if (subscriptions.length) {
+                                subscriptions.forEach(async (sub) => {
+                                    await sendNotification(JSON.parse(sub.notification_object), 'Hey! You got new chat message from support', message);
+                                });
+                            }
                         }
                     }
                 }
