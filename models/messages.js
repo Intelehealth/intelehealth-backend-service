@@ -26,6 +26,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.BOOLEAN,
         defaultValue: false,
       },
+      isDelivered: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+      },
       /** possible values - text/attachment */
       type: {
         type: DataTypes.STRING,

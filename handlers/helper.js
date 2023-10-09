@@ -1,9 +1,16 @@
-const gcm = require("node-gcm");
+// const gcm = require("node-gcm");
 const mysql = require("../public/javascripts/mysql/mysql");
 const webpush = require("web-push");
 const axios = require("axios");
+const admin = require("firebase-admin");
 const env = process.env.NODE_ENV || "development";
 const config = require(__dirname + "/../config/config.json")[env];
+const serviceAccount = require(__dirname + "/../config/serviceAccountKey.json");
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL: "https://intelehealth-3-0-default-rtdb.firebaseio.com",
+});
 
 module.exports = (function () {
   const vapidKeys = {
@@ -80,56 +87,37 @@ module.exports = (function () {
     icon = "ic_launcher",
     data = {},
     regTokens,
-    android = {},
-    webpush = {},
-    apns = {},
     click_action = "FCM_PLUGIN_HOME_ACTIVITY",
   }) => {
-    var sender = new gcm.Sender(
-      "AAAAteo0mXw:APA91bEsp3WC170iQTmR7GnAJNh7skYgP171klh_Ae2dd2MUmEwZMJaUKZIayOQSDJ7DI-DJkZYtu-E8RNKGbJMOhAlUi3kqhXgPBEf0wYWX1u04YxQcSCn-8o8YRSZavldn3JIxLGL5"
-    );
+    const admin = this.getFirebaseAdmin();
+    const messaging = admin.messaging();
 
-    var message = new gcm.Message({
+    var payload = {
       data,
       notification: {
         title,
         icon,
         body,
         click_action,
-      },
-      android: {
-        ttl: "10s",
-        priority: "high",
-      },
-      webpush: {
-        headers: {
-          TTL: "10",
-          Urgency: "high",
-        },
-      },
-      apns: {
-        headers: {
-          "apns-priority": "5",
-        },
-      },
-    });
+      }
+    };
 
-    return new Promise((res, rej) => {
-      sender.send(
-        message,
-        { registrationTokens: regTokens },
-        function (err, response) {
-          if (err) {
-            console.log("err: ", err);
-            console.error(err);
-            rej(err);
-          } else {
-            console.log(response);
-            res(response);
-          }
-        }
-      );
-    });
+    const options = {
+      priority: "high",
+    };
+
+    return messaging
+      .sendToDevice(regTokens, payload, options)
+      .then((result) => {
+        console.log(result);
+      })
+      .catch((err) => {
+        console.log("err: ", err);
+      });
+  };
+
+  this.getFirebaseAdmin = () => {
+    return admin;
   };
 
   this.RES = (res, data, statusCode = 200) => {

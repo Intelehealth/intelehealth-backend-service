@@ -61,14 +61,16 @@ module.exports = (function () {
         for (const key in users) {
           if (Object.hasOwnProperty.call(users, key)) {
             const user = users[key];
+            let messageData = {};
             if (user && user.uuid == toUser) {
               try {
                 data.data.dataValues.createdAt = new Date(
                   data.data.dataValues.createdAt
                 ).toGMTString();
+                messageData = data.data.toJSON();
                 data.data.dataValues.allMessages = messages.data;
               } catch (error) {}
-              io.to(key).emit("updateMessage", data.data);
+              io.to(key).emit("updateMessage", messageData);
               isLiveMessageSent = true;
             }
           }

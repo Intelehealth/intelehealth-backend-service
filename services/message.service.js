@@ -98,6 +98,8 @@ module.exports = (function () {
       for (let i = 0; i < data.length; i++) {
         try {
           data[i].createdAt = new Date(data[i].createdAt).toGMTString();
+          data[i].isRead = Boolean(data[i].isRead);
+          data[i].isDelivered = Boolean(Number(data[i].isDelivered));
         } catch (error) {}
       }
       return { success: true, data };
@@ -241,7 +243,74 @@ module.exports = (function () {
 
       if (getMessage) {
         const data = await messages.update(
-          { isRead: true },
+          { isRead: true, isDelivered: true },
+          {
+            where: {
+              [Sequelize.Op.or]: {
+                fromUser: {
+                  [Sequelize.Op.in]: [
+                    getMessage[0].fromUser,
+                    getMessage[0].toUser,
+                  ],
+                },
+                toUser: {
+                  [Sequelize.Op.in]: [
+                    getMessage[0].toUser,
+                    getMessage[0].fromUser,
+                  ],
+                },
+              },
+              patientId: [getMessage[0].patientId],
+            },
+          }
+        );
+
+        return { success: true, data };
+      }
+
+      return { success: false, data: [] };
+    } catch (error) {
+      console.log("error: readMessagesById ", error);
+      return {
+        success: false,
+        data: [],
+      };
+    }
+  };
+
+  /**
+   * Return no of updated documents
+   * @param {string} messageId
+   * @returns []Array
+   */
+  this.deliveredById = async (messageId) => {
+    try {
+      const getMessage = await messages.findAll({
+        where: {
+          id: messageId,
+        },
+      });
+
+      setTimeout(() => {
+        try {
+          const toUser = getMessage[0].toUser;
+          const fromUser = getMessage[0].fromUser;
+          for (const key in users) {
+            if (Object.hasOwnProperty.call(users, key)) {
+              const user = users[key];
+              if (user && [fromUser, toUser].includes(user.uuid)) {
+                io.to(key).emit("msg_delivered", getMessage);
+              }
+            }
+          }
+        } catch (error) {
+          console.log("error:isread socket ", error);
+        }
+      }, 1000);
+
+      if (getMessage) {
+        const data = await messages.update(
+          { isDelivered: true },
           {
             where: {
               [Sequelize.Op.or]: {
