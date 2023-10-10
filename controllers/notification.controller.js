@@ -229,6 +229,7 @@ const toggleNotificationStatus = async ( req, res) => {
       });
       if (user) {
         user.notification = (user.notification) ? 0 : 1;
+        user.snooze_till = "";
         await user.save();
       } else {
         user = await user_settings.create({
