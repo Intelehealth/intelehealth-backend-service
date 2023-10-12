@@ -37,7 +37,7 @@ router.post("/subscribe", async (req, res) => {
 
   if (pushnotification && pushnotification.length) {
     mysql.query(
-      `UPDATE pushnotification SET notification_object='${details.notification_object}',locale='${details.locale}'
+      `UPDATE pushnotification SET notification_object='${details.notification_object}',locale='${details.locale}',speciality='${details.speciality}'
        WHERE user_uuid='${details.user_uuid}' and finger_print='${details.finger_print}'`,
       (err, results, fields) => {
         if (err) res.status(400).json({ message: err.message });
@@ -78,7 +78,7 @@ const vapidKeys = {
 router.post("/push", (req, res) => {
   try {
     mysql.query(
-      `Select notification_object, doctor_name, user_uuid from pushnotification where speciality='${req.body.speciality}'`,
+      `Select notification_object, doctor_name, user_uuid, locale from pushnotification where speciality='${req.body.speciality}'`,
       async (err, results) => {
         if (results.length) {
           res.set("Content-Type", "application/json");
@@ -92,18 +92,15 @@ router.post("/push", (req, res) => {
           let title = `Patient ${patient.name} seen by doctor`;
           let body = `${patient.provider}`;
 
-          if (
-            req.body.patient &&
-            req.body.speciality &&
-            req.body.skipFlag == false
-          ) {
-            title = `New Patient ${patient.name} is been uploaded`;
-            body = "Please start giving consultation";
+          let enPayload =  {
+            title: `New Patient ${patient.name} has been uploaded`,
+            body:"Please start giving consultation"
           }
 
-          let payload = JSON.stringify({
-            notification: { title, body, vibrate: [100, 50, 100] },
-          });
+          let ruPayload =  {
+            title: `Новый пациент ${patient.name} был загружен.`,
+            body: "Пожалуйста, начните давать консультации"
+          }
 
           const userUUID = results.map((sub) => sub.user_uuid).join(`','`);
 
@@ -155,6 +152,16 @@ router.post("/push", (req, res) => {
           });
           const allNotifications = results.map((sub) => {
             if (!patient.provider.match(sub.doctor_name)) {
+              let payload
+              if(sub.locale === 'en') {
+                payload = JSON.stringify({
+                  notification: { title: enPayload.title, body: enPayload.body, vibrate: [100, 50, 100] },
+                });
+              }else if(sub.locale === 'ru'){
+                payload = JSON.stringify({
+                  notification: { title: ruPayload.title, body: ruPayload.body, vibrate: [100, 50, 100] },
+                });
+              }
               webpush
                 .sendNotification(JSON.parse(sub.notification_object), payload)
                 .catch((error) => {
