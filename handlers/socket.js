@@ -362,19 +362,19 @@ module.exports = function (server) {
       } catch (error) {}
 
       sendCloudNotification({
-        title:'',
-        body:'',
+        title: "",
+        body: "",
         regTokens: [data?.device_reg_token],
-        opts:{
-          timeToLive: 60
+        opts: {
+          timeToLive: 60,
         },
         data: {
           id: generateUUID(),
           ...dataIds,
-          callEnded: false,
           doctorName,
           nurseId,
           roomId,
+          type: "video_call",
           timestamp: Date.now().toString(),
           device_token:
             data && data.device_reg_token ? data.device_reg_token : "",
