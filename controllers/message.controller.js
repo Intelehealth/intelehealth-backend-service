@@ -7,10 +7,11 @@ const {
 const {
   validateParams,
   log,
+  sendCloudNotification,
   // getFirebaseAdmin,
-  // sendWebPushNotificaion,
+  sendWebPushNotificaion,
 } = require("../handlers/helper");
-const { user_settings } = require("../models");
+const { user_settings, pushnotification } = require("../models");
 // const env = process.env.NODE_ENV || "development";
 // const config = require(__dirname + "/../config/config.json")[env];
 
@@ -100,6 +101,21 @@ module.exports = (function () {
             });
           }
         }
+
+        const devices = await pushnotification.findAll({
+          where: { user_uuid: toUser },
+        });
+        devices.forEach(async (device) => {
+          sendWebPushNotificaion({
+            webpush_obj: device.notification_object,
+            title: `New Chat from ${hwName || "HW"}(${patientName||'Patient'}) `,
+            body: message,
+            options: {
+              TTL: "3600000",
+            },
+            isObject: true,
+          });
+        });
 
         // await textChatRef.update({
         //   [req.body.visitId]: req.body,
