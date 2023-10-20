@@ -63,7 +63,6 @@ module.exports = (function () {
           hwPic,
           type
         );
-        console.log("type: ", type);
         try {
           messages = await getMessages(fromUser, toUser, patientId, visitId);
         } catch (error) {}
@@ -108,7 +107,13 @@ module.exports = (function () {
         devices.forEach(async (device) => {
           sendWebPushNotificaion({
             webpush_obj: device.notification_object,
-            title: `New Chat from ${hwName || "HW"}(${patientName||'Patient'}) `,
+            data: {
+              ...req.body,
+              url: `/#/visitSummary/${patientId}/${visitId}?openChat=true`,
+            },
+            title: `New Chat from ${hwName || "HW"}(${
+              patientName || "Patient"
+            }) `,
             body: message,
             options: {
               TTL: "3600000",

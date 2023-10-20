@@ -47,6 +47,7 @@ module.exports = (function () {
     body,
     options = {},
     isObject = false,
+    data = {},
   }) => {
     await webpush
       .sendNotification(
@@ -56,6 +57,9 @@ module.exports = (function () {
             title,
             body,
             vibrate: [100, 50, 100],
+            data: {
+              ...data,
+            },
           },
         }),
         options
