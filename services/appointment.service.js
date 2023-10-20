@@ -23,8 +23,11 @@ const {
   person,
   provider,
   location,
-  obs
+  obs,
+  sequelize,
 } = require("../openmrs_models");
+const { QueryTypes } = require("sequelize");
+const { getVisitCountV4 } = require("../controllers/queries");
 
 module.exports = (function () {
   const DATE_FORMAT = "DD/MM/YYYY";
@@ -222,6 +225,10 @@ WHERE
 
       const visitIds = data.map((v) => v?.visitUuid);
 
+      const visitStatus = await sequelize.query(getVisitCountV4(visitIds), {
+        type: QueryTypes.SELECT,
+      });
+
       const visits = await visit.findAll({
         where: {
           uuid: { [Op.in]: visitIds },
@@ -271,7 +278,7 @@ WHERE
           },
         ]
       });
-      const mergedArray = data.map(x=> ({ ...x, visit: visits.find(y=>y.uuid==x.visitUuid)?.dataValues }));
+      const mergedArray = data.map(x=> ({ ...x, visit: visits.find(y=>y.uuid==x.visitUuid)?.dataValues, visitStatus: visitStatus.find(z=>z.uuid==x.visitUuid)?.Status }));
       return mergedArray;
     } catch (error) {
       throw error;
@@ -663,12 +670,12 @@ WHERE
     const appointment = await Appointment.findOne({
       where,
     });
-    if (moment.utc(appointment.slotJsDate) < moment() && validate) {
-      return {
-        status: false,
-        message: "You can not cancel past appointments!",
-      };
-    }
+    // if (moment.utc(appointment.slotJsDate) < moment() && validate) {
+    //   return {
+    //     status: false,
+    //     message: "You can not cancel past appointments!",
+    //   };
+    // }
     const status = reschedule ? "rescheduled" : "cancelled";
     if (appointment) {
       appointment.update({ status, updatedBy: hwUUID, reason });
