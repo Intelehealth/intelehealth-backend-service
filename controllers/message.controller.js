@@ -109,11 +109,11 @@ module.exports = (function () {
             webpush_obj: device.notification_object,
             data: {
               ...req.body,
-              url: `/#/visitSummary/${patientId}/${visitId}?openChat=true`,
+              url: `/intelehealth/#/visitSummary/${patientId}/${visitId}?openChat=true`,
             },
             title: `New Chat from ${hwName || "HW"}(${
               patientName || "Patient"
-            }) `,
+            }):${openMrsId || ""}`,
             body: message,
             options: {
               TTL: "3600000",
