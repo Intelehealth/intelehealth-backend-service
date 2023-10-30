@@ -39,6 +39,7 @@ module.exports = (function () {
       hwName,
       hwPic,
       type,
+      openMrsId
     } = req.body;
     const keysAndTypeToCheck = [
       { key: "fromUser", type: "string" },
@@ -61,7 +62,8 @@ module.exports = (function () {
           patientName,
           hwName,
           hwPic,
-          type
+          type,
+          openMrsId
         );
         try {
           messages = await getMessages(fromUser, toUser, patientId, visitId);
