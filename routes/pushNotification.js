@@ -23,12 +23,12 @@ router.post("/subscribe", async (req, res) => {
     doctor_name: req.body.providerName,
     date_created: new Date(),
     user_uuid: req.body.user_uuid,
-    finger_print: req.body.finger_print,
+    // finger_print: req.body.finger_print,
     location: req.body.location,
   };
   const pushnotification = await new Promise((res, rej) => {
     mysql.query(
-      `Select * from pushnotification where user_uuid='${details.user_uuid}' AND finger_print='${details.finger_print}'`,
+      `Select * from pushnotification where user_uuid='${details.user_uuid}'`,
       (err, results) => {
         if (!err) res(results);
         else rej(err);
@@ -39,7 +39,7 @@ router.post("/subscribe", async (req, res) => {
   if (pushnotification && pushnotification.length) {
     mysql.query(
       `UPDATE pushnotification SET notification_object='${details.notification_object}', location='${details.location}'
-       WHERE user_uuid='${details.user_uuid}' and finger_print='${details.finger_print}'`,
+       WHERE user_uuid='${details.user_uuid}'`,
       (err, results, fields) => {
         if (err) res.status(400).json({ message: err.message });
         else
@@ -194,7 +194,7 @@ router.post(
   "/unsubscribe",
   async ({ body: { user_uuid, finger_print } }, res) => {
     mysql.query(
-      `DELETE from pushnotification where user_uuid='${user_uuid}' AND finger_print='${finger_print}'`,
+      `DELETE from pushnotification where user_uuid='${user_uuid}'`,
       (err, results) => {
         if (err) res.status(400).json({ message: err.message });
         else res.status(200).json({ results, message: "Unsubscribed!" });
