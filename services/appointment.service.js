@@ -220,6 +220,7 @@ WHERE
           },
           status: "booked",
         },
+        order: [["slotJsDate", "ASC"]],
         raw: true,
       });
 
