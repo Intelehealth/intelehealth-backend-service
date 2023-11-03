@@ -18,7 +18,9 @@ const {
   getCancelledAppointments,
   getScheduledMonths,
   updateDaysOffSchedule,
-  _completeAppointment
+  _completeAppointment,
+  checkAppointment,
+  updateSlotSpeciality
 } = require("../services/appointment.service");
 
 module.exports = (function () {
@@ -101,6 +103,46 @@ module.exports = (function () {
         res.json({
           status: true,
           data,
+        });
+      }
+    } catch (error) {
+      console.log("error: ", error);
+      next(error);
+    }
+  };
+
+  this.checkAppointment = async (req, res, next) => {
+    try {
+      const keysAndTypeToCheck = [
+        { key: "fromDate", type: "string" },
+        { key: "toDate", type: "string" },
+        { key: "speciality", type: "string" }
+      ];
+      if (validateParams(req.query, keysAndTypeToCheck)) {
+        const userUuid = req.params.userUuid;
+        const data = await checkAppointment({ ...req.query, userUuid });
+        res.json({
+          status: true,
+          data
+        });
+      }
+    } catch (error) {
+      console.log("error: ", error);
+      next(error);
+    }
+  };
+
+  this.updateSlotSpeciality = async (req, res, next) => {
+    try {
+      const keysAndTypeToCheck = [
+        { key: "speciality", type: "string" }
+      ];
+      if (validateParams(req.query, keysAndTypeToCheck)) {
+        const userUuid = req.params.userUuid;
+        const data = await updateSlotSpeciality({ ...req.query, userUuid });
+        res.json({
+          status: true,
+          data
         });
       }
     } catch (error) {

@@ -286,6 +286,42 @@ WHERE
     }
   };
 
+  this.checkAppointment = async ({ userUuid, fromDate, toDate, speciality }) => {
+    try {
+      const data = await Appointment.findAll({
+        where: {
+          userUuid,
+          slotJsDate: {
+            [Op.between]: this.getFilterDates(fromDate, toDate),
+          },
+          status: "booked",
+          speciality
+        },
+        order: [["slotJsDate", "ASC"]],
+        raw: true,
+      });
+      return data.length ? true : false;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  this.updateSlotSpeciality = async ({ userUuid, speciality }) => {
+    try {
+      const data = await Schedule.update({
+        speciality
+      }, 
+      {
+        where: {
+          userUuid
+        }
+      });
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  };
+
   this.getSpecialitySlots = async ({ speciality, fromDate, toDate }) => {
     try {
       let setting = await Setting.findOne({ where: {}, raw: true });
