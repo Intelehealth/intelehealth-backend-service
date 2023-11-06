@@ -3,7 +3,7 @@
 **/license
 *.zip
 /config/
-
+.env
 /livekit-token-microservice/node_modules
 /livekit-token-microservice/.env
 /public/translate/uploads/*

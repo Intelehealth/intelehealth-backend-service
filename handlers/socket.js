@@ -1,6 +1,5 @@
 const { user_settings } = require("../models");
-const env = process.env.NODE_ENV || "development";
-const config = require(__dirname + "/../config/config.json")[env];
+const config = process.env;
 const { sequelize } = require("../models");
 const { QueryTypes } = require("sequelize");
 const { getFirebaseAdmin } = require("./helper");
@@ -20,7 +19,7 @@ const CALL_STATUSES = {
 
 module.exports = function (server) {
   const db = admin.database();
-  const DB_NAME = `${config.domain.replace(/\./g, "_")}/rtc_notify`;
+  const DB_NAME = `${config.DOMAIN.replace(/\./g, "_")}/rtc_notify`;
   // const DB_NAME = "rtc_notify_dev";
   console.log("DB_NAME:>>>>>>> ", DB_NAME);
   const rtcNotifyRef = db.ref(DB_NAME);

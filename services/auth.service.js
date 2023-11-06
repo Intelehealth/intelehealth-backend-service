@@ -6,7 +6,7 @@ const functions = require("../handlers/functions");
 const moment = require("moment");
 const otpGenerator = require('otp-generator');
 const fs = require('fs');
-const config = require('../config/config.json');
+
 
 module.exports = (function () {
     this.saveOtp = async function (userUuid, otp, otpFor) {
@@ -49,7 +49,7 @@ module.exports = (function () {
                         for (let i = 0; i < data.length; i++) {
                             if (data[i].attributeTypeName == 'phoneNumber') {
                                 // Make send OTP request
-                                const otp = await axios.get(`https://2factor.in/API/V1/${config[env].apiKey2Factor}/SMS/+${countryCode}${phoneNumber}/AUTOGEN2`).catch(error => {
+                                const otp = await axios.get(`https://2factor.in/API/V1/${process.env.API_KEY2_FACTOR}/SMS/+${countryCode}${phoneNumber}/AUTOGEN2`).catch(error => {
                                     throw new Error(error.message);
                                 });
                                 if (otp) {
@@ -140,7 +140,7 @@ module.exports = (function () {
                             // If phoneNumber and countryCode exists
                             if (phoneNumber && countryCode) {
                                 // Make request
-                                const otp = await axios.get(`https://2factor.in/API/V1/${config[env].apiKey2Factor}/SMS/+${countryCode}${phoneNumber}/AUTOGEN2`).catch(error => {
+                                const otp = await axios.get(`https://2factor.in/API/V1/${process.env.API_KEY2_FACTOR}/SMS/+${countryCode}${phoneNumber}/AUTOGEN2`).catch(error => {
                                     throw new Error(error.message);
                                 });
                                 if (otp) {
@@ -208,7 +208,7 @@ module.exports = (function () {
                         for (let i = 0; i < data.length; i++) {
                             if (data[i].attributeTypeName == 'phoneNumber') {
                                 // Make send OTP request
-                                const otp = await axios.get(`https://2factor.in/API/V1/${config[env].apiKey2Factor}/SMS/+${countryCode}${phoneNumber}/AUTOGEN2`).catch(error => {
+                                const otp = await axios.get(`https://2factor.in/API/V1/${process.env.API_KEY2_FACTOR}/SMS/+${countryCode}${phoneNumber}/AUTOGEN2`).catch(error => {
                                     throw new Error(error.message);
                                 });
                                 if (otp) {
@@ -301,7 +301,7 @@ module.exports = (function () {
                                 if (phoneNumber) {
                                     // const body = new URLSearchParams();
                                     // body.append('module', 'TRANS_SMS');
-                                    // body.append('apikey', config[env].apiKey2Factor);
+                                    // body.append('apikey', process.env.API_KEY2_FACTOR);
                                     // body.append('to', `+${countryCode}${phoneNumber}`);
                                     // body.append('from', 'HEADER');
                                     // body.append('msg', `Welcome to Intelehealth. Please use the username ${data[index].username} to sign in at Intelehealth.`);

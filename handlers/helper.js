@@ -4,7 +4,7 @@ const webpush = require("web-push");
 const axios = require("axios");
 const admin = require("firebase-admin");
 const env = process.env.NODE_ENV || "development";
-const config = require(__dirname + "/../config/config.json")[env];
+const config =  process.env;
 const serviceAccount = require(__dirname + "/../config/serviceAccountKey.json");
 
 admin.initializeApp({
@@ -30,14 +30,14 @@ module.exports = (function () {
     vapidKeys.privateKey
   );
 
-  const baseURL = `https://${config.domain}`;
+  const baseURL = `https://${config.DOMAIN}`;
 
   this.axiosInstance = axios.create({
     baseURL,
     timeout: 50000,
     headers: {
       Authorization: `Basic ${Buffer.from(
-        `${config.openMrsUsername}:${config.openMrsPassword}`
+        `${config.OPEN_MRS_USERNAME}:${config.OPEN_MRS_PASSWORD}`
       ).toString("base64")}`,
     },
   });

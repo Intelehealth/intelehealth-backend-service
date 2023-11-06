@@ -1,15 +1,17 @@
 var mysql = require("mysql");
-var config = require("../../../config/config.json");
+var config = process.env;
+
 var db;
 
 connectDatabase = () => {
   if (!db) {
-    const env = process.env.NODE_ENV ? process.env.NODE_ENV : "production";
+  
     const settings = {
-      ...config[env],
-      user: config[env].username,
-      database: "openmrs",
+      user: process.env.DB_USERNAME,
+      database: process.env.DB_NAME,
+      password: process.env.DB_PASSWORD,
     };
+    
     db = mysql.createConnection(settings);
 
     db.connect((err) => {

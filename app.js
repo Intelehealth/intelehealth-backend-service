@@ -1,3 +1,4 @@
+require('dotenv').config()
 const express = require("express");
 const path = require("path");
 const cookieParser = require("cookie-parser");
@@ -10,8 +11,7 @@ const db = require("./models");
 
 const indexRouter = require("./routes/index");
 const pushRouter = require("./routes/pushNotification");
-const env = process.env.NODE_ENV || "development";
-const config = require(__dirname + "/config/config.json")[env];
+const config = process.env
 
 const app = express();
 

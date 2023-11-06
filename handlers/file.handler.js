@@ -4,7 +4,7 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 const env = process.env.NODE_ENV || "development";
-const config = require(__dirname + "/../config/config.json")[env];
+const config =  process.env;
 
 const fileParser = async (req, res, next) => {
   upload.any()(req, res, (err) => {

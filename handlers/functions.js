@@ -1,5 +1,5 @@
 const nodemailer = require('nodemailer');
-const config = require('../config/config.json');
+
 
 /**
  * Function for sending email
@@ -13,16 +13,16 @@ async function sendEmail(to, subject, message) {
         service: 'gmail',
         auth: {
             type: 'OAuth2',
-            user: config[env].mailUsername,
-            pass: config[env].mailPassword,
-            clientId: config[env].oauthClientId,
-            clientSecret: config[env].oauthClientSecret,
-            refreshToken: config[env].oauthRefreshToken
+            user: process.env.MAIL_USERNAME,
+            pass: process.env.MAIL_PASSWORD,
+            clientId: process.env.OUTH_CLIENT_ID,
+            clientSecret: process.env.OUTH_CLIENT_SEC,
+            refreshToken: process.env.OAUTH_REFRESH_TOKEN
         }
     });
 
     var mailOptions = {
-        from: `${config[env].mailUsername}`,
+        from: `${process.env.MAIL_USERNAME}`,
         to: to,
         subject: subject,
         html: message
