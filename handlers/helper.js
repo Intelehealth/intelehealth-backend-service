@@ -35,15 +35,22 @@ const axiosInstance = axios.create({
 
 const messaging = admin.messaging();
 
-const sendWebPushNotification = async ({ webpush_obj, title, body }) => {
+const sendWebPushNotification = async ({
+  webpush_obj,
+  title,
+  body,
+  data = {},
+  parse = false,
+}) => {
   try {
-    await webpush.sendNotification(
-      JSON.parse(webpush_obj),
+    return await webpush.sendNotification(
+      parse ? JSON.parse(webpush_obj) : webpush_obj,
       JSON.stringify({
         notification: {
           title,
           body,
           vibrate: [100, 50, 100],
+          data,
         },
       })
     );

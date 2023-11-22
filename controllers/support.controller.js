@@ -1,6 +1,5 @@
-const { RES } = require("../handlers/helper");
-const { sendNotification, getSubscriptions } = require("../handlers/web-push");
-const { user_settings } = require("../models");
+const { RES, sendWebPushNotification } = require("../handlers/helper");
+const { user_settings, pushnotification } = require("../models");
 
 const {
     sendMessage,
@@ -52,10 +51,16 @@ module.exports = (function () {
                         uss.forEach(async (us) => {
                             if (us && us?.notification) {
                                 if ((us?.snooze_till) ? (new Date().valueOf() > us?.snooze_till) : true) {
-                                    const subscriptions = await getSubscriptions(us.user_uuid);
+                                    const subscriptions = await pushnotification.findAll({
+                                        where: { user_uuid: toUser },
+                                    });
                                     if (subscriptions.length) {
-                                        subscriptions.forEach(async (sub) => {
-                                            await sendNotification(JSON.parse(sub.notification_object), 'Hey! You got new chat message for support', message);
+                                        subscriptions.forEach((sub) => {
+                                            sendWebPushNotification({
+                                                webpush_obj: sub.notification_object,
+                                                title: 'Hey! You got new chat message for support',
+                                                body: message,
+                                            });
                                         });
                                     }
                                 }
