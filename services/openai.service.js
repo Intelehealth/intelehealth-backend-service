@@ -1,9 +1,6 @@
-const config = require('../config/config.json');
 const { Configuration, OpenAIApi } = require("openai");
-const env = process.env.NODE_ENV ? process.env.NODE_ENV : "production";
 const configuration = new Configuration({
-    // organization: config[env].openaiOrganizationId,
-    apiKey: config[env].openaiApiKey,
+    apiKey: process.env.OPEN_AI_KEY,
 });
 const openai = new OpenAIApi(configuration);
 const { gptinputs, gptmodels, Sequelize, sequelize } = require("../models");

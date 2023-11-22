@@ -8,11 +8,6 @@ const session = require("express-session");
 const SequelizeStore = require("connect-session-sequelize")(session.Store);
 const db = require("./models");
 
-const indexRouter = require("./routes/index");
-const pushRouter = require("./routes/pushNotification");
-const env = process.env.NODE_ENV || "development";
-const config = require(__dirname + "/config/config.json")[env];
-
 const app = express();
 
 let ALLOWED_ORIGINS = [
@@ -20,7 +15,7 @@ let ALLOWED_ORIGINS = [
   "https://dev.intelehealth.org",
   "http://localhost:3030",
   "https://dev.intelehealth.org:3030",
-  "http://127.0.0.1:3030"
+  "http://127.0.0.1:3030",
 ];
 
 app.use(function (req, res, next) {
@@ -30,7 +25,10 @@ app.use(function (req, res, next) {
 
   res.header("Access-Control-Allow-Origin", theOrigin);
   res.header("Access-Control-Allow-Credentials", "true");
-  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, PATCH, DELETE");
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, OPTIONS, PUT, PATCH, DELETE"
+  );
   res.header(
     "Access-Control-Allow-Headers",
     "Origin, X-Requested-With, Content-Type, Accept"
@@ -63,17 +61,19 @@ app.set("trust proxy", 1);
 app.use(
   session({
     name: "app.sid",
-    secret: config.domain,
+    secret: process.env.DOMAIN,
     store: new SequelizeStore({
       db: db.sequelize,
       checkExpirationInterval: 15 * 60 * 1000, // The interval at which to cleanup expired sessions in milliseconds.
       expiration: 15 * 24 * 60 * 60 * 1000, // The maximum age (in milliseconds) of a valid session.
     }),
+    resave: true,
+    saveUninitialized: true,
   })
 );
 
-app.use("/api", indexRouter);
-app.use("/notification", pushRouter);
+app.use("/api", require("./routes/index"));
+app.use("/notification", require("./routes/pushNotification"));
 app.use(require("./handlers/error-handler"));
 
 module.exports = app;

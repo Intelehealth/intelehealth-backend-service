@@ -3,8 +3,13 @@ const multer = require("multer");
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-const env = process.env.NODE_ENV || "development";
-const config = require(__dirname + "/../config/config.json")[env];
+const {
+  AWS_ACCESS_KEY_ID,
+  AWS_SECRET_ACCESS_KEY,
+  AWS_REGION,
+  AWS_BUCKET_NAME,
+  AWS_URL,
+} = process.env;
 
 const fileParser = async (req, res, next) => {
   upload.any()(req, res, (err) => {
@@ -15,9 +20,9 @@ const fileParser = async (req, res, next) => {
 
 const uploadFile = async (data, filePath, type = "image") => {
   AWS.config.update({
-    accessKeyId: config.AWS_ACCESS_KEY_ID,
-    secretAccessKey: config.AWS_SECRET_ACCESS_KEY,
-    region: config.AWS_REGION,
+    accessKeyId: AWS_ACCESS_KEY_ID,
+    secretAccessKey: AWS_SECRET_ACCESS_KEY,
+    region: AWS_REGION,
   });
 
   const s3 = new AWS.S3();
@@ -30,7 +35,7 @@ const uploadFile = async (data, filePath, type = "image") => {
   // const Key = `${filePath}/${type}_${Date.now()}.${extension}`;
   const Key = `${type}_${Date.now()}.${extension}`;
   const params = {
-    Bucket: config.AWS_BUCKET_NAME,
+    Bucket: AWS_BUCKET_NAME,
     Key,
     Body: data.buffer,
     ACL: "public-read",
@@ -46,7 +51,7 @@ const uploadFile = async (data, filePath, type = "image") => {
     throw err;
   });
 
-  return `${config.AWS_URL}${Key}`;
+  return `${AWS_URL}${Key}`;
 };
 
 module.exports = {

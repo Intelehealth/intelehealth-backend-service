@@ -6,8 +6,11 @@ const {
   readMessagesById,
   getVisits,
 } = require("../services/message.service");
-const { validateParams } = require("../handlers/helper");
-const { user_settings } = require("../models");
+const {
+  validateParams,
+  sendWebPushNotificaion,
+} = require("../handlers/helper");
+const { user_settings, pushnotification } = require("../models");
 const { uploadFile } = require("../handlers/file.handler");
 const { sendNotification, getSubscriptions } = require("../handlers/web-push");
 
@@ -53,8 +56,8 @@ module.exports = (function () {
           hwName,
           hwPic,
           type
-          );
-          console.log('type: ', type);
+        );
+
         try {
           messages = await getMessages(fromUser, toUser, patientId, visitId);
         } catch (error) {}
@@ -96,18 +99,43 @@ module.exports = (function () {
           }
         }
 
+        const devices = await pushnotification.findAll({
+          where: { user_uuid: toUser },
+        });
+        devices.forEach(async (device) => {
+          sendWebPushNotificaion({
+            webpush_obj: device.notification_object,
+            data: {
+              ...req.body,
+              url: `/#/visitSummary/${patientId}/${visitId}?openChat=true`,
+            },
+            title: `New Chat from ${hwName || "HW"}(${
+              patientName || "Patient"
+            }):${openMrsId || ""}`,
+            body: message,
+            options: {
+              TTL: "3600000",
+            },
+            isObject: true,
+          });
+        });
+
         // Send push notification
         const us = await user_settings.findOne({
           where: {
-              user_uuid: toUser,
+            user_uuid: toUser,
           },
         });
         if (us && us?.notification) {
-          if ((us?.snooze_till) ? (new Date().valueOf() > us?.snooze_till) : true) {
+          if (us?.snooze_till ? new Date().valueOf() > us?.snooze_till : true) {
             const subscriptions = await getSubscriptions(us.user_uuid);
             if (subscriptions.length) {
               subscriptions.forEach(async (sub) => {
-                await sendNotification(JSON.parse(sub.notification_object), 'Hey! You got new chat message', message);
+                await sendNotification(
+                  JSON.parse(sub.notification_object),
+                  "Hey! You got new chat message",
+                  message
+                );
               });
             }
           }

@@ -1,8 +1,6 @@
 const textToImage = require('text-to-image');
 const path = require("path");
 const fs = require("fs");
-const env = process.env.NODE_ENV || "development";
-const config = require(__dirname + "/../config/config.json")[env];
 
 module.exports = (function () {
     this._createSign = async (textOfSign, fontName, providerId) => {
@@ -48,7 +46,7 @@ module.exports = (function () {
                 customHeight
             });
             fs.writeFileSync(path.join(...['/var', 'www', 'html', 'docsign',`${providerId}_sign.png`]), dataUri.replace('data:image/png;base64,',''),'base64');
-            return { url: `https://${config.domain}/ds/${providerId}_sign.png` };
+            return { url: `https://${process.env.DOMAIN}/ds/${providerId}_sign.png` };
         } catch (error) {
             if (error.code === null || error.code === undefined) {
                 error.code = 500;
@@ -60,7 +58,7 @@ module.exports = (function () {
     this._uploadSign = async (file, providerid) => {
         try {
             fs.writeFileSync(path.join(...['/var', 'www', 'html', 'docsign',`${providerid}_sign.png`]), file.replace('data:image/png;base64,',''),'base64');  
-            return { url: `https://${config.domain}/ds/${providerid}_sign.png` };
+            return { url: `https://${process.env.DOMAIN}/ds/${providerid}_sign.png` };
         } catch (error) {
             if (error.code === null || error.code === undefined) {
                 error.code = 500;
