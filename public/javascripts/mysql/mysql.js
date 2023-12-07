@@ -5,6 +5,7 @@ var db;
 connectDatabase = () => {
   if (!db) {
     const env = process.env.NODE_ENV ? process.env.NODE_ENV : "production";
+    console.log("ENV", env)
     const settings = { ...config[env], user: config[env].username };
     db = mysql.createConnection(settings);
 
