@@ -3,7 +3,7 @@ const env = process.env.NODE_ENV || "development";
 const config = require(__dirname + "/../config/config.json")[env];
 const { sequelize } = require("../models");
 const { QueryTypes } = require("sequelize");
-const { getFirebaseAdmin } = require("./helper");
+const { getFirebaseAdmin, generateUUID } = require("./helper");
 const { deliveredById } = require("../services/message.service");
 
 const admin = getFirebaseAdmin();
@@ -24,27 +24,6 @@ module.exports = function (server) {
   const rtcNotifyRef = db.ref(DB_NAME);
   const io = require("socket.io")(server);
   global.users = {};
-
-  /**
-   * Declare functions here.
-   */
-  function generateUUID() {
-    let d = new Date().getTime();
-    if (
-      typeof performance !== "undefined" &&
-      typeof performance.now === "function"
-    ) {
-      d += performance.now(); //use high-precision timer if available
-    }
-    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
-      /[xy]/g,
-      function (c) {
-        let r = (d + Math.random() * 16) % 16 | 0;
-        d = Math.floor(d / 16);
-        return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
-      }
-    );
-  }
 
   function emitAllUserStatus() {
     const allUsers = [];
