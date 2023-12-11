@@ -11,7 +11,7 @@ connectDatabase = () => {
       port: MYSQL_PORT || 3306,
       user: MYSQL_USERNAME || "root",
       password: MYSQL_PASS,
-      database: MYSQL_DB || "openmrs",
+      database: "openmrs",
     });
 
     db.connect((err) => {

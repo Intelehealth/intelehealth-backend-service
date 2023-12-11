@@ -1,9 +1,9 @@
 const { RES } = require("../handlers/helper");
 const {
-  requestOtp,
-  verfifyOtp,
   resetPassword,
-  checkProviderAttribute
+  checkProviderAttribute,
+  sendOtp,
+  verifyOtp,
 } = require("../services/auth.service");
 
 module.exports = (function () {
@@ -35,7 +35,7 @@ module.exports = (function () {
             );
           }
         }
-        const data = await requestOtp(
+        const data = await sendOtp(
           email,
           phoneNumber,
           countryCode,
@@ -83,7 +83,7 @@ module.exports = (function () {
     try {
       const { email, phoneNumber, username, verifyFor, otp } = req.body;
       if ((email || phoneNumber || username) && verifyFor && otp) {
-        const data = await verfifyOtp(
+        const data = await verifyOtp(
           email,
           phoneNumber,
           username,
@@ -191,21 +191,18 @@ module.exports = (function () {
    */
   this.checkProviderAttribute = async (req, res) => {
     try {
-      const {
-        attributeType,
-        attributeValue,
-        providerUuid,
-      } = req.body;
+      const { attributeType, attributeValue, providerUuid } = req.body;
       if (attributeType && attributeValue && providerUuid) {
-        if (!['emailId','phoneNumber'].includes(attributeType)) {
+        if (!["emailId", "phoneNumber"].includes(attributeType)) {
           RES(
-              res,
-              {
-                success: false,
-                message: "Bad request! Attribute type should be emailId/phoneNumber.",
-                data: null,
-              },
-              400
+            res,
+            {
+              success: false,
+              message:
+                "Bad request! Attribute type should be emailId/phoneNumber.",
+              data: null,
+            },
+            400
           );
         }
         const data = await checkProviderAttribute(
