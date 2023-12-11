@@ -21,7 +21,7 @@ const sequelize = new Sequelize({
   port: MYSQL_PORT || 3306,
   username: MYSQL_USERNAME || "root",
   password: MYSQL_PASS,
-  database: MYSQL_DB || "mindmap_server",
+  database: "openmrs",
   define: {
     timestamps: false,
     freezeTableName: true,
