@@ -17,9 +17,23 @@ module.exports = (sequelize, DataTypes) => {
       fromUser: DataTypes.STRING,
       toUser: DataTypes.STRING,
       patientId: DataTypes.STRING,
+      patientName: DataTypes.STRING,
+      hwName: DataTypes.STRING,
+      patientPic: DataTypes.STRING,
+      hwPic: DataTypes.STRING,
+      visitId: DataTypes.STRING,
       isRead: {
         type: DataTypes.BOOLEAN,
         defaultValue: false,
+      },
+      isDelivered: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+      },
+      /** possible values - text/attachment */
+      type: {
+        type: DataTypes.STRING,
+        defaultValue: "text",
       },
     },
     {

@@ -3,6 +3,11 @@ const router = express.Router();
 const webpush = require("web-push");
 const mysql = require("../public/javascripts/mysql/mysql");
 // console.log(webpush.generateVAPIDKeys(),"---------------");
+const {
+  VAPID_MAILTO,
+  VAPID_PUBLIC_KEY,
+  VAPID_PRIVATE_KEY
+} = process.env;
 const days = {
   0: "Sunday",
   1: "Monday",
@@ -60,10 +65,10 @@ router.post("/subscribe", async (req, res) => {
 
 //for demo server
 const vapidKeys = {
-  publicKey:
+  publicKey: VAPID_PUBLIC_KEY ||
     "BJPw_8oVG_SU7Tyfj-Od3zhgMmfC3ElvKLG37iYJhWtWElqz929WWLkZjR410YkA4cywJF7K0QwOGWWLWw03MPY",
-  privateKey: "d0oUbsVoSXowtzvit3VsMC_VKLvcMkdVVeyegdqxauU",
-  mailTo: "mailto:support@intelehealth.org",
+  privateKey: VAPID_PRIVATE_KEY || "d0oUbsVoSXowtzvit3VsMC_VKLvcMkdVVeyegdqxauU",
+  mailTo: VAPID_MAILTO || "mailto:support@intelehealth.org",
 };
 // For testing server
 // const vapidKeys = {

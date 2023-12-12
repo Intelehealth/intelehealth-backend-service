@@ -4,5 +4,5 @@
 *.zip
 /config/config.json
 /config/serviceAccountKey.json
-/livekit-token-microservice*
+/livekit-token-microservice/node_modules*
 .env

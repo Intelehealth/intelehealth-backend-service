@@ -17,7 +17,7 @@ module.exports = (function () {
         data: {
           ...payload,
           url: `${
-            process.env.NODE_ENV === "prod" ? "/intelehealth" : ""
+            process.env.NODE_ENV === "production" ? "/intelehealth" : ""
           }/#/visit-summary/${payload.patientId}/${payload.visitId}?openChat=true`,
         },
         title: `New Chat from ${payload.hwName || "HW"}(${
@@ -36,7 +36,19 @@ module.exports = (function () {
    * @param {*} res
    */
   this.sendMessage = async (req, res) => {
-    const { fromUser, toUser, patientId, message } = req.body;
+    const {
+      fromUser,
+      toUser,
+      patientId,
+      message,
+      isRead,
+      patientPic,
+      visitId,
+      patientName,
+      hwName,
+      hwPic,
+      type,
+    } = req.body
     const keysAndTypeToCheck = [
       { key: "fromUser", type: "string" },
       { key: "toUser", type: "string" },
@@ -46,7 +58,19 @@ module.exports = (function () {
     let isLiveMessageSent = false;
     try {
       if (validateParams(req.body, keysAndTypeToCheck)) {
-        const data = await sendMessage(fromUser, toUser, patientId, message);
+        const data = await sendMessage(
+          fromUser,
+          toUser,
+          patientId,
+          message,
+          isRead,
+          patientPic,
+          visitId,
+          patientName,
+          hwName,
+          hwPic,
+          type
+        );
         for (const key in users) {
           if (Object.hasOwnProperty.call(users, key)) {
             const user = users[key];
@@ -101,6 +125,7 @@ module.exports = (function () {
    */
   this.getMessages = async (req, res) => {
     const { fromUser, toUser, patientId } = req.params;
+    const visitId = req.query.visitId;
     const keysAndTypeToCheck = [
       { key: "fromUser", type: "string" },
       { key: "toUser", type: "string" },
@@ -108,7 +133,7 @@ module.exports = (function () {
     ];
     try {
       if (validateParams(req.params, keysAndTypeToCheck)) {
-        const data = await getMessages(fromUser, toUser, patientId);
+        const data = await getMessages(fromUser, toUser, patientId, visitId);
         res.json(data);
       }
     } catch (error) {
