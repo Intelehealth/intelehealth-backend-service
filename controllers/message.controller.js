@@ -27,6 +27,7 @@ module.exports = (function () {
         options: {
           TTL: "3600000",
         },
+        isObject: true
       });
     });
   };

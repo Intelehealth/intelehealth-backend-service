@@ -23,7 +23,7 @@ module.exports = (function () {
     webpush_obj,
     title,
     body,
-    isObject,
+    isObject = false,
   }) => {
     webpush
       .sendNotification(
