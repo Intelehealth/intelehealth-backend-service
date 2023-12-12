@@ -1,31 +1,25 @@
 const mysql = require("../public/javascripts/mysql/mysql");
 const webpush = require("web-push");
 const admin = require("firebase-admin");
-const env = process.env.NODE_ENV || "development";
-const config = require(__dirname + "/../config/config.json")[env];
 
-const serviceAccount = require(__dirname + "/../config/serviceAccountKey.json");
+const {
+  FIREBASE_SERVICE_ACCOUNT_KEY,
+  FIREBASE_DB_URL,
+  VAPID_MAILTO,
+  VAPID_PUBLIC_KEY,
+  VAPID_PRIVATE_KEY,
+  DEBUG
+} = process.env;
 
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  databaseURL:
-    "https://nashik-arogya-sampada-master-default-rtdb.asia-southeast1.firebasedatabase.app",
+  credential: admin.credential.cert(JSON.parse(FIREBASE_SERVICE_ACCOUNT_KEY)),
+  databaseURL: FIREBASE_DB_URL,
 });
 
-module.exports = (function () {
-  const vapidKeys = {
-    publicKey:
-      "BJPw_8oVG_SU7Tyfj-Od3zhgMmfC3ElvKLG37iYJhWtWElqz929WWLkZjR410YkA4cywJF7K0QwOGWWLWw03MPY",
-    privateKey: "d0oUbsVoSXowtzvit3VsMC_VKLvcMkdVVeyegdqxauU",
-    mailTo: "mailto:support@intelehealth.org",
-  };
-  webpush.setVapidDetails(
-    vapidKeys.mailTo,
-    vapidKeys.publicKey,
-    vapidKeys.privateKey
-  );
+webpush.setVapidDetails(VAPID_MAILTO, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
-  this.sendWebPushNotificaion = async ({
+module.exports = (function () {
+  this.sendWebPushNotification = async ({
     webpush_obj,
     title,
     body,
@@ -127,7 +121,7 @@ module.exports = (function () {
   };
 
   this.log = (...params) => {
-    if (config && config.debug) {
+    if (DEBUG === 'true') {
       console.log(...params);
     }
   };

@@ -1,6 +1,4 @@
 const { user_settings } = require("../models");
-const env = process.env.NODE_ENV || "development";
-const config = require(__dirname + "/../config/config.json")[env];
 const { sequelize } = require("../models");
 const { QueryTypes } = require("sequelize");
 const { getFirebaseAdmin, generateUUID } = require("./helper");
@@ -20,7 +18,7 @@ const CALL_STATUSES = {
 
 module.exports = function (server) {
   const db = admin.database();
-  const DB_NAME = `${config.domain.replace(/\./g, "_")}/rtc_notify`;
+  const DB_NAME = `${process.env.DOMAIN.replace(/\./g, "_")}/rtc_notify`;
   const rtcNotifyRef = db.ref(DB_NAME);
   const io = require("socket.io")(server);
   global.users = {};
@@ -354,6 +352,17 @@ module.exports = function (server) {
           },
         },
       });
+    });
+
+    socket.on("ipaddr", function () {
+      var ifaces = os.networkInterfaces();
+      for (var dev in ifaces) {
+        ifaces[dev].forEach(function (details) {
+          if (details.family === "IPv4" && details.address !== "127.0.0.1") {
+            socket.emit("ipaddr", details.address);
+          }
+        });
+      }
     });
 
     /**
