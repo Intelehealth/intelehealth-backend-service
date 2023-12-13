@@ -11,6 +11,7 @@ const {
     asyncForEach,
     getDataFromQuery,
     sendCloudNotification,
+    sendWebPushNotification,
   } = require("../handlers/helper");
   
   module.exports = (function () {
@@ -76,7 +77,7 @@ const {
               const engTitle = `Appointment for ${patientName}(${slotTime}) has been cancelled.`;
               const ruTitle = `Запись на прием за ${patientName}(${slotTime}) отменена.`;
               const title = data.locale === "ru" ? ruTitle : engTitle;
-              sendWebPushNotificaion({
+              sendWebPushNotification({
                 webpush_obj: data.webpush_obj,
                 title,
                 body: openMrsId,

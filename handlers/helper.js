@@ -23,11 +23,12 @@ module.exports = (function () {
     webpush_obj,
     title,
     body,
-    isObject = false,
+    parse = false,
   }) => {
-    webpush
+    try {
+      webpush
       .sendNotification(
-        isObject ? webpush_obj : JSON.parse(webpush_obj),
+        parse ? JSON.parse(webpush_obj) : webpush_obj,
         JSON.stringify({
           notification: {
             title,
@@ -39,6 +40,10 @@ module.exports = (function () {
       .catch((error) => {
         console.log("appointment notification error", error);
       });
+    } catch (e) {
+      console.error("Error when sending notification", error);
+    }
+    
   };
 
   this.validateParams = (params, keysAndTypeToCheck = []) => {
