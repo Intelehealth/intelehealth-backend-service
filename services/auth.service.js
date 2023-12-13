@@ -122,7 +122,7 @@ module.exports = (function () {
               });
               if (otp) {
                 // Save OTP in database for verification
-                await this.saveOtp(element.uuid, otp.data.OTP, otpFor === "username" ? "U" : "A");
+                await saveOtp(element.uuid, otp.data.OTP, otpFor === "username" ? "U" : "A");
               }
             }
 
@@ -132,7 +132,7 @@ module.exports = (function () {
               const mail = await sendEmailOtp(email, otpFor === "username" ? "Verification code for forgot username" : "Verification code for sign in", randomOtp);
               if (mail.messageId) {
                 // Save OTP in database for verification
-                await this.saveOtp(element.uuid, randomOtp, otpFor === "username" ? "U" : "A");
+                await saveOtp(element.uuid, randomOtp, otpFor === "username" ? "U" : "A");
               }
             }
           }
@@ -177,7 +177,7 @@ module.exports = (function () {
               });
               if (otp) {
                 // Save OTP in database for verification
-                await this.saveOtp(data[0].userUuid, otp.data.OTP, "P");
+                await saveOtp(data[0].userUuid, otp.data.OTP, "P");
                 if (email) {
                   await sendEmailOtp(email, "Verification code for forgot password", otp.data.OTP);  
                 }
@@ -188,7 +188,7 @@ module.exports = (function () {
               const mail = await sendEmailOtp(email, "Verification code for forgot password", randomOtp);
               if (mail.messageId) {
                 // Save OTP in database for verification
-                await this.saveOtp(data[i].uuid, randomOtp, "P");
+                await saveOtp(data[i].uuid, randomOtp, "P");
               }
             }
 
