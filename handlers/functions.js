@@ -6,7 +6,7 @@ const nodemailer = require("nodemailer");
  * @param {*} return (Sent message info)
  */
 async function sendEmail(to, subject, message) {
-  const { MAIL_USERNAME, MAIL_PASSWORD, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET } =
+  const { MAIL_USERNAME, MAIL_PASSWORD, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, OAUTH_CLIENT_REFRESH_TOKEN } =
     process.env;
 
   const transporter = nodemailer.createTransport({
@@ -18,7 +18,7 @@ async function sendEmail(to, subject, message) {
       pass: MAIL_PASSWORD,
       clientId: OAUTH_CLIENT_ID,
       clientSecret: OAUTH_CLIENT_SECRET,
-      refreshToken: OAUTH_CLIENT_REFRESH_TOKEN,
+      refreshToken: OAUTH_CLIENT_REFRESH_TOKEN
     },
   });
 
