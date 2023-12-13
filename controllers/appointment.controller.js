@@ -51,7 +51,6 @@ module.exports = (function () {
         });
       }
     } catch (error) {
-      console.log("error: ", error);
       next(error);
     }
   };
@@ -70,7 +69,6 @@ module.exports = (function () {
         data,
       });
     } catch (error) {
-      console.log("error: ", error);
       next(error);
     }
   };
@@ -79,14 +77,12 @@ module.exports = (function () {
     try {
       const userUuid = req.params.userUuid;
       const year = req.query.year;
-      console.log("userUuid, year", userUuid, year);
       const data = await getScheduledMonths({ userUuid, year });
       res.json({
         status: true,
         data,
       });
     } catch (error) {
-      console.log("error: ", error);
       next(error);
     }
   };
@@ -106,7 +102,6 @@ module.exports = (function () {
         });
       }
     } catch (error) {
-      console.log("error: ", error);
       next(error);
     }
   };
@@ -127,7 +122,6 @@ module.exports = (function () {
         });
       }
     } catch (error) {
-      console.log("error: ", error);
       next(error);
     }
   };
@@ -146,7 +140,6 @@ module.exports = (function () {
         });
       }
     } catch (error) {
-      console.log("error: ", error);
       next(error);
     }
   };
@@ -167,7 +160,6 @@ module.exports = (function () {
         });
       }
     } catch (error) {
-      console.log("error: ", error);
       next(error);
     }
   };
@@ -191,7 +183,6 @@ module.exports = (function () {
         });
       }
     } catch (error) {
-      console.log("error: ", error);
       next(error);
     }
   };
@@ -372,7 +363,6 @@ module.exports = (function () {
         });
       }
     } catch (error) {
-      console.log("error: ", error);
       next(error);
     }
   };

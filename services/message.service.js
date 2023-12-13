@@ -42,7 +42,6 @@ module.exports = (function () {
         data: await messages.create(msg),
       };
     } catch (error) {
-      console.log("error: sendMessage ", error);
       return {
         success: false,
         data: error,
@@ -104,7 +103,6 @@ module.exports = (function () {
       }
       return { success: true, data };
     } catch (error) {
-      console.log("error: getMessages ", error);
       return {
         success: false,
         data: [],
@@ -135,7 +133,6 @@ module.exports = (function () {
       }
       return { success: true, data };
     } catch (error) {
-      console.log("error: getAllMessages ", error);
       return {
         success: false,
         data: [],
@@ -203,7 +200,6 @@ module.exports = (function () {
       });
       return { success: true, data };
     } catch (error) {
-      console.log("error: getPatientMessageList ", error);
       return {
         success: false,
         data: [],
@@ -237,7 +233,6 @@ module.exports = (function () {
             }
           }
         } catch (error) {
-          console.log("error:isread socket ", error);
         }
       }, 1000);
 
@@ -270,7 +265,6 @@ module.exports = (function () {
 
       return { success: false, data: [] };
     } catch (error) {
-      console.log("error: readMessagesById ", error);
       return {
         success: false,
         data: [],
@@ -304,7 +298,6 @@ module.exports = (function () {
             }
           }
         } catch (error) {
-          console.log("error:isread socket ", error);
         }
       }, 1000);
 
@@ -337,7 +330,6 @@ module.exports = (function () {
 
       return { success: false, data: [] };
     } catch (error) {
-      console.log("error: readMessagesById ", error);
       return {
         success: false,
         data: [],
@@ -359,7 +351,6 @@ module.exports = (function () {
       });
       return { success: true, data };
     } catch (error) {
-      console.log("error: getVisits ", error);
       return {
         success: false,
         data: [],

@@ -7,10 +7,8 @@ const cronString = "*/1 * * * *";
 const SQL_DATE_FORMAT = "YYYY-MM-DD HH:mm:ss";
 
 const isValid = cron.validate(cronString);
-console.log("cronString: isValid: ", isValid);
 
 const getQuery = (startDate, endDate) => {
-  console.log("startDate, endDate: ", startDate, endDate);
   return `SELECT
   a.slotDate,
   a.slotJsDate,
@@ -40,21 +38,17 @@ const queryAndSendNotification = async (query) => {
   new Promise((resolve, reject) => {
     mysql.query(query, (err, results) => {
       if (err) {
-        console.log("err: ", err);
         reject(err.message);
       }
       resolve(results);
     });
   }).then((data) => {
-    console.log("data: ", data);
     for (let i = 0; i < data.length; i++) {
       const schedule = data[i];
       if (schedule.webpush_obj) {
         const engTitle = `Appointment Reminder(${schedule.slotTime}): ${schedule.patientName}`;
         const ruTitle = `Напоминание о встрече(${schedule.slotTime}): ${schedule.patientName}`;
         const title = schedule.locale === "ru" ? ruTitle : engTitle;
-        console.log("schedule.locale: ", schedule.locale);
-        console.log("title: ", title);
         sendWebPushNotificaion({
           webpush_obj: schedule.webpush_obj,
           title,
@@ -66,7 +60,6 @@ const queryAndSendNotification = async (query) => {
 };
 
 const sendAppointmentNotification1min = async () => {
-  console.log("1 min >> : cron running");
   // trigger 1 mins before
   const query = getQuery(
     moment.utc().add(1, "second").format(SQL_DATE_FORMAT),
@@ -77,7 +70,6 @@ const sendAppointmentNotification1min = async () => {
 };
 
 const sendAppointmentNotification15min = async () => {
-  console.log("15min ---- : cron running");
   // trigger 15 mins before
   const earlyNotificationQuery = getQuery(
     moment.utc().add(14, "minutes").add(1, "second").format(SQL_DATE_FORMAT),
@@ -94,6 +86,5 @@ cron.schedule(cronString, sendAppointmentNotification15min, {
 });
 
 process.on("uncaughtException", function (err) {
-  console.log("Cron Server : uncaughtException->>" + err);
   throw err;
 });

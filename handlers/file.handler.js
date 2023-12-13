@@ -31,7 +31,6 @@ const uploadFile = async (data, filePath, type = "image") => {
     : "jpg";
   if (!extension) extension = "jpg";
 
-  console.log("extension: ", extension);
   // const Key = `${filePath}/${type}_${Date.now()}.${extension}`;
   const Key = `${type}_${Date.now()}.${extension}`;
   const params = {
@@ -47,7 +46,6 @@ const uploadFile = async (data, filePath, type = "image") => {
       res(data);
     });
   }).catch((err) => {
-    console.log("err: ", err);
     throw err;
   });
 

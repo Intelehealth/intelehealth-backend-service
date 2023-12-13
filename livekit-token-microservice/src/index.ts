@@ -19,7 +19,6 @@ class Server {
             credentials: true,
             origin: true,
         }))
-        console.log('SSL: ', process.env.SSL);
         if (process.env.SSL === 'true') {
             const fs = require("fs");
             const options = {
@@ -32,7 +31,6 @@ class Server {
         }
         server.listen(this.port, () => {
             console.log(`Server is running on ${this.port}`);
-            console.log('----------*---------*--------');
         });
         this.init();
         new WebSocketController(server);

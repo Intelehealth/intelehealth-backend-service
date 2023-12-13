@@ -19,7 +19,6 @@ const setSnoozeToDBb = async (user_uuid, snooze_till) => {
       { user_uuid, snooze_till },
       (err, results, fields) => {
         if (err) {
-          console.log("err: ", err);
           reject(err.message);
         }
         resolve("Snoozed successfully!");
@@ -105,7 +104,6 @@ const removeUserSnooze = async (user_uuid) => {
 //     }
 //     res.status(statusCode).json(resp);
 //   } catch (err) {
-//     console.log("error:snoozeNotification ", err);
 //     res.status(500).json({
 //       message: err.message || "Something went wrong with the request",
 //     });
