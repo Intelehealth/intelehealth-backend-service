@@ -12,9 +12,9 @@ const app = express();
 
 let ALLOWED_ORIGINS = [
   "http://localhost:4200",
-  "https://dev.intelehealth.org",
+  "https://kf.intelehealth.org",
   "http://localhost:3030",
-  "https://dev.intelehealth.org:3030",
+  "https://kf.intelehealth.org:3030",
   "http://127.0.0.1:3030",
 ];
 
