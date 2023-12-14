@@ -143,7 +143,6 @@ module.exports = (function () {
 
   this.resetPassword = async (userUuid, otp, newPassword) => {
     const url = `/openmrs/ws/rest/v1/password/${userUuid}`;
-    console.log("url: ", url);
 
     let userSetting = await user_settings.findOne({
       where: {
@@ -176,9 +175,7 @@ module.exports = (function () {
     };
 
     const data = await axiosInstance.post(url, payload).catch((err) => {
-      console.log("Openmrs API - err: ", err.body);
     });
-    console.log("sucess:data:>>>>", data);
 
     return {
       success: true,

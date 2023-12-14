@@ -3,7 +3,6 @@ const ignoredRoutes = require("../IGNORED_ROUTES");
 
 module.exports = (function () {
   const JWT_SECRET = process.env.JWT_SECRET;
-  console.log("JWT_SECRET: ", JWT_SECRET);
   this.decodeTokenAndGetUser = async (token) => {
     const decoded = jwt.verify(token, JWT_SECRET);
     return decoded;

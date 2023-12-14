@@ -2,7 +2,6 @@ const axios = require("axios");
 
 module.exports = (function () {
   const baseURL = `https://${process.env.DOMAIN}`;
-  console.log("baseURL: ", baseURL);
 
   this.axiosInstance = axios.create({
     baseURL,

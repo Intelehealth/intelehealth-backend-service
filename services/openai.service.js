@@ -339,7 +339,6 @@ module.exports = (function () {
             }
             let pages = Math.ceil(words.length/25);
             for (let i = 0; i < pages; i++) {
-                console.log("Page:", i);
                 let input = words.slice(i*25, ((i+1)*25) - 1).join("\n");
                 const response = await openai.createChatCompletion({
                     model: 'gpt-3.5-turbo-16k-0613',
@@ -354,7 +353,6 @@ module.exports = (function () {
                     const translation = JSON.parse(response.data.choices[0].message.content);
                     for (const key in translation) {
                         if (translation.hasOwnProperty(key)) {
-                            // console.log(`${key}: ${translation[key]}`);
                             jsonObject[key] = translation[key];
                         }
                     }
@@ -373,14 +371,12 @@ module.exports = (function () {
                         const translation = JSON.parse(response.data.choices[0].message.content);
                         for (const key in translation) {
                             if (translation.hasOwnProperty(key)) {
-                                // console.log(`${key}: ${translation[key]}`);
                                 jsonObject[key] = translation[key];
                             }
                         }
                     }
                 }
             }
-            // console.log(jsonObject);
             let translateddata = [];
             for (let i = 0; i < data.length; i++) {
                 if (data[i][0]) {

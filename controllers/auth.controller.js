@@ -2,8 +2,8 @@ const { RES } = require("../handlers/helper");
 const {
   resetPassword,
   checkProviderAttribute,
-  sendOtp,
   verifyOtp,
+  requestOtp
 } = require("../services/auth.service");
 
 module.exports = (function () {
@@ -35,7 +35,7 @@ module.exports = (function () {
             );
           }
         }
-        const data = await sendOtp(
+        const data = await requestOtp(
           email,
           phoneNumber,
           countryCode,

@@ -118,7 +118,6 @@ module.exports = (function () {
         res.json({ ...data, notificationResponse });
       }
     } catch (error) {
-      console.log("error: ", error);
       res.json({
         status: false,
         message: error,

@@ -2,7 +2,6 @@ const express = require("express");
 const router = express.Router();
 const webpush = require("web-push");
 const mysql = require("../public/javascripts/mysql/mysql");
-// console.log(webpush.generateVAPIDKeys(),"---------------");
 const days = {
   0: "Sunday",
   1: "Monday",
@@ -121,7 +120,6 @@ router.post("/push", (req, res) => {
             mysql.query(
               `SELECT * FROM user_settings WHERE user_uuid IN ('${userUUID}')`,
               (err, results) => {
-                console.log("results: ", results);
                 if (err) rej(err);
                 res(results);
               }
@@ -168,7 +166,6 @@ router.post("/push", (req, res) => {
               webpush
                 .sendNotification(JSON.parse(sub.notification_object), payload)
                 .catch((error) => {
-                  console.log("error:skipFlag:second notification ", error);
                 });
             }
           });
