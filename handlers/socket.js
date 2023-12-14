@@ -2,7 +2,7 @@ const { user_settings } = require("../models");
 const { sequelize } = require("../models");
 const { QueryTypes } = require("sequelize");
 const { deliveredById } = require("../services/message.service");
-const { getFirebaseAdmin } = require("./helper");
+const { getFirebaseAdmin, sendCloudNotification } = require("./helper");
 
 const admin = getFirebaseAdmin();
 
@@ -344,21 +344,40 @@ module.exports = function (server) {
         );
       }
 
-      await rtcNotifyRef.update({
-        [nurseId]: {
-          VIDEO_CALL: {
-            id: generateUUID(),
-            ...dataIds,
-            callEnded: false,
-            doctorName,
-            nurseId,
-            roomId,
-            timestamp: Date.now(),
-            device_token:
-              data && data.device_reg_token ? data.device_reg_token : "",
-          },
+      sendCloudNotification({
+        title: "",
+        body: "",
+        regTokens: [data?.device_reg_token],
+        opts: {
+          timeToLive: 60,
+        },
+        data: {
+          id: generateUUID(),
+          ...dataIds,
+          doctorName,
+          nurseId,
+          roomId,
+          type: "video_call",
+          timestamp: Date.now().toString(),
+          device_token: data?.device_reg_token || "",
         },
       });
+
+      // await rtcNotifyRef.update({
+      //   [nurseId]: {
+      //     VIDEO_CALL: {
+      //       id: generateUUID(),
+      //       ...dataIds,
+      //       callEnded: false,
+      //       doctorName,
+      //       nurseId,
+      //       roomId,
+      //       timestamp: Date.now(),
+      //       device_token:
+      //         data && data.device_reg_token ? data.device_reg_token : "",
+      //     },
+      //   },
+      // });
     });
 
     socket.on("ipaddr", function () {
