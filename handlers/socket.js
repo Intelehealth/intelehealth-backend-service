@@ -1,228 +1,265 @@
-const admin = require("firebase-admin");
-// const { sendCloudNotification } = require("./helper");
 const { user_settings } = require("../models");
-const env = process.env.NODE_ENV || "development";
-const config = require(__dirname + "/../config/config.json")[env];
 const { sequelize } = require("../models");
 const { QueryTypes } = require("sequelize");
+const { deliveredById } = require("../services/message.service");
+const { getFirebaseAdmin } = require("./helper");
 
-const serviceAccount = require(__dirname + "/../config/serviceAccountKey.json");
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  databaseURL:
-    "https://intelehealth-unicef-default-rtdb.asia-southeast1.firebasedatabase.app",
-});
+const admin = getFirebaseAdmin();
+
+const CALL_STATUSES = {
+  CALLING: "calling",
+  IN_CALL: "in_call",
+  DR_REJECTED: "dr_rejected",
+  HW_REJECTED: "hw_rejected",
+  DR_CANCELLED: "dr_cancelled",
+  HW_CANCELLED: "hw_cancelled",
+  IDLE: "available",
+};
 
 module.exports = function (server) {
   const db = admin.database();
-  const DB_NAME = `${config.domain.replace(/\./g, "_")}/rtc_notify`;
-  // const DB_NAME = "rtc_notify_dev";
-  console.log("DB_NAME:>>>>>>> ", DB_NAME);
+  const DB_NAME = `${process.env.DOMAIN.replace(/\./g, "_")}/rtc_notify`;
   const rtcNotifyRef = db.ref(DB_NAME);
-
   const io = require("socket.io")(server);
   global.users = {};
+
+  /**
+   * Declare functions here.
+   */
+  function generateUUID() {
+    let d = new Date().getTime();
+    if (
+      typeof performance !== "undefined" &&
+      typeof performance.now === "function"
+    ) {
+      d += performance.now(); // use high-precision timer if available
+    }
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
+      /[xy]/g,
+      function (c) {
+        let r = (d + Math.random() * 16) % 16 | 0;
+        d = Math.floor(d / 16);
+        return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+      }
+    );
+  }
+
+  function emitAllUserStatus() {
+    const allUsers = Object.keys(users).map((key) => ({
+      ...users[key],
+      socketId: key,
+    }));
+    io.sockets.emit("allUsers", allUsers);
+  }
+
+  /**
+   * End of function declarations
+   */
+
   io.on("connection", (socket) => {
     if (!users[socket.id]) {
       users[socket.id] = {
         uuid: socket.handshake.query.userId,
         status: "online",
         name: socket.handshake.query.name,
-        callStatus: null,
+        callStatus: CALL_STATUSES.IDLE,
       };
     }
-    console.log("socket: >>>>>", socket.handshake.query.userId);
 
-    socket.emit("myId", socket.id);
-
-    io.sockets.emit("allUsers", users);
+    emitAllUserStatus();
 
     socket.on("disconnect", () => {
-      console.log("disconnected:>> ", socket.id);
       delete users[socket.id];
-      io.sockets.emit("allUsers", users);
+      emitAllUserStatus();
     });
 
-    function log() {
-      var array = ["Message from server:"];
-      array.push.apply(array, arguments);
-      socket.emit("log", array);
-    }
-
-    function callInRoom(room, count, connectToDrId) {
+    function callInRoom(room, data) {
       for (const socketId in users) {
-        if (Object.hasOwnProperty.call(users, socketId)) {
-          const user = users[socketId];
-          if (user && user.uuid === connectToDrId) {
-            io.sockets
-              .to(socketId)
-              .emit("incoming_call", { patientUuid: room });
-            users[socketId].callStatus = "calling";
-            users[socketId].room = room;
-          }
+        const user = users[socketId];
+        if (user && user.uuid === data.connectToDrId) {
+          io.sockets.to(socketId).emit("incoming_call", data);
+          users[socketId].callStatus = CALL_STATUSES.CALLING;
+          users[socketId].room = room;
         }
       }
 
       setTimeout(() => {
         for (const socketId in users) {
-          if (Object.hasOwnProperty.call(users, socketId)) {
-            if (
-              users[socketId] &&
-              users[socketId].room &&
-              users[socketId].room === room &&
-              users[socketId].callStatus === "calling"
-            ) {
-              users[socketId].callStatus = null;
-              io.sockets.emit("allUsers", users);
-            }
-          }
-        }
-      }, 100000);
-    }
-
-    function markConnected(room) {
-      for (const socketId in users) {
-        if (Object.hasOwnProperty.call(users, socketId)) {
           if (
             users[socketId] &&
             users[socketId].room &&
-            users[socketId].room === room
+            users[socketId].room === room &&
+            users[socketId].callStatus === CALL_STATUSES.CALLING
           ) {
-            users[socketId].callStatus = "In Call";
-            io.sockets.emit("allUsers", users);
-          }
-        }
-      }
-    }
-
-    function markHangUp(room) {
-      for (const socketId in users) {
-        if (Object.hasOwnProperty.call(users, socketId)) {
-          if (
-            users[socketId] &&
-            users[socketId].room &&
-            users[socketId].room === room
-          ) {
-            users[socketId].callStatus = null;
+            users[socketId].callStatus = CALL_STATUSES.IDLE;
             users[socketId].room = null;
-            io.sockets.emit("allUsers", users);
           }
         }
-      }
+        emitAllUserStatus();
+      }, 610000);
     }
 
-    socket.on("create_or_join_hw", function ({ room, connectToDrId }) {
-      log("Received request to create or join room " + room);
-
-      var clientsInRoom = io.sockets.adapter.rooms[room];
-      var numClients = clientsInRoom
-        ? Object.keys(clientsInRoom.sockets).length
-        : 0;
-      log("Room " + room + " now has " + numClients + " client(s)");
-      socket.on("message", function (message) {
-        log("Client said: ", message);
-        socket.broadcast.to(room).emit("message", message);
-        // io.sockets.in(room).emit("message", message);
-      });
-
-      socket.on("bye", function (data) {
-        console.log("received bye");
-        markHangUp(room);
-        io.sockets.in(room).emit("bye", data);
-        io.sockets.emit("log", ["received bye", data]);
-      });
-
-      socket.on("no_answer", function (data) {
-        console.log("no_answer");
-        io.sockets.in(room).emit("bye");
-        io.sockets.emit("log", ["no_answer", data]);
-      });
-
-      console.log("numClients: ", numClients);
-      if (numClients === 0) {
-        // socket.broadcast.to(room).emit("incoming_call", { patientUuid: room });
-        callInRoom(room, 1, connectToDrId);
-        // io.sockets.emit("incoming_call", { patientUuid: room });
-        socket.join(room);
-        log("Client ID " + socket.id + " created room " + room);
-        socket.emit("created", room, socket.id);
-      } else if (numClients === 1) {
-        log("Client ID " + socket.id + " joined room " + room);
-        // io.sockets.broadcast.to(room).emit("join", room);
-        // io.sockets.in(room).emit("join", room);
-        socket.join(room);
-        socket.emit("joined", room, socket.id);
-        socket.broadcast.to(room).emit("ready");
-        // io.sockets.in(room).emit("ready");
-        if (users[socket.id]) {
-          users[socket.id].room = room;
+    function markConnected(data) {
+      const { room, initiator, socketId, nurseId, roomId } = data;
+      if (initiator === "dr") {
+        users[socketId].callStatus = CALL_STATUSES.IN_CALL;
+        users[socketId].room = roomId;
+        for (const id in users) {
+          if (users[id].uuid === nurseId) {
+            users[id].callStatus = CALL_STATUSES.IN_CALL;
+            users[id].room = roomId;
+          }
         }
-        markConnected(room);
       } else {
-        socket.emit("full", room);
+        for (const id in users) {
+          if (id === socket.id && users[id].uuid === data.connectToDrId) {
+            users[id].callStatus = CALL_STATUSES.IN_CALL;
+          } else if (users[id].room === room) {
+            users[id].callStatus = CALL_STATUSES.IDLE;
+            users[id].room = null;
+            io.sockets.to(id).emit("call-connected");
+          }
+        }
+
+        if (data.appSocketId) {
+          users[data.appSocketId].callStatus = CALL_STATUSES.IN_CALL;
+          users[data.appSocketId].room = room;
+        }
+      }
+      emitAllUserStatus();
+    }
+
+    /**
+     * HW to Dr call events
+     */
+    socket.on("create_or_join_hw", function (hwData) {
+      const { patientId: room } = hwData;
+      hwData.nurseId = users[socket.id].uuid;
+      hwData.appSocketId = socket.id;
+
+      callInRoom(room, hwData);
+    });
+
+    socket.on("bye", function (data) {
+      if (data?.socketId) {
+        users[data?.socketId].callStatus = CALL_STATUSES.IDLE;
+        users[data?.socketId].room = null;
+      }
+
+      if (data?.appSocketId) {
+        users[data?.appSocketId].callStatus = CALL_STATUSES.IDLE;
+        users[data?.appSocketId].room = null;
+      }
+
+      for (const id in users) {
+        if (users[id].uuid === data?.nurseId) {
+          users[id].callStatus = CALL_STATUSES.IDLE;
+          users[id].room = null;
+        }
+      }
+      emitAllUserStatus();
+    });
+
+    socket.on("ack_msg_received", function (data) {
+      data = typeof data === "string" ? JSON.parse(data) : data;
+      deliveredById(data?.messageId);
+    });
+
+    socket.on("call-connected", function (data) {
+      markConnected(data);
+    });
+
+    socket.on("cancel_hw", function (data) {
+      for (const id in users) {
+        if (users[id].uuid === data?.connectToDrId) {
+          users[id].callStatus = CALL_STATUSES.HW_CANCELLED;
+          users[id].room = null;
+          emitAllUserStatus();
+          setTimeout(() => {
+            users[id].callStatus = CALL_STATUSES.IDLE;
+            emitAllUserStatus();
+          }, 2000);
+          io.to(id).emit("cancel_hw", "app");
+        }
       }
     });
 
-    socket.on("create or join", function (room) {
-      log("Received request to create or join room " + room);
+    socket.on("cancel_dr", function (data) {
+      for (const id in users) {
+        if (users[id].uuid === data?.nurseId) {
+          users[id].callStatus = CALL_STATUSES.DR_CANCELLED;
+          users[id].room = null;
+          emitAllUserStatus();
+          setTimeout(() => {
+            users[id].callStatus = CALL_STATUSES.IDLE;
+            emitAllUserStatus();
+          }, 2000);
+          io.to(id).emit("cancel_dr", "webapp");
+        }
+      }
+    });
 
+    socket.on("call_time_up", function (toUserUuid) {
+      for (const id in users) {
+        if (users[id].uuid === toUserUuid) {
+          users[id].callStatus = CALL_STATUSES.IDLE;
+          users[id].room = null;
+          emitAllUserStatus();
+          setTimeout(() => {
+            users[id].callStatus = CALL_STATUSES.IDLE;
+            emitAllUserStatus();
+          }, 2000);
+          io.to(id).emit("call_time_up", toUserUuid);
+        }
+      }
+    });
+
+    socket.on("hw_call_reject", function (toUserUuid) {
+      for (const id in users) {
+        if (users[id].uuid === toUserUuid) {
+          users[id].callStatus = CALL_STATUSES.HW_REJECTED;
+          users[id].room = null;
+          emitAllUserStatus();
+          setTimeout(() => {
+            users[id].callStatus = CALL_STATUSES.IDLE;
+            emitAllUserStatus();
+          }, 2000);
+          io.to(id).emit("hw_call_reject", "app");
+        }
+      }
+    });
+
+    socket.on("dr_call_reject", function (toUserUuid) {
+      for (const id in users) {
+        if (users[id].uuid === toUserUuid) {
+          users[id].callStatus = CALL_STATUSES.DR_REJECTED;
+          users[id].room = null;
+          emitAllUserStatus();
+          setTimeout(() => {
+            users[id].callStatus = CALL_STATUSES.IDLE;
+            emitAllUserStatus();
+          }, 2000);
+          io.to(id).emit("dr_call_reject", "webapp");
+        }
+      }
+    });
+
+    /**
+     * Dr. to HW call events
+     */
+    socket.on("create or join", function (room) {
       var clientsInRoom = io.sockets.adapter.rooms[room];
       var numClients = clientsInRoom
         ? Object.keys(clientsInRoom.sockets).length
         : 0;
-      log("Room " + room + " now has " + numClients + " client(s)");
       socket.on("message", function (message) {
-        log("Client said: ", message);
         io.sockets.in(room).emit("message", message);
-      });
-
-      socket.on("videoOff", function (data) {
-        io.sockets.in(room).emit("videoOff", data);
-      });
-
-      socket.on("videoOn", function (data) {
-        io.sockets.in(room).emit("videoOn", data);
-      });
-
-      socket.on("audioOff", function (data) {
-        io.sockets.in(room).emit("audioOff", data);
-      });
-
-      socket.on("audioOn", function (data) {
-        io.sockets.in(room).emit("audioOn", data);
-      });
-
-      socket.on("bye", async function (data) {
-        const nurseId = data?.nurseId;
-
-        markHangUp(room);
-
-        console.log("received bye");
-        io.sockets.in(room).emit("message", "bye");
-        io.sockets.in(room).emit("bye");
-        io.sockets.emit("log", ["received bye", data]);
-
-        if (nurseId) {
-          await rtcNotifyRef
-            .child(nurseId)
-            .child("VIDEO_CALL")
-            .child("callEnded")
-            .set(true);
-        }
-      });
-
-      socket.on("no_answer", function (data) {
-        console.log("no_answer");
-        io.sockets.in(room).emit("bye");
-        io.sockets.emit("log", ["no_answer", data]);
       });
 
       if (numClients === 0) {
         socket.join(room);
-        log("Client ID " + socket.id + " created room " + room);
         socket.emit("created", room, socket.id);
       } else if (numClients === 1) {
-        log("Client ID " + socket.id + " joined room " + room);
         io.sockets.in(room).emit("join", room);
         socket.join(room);
         socket.emit("joined", room, socket.id);
@@ -232,22 +269,38 @@ module.exports = function (server) {
       }
     });
 
-    socket.on("call", async function (dataIds = {}) {
-      console.log("dataIds: >>>>>>>> ", dataIds);
+    socket.on("call", async function (dataIds) {
       const { nurseId, doctorName, roomId } = dataIds;
-
       let isCalling = false;
-      for (const socketId in users) {
-        if (Object.hasOwnProperty.call(users, socketId)) {
-          const userObj = users[socketId];
-          if (userObj.uuid === nurseId) {
-            io.sockets.to(socketId).emit("call", dataIds);
-            isCalling = true;
-          }
+      users[socket.id].callStatus = CALL_STATUSES.CALLING;
+      users[socket.id].room = roomId;
+
+      for (const id in users) {
+        const userObj = users[id];
+        if (userObj.uuid === nurseId) {
+          io.sockets.to(id).emit("call", dataIds);
+          isCalling = true;
+          userObj.callStatus = CALL_STATUSES.CALLING;
+          userObj.room = roomId;
+
+          setTimeout(() => {
+            for (const socketId in users) {
+              if (
+                users[socketId] &&
+                users[socketId].room &&
+                users[socketId].room === roomId &&
+                users[socketId].callStatus === CALL_STATUSES.CALLING
+              ) {
+                users[socketId].callStatus = CALL_STATUSES.IDLE;
+                users[socketId].room = null;
+              }
+            }
+            emitAllUserStatus();
+          }, 610000);
         }
       }
+      emitAllUserStatus();
 
-      let data = "";
       if (!isCalling) {
         const room = roomId;
         setTimeout(() => {
@@ -255,6 +308,7 @@ module.exports = function (server) {
           var numClients = clientsInRoom
             ? Object.keys(clientsInRoom.sockets).length
             : 0;
+
           if (numClients < 2) {
             socket.emit("toast", {
               duration: 2000,
@@ -265,7 +319,7 @@ module.exports = function (server) {
         }, 10000);
       }
 
-      console.log(nurseId, "----<<>>>");
+      let data = "";
       try {
         data = await user_settings.findOne({
           where: { user_uuid: nurseId },
@@ -318,6 +372,9 @@ module.exports = function (server) {
       }
     });
 
+    /**
+     * Admin socket events below
+     */
     socket.on("getAdminUnreadCount", async function () {
       const unreadcount = await sequelize.query(
         "SELECT COUNT(sm.message) AS unread FROM supportmessages sm WHERE sm.to = 'System Administrator' AND sm.isRead = 0",
@@ -329,12 +386,20 @@ module.exports = function (server) {
       for (const socketId in users) {
         if (Object.hasOwnProperty.call(users, socketId)) {
           if (users[socketId].uuid === toUserUuid) {
-            io.to(socketId).emit("hw_call_reject", 'app');
+            io.to(socketId).emit("hw_call_reject", "app");
           }
         }
       }
     });
 
+    socket.on("getDrUnreadCount", async function (data) {
+      const unreadcount = await sequelize.query(
+        `SELECT COUNT(sm.message) AS unread FROM supportmessages sm WHERE sm.to = '${data}' AND sm.isRead = 0`,
+        { type: QueryTypes.SELECT }
+      );
+      socket.emit("drUnreadCount", unreadcount[0].unread);
+    });
   });
+
   global.io = io;
 };
