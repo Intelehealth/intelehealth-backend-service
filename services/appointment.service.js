@@ -23,8 +23,12 @@ const {
   person,
   provider,
   location,
-  obs
+  obs,
+  sequelize
 } = require("../openmrs_models");
+
+const { QueryTypes } = require("sequelize");
+const { getVisitCountV4 } = require("../controllers/queries");
 
 module.exports = (function () {
   const DATE_FORMAT = "DD/MM/YYYY";
@@ -217,10 +221,15 @@ WHERE
           },
           status: "booked",
         },
+        order: [["slotJsDate", "ASC"]],
         raw: true,
       });
 
       const visitIds = data.map((v) => v?.visitUuid);
+
+      const visitStatus = await sequelize.query(getVisitCountV4(visitIds), {
+        type: QueryTypes.SELECT,
+      });
 
       const visits = await visit.findAll({
         where: {
@@ -271,8 +280,44 @@ WHERE
           },
         ]
       });
-      const mergedArray = data.map(x=> ({ ...x, visit: visits.find(y=>y.uuid==x.visitUuid)?.dataValues }));
+      const mergedArray = data.map(x=> ({ ...x, visit: visits.find(y=>y.uuid==x.visitUuid)?.dataValues, visitStatus: visitStatus.find(z=>z.uuid==x.visitUuid)?.Status }));
       return mergedArray;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  this.checkAppointment = async ({ userUuid, fromDate, toDate, speciality }) => {
+    try {
+      const data = await Appointment.findAll({
+        where: {
+          userUuid,
+          slotJsDate: {
+            [Op.between]: this.getFilterDates(fromDate, toDate),
+          },
+          status: "booked",
+          speciality
+        },
+        order: [["slotJsDate", "ASC"]],
+        raw: true,
+      });
+      return data.length ? true : false;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  this.updateSlotSpeciality = async ({ userUuid, speciality }) => {
+    try {
+      const data = await Schedule.update({
+        speciality
+      }, 
+      {
+        where: {
+          userUuid
+        }
+      });
+      return data;
     } catch (error) {
       throw error;
     }

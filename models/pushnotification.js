@@ -13,6 +13,12 @@ module.exports = (sequelize, DataTypes) => {
   }
   pushnotification.init(
     {
+      id: {
+        allowNull: false,
+        autoIncrement: true,
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+      },
       notification_object: DataTypes.JSON,
       speciality: DataTypes.STRING,
       doctor_name: DataTypes.STRING,
@@ -20,14 +26,14 @@ module.exports = (sequelize, DataTypes) => {
       user_uuid: DataTypes.STRING,
       finger_print: DataTypes.STRING,
       locale: DataTypes.STRING,
-      createdAt: "date_created",
     },
     {
       sequelize,
       modelName: "pushnotification",
+      freezeTableName: true,
+      timestamps: false,
     }
   );
-  pushnotification.removeAttribute("updatedAt");
 
   return pushnotification;
 };

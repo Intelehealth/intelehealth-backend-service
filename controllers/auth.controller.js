@@ -1,9 +1,9 @@
 const { RES } = require("../handlers/helper");
 const {
-  requestOtp,
-  verfifyOtp,
   resetPassword,
-  checkProviderAttribute
+  checkProviderAttribute,
+  verifyOtp,
+  requestOtp
 } = require("../services/auth.service");
 
 module.exports = (function () {
@@ -83,7 +83,7 @@ module.exports = (function () {
     try {
       const { email, phoneNumber, username, verifyFor, otp } = req.body;
       if ((email || phoneNumber || username) && verifyFor && otp) {
-        const data = await verfifyOtp(
+        const data = await verifyOtp(
           email,
           phoneNumber,
           username,

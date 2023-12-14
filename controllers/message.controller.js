@@ -6,12 +6,36 @@ const {
   readMessagesById,
   getVisits,
 } = require("../services/message.service");
-const { validateParams } = require("../handlers/helper");
-const { user_settings } = require("../models");
+const { validateParams, sendWebPushNotification } = require("../handlers/helper");
+const { user_settings, pushnotification } = require("../models");
 const { uploadFile } = require("../handlers/file.handler");
-const { sendNotification, getSubscriptions } = require("../handlers/web-push");
 
 module.exports = (function () {
+
+  this.sendMessageNotification = async (payload) => {
+    const subscriptions = await pushnotification.findAll({
+      where: { user_uuid: payload.toUser },
+    });
+    subscriptions.forEach(async (sub) => {
+      sendWebPushNotification({
+        webpush_obj: sub.notification_object,
+        data: {
+          ...payload,
+          url: `${
+            process.env.NODE_ENV === "prod" ? "/intelehealth" : ""
+          }/#/dashboard/visit-summary/${payload.visitId}?openChat=true`,
+        },
+        title: `New Chat from ${payload.hwName || "HW"}(${
+          payload.patientName || "Patient"
+        }):${payload.openMrsId || ""}`,
+        body: payload.message,
+        options: {
+          TTL: "3600000",
+        },
+      });
+    });
+  };
+
   /**
    * Method to create message entry and transmit it to socket on realtime
    * @param {*} req
@@ -54,7 +78,6 @@ module.exports = (function () {
           hwPic,
           type
           );
-          console.log('type: ', type);
         try {
           messages = await getMessages(fromUser, toUser, patientId, visitId);
         } catch (error) {}
@@ -76,25 +99,6 @@ module.exports = (function () {
           }
         }
         let notificationResponse = "";
-        if (!isLiveMessageSent) {
-          const userSetting = await user_settings.findOne({
-            where: { user_uuid: toUser },
-          });
-          if (userSetting && userSetting.device_reg_token) {
-            notificationResponse = await sendCloudNotification({
-              title: "New chat message",
-              body: message,
-              data: {
-                ...req.body,
-                ...data.data.dataValues,
-                actionType: "TEXT_CHAT",
-              },
-              regTokens: [userSetting.device_reg_token],
-            }).catch((err) => {
-              console.log("err: ", err);
-            });
-          }
-        }
 
         // Send push notification
         const us = await user_settings.findOne({
@@ -103,20 +107,14 @@ module.exports = (function () {
           },
         });
         if (us && us?.notification) {
-          if ((us?.snooze_till) ? (new Date().valueOf() > us?.snooze_till) : true) {
-            const subscriptions = await getSubscriptions(us.user_uuid);
-            if (subscriptions.length) {
-              subscriptions.forEach(async (sub) => {
-                await sendNotification(JSON.parse(sub.notification_object), 'Hey! You got new chat message', message);
-              });
-            }
+          if (us?.snooze_till ? new Date().valueOf() > us?.snooze_till : true) {
+            notificationResponse = this.sendMessageNotification(req.body);
           }
         }
 
         res.json({ ...data, notificationResponse });
       }
     } catch (error) {
-      console.log("error: ", error);
       res.json({
         status: false,
         message: error,

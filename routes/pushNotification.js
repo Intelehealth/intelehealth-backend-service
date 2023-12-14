@@ -2,7 +2,6 @@ const express = require("express");
 const router = express.Router();
 const webpush = require("web-push");
 const mysql = require("../public/javascripts/mysql/mysql");
-// console.log(webpush.generateVAPIDKeys(),"---------------");
 const days = {
   0: "Sunday",
   1: "Monday",
@@ -22,12 +21,11 @@ router.post("/subscribe", async (req, res) => {
     doctor_name: req.body.providerName,
     date_created: new Date(),
     user_uuid: req.body.user_uuid,
-    finger_print: req.body.finger_print,
     locale: req.body.locale ? req.body.locale : "en",
   };
   const pushnotification = await new Promise((res, rej) => {
     mysql.query(
-      `Select * from pushnotification where user_uuid='${details.user_uuid}' AND finger_print='${details.finger_print}'`,
+      `Select * from pushnotification where user_uuid='${details.user_uuid}'`,
       (err, results) => {
         if (!err) res(results);
         else rej(err);
@@ -36,9 +34,9 @@ router.post("/subscribe", async (req, res) => {
   });
 
   // Delete pushNotification records for another user with the same M/C logged in
-  const deletePushNotificationObject = await new Promise((res, rej) => {
+  await new Promise((res, rej) => {
     mysql.query(
-      `DELETE FROM pushnotification WHERE user_uuid !='${details.user_uuid}' AND finger_print='${details.finger_print}'`,
+      `DELETE FROM pushnotification WHERE user_uuid !='${details.user_uuid}'`,
       (err, results) => {
         if (!err) res(results);
         else rej(err);
@@ -49,7 +47,7 @@ router.post("/subscribe", async (req, res) => {
   if (pushnotification && pushnotification.length) {
     mysql.query(
       `UPDATE pushnotification SET notification_object='${details.notification_object}',locale='${details.locale}'
-       WHERE user_uuid='${details.user_uuid}' and finger_print='${details.finger_print}'`,
+       WHERE user_uuid='${details.user_uuid}'`,
       (err, results, fields) => {
         if (err) res.status(400).json({ message: err.message });
         else
@@ -122,7 +120,6 @@ router.post("/push", (req, res) => {
             mysql.query(
               `SELECT * FROM user_settings WHERE user_uuid IN ('${userUUID}')`,
               (err, results) => {
-                console.log("results: ", results);
                 if (err) rej(err);
                 res(results);
               }
@@ -169,7 +166,6 @@ router.post("/push", (req, res) => {
               webpush
                 .sendNotification(JSON.parse(sub.notification_object), payload)
                 .catch((error) => {
-                  console.log("error:skipFlag:second notification ", error);
                 });
             }
           });
@@ -199,9 +195,9 @@ router.post("/push", (req, res) => {
 
 router.post(
   "/unsubscribe",
-  async ({ body: { user_uuid, finger_print } }, res) => {
+  async ({ body: { user_uuid } }, res) => {
     mysql.query(
-      `DELETE from pushnotification where user_uuid='${user_uuid}' AND finger_print='${finger_print}'`,
+      `DELETE from pushnotification where user_uuid='${user_uuid}'`,
       (err, results) => {
         if (err) res.status(400).json({ message: err.message });
         else res.status(200).json({ results, message: "Unsubscribed!" });

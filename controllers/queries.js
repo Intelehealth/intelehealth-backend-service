@@ -1,6 +1,6 @@
 module.exports = (function () {
     this.getVisitCountQuery = ({ speciality = "General Physician" }) => {
-      return `select count(t1.visit_id) as Total,
+        return `select count(t1.visit_id) as Total,
         /*speciality,
             state,*/
            case
@@ -40,9 +40,9 @@ module.exports = (function () {
                 when  ((encounter_type = 1 or encounter_type = 6) )  then "Awaiting Consult"
              end;`;
     };
-  
+
     this.getVisitCountQueryForGp = () => {
-      return `select
+        return `select
       count(t1.visit_id) as Total,
       case
           when (
@@ -123,9 +123,9 @@ module.exports = (function () {
       end
   order by 2;`;
     };
-  
+
     this.getVisitCountV2 = () => {
-      return `select
+        return `select
       t1.visit_id,
       case
           when (
@@ -182,7 +182,7 @@ module.exports = (function () {
   `;
     };
 
-    this.getVisitCountV3 = (visitTypeId) => {
+    this.getVisitCountV3 = () => {
         return `select
         t1.visit_id,
         t1.uuid,
@@ -234,8 +234,7 @@ module.exports = (function () {
                 LEFT JOIN encounter e using (visit_id)
                 LEFT JOIN visit_attribute va on (va.visit_id= v.visit_id and va.voided = 0 and va.attribute_type_id = 5)
             where
-                v.voided = 0 and
-                v.visit_type_id = ${visitTypeId}
+                v.voided = 0
                 and e.voided = 0
             group by
                 v.visit_id,
@@ -244,10 +243,75 @@ module.exports = (function () {
     where
         encounter_id = max_enc
     `;
-      };
-  
+    };
+
+    this.getVisitCountV4 = (visitIds) => {
+        return `select
+        t1.visit_id,
+        t1.uuid,
+        case
+          when (ended = 1) then "Ended Visit"
+            when (
+                encounter_type = 14
+                or encounter_type = 12
+                or com_enc = 1
+            ) then "Completed Visit"
+            when (encounter_type = 9) then "Visit In Progress"
+            when (encounter_type) = 15 then "Priority"
+            when (
+                (
+                    encounter_type = 1
+                    or encounter_type = 6
+                )
+            ) then "Awaiting Consult"
+        end as "Status",
+        t1.speciality
+    from
+        encounter,
+        (
+            select
+                v.visit_id,
+                v.patient_id,
+                v.uuid,
+                max(encounter_id) as max_enc,
+                max(
+                    case
+                        when (encounter_type in (12, 14)) then 1
+                        else 0
+                    end
+                ) as com_enc,
+                max(
+                    case
+                        when attribute_type_id = 5 then value_reference
+                        else null
+                    end
+                ) as "speciality",
+                max(
+                  case
+                      when (v.date_stopped is not null) then 1
+                      else 0
+                  end
+              ) as ended
+            from
+                visit v
+                LEFT JOIN encounter e using (visit_id)
+                LEFT JOIN visit_attribute va on (va.visit_id= v.visit_id and va.voided = 0 and va.attribute_type_id = 5)
+            where
+                v.voided = 0
+                and e.voided = 0
+                ${visitIds.length ? "and v.uuid IN('"+ visitIds.join("','")+"')": ''}
+            group by
+                v.visit_id,
+                v.patient_id
+        ) as t1
+    where
+        encounter_id = max_enc
+    `;
+    };
+
+
     this.getDoctorVisitsData = () => {
-      return `SELECT
+        return `SELECT
       v.visit_id AS visit_id,
       p.patient_id AS patient_id,
       v.date_created AS Visit_Creation_Date,
@@ -325,7 +389,7 @@ module.exports = (function () {
       v.date_started , v.date_stopped , v.creator , u.username , v.date_created, CONCAT(pnu.given_name, ' ', pnu.family_name)
       ORDER BY v.date_started ;`;
     };
-  
+
     this.locationQuery = () => `SELECT
     ltm.location_id as id,
     ltm.location_tag_id as tagId,
@@ -346,7 +410,7 @@ module.exports = (function () {
     )
   order by
     l.name`;
-  
+
     this.doctorsQuery = () => `SELECT
     distinct pa.value_reference,
     pn.given_name as givenName,
@@ -367,9 +431,9 @@ module.exports = (function () {
     LEFT JOIN provider_attribute_type pat ON pat.provider_attribute_type_id = pa.attribute_type_id
   WHERE 
   ur.role like '%Doctor%';`;
-  
+
     this.BaselineSurveyPatientsQuery = (location_id) => {
-      return `select pi.identifier as "OpenMRS_Id",
+        return `select pi.identifier as "OpenMRS_Id",
     pi.patient_id,
     pn.given_name as "Patient_Name",
     max(case when pa.person_attribute_type_id=8 then pa.value end ) as "Telephone_Number",
@@ -388,5 +452,4 @@ module.exports = (function () {
   pi.location_id ;`;
     };
     return this;
-  })();
-  
+})();

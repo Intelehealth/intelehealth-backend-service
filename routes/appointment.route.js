@@ -15,13 +15,17 @@ const {
   completeAppointment,
   getScheduledMonths,
   updateDaysOff,
-  appointmentPush
+  appointmentPush,
+  checkAppointment,
+  updateSlotSpeciality
 } = require("../controllers/appointment.controller");
 const router = express.Router();
 
 router.get("/getAppointment/:visitUuid", getAppointment);
 router.get("/getSchedule/:userUuid", getAppointmentSchedule);
 router.get("/getUserSlots/:userUuid", getUserSlots);
+router.get("/checkAppointment/:userUuid", checkAppointment);
+router.put("/updateSlotSpeciality/:userUuid", updateSlotSpeciality);
 router.get("/getSpecialitySlots/:speciality", getSpecialitySlots);
 router.get("/getSlots", getSlots);
 router.get("/getAppointmentSlots", getAppointmentSlots);

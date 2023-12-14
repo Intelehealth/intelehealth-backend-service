@@ -1,5 +1,4 @@
 const nodemailer = require('nodemailer');
-const config = require('../config/config.json');
 
 /**
  * Function for sending email
@@ -7,27 +6,27 @@ const config = require('../config/config.json');
  * @param {*} return (Sent message info)
  */
 async function sendEmail(to, subject, message) {
-    const env = process.env.NODE_ENV ? process.env.NODE_ENV : "production";
-    var transporter = nodemailer.createTransport({
+    const { MAIL_USERNAME, MAIL_PASSWORD, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, OAUTH_CLIENT_REFRESH_TOKEN } = process.env;
+
+    const transporter = nodemailer.createTransport({
         pool: true,
-        service: 'gmail',
+        service: "gmail",
         auth: {
-            type: 'OAuth2',
-            user: config[env].mailUsername,
-            pass: config[env].mailPassword,
-            clientId: config[env].oauthClientId,
-            clientSecret: config[env].oauthClientSecret,
-            refreshToken: config[env].oauthRefreshToken
+            type: "OAuth2",
+            user: MAIL_USERNAME,
+            pass: MAIL_PASSWORD,
+            clientId: OAUTH_CLIENT_ID,
+            clientSecret: OAUTH_CLIENT_SECRET,
+            refreshToken: OAUTH_CLIENT_REFRESH_TOKEN
         }
     });
 
-    var mailOptions = {
-        from: `${config[env].mailUsername}`,
+    const mail = await transporter.sendMail({
+        from: `${MAIL_USERNAME}`,
         to: to,
         subject: subject,
         html: message
-    };
-    const mail = await transporter.sendMail(mailOptions);
+    });
     return mail;
 }
 
