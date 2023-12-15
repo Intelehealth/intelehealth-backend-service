@@ -3,11 +3,22 @@ const router = express.Router();
 const {
   sendMessage,
   getMessages,
-  sendSMS
+  getAllMessages,
+  getPatientMessageList,
+  readMessagesById,
+  getVisits,
+  // upload,
 } = require("../controllers/message.controller");
+// const { fileParser } = require("../handlers/file.handler");
 
 router.post("/sendMessage", sendMessage);
+// router.post("/upload", fileParser, upload);
+// router.get("/:fromUser/:toUser/:patientId", getMessages);
 router.get("/:fromUser/:toUser/:patientId", getMessages);
+router.get("/:fromUser/:toUser", getAllMessages);
+router.get("/getPatientMessageList", getPatientMessageList);
+router.put("/read/:messageId", readMessagesById);
+router.get("/:patientId", getVisits);
 router.post("/sendSMS", sendSMS);
 
 module.exports = router;

@@ -47,6 +47,7 @@ module.exports = (function () {
     body,
     options = {},
     isObject = false,
+    data = {},
   }) => {
     await webpush
       .sendNotification(
@@ -56,6 +57,9 @@ module.exports = (function () {
             title,
             body,
             vibrate: [100, 50, 100],
+            data: {
+              ...data,
+            },
           },
         }),
         options
@@ -90,28 +94,33 @@ module.exports = (function () {
   };
 
   this.sendCloudNotification = async ({
-    title,
-    body,
-    icon = "ic_launcher",
     data = {},
     regTokens,
-    click_action = "FCM_PLUGIN_HOME_ACTIVITY",
+    // click_action = "FCM_PLUGIN_HOME_ACTIVITY",
+    opts = {},
+    notification = null /**
+     notification: {
+      //   title,
+      //   icon ="ic_launcher",
+      //   body,
+      //   click_action,
+      // },
+     */,
   }) => {
     const admin = this.getFirebaseAdmin();
     const messaging = admin.messaging();
 
     var payload = {
       data,
-      notification: {
-        title,
-        icon,
-        body,
-        click_action,
-      },
     };
+
+    if (notification) {
+      payload.notification = notification;
+    }
 
     const options = {
       priority: "high",
+      ...opts,
     };
 
     return messaging
