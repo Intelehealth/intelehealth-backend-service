@@ -1,6 +1,60 @@
-/node_modules
 **/settings.json
 **/license
 *.zip
 /config/config.json
 /config/serviceAccountKey.json
+
+# Node.js
+node_modules/
+
+# Logs
+logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Dependency directories
+bower_components/
+jspm_packages/
+
+# Debugging
+.vscode/
+.idea/
+
+# IDE settings
+*.sublime-project
+*.sublime-workspace
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw*
+*.user
+*.suo
+*.cache/
+*.diff
+*.err
+*.log
+*.log*
+*.swp
+*.swn
+*.swo
+*.tmp
+*.bak
+*.cache
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Production build
+dist/
+build/
+out/
+
+# dotenv environment variables file
+.env

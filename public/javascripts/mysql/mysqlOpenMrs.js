@@ -1,33 +1,27 @@
 const mysql = require("mysql");
-const config = require("../../../config/config.json");
-let pool;
 
 connectDatabase = () => {
-  if (!pool) {
-    const env = process.env.NODE_ENV ? process.env.NODE_ENV : "production";
-    const settings = {
-      ...config[env],
-      user: config[env].username,
+  let db;
+  if (!db) {
+    const { MYSQL_USERNAME, MYSQL_PASS, MYSQL_HOST, MYSQL_PORT } = process.env;
+
+    db = mysql.createConnection({
+      host: MYSQL_HOST || "localhost",
+      port: MYSQL_PORT || 3306,
+      user: MYSQL_USERNAME || "root",
+      password: MYSQL_PASS,
       database: "openmrs",
-    };
-    pool = mysql.createPool(settings);
-    pool.getConnection((err) => {
+    });
+
+    db.connect((err) => {
       if (!err) {
-        console.log("Database is connected - OpenMrs-");
+        console.log("Database is connected - OpenMrs");
       } else {
         console.log("Error connecting database - OpenMrs");
       }
     });
-
-    // db.connect((err) => {
-    //   if (!err) {
-    //     console.log("Database is connected - OpenMrs-");
-    //   } else {
-    //     console.log("Error connecting database - OpenMrs");
-    //   }
-    // });
   }
-  return pool;
+  return db;
 };
 
 module.exports = connectDatabase();
