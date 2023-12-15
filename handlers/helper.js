@@ -23,6 +23,7 @@ module.exports = (function () {
     webpush_obj,
     title,
     body,
+    data = {},
     parse = false,
   }) => {
     try {
@@ -34,6 +35,7 @@ module.exports = (function () {
             title,
             body,
             vibrate: [100, 50, 100],
+            data
           },
         })
       )
