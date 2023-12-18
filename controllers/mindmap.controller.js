@@ -6,6 +6,7 @@ const { wrMindmap } = require("../public/javascripts/writefile");
 const { zipFolder } = require("../public/javascripts/zip");
 const { getFormattedUrl } = require("../public/javascripts/functions");
 const Sequelize = require('sequelize');
+const { Constant } = require("../constants/constant");
 
 /**
  * Return mindmaps respect to key
@@ -74,7 +75,12 @@ const addUpdateLicenceKey = async (req, res) => {
 const getMindmapKeys = async (req, res) => {
   RES(res, {
     data: await licences.findAll({
-      attributes: ["keyName", "expiry", "imageValue", "imageName"],
+      attributes: [
+        Constant.KEY_NAME,
+        Constant.EXPIRY,
+        Constant.IMAGE_VALUE,
+        Constant.IMAGE_NAME
+      ],
     }),
     success: true,
   });

@@ -3,6 +3,7 @@ const {
     _uploadSign
 } = require("../services/signature.service");
 const { validateParams, RES } = require("../handlers/helper");
+const { Constant } = require("../constants/constant");
 
 module.exports = (function () {
     this.createSign = async (req, res) => {
@@ -13,9 +14,9 @@ module.exports = (function () {
                 providerId
             } = req.body;
             const keysAndTypeToCheck = [
-                { key: "textOfSign", type: "string" },
-                { key: "fontName", type: "string" },
-                { key: "providerId", type: "string" }
+                { key: Constant.TEXT_OF_SIGN, type: "string" },
+                { key: Constant.FONT_NAME, type: "string" },
+                { key: Constant.PROVIDER_ID, type: "string" }
             ];
             if (validateParams(req.body, keysAndTypeToCheck)) {
                 const data = await _createSign(textOfSign, fontName, providerId);
@@ -48,8 +49,8 @@ module.exports = (function () {
                 providerid
             } = req.body;
             const keysAndTypeToCheck = [
-                { key: "file", type: "string" },
-                { key: "providerid", type: "string" }
+                { key: Constant.FILE, type: "string" },
+                { key: Constant.PROVIDER_ID, type: "string" }
             ];
             if (validateParams(req.body, keysAndTypeToCheck)) {
                 const data = await _uploadSign(file, providerid);

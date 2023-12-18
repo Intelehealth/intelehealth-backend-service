@@ -1,3 +1,4 @@
+const { Constant } = require("../constants/constant");
 const { validateParams } = require("../handlers/helper");
 const {
   getUserAppointmentSchedule,
@@ -31,16 +32,16 @@ module.exports = (function () {
    */
   this.upsertSchedule = async (req, res, next) => {
     const keysAndTypeToCheck = [
-      { key: "userUuid", type: "string" },
-      { key: "drName", type: "string" },
+      { key: Constant.USER_UUID, type: "string" },
+      { key: Constant.DR_NAME, type: "string" },
       //{ key: "slotDays", type: "string" },
-      { key: "slotSchedule", type: "object" },
-      { key: "speciality", type: "string" },
-      { key: "type", type: "string" },
-      { key: "month", type: "string" },
-      { key: "year", type: "string" },
-      { key: "startDate", type: "string" },
-      { key: "endDate", type: "string" },
+      { key: Constant.SLOT_SCHEDULE, type: "object" },
+      { key: Constant.SPECIALITY, type: "string" },
+      { key: Constant.TYPE, type: "string" },
+      { key: Constant.MONTH, type: "string" },
+      { key: Constant.YEAR, type: "string" },
+      { key: Constant.START_DATE, type: "string" },
+      { key: Constant.END_DATE, type: "string" },
     ];
     try {
       if (validateParams(req.body, keysAndTypeToCheck)) {
@@ -90,8 +91,8 @@ module.exports = (function () {
   this.getUserSlots = async (req, res, next) => {
     try {
       const keysAndTypeToCheck = [
-        { key: "fromDate", type: "string" },
-        { key: "toDate", type: "string" },
+        { key: Constant.FROM_DATE, type: "string" },
+        { key: Constant.TO_DATE, type: "string" },
       ];
       if (validateParams(req.query, keysAndTypeToCheck)) {
         const userUuid = req.params.userUuid;
@@ -109,9 +110,9 @@ module.exports = (function () {
   this.checkAppointment = async (req, res, next) => {
     try {
       const keysAndTypeToCheck = [
-        { key: "fromDate", type: "string" },
-        { key: "toDate", type: "string" },
-        { key: "speciality", type: "string" }
+        { key: Constant.FROM_DATE, type: "string" },
+        { key: Constant.TO_DATE, type: "string" },
+        { key: Constant.SPECIALITY, type: "string" }
       ];
       if (validateParams(req.query, keysAndTypeToCheck)) {
         const userUuid = req.params.userUuid;
@@ -129,7 +130,7 @@ module.exports = (function () {
   this.updateSlotSpeciality = async (req, res, next) => {
     try {
       const keysAndTypeToCheck = [
-        { key: "speciality", type: "string" }
+        { key: Constant.SPECIALITY, type: "string" }
       ];
       if (validateParams(req.query, keysAndTypeToCheck)) {
         const userUuid = req.params.userUuid;
@@ -147,8 +148,8 @@ module.exports = (function () {
   this.getSpecialitySlots = async (req, res, next) => {
     try {
       const keysAndTypeToCheck = [
-        { key: "fromDate", type: "string" },
-        { key: "toDate", type: "string" },
+        { key: Constant.FROM_DATE, type: "string" },
+        { key: Constant.TO_DATE, type: "string" },
       ];
 
       if (validateParams(req.query, keysAndTypeToCheck)) {
@@ -167,9 +168,9 @@ module.exports = (function () {
   this.getSlots = async (req, res, next) => {
     try {
       const keysAndTypeToCheck = [
-        { key: "fromDate", type: "string" },
-        { key: "toDate", type: "string" },
-        { key: "locationUuid", type: "string" },
+        { key: Constant.FROM_DATE, type: "string" },
+        { key: Constant.TO_DATE, type: "string" },
+        { key: Constant.LOCATION_UUID, type: "string" },
       ];
       if (validateParams(req.query, keysAndTypeToCheck)) {
         const data = await getSlots(req.query);
@@ -190,9 +191,9 @@ module.exports = (function () {
   this.getAppointmentSlots = async (req, res, next) => {
     try {
       const keysAndTypeToCheck = [
-        { key: "fromDate", type: "string" },
-        { key: "toDate", type: "string" },
-        { key: "speciality", type: "string" },
+        { key: Constant.FROM_DATE, type: "string" },
+        { key: Constant.TO_DATE, type: "string" },
+        { key: Constant.SPECIALITY, type: "string" },
       ];
       if (validateParams(req.query, keysAndTypeToCheck)) {
         const data = await _getAppointmentSlots(req.query);
@@ -217,18 +218,18 @@ module.exports = (function () {
   this.bookAppointment = async (req, res, next) => {
     try {
       const keysAndTypeToCheck = [
-        { key: "slotDay", type: "string" },
-        { key: "slotDuration", type: "number" },
-        { key: "slotDurationUnit", type: "string" },
-        { key: "slotTime", type: "string" },
-        { key: "speciality", type: "string" },
-        { key: "userUuid", type: "string" },
-        { key: "drName", type: "string" },
-        { key: "visitUuid", type: "string" },
-        { key: "locationUuid", type: "string" },
-        { key: "patientName", type: "string" },
-        { key: "openMrsId", type: "string" },
-        { key: "hwUUID", type: "string" },
+        { key: Constant.SLOT_DAY, type: "string" },
+        { key: Constant.SLOT_DURATION, type: "number" },
+        { key: Constant.SLOT_DURATION_UNIT, type: "string" },
+        { key: Constant.SLOT_TIME, type: "string" },
+        { key: Constant.SPECIALITY, type: "string" },
+        { key: Constant.USER_UUID, type: "string" },
+        { key: Constant.DR_NAME, type: "string" },
+        { key: Constant.VISIT_UUID, type: "string" },
+        { key: Constant.LOCATION_UUID, type: "string" },
+        { key: Constant.PATIENT_NAME, type: "string" },
+        { key: Constant.OPEN_MRS_ID, type: "string" },
+        { key: Constant.HW_UUID, type: "string" },
       ];
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await _bookAppointment(req.body);
@@ -245,19 +246,19 @@ module.exports = (function () {
   this.rescheduleAppointment = async (req, res, next) => {
     try {
       const keysAndTypeToCheck = [
-        { key: "slotDay", type: "string" },
-        { key: "slotDuration", type: "number" },
-        { key: "slotDurationUnit", type: "string" },
-        { key: "slotTime", type: "string" },
-        { key: "speciality", type: "string" },
-        { key: "userUuid", type: "string" },
-        { key: "drName", type: "string" },
-        { key: "visitUuid", type: "string" },
-        { key: "locationUuid", type: "string" },
-        { key: "patientName", type: "string" },
-        { key: "openMrsId", type: "string" },
-        { key: "hwUUID", type: "string" },
-        { key: "appointmentId", type: "number" },
+        { key: Constant.SLOT_DAY, type: "string" },
+        { key: Constant.SLOT_DURATION, type: "number" },
+        { key: Constant.SLOT_DURATION_UNIT, type: "string" },
+        { key: Constant.SLOT_TIME, type: "string" },
+        { key: Constant.SPECIALITY, type: "string" },
+        { key: Constant.USER_UUID, type: "string" },
+        { key: Constant.DR_NAME, type: "string" },
+        { key: Constant.VISIT_UUID, type: "string" },
+        { key: Constant.LOCATION_UUID, type: "string" },
+        { key: Constant.PATIENT_NAME, type: "string" },
+        { key: Constant.OPEN_MRS_ID, type: "string" },
+        { key: Constant.HW_UUID, type: "string" },
+        { key: Constant.APPOINTMENT_ID, type: "number" },
       ];
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await _rescheduleAppointment(req.body);
@@ -274,10 +275,10 @@ module.exports = (function () {
   this.cancelAppointment = async (req, res, next) => {
     try {
       const keysAndTypeToCheck = [
-        { key: "id", type: "number" },
-        { key: "visitUuid", type: "string" },
+        { key: Constant.ID, type: "number" },
+        { key: Constant.VISIT_UUID, type: "string" },
         // { key: "reason", type: "string" },
-        { key: "hwUUID", type: "string" },
+        { key: Constant.HW_UUID, type: "string" },
       ];
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await _cancelAppointment(req.body);
@@ -290,7 +291,7 @@ module.exports = (function () {
 
   this.completeAppointment = async (req, res, next) => {
     try {
-      const keysAndTypeToCheck = [{ key: "visitUuid", type: "string" }];
+      const keysAndTypeToCheck = [{ key: Constant.VISIT_UUID, type: "string" }];
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await _completeAppointment(req.body);
         res.json(data);
@@ -302,7 +303,7 @@ module.exports = (function () {
 
   this.getAppointment = async (req, res, next) => {
     try {
-      const keysAndTypeToCheck = [{ key: "visitUuid", type: "string" }];
+      const keysAndTypeToCheck = [{ key: Constant.VISIT_UUID, type: "string" }];
       if (validateParams(req.params, keysAndTypeToCheck)) {
         const data = await getAppointment(req.params);
         const rescheduledAppointments = await getRescheduledAppointmentsOfVisit(
@@ -322,9 +323,9 @@ module.exports = (function () {
   this.startAppointment = async (req, res, next) => {
     try {
       const keysAndTypeToCheck = [
-        { key: "appointmentId", type: "number" },
-        { key: "drName", type: "string" },
-        { key: "userUuid", type: "string" },
+        { key: Constant.APPOINTMENT_ID, type: "number" },
+        { key: Constant.DR_NAME, type: "string" },
+        { key: Constant.USER_UUID, type: "string" },
       ];
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await startAppointment(req.body);
@@ -337,7 +338,7 @@ module.exports = (function () {
 
   this.releaseAppointment = async (req, res, next) => {
     try {
-      const keysAndTypeToCheck = [{ key: "visitUuid", type: "string" }];
+      const keysAndTypeToCheck = [{ key: Constant.VISIT_UUID, type: "string" }];
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await releaseAppointment(req.body);
         res.json({ status: true, data });
@@ -349,10 +350,10 @@ module.exports = (function () {
 
   this.updateDaysOff = async (req, res, next) => {
     const keysAndTypeToCheck = [
-      { key: "userUuid", type: "string" },
-      { key: "daysOff", type: "object" },
-      { key: "month", type: "string" },
-      { key: "year", type: "string" },
+      { key: Constant.USER_UUID, type: "string" },
+      { key: Constant.DAYS_OFF, type: "object" },
+      { key: Constant.MONTH, type: "string" },
+      { key: Constant.YEAR, type: "string" },
     ];
     try {
       if (validateParams(req.body, keysAndTypeToCheck)) {
@@ -370,18 +371,18 @@ module.exports = (function () {
   this.appointmentPush = async (req, res, next) => {
     try {
       const keysAndTypeToCheck = [
-        { key: "slotDay", type: "string" },
-        { key: "slotDuration", type: "number" },
-        { key: "slotDurationUnit", type: "string" },
-        { key: "slotTime", type: "string" },
-        { key: "speciality", type: "string" },
-        { key: "userUuid", type: "string" },
-        { key: "drName", type: "string" },
-        { key: "visitUuid", type: "string" },
-        { key: "locationUuid", type: "string" },
-        { key: "patientName", type: "string" },
-        { key: "openMrsId", type: "string" },
-        { key: "hwUUID", type: "string" },
+        { key: Constant.SLOT_DAY, type: "string" },
+        { key: Constant.SLOT_DURATION, type: "number" },
+        { key: Constant.SLOT_DURATION_UNIT, type: "string" },
+        { key: Constant.SLOT_TIME, type: "string" },
+        { key: Constant.SPECIALITY, type: "string" },
+        { key: Constant.USER_UUID, type: "string" },
+        { key: Constant.DR_NAME, type: "string" },
+        { key: Constant.VISIT_UUID, type: "string" },
+        { key: Constant.LOCATION_UUID, type: "string" },
+        { key: Constant.PATIENT_NAME, type: "string" },
+        { key: Constant.OPEN_MRS_ID, type: "string" },
+        { key: Constant.HW_UUID, type: "string" },
       ];
       if (validateParams(req.body, keysAndTypeToCheck)) {
         await _bookAppointment(req.body);
