@@ -10,13 +10,7 @@ const db = require("./models");
 
 const app = express();
 
-let ALLOWED_ORIGINS = [
-  "http://localhost:4200",
-  "https://dev.intelehealth.org",
-  "http://localhost:3030",
-  "https://dev.intelehealth.org:3030",
-  "http://127.0.0.1:3030",
-];
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS && JSON.parse(process.env.ALLOWED_ORIGINS) || [];
 
 app.use(function (req, res, next) {
   const origin = req.headers.origin;

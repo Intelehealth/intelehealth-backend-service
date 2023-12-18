@@ -3,7 +3,7 @@ const configuration = new Configuration({
     apiKey: process.env.OPEN_AI_KEY,
 });
 const openai = new OpenAIApi(configuration);
-const { gptinputs, gptmodels, Sequelize, sequelize } = require("../models");
+const { gptinputs, gptmodels, Sequelize } = require("../models");
 const axios = require("axios");
 const readXlsxFile = require('read-excel-file/node');
 const xlsx = require('node-xlsx').default;
@@ -35,7 +35,7 @@ module.exports = (function () {
 
             if (gptModel == 'specialized-llm') {
                 const axiosInstance = axios.create({
-                    baseURL: 'https://ci.intelehealth.org',
+                    baseURL: process.env.OPEN_AI_BASE_URL,
                     timeout: 50000,
                 });
                 const response = await axiosInstance.post('/ask', { question: `${gptInput} ${payload}` });

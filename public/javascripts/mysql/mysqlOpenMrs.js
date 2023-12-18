@@ -3,7 +3,7 @@ let db;
 
 connectDatabase = () => {
   if (!db) {
-    const { MYSQL_DB, MYSQL_USERNAME, MYSQL_PASS, MYSQL_HOST, MYSQL_PORT } =
+    const { MYSQL_OPENMRS_DB, MYSQL_USERNAME, MYSQL_PASS, MYSQL_HOST, MYSQL_PORT } =
       process.env;
 
     db = mysql.createConnection({
@@ -11,7 +11,7 @@ connectDatabase = () => {
       port: MYSQL_PORT || 3306,
       user: MYSQL_USERNAME || "root",
       password: MYSQL_PASS,
-      database: "openmrs",
+      database: MYSQL_OPENMRS_DB || "openmrs",
     });
 
     db.connect((err) => {
