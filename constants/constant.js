@@ -1,4 +1,4 @@
-export const Constant = {
+module.exports = {
     FROM_DATE: 'fromDate',
     TO_DATE: 'toDate',
     LOCATION_UUID: 'locationUuid',

@@ -11,6 +11,7 @@ const days = {
   5: "Friday",
   6: "Saturday",
 };
+const { VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_MAILTO } = process.env;
 
 router.post("/subscribe", async (req, res) => {
   let speciality = req.body.speciality;
@@ -69,12 +70,12 @@ router.post("/subscribe", async (req, res) => {
 });
 
 //for Unicef training
-const vapidKeys = {
-  publicKey:
-    "BPahLgBCajrPyOkLGQuFf5sEtuX1pXRckn6bmW5nNrxy-5QM9uJ6JPM5sp_wuaJl1jNOylgcUxLJdOJtGIGEreo",
-  privateKey: "D3xqo6aJ-Z8YNN03zMbmTexDUpNK2GCUVSmb6FM-FeE",
-  mailTo: "mailto:support@intelehealth.org",
-};
+// const vapidKeys = {
+//   publicKey:
+//     "BPahLgBCajrPyOkLGQuFf5sEtuX1pXRckn6bmW5nNrxy-5QM9uJ6JPM5sp_wuaJl1jNOylgcUxLJdOJtGIGEreo",
+//   privateKey: "D3xqo6aJ-Z8YNN03zMbmTexDUpNK2GCUVSmb6FM-FeE",
+//   mailTo: "mailto:support@intelehealth.org",
+// };
 
 //for Unicef Production
 // const vapidKeys = {
@@ -92,9 +93,9 @@ router.post("/push", (req, res) => {
         if (results.length) {
           res.set("Content-Type", "application/json");
           webpush.setVapidDetails(
-            vapidKeys.mailTo,
-            vapidKeys.publicKey,
-            vapidKeys.privateKey
+            VAPID_MAILTO,
+            VAPID_PUBLIC_KEY,
+            VAPID_PRIVATE_KEY
           );
 
           let patient = req.body.patient;

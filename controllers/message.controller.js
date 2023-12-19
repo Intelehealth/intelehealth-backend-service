@@ -12,7 +12,7 @@ const {
 } = require("../handlers/helper");
 const { user_settings, pushnotification } = require("../models");
 const { uploadFile } = require("../handlers/file.handler");
-const { Constant } = require("../constants/constant");
+const Constant = require("../constants/constant");
 
 module.exports = (function () {
   this.sendMessageNotification = async (payload) => {

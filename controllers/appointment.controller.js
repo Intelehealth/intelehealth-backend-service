@@ -1,4 +1,4 @@
-const { Constant } = require("../constants/constant");
+const Constant = require("../constants/constant");
 const { validateParams } = require("../handlers/helper");
 const {
   getUserAppointmentSchedule,

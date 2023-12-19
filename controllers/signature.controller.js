@@ -3,7 +3,7 @@ const {
     _uploadSign
 } = require("../services/signature.service");
 const { validateParams, RES } = require("../handlers/helper");
-const { Constant } = require("../constants/constant");
+const Constant = require("../constants/constant");
 
 module.exports = (function () {
     this.createSign = async (req, res) => {
