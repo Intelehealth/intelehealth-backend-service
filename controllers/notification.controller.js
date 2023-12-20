@@ -1,7 +1,7 @@
 const mysql = require("../public/javascripts/mysql/mysql");
 const { user_settings } = require("../models");
 const { RES } = require("../handlers/helper");
-const { NOTIFICATION, COMMON } = require("../constants/messages");
+const { MESSAGE } = require("../constants/messages");
 
 Date.prototype.addMinutes = function (m) {
   this.setTime(this.getTime() + m * 60000);
@@ -22,7 +22,7 @@ const setSnoozeToDBb = async (user_uuid, snooze_till) => {
         if (err) {
           reject(err.message);
         }
-        resolve(NOTIFICATION.SNOOZED_SUCCESSFULLY);
+        resolve(MESSAGE.NOTIFICATION.SNOOZED_SUCCESSFULLY);
       }
     );
   });
@@ -132,7 +132,7 @@ const getUserSettings = async ({ params }, res) => {
   });
   if (!data) data = {};
   res.status(200).json({
-    message: NOTIFICATION.SETTINGS_RECEVIED_SUCCESSFULLY,
+    message: MESSAGE.NOTIFICATION.SETTINGS_RECEVIED_SUCCESSFULLY,
     data,
     snooze_till:
       data && data.snooze_till ? data.snooze_till - new Date().valueOf() : "",
@@ -141,7 +141,7 @@ const getUserSettings = async ({ params }, res) => {
 
 const setUserSettings = async ({ body }, res) => {
   if (!body.user_uuid)
-    res.status(422).json({ message: NOTIFICATION.PLEASE_PASS_CORRECT_USER_UUID });
+    res.status(422).json({ message: MESSAGE.NOTIFICATION.PLEASE_PASS_CORRECT_USER_UUID });
 
   let data = await user_settings.findOne({
     where: { user_uuid: body.user_uuid },
@@ -159,8 +159,8 @@ const setUserSettings = async ({ body }, res) => {
   }
   res.status(200).json({
     message: data
-      ? NOTIFICATION.SETTINGS_SAVED_SUCCESSFULLY
-      : NOTIFICATION.DATA_NOT_FOUND_WITH_THIS_USER_UUID,
+      ? MESSAGE.NOTIFICATION.SETTINGS_SAVED_SUCCESSFULLY
+      : MESSAGE.NOTIFICATION.DATA_NOT_FOUND_WITH_THIS_USER_UUID,
     data,
   });
 };
@@ -201,7 +201,7 @@ const getNotificationStatus = async ( req, res) => {
     } else {
       RES(
         res, 
-        { success: false, message: COMMON.BAD_REQUEST, data: null }, 
+        { success: false, message: MESSAGE.COMMON.BAD_REQUEST, data: null }, 
         400
       );
     }
@@ -240,7 +240,7 @@ const toggleNotificationStatus = async ( req, res) => {
         res,
         {
           success: true,
-          message: NOTIFICATION.NOTIFICATION_STATUS_CHANGED_SUCCESSFULLY,
+          message: MESSAGE.NOTIFICATION.NOTIFICATION_STATUS_CHANGED_SUCCESSFULLY,
           data: { notification_status: user.notification }
         },
         200
@@ -248,7 +248,7 @@ const toggleNotificationStatus = async ( req, res) => {
     } else {
       RES(
         res, 
-        { success: false, message: COMMON.BAD_REQUEST, data: null }, 
+        { success: false, message: MESSAGE.COMMON.BAD_REQUEST, data: null }, 
         400
       );
     }
@@ -299,7 +299,7 @@ const snoozeNotification = async ( req, res) => {
           res,
           {
             success: true,
-            message: NOTIFICATION.NOTIFICATION_SNOOZED_SUCCESSFULLY,
+            message: MESSAGE.NOTIFICATION.NOTIFICATION_SNOOZED_SUCCESSFULLY,
             data: { snooze_till }
           },
           200
@@ -309,7 +309,7 @@ const snoozeNotification = async ( req, res) => {
           res,
           {
             success: false,
-            message: COMMON.USER_NOT_EXIST,
+            message: MESSAGE.COMMON.USER_NOT_EXIST,
             data: null
           },
           200
@@ -319,7 +319,7 @@ const snoozeNotification = async ( req, res) => {
     } else {
       RES(
         res, 
-        { success: false, message: COMMON.BAD_REQUEST, data: null }, 
+        { success: false, message: MESSAGE.COMMON.BAD_REQUEST, data: null }, 
         400
       );
     }

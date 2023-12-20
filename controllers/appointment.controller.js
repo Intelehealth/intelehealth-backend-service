@@ -1,4 +1,5 @@
 const Constant = require("../constants/constant");
+const { MESSAGE } = require("../constants/messages");
 const { validateParams } = require("../handlers/helper");
 const {
   getUserAppointmentSchedule,
@@ -389,7 +390,7 @@ module.exports = (function () {
 
         res.json({
           status: true,
-          message: "appointment push successfully!",
+          message: MESSAGE.APPOINTMENT.APPOINTMENT_PUSH_SUCCESSFULLY,
         });
       }
     } catch (error) {

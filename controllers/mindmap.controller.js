@@ -7,6 +7,7 @@ const { zipFolder } = require("../public/javascripts/zip");
 const { getFormattedUrl } = require("../public/javascripts/functions");
 const Sequelize = require('sequelize');
 const Constant = require("../constants/constant");
+const { MESSAGE } = require("../constants/messages");
 
 /**
  * Return mindmaps respect to key
@@ -17,7 +18,7 @@ const getMindmapDetails = async (req, res) => {
   const key = req.params.key;
   if (!key)
     RES(res, {
-      message: "Please enter a licence key",
+      message: MESSAGE.MINDMAP.PLEASE_ENTER_A_LICENCE_KEY,
     });
 
   RES(res, {
@@ -56,10 +57,10 @@ const addUpdateLicenceKey = async (req, res) => {
     }
     if (data) {
       data = await data.update(dataToUpdate);
-      message = body.type === "image" ? "Image updated" : "Updated successfully!";
+      message = body.type === "image" ? MESSAGE.COMMON.IMAGE_UPDATED : MESSAGE.COMMON.UPDATED_SUCCESSFULLY;
     } else {
       data = await licences.create(dataToUpdate);
-      message = body.type === "image" ? "Image uploaded" : "Added successfully!";
+      message = body.type === "image" ? MESSAGE.COMMON.IMAGE_UPLOADED : MESSAGE.COMMON.ADDED_SUCCESSFULLY;
     }
     RES(res, { data, success: true, message });
   } catch (error) {
@@ -106,10 +107,10 @@ const addUpdateMindMap = async (req, res) => {
     };
     if (data) {
       data = await data.update(dataToUpdate);
-      message = "Mindmap updated successfully!";
+      message = MESSAGE.MINDMAP.MINDMAP_UPDATED_SUCCESSFULLY;
     } else {
       data = await mindmaps.create(dataToUpdate);
-      message = "Mindmap added successfully!";
+      message = MESSAGE.MINDMAP.MINDMAP_ADDED_SUCCESSFULLY;
     }
     RES(res, { data, success: true, message });
   } catch (error) {
@@ -128,14 +129,14 @@ const deleteMindmapKey = async (req, res) => {
   try {
     if (!key) {
       RES(res, {
-        message: "Please enter a mindmap key",
+        message: MESSAGE.MINDMAP.PLEASE_ENTER_A_MINDMAP_KEY,
         success: false,
       });
       return;
     }
     if (!mindmapName) {
       RES(res, {
-        message: "Please pass a mindmapName",
+        message: MESSAGE.MINDMAP.PLEASE_PASS_A_MINDMAP_NAME,
         success: false,
       });
       return;
@@ -151,7 +152,7 @@ const deleteMindmapKey = async (req, res) => {
     RES(res, {
       data,
       success: true,
-      message: "Mindmap deleted successfully!",
+      message: MESSAGE.MINDMAP.MINDMAP_DELETED_SUCCESSFULLY,
     });
   } catch (error) {
     RES(res, { message: error.message, success: false }, 422);
@@ -168,7 +169,7 @@ const downloadMindmaps = async (req, res) => {
   try {
     if (!key) {
       RES(res, {
-        message: "Please pass a licence key",
+        message: MESSAGE.MINDMAP.PLEASE_PASS_A_LICENCE_KEY,
         success: false,
       });
       return;
@@ -184,7 +185,7 @@ const downloadMindmaps = async (req, res) => {
 
     if (!licenceData) {
       RES(res, {
-        message: "Licence key didn't found in the database",
+        message: MESSAGE.MINDMAP.LICENCE_KEY_DIDNOT_FOUND_IN_THE_DATABASE,
         success: false,
       });
       return;
@@ -213,9 +214,9 @@ const downloadMindmaps = async (req, res) => {
       const host = getFormattedUrl(req);
       rmDir("./public/key");
 
-      RES(res, { message: "Success", mindmap: `${host}/${key}.zip` });
+      RES(res, { message: MESSAGE.COMMON.SUCCESS, mindmap: `${host}/${key}.zip` });
     } else {
-      RES(res, { message: "Licence key expired", success: false }, 422);
+      RES(res, { message: MESSAGE.MINDMAP.LICENCE_KEY_EXPIRED, success: false }, 422);
     }
   } catch (error) {
     RES(res, { message: error.message, success: false }, 422);
@@ -231,7 +232,7 @@ const toggleMindmapActiveStatus = async (req, res) => {
   const { keyName, mindmapName } = req.body;
   try {
     if (!(keyName && mindmapName)) {
-      RES(res, { message: "Bad request!", success: false }, 400);
+      RES(res, { message: MESSAGE.COMMON.BAD_REQUEST, success: false }, 400);
     }
     let data = await mindmaps.update({ isActive: Sequelize.literal('NOT isActive') }, {
       where: { keyName: keyName, name: mindmapName }
@@ -240,10 +241,10 @@ const toggleMindmapActiveStatus = async (req, res) => {
       data = await mindmaps.findOne({
         where: { keyName: keyName, name: mindmapName }
       })
-      message = "Active status updated successfully!";
+      message = MESSAGE.MINDMAP.ACTIVE_STATUS_UPDATED_SUCCESSFULLY;
       RES(res, { data, success: true, message });
     } else {
-      message = "Mindmap not found";
+      message = MESSAGE.MINDMAP.MINDMAP_NOT_FOUND;
       RES(res, { data: null, success: false, message });
     }
   } catch (error) {

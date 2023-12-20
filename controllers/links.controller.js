@@ -1,3 +1,4 @@
+const { MESSAGE } = require("../constants/messages");
 const { RES, generateHash } = require("../handlers/helper");
 const { links } = require("../models");
 const {
@@ -16,7 +17,7 @@ module.exports = (function () {
     try {
       const link = req.body.link;
       if (!link) {
-        RES(res, { success: false, message: "Please pass link" }, 422);
+        RES(res, { success: false, message: MESSAGE.LINK.PLEASE_PASS_LINK }, 422);
         return;
       }
       let linkAlreadyExist = await links.findOne({
@@ -57,7 +58,7 @@ module.exports = (function () {
         raw: true,
       });
       if (!data) {
-        throw new Error("Invalid link!");
+        throw new Error(MESSAGE.COMMON.INVALID_LINK);
       }
       RES(res, { success: true, data });
     } catch (error) {

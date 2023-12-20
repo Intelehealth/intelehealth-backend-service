@@ -11,6 +11,7 @@ const {
 } = require("../services/support.service");
 const { Sequelize, sequelize } = require("../models");
 const { QueryTypes } = require('sequelize');
+const { MESSAGE } = require("../constants/messages");
 
 module.exports = (function () {
     /**
@@ -58,7 +59,7 @@ module.exports = (function () {
                                         subscriptions.forEach((sub) => {
                                             sendWebPushNotification({
                                                 webpush_obj: sub.notification_object,
-                                                title: 'Hey! You got new chat message for support',
+                                                title: MESSAGE.SUPPORT.HEY_YOU_GOT_NEW_CHAT_MESSAGE_FROM_SUPPORT,
                                                 body: message,
                                             });
                                         });
@@ -93,7 +94,7 @@ module.exports = (function () {
                             const subscriptions = await getSubscriptions(us.user_uuid);
                             if (subscriptions.length) {
                                 subscriptions.forEach(async (sub) => {
-                                    await sendNotification(JSON.parse(sub.notification_object), 'Hey! You got new chat message from support', message);
+                                    await sendNotification(JSON.parse(sub.notification_object), MESSAGE.SUPPORT.HEY_YOU_GOT_NEW_CHAT_MESSAGE_FROM_SUPPORT, message);
                                 });
                             }
                         }
@@ -112,7 +113,7 @@ module.exports = (function () {
             } else {
                 RES(
                     res, 
-                    { success: false, message: "Bad request! Invalid arguments.", data: null }, 
+                    { success: false, message: MESSAGE.COMMON.BAD_REQUEST, data: null }, 
                     400
                 );
             }
@@ -150,7 +151,7 @@ module.exports = (function () {
             } else {
                 RES(
                     res, 
-                    { success: false, message: "Bad request! Invalid arguments.", data: null }, 
+                    { success: false, message: MESSAGE.COMMON.BAD_REQUEST, data: null }, 
                     400
                 );
             }
@@ -188,7 +189,7 @@ module.exports = (function () {
             } else {
                 RES(
                     res, 
-                    { success: false, message: "Bad request! Invalid arguments.", data: null }, 
+                    { success: false, message: MESSAGE.COMMON.BAD_REQUEST, data: null }, 
                     400
                 );
             }
@@ -226,7 +227,7 @@ module.exports = (function () {
             } else {
                 RES(
                     res, 
-                    { success: false, message: "Bad request! Invalid arguments.", data: null }, 
+                    { success: false, message: MESSAGE.COMMON.BAD_REQUEST, data: null }, 
                     400
                 );
             }
@@ -265,7 +266,7 @@ module.exports = (function () {
             } else {
                 RES(
                     res, 
-                    { success: false, message: "Bad request! Invalid arguments.", data: null }, 
+                    { success: false, message: MESSAGE.COMMON.BAD_REQUEST, data: null }, 
                     400
                 );
             }

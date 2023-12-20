@@ -1,3 +1,4 @@
+const { MESSAGE } = require("../constants/messages");
 const openMrsDB = require("../public/javascripts/mysql/mysqlOpenMrs");
 const { sendOtp, resetPassword } = require("../services/openmrs.service");
 const {
@@ -136,7 +137,7 @@ const getVisitCounts = async (req, res, next) => {
     });
     res.json({
       data,
-      message: "Visit count fetched successfully",
+      message: MESSAGE.OPENMRS.VISIT_COUNT_FETCHED_SUCCESSFULLY,
     });
   } catch (error) {
     res.statusCode = 422;

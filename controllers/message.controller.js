@@ -13,6 +13,7 @@ const {
 const { user_settings, pushnotification } = require("../models");
 const { uploadFile } = require("../handlers/file.handler");
 const Constant = require("../constants/constant");
+const { MESSAGE } = require("../constants/messages");
 
 module.exports = (function () {
   this.sendMessageNotification = async (payload) => {
@@ -241,7 +242,7 @@ module.exports = (function () {
   this.upload = async (req, res) => {
     try {
       if (!req.files.length) {
-        throw new Error("File must be passed!");
+        throw new Error(MESSAGE.COMMON.FILE_MUST_BE_PASSED);
       }
       const file = req.files[0];
       const data = await uploadFile(file, "zeetest");

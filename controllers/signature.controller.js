@@ -4,6 +4,7 @@ const {
 } = require("../services/signature.service");
 const { validateParams, RES } = require("../handlers/helper");
 const Constant = require("../constants/constant");
+const { MESSAGE } = require("../constants/messages");
 
 module.exports = (function () {
     this.createSign = async (req, res) => {
@@ -24,7 +25,7 @@ module.exports = (function () {
                     res,
                     {
                         success: true,
-                        message: "Signature created successfully!",
+                        message: MESSAGE.SIGNATURE.SIGNATURE_CREATED_SUCCESSFULLY,
                         data
                     },
                     200
@@ -58,7 +59,7 @@ module.exports = (function () {
                     res,
                     {
                         success: true,
-                        message: "Signature uploaded successfully!",
+                        message: MESSAGE.SIGNATURE.SIGNATURE_UPLOADED_SUCCESSFULLY,
                         data
                     },
                     200
