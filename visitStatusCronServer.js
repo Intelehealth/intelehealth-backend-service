@@ -68,10 +68,9 @@ const statusCron = () => {
     const visitIds = await getVisits("Visit In Progress");
 
     let startTime = moment();
-    startTime = startTime.subtract(1, "hour").toDate();
-
-    // let endTime = moment();
-    // endTime = endTime.subtract(3, "hour").toDate();
+    startTime = startTime.subtract(8, "hour").format("YYYY-MM-DD HH:mm:ss");
+    let endTime = moment();
+    endTime = endTime.subtract(1, "hour").format("YYYY-MM-DD HH:mm:ss");
 
     const visits = await visit.findAll({
       where: {
@@ -84,11 +83,18 @@ const statusCron = () => {
           required: true,
           model: encounter,
           as: "encounters",
-          attributes: ["uuid", "encounter_datetime", "voided"],
+          attributes: [
+            "uuid",
+            "encounter_datetime",
+            "date_created",
+            "voided",
+            "encounter_type",
+          ],
           where: {
             voided: false,
+            encounter_type: 9,
             encounter_datetime: {
-              [Op.lte]: startTime,
+              [Op.between]: [startTime, endTime],
             },
           },
         },
@@ -97,7 +103,6 @@ const statusCron = () => {
     });
 
     for (let idx = 0; idx < visits.length; idx++) {
-      console.log("visit_id: ", visits[idx]?.visit_id);
       await resetVisit(visits[idx]);
     }
 
@@ -107,5 +112,6 @@ const statusCron = () => {
   });
 };
 
-const statusCronString = `*/5 * * * *`;
+const statusCronString = `*/1 * * * *`;
 new CronJob(statusCronString, statusCron, null, true, "Asia/Kolkata");
+// statusCron();

@@ -4,24 +4,12 @@ const fs = require("fs");
 const path = require("path");
 const Sequelize = require("sequelize");
 const basename = path.basename(__filename);
+const env = process.env.NODE_ENV || "development";
+const config = require(__dirname + "/../config/config.json")[env];
 const db = {};
 
-const {
-  MYSQL_DB,
-  MYSQL_USERNAME,
-  MYSQL_PASS,
-  MYSQL_DIALECT,
-  MYSQL_HOST,
-  MYSQL_PORT,
-} = process.env;
-
-const sequelize = new Sequelize({
-  dialect: MYSQL_DIALECT || "mysql",
-  host: MYSQL_HOST || "localhost",
-  port: MYSQL_PORT || 3306,
-  username: MYSQL_USERNAME || "root",
-  password: MYSQL_PASS,
-  database: "openmrs",
+let sequelize = new Sequelize("openmrs", config.username, config.password, {
+  ...config,
   define: {
     timestamps: false,
     freezeTableName: true,
@@ -32,6 +20,10 @@ const sequelize = new Sequelize({
     idle: 5000,
   },
   logging: false,
+  dialectOptions: {
+    timezone: "+05:30",
+  },
+  timezone: "+05:30",
 });
 
 fs.readdirSync(__dirname)
