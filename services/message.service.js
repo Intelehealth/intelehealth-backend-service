@@ -98,6 +98,7 @@ module.exports = (function () {
       for (let i = 0; i < data.length; i++) {
         try {
           data[i].createdAt = new Date(data[i].createdAt).toGMTString();
+          data[i].isRead = Boolean(data[i].isRead);
         } catch (error) {}
       }
       return { success: true, data };
