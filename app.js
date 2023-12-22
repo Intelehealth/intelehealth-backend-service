@@ -14,8 +14,8 @@ const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS && JSON.parse(process.env.AL
 
 app.use(function (req, res, next) {
   const origin = req.headers.origin;
-  const theOrigin =
-    ALLOWED_ORIGINS.indexOf(origin) >= 0 ? origin : ALLOWED_ORIGINS[0];
+  const theOrigin = '*'
+    //ALLOWED_ORIGINS.indexOf(origin) >= 0 ? origin : ALLOWED_ORIGINS[0];
 
   res.header("Access-Control-Allow-Origin", theOrigin);
   res.header("Access-Control-Allow-Credentials", "true");
@@ -51,7 +51,6 @@ db.sequelize.define("Session", {
   data: Sequelize.TEXT,
 });
 
-app.set("trust proxy", 1);
 app.use(
   session({
     name: "app.sid",
