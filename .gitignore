@@ -1,6 +1,11 @@
-/node_modules
-**/settings.json
-**/license
 *.zip
-/config/config.json
-/config/serviceAccountKey.json
+/portal/config/config.json
+/portal/config/serviceAccountKey.json
+/auth-gateway/node_modules
+/web-rtc/node_modules
+/portal/node_modules
+!/*
+!/*/
+/auth-gateway/
+/portal/
+/web-rtc
