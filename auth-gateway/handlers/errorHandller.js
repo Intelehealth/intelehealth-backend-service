@@ -1,4 +1,3 @@
-// const { STATUS_CODES } = require("http");
 const { TokenExpiredError } = require("jsonwebtoken");
 
 // eslint-disable-next-line

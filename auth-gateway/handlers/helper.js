@@ -6,7 +6,6 @@ module.exports = (function () {
   this.axiosInstance = axios.create({
     baseURL,
     timeout: 50000,
-    // headers: { Authorization: "Basic c3lzbnVyc2U6SUhOdXJzZSMx" },
   });
 
   return this;

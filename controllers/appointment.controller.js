@@ -35,7 +35,6 @@ module.exports = (function () {
     const keysAndTypeToCheck = [
       { key: Constant.USER_UUID, type: "string" },
       { key: Constant.DR_NAME, type: "string" },
-      //{ key: "slotDays", type: "string" },
       { key: Constant.SLOT_SCHEDULE, type: "object" },
       { key: Constant.SPECIALITY, type: "string" },
       { key: Constant.TYPE, type: "string" },
@@ -278,7 +277,6 @@ module.exports = (function () {
       const keysAndTypeToCheck = [
         { key: Constant.ID, type: "number" },
         { key: Constant.VISIT_UUID, type: "string" },
-        // { key: "reason", type: "string" },
         { key: Constant.HW_UUID, type: "string" },
       ];
       if (validateParams(req.body, keysAndTypeToCheck)) {

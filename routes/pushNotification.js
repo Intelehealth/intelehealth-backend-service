@@ -69,22 +69,6 @@ router.post("/subscribe", async (req, res) => {
   }
 });
 
-//for Unicef training
-// const vapidKeys = {
-//   publicKey:
-//     "BPahLgBCajrPyOkLGQuFf5sEtuX1pXRckn6bmW5nNrxy-5QM9uJ6JPM5sp_wuaJl1jNOylgcUxLJdOJtGIGEreo",
-//   privateKey: "D3xqo6aJ-Z8YNN03zMbmTexDUpNK2GCUVSmb6FM-FeE",
-//   mailTo: "mailto:support@intelehealth.org",
-// };
-
-//for Unicef Production
-// const vapidKeys = {
-//   publicKey:
-//     "BCGfng5flfhjlqR_imzFXwHGeEMBA6AzFVAex7sPLDbsMCn_IMKtQmI9TDnmP6raxmPcBcnoKO_AHKaLtctsIjg",
-//   privateKey: "85omZfgs39Tt2R5JwB3sCkgYlSQd5mV-iAsTEz8lEoQ",
-//   mailTo: "mailto:support@intelehealth.org",
-// };
-
 router.post("/push", (req, res) => {
   try {
     mysql.query(
@@ -184,15 +168,6 @@ router.post("/push", (req, res) => {
     res.status(400).json({ message: "Error", error });
   }
 });
-
-// router.get("/getSnoozeTime", (req, res) =>{
-//         mysql.query(`Select * from user_settings`, (err, snoozeTimeData, fields) => {
-//             let Data = snoozeTimeData[0].snooze_till;
-//             let Data1 = Data ? Data : null
-//             if(err) res.status(400).json({message: err.message});
-//             else res.status(200).json({Data1, message: "Snoozed data!"})
-//         })
-// })
 
 router.post(
   "/unsubscribe",

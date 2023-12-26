@@ -28,6 +28,8 @@ const {
 } = require("../openmrs_models");
 const { QueryTypes } = require("sequelize");
 const { getVisitCountV4 } = require("../controllers/queries");
+const { MESSAGE } = require("../constants/messages");
+const Constant = require("../constants/constant");
 
 module.exports = (function () {
   const DATE_FORMAT = "DD/MM/YYYY";
@@ -138,7 +140,7 @@ WHERE
       if (endDate) update.endDate = endDate;
       if (schedule) {
         const resp = {
-          message: "Appointment updated successfully",
+          message: MESSAGE.APPOINTMENT.APPOINTMENT_UPDATED_SUCCESSFULLY,
           data: await Schedule.update(update, opts),
         };
         await this.rescheduleOrCancelAppointment(userUuid);
@@ -146,7 +148,7 @@ WHERE
         return resp;
       } else {
         return {
-          message: "Appointment created successfully",
+          message: MESSAGE.APPOINTMENT.APPOINTMENT_CREATED_SUCCESSFULLY,
           data: await Schedule.create({
             userUuid,
             slotDays,
@@ -218,9 +220,9 @@ WHERE
           slotJsDate: {
             [Op.between]: this.getFilterDates(fromDate, toDate),
           },
-          status: "booked",
+          status: Constant.BOOKED,
         },
-        order: [["slotJsDate", "ASC"]],
+        order: [[Constant.SLOT_JS_DATE, "ASC"]],
         raw: true,
       });
 
@@ -245,9 +247,6 @@ WHERE
                 model: obs,
                 as: "obs",
                 attributes: ["value_text", "concept_id", "value_numeric"],
-                // where: {
-                //   concept_id: 163212
-                // },
                 required: false
               },
               {
@@ -294,10 +293,10 @@ WHERE
           slotJsDate: {
             [Op.between]: this.getFilterDates(fromDate, toDate),
           },
-          status: "booked",
+          status: Constant.BOOKED,
           speciality
         },
-        order: [["slotJsDate", "ASC"]],
+        order: [[Constant.SLOT_JS_DATE, "ASC"]],
         raw: true,
       });
       return data.length ? true : false;
@@ -339,9 +338,8 @@ WHERE
               nowTime.format(),
               this.getFilterDates(fromDate, toDate)[1],
             ],
-            // [Op.between]: this.getFilterDates(fromDate, toDate),
           },
-          status: "booked",
+          status: Constant.BOOKED,
         },
       });
 
@@ -392,11 +390,11 @@ WHERE
         let ar1 = data;
         ar1.forEach((visit) => {
           let visit1 = ({} = Object.assign(visit));
-          if (visit.status !== "rescheduled") {
+          if (visit.status !== Constant.RESCHEDULED) {
             visit1["rescheduledAppointments"] = [];
             let rescheduledAppointment = data.filter(
               (d1) =>
-                d1.visitUuid === visit.visitUuid && d1.status === "rescheduled"
+                d1.visitUuid === visit.visitUuid && d1.status === Constant.RESCHEDULED
             );
             visit1.rescheduledAppointments = rescheduledAppointment;
             visits.push(visit1);
@@ -426,9 +424,6 @@ WHERE
       return slotDays.includes(date);
     });
 
-    // const daysToSchedule = schedule.daysToSchedule.filter((d) => {
-    //   return days.map((d) => d.normDate);
-    // });
     schedule.daysToSchedule.forEach((slot) => {
       const slotSchedules = slots.filter(
         (s) => moment(s.date).format(DATE_FORMAT) === slot.normDate
@@ -471,9 +466,6 @@ WHERE
     const slotDays = slots.map((s) => s.day);
     schedule.daysToSchedule = days.filter((d) => slotDays.includes(d.day));
 
-    // const daysToSchedule = schedule.daysToSchedule.filter((d) => {
-    //   return days.map((d) => d.normDate);
-    // });
     schedule.daysToSchedule.forEach((slot) => {
       const slotSchedule = slots.find((s) => s.day === slot.day);
       if (slotSchedule) {
@@ -525,10 +517,10 @@ WHERE
       if (schedules.length) {
         const startDate = moment(fromDate, DATE_FORMAT);
         const endDate = moment(toDate, DATE_FORMAT);
-        let daysDiff = endDate.diff(startDate, "days");
+        let daysDiff = endDate.diff(startDate, Constant.DAYS);
         if (daysDiff < 0) {
           throw new Error(
-            "Incorrect date range - fromDate should be greater or equal to toDate day"
+            MESSAGE.APPOINTMENT.INCORRECT_DATE_RANGE_FROMDATE_SHOULD_BE_GREATER_OR_EQUAL_TO_TODATE_DAY
           );
         }
         daysDiff++;
@@ -538,14 +530,13 @@ WHERE
             date: startDate,
             normDate: startDate.format(DATE_FORMAT),
           };
-          const date = startDate.add(1, "days");
+          const date = startDate.add(1, Constant.DAYS);
           return data;
         });
 
         schedules.forEach((schedule) => {
           const _dates = true
-            ? // schedule.type === "month"
-              getMonthSlots({
+            ? getMonthSlots({
                 schedule,
                 days,
                 SLOT_DURATION,
@@ -565,7 +556,7 @@ WHERE
             slotJsDate: {
               [Op.between]: this.getFilterDates(fromDate, toDate),
             },
-            status: "booked",
+            status: Constant.BOOKED,
           },
           raw: true,
         });
@@ -636,7 +627,7 @@ WHERE
       drName,
       visitUuid,
       patientId,
-      status: "booked",
+      status: Constant.BOOKED,
       openMrsId,
       patientName,
       locationUuid,
@@ -669,21 +660,21 @@ WHERE
         });
 
         if (!matchedApmt.length) {
-          throw new Error("Appointment not available, it's already booked.");
+          throw new Error(MESSAGE.APPOINTMENT.APPOINTMENT_NOT_AVAILABLE_ITS_ALREADY_BOOKED);
         }
       } else {
-        throw new Error("Appointment not available, it's already booked.");
+        throw new Error(MESSAGE.APPOINTMENT.APPOINTMENT_NOT_AVAILABLE_ITS_ALREADY_BOOKED);
       }
 
       const visitApnmt = await Appointment.findOne({
         where: {
           visitUuid,
-          status: "booked",
+          status: Constant.BOOKED,
         },
         raw: true,
       });
       if (visitApnmt) {
-        throw new Error("Appointment for this visit is already present.");
+        throw new Error(MESSAGE.APPOINTMENT.APPOINTMENT_FOR_THIS_VISIT_IS_ALREADY_PRESENT);
       }
 
       const data = await createAppointment(params);
@@ -707,24 +698,25 @@ WHERE
     const appointment = await Appointment.findOne({
       where,
     });
+    // TODO: This code is for validating the cancel appointments.
     // if (moment.utc(appointment.slotJsDate) < moment() && validate) {
     //   return {
     //     status: false,
     //     message: "You can not cancel past appointments!",
     //   };
     // }
-    const status = reschedule ? "rescheduled" : "cancelled";
+    const status = reschedule ? Constant.RESCHEDULED : Constant.CANCELLED;
     if (appointment) {
       appointment.update({ status, updatedBy: hwUUID, reason });
       if (notify) sendCancelNotificationToWebappDoctor(appointment);
       return {
         status: true,
-        message: "Appointment cancelled successfully!",
+        message: MESSAGE.APPOINTMENT.APPOINTMENT_CANCELLED_SUCCESSFULLY,
       };
     } else {
       return {
         status: false,
-        message: "Appointment not found!",
+        message: MESSAGE.APPOINTMENT.APPOINTMENT_NOT_FOUND,
       };
     }
   };
@@ -732,7 +724,7 @@ WHERE
   this._completeAppointment = async (params) => {
     const { id, visitUuid, hwUUID, reason } = params;
     let where = {
-      status: "booked",
+      status: Constant.BOOKED,
     };
     if (visitUuid) where.visitUuid = visitUuid;
     if (id) where.id = id;
@@ -742,22 +734,22 @@ WHERE
     });
 
     if (appointment) {
-      appointment.update({ status: "completed", updatedBy: hwUUID });
+      appointment.update({ status: Constant.COMPLETED, updatedBy: hwUUID });
       return {
         status: true,
-        message: "Appointment completed successfully!",
+        message: MESSAGE.APPOINTMENT.APPOINTMENT_COMPLETED_SUCCESSFULLY,
       };
     } else {
       return {
         status: false,
-        message: "Appointment not found!",
+        message: MESSAGE.APPOINTMENT.APPOINTMENT_NOT_FOUND,
       };
     }
   };
 
   this.getAppointment = async ({ visitUuid }) => {
     return await Appointment.findOne({
-      where: { visitUuid, status: "booked" },
+      where: { visitUuid, status: Constant.BOOKED },
     });
   };
 
@@ -769,9 +761,9 @@ WHERE
         slotJsDate: {
           [Op.gt]: todayDate,
         },
-        status: "booked",
+        status: Constant.BOOKED,
       },
-      order: [["slotJsDate", "DESC"]],
+      order: [[Constant.SLOT_JS_DATE, "DESC"]],
       raw: true,
     });
 
@@ -819,7 +811,7 @@ WHERE
         );
         if (slot) {
           let apnmtData = { ...apnmt, ...slot };
-          ["id", "createdAt", "updatedAt", "slotJsDate"].forEach((key) => {
+          [Constant.ID, Constant.SLOT_JS_DATE,Constant.CREATED_AT, Constant.UPDATED_AT].forEach((key) => {
             delete apnmtData[key];
           });
           await this._cancelAppointment(appointment, true, false, true);
@@ -869,23 +861,17 @@ WHERE
       where: {
         slotDate,
         slotTime,
-        status: "booked",
+        status: Constant.BOOKED,
         userUuid,
       },
       raw: true,
     });
 
     if (appointment) {
-      throw new Error(
-        "Another appointment has already been booked for this time slot."
-      );
+      throw new Error(MESSAGE.APPOINTMENT.ANOTHER_APPOINTMENT_HAS_ALREADY_BEEN_BOOKED_FOR_THIS_TIME_SLOT);
     }
 
     if (cancelled && cancelled.status) {
-      // if (!webApp) {
-      //   userUuid = null;
-      //   drName = null;
-      // }
       return {
         data: await createAppointment({
           openMrsId,
@@ -928,7 +914,7 @@ WHERE
       await appointment.save();
       return appointment;
     } else {
-      throw new Error("Appointment not found!");
+      throw new Error(MESSAGE.APPOINTMENT.APPOINTMENT_NOT_FOUND);
     }
   };
 
@@ -936,7 +922,7 @@ WHERE
     let appointment = await Appointment.findOne({
       where: {
         visitUuid,
-        status: "booked",
+        status: Constant.BOOKED,
       },
     });
 
@@ -946,7 +932,7 @@ WHERE
       await appointment.save();
       return appointment;
     } else {
-      throw new Error("Appointment not found!");
+      throw new Error(MESSAGE.APPOINTMENT.APPOINTMENT_NOT_FOUND);
     }
   };
 
@@ -960,7 +946,7 @@ WHERE
       slotJsDate: {
         [Op.between]: this.getFilterDates(fromDate, toDate),
       },
-      status: "booked",
+      status: Constant.BOOKED,
     };
 
     if (userUuid) where.userUuid = userUuid;
@@ -968,7 +954,7 @@ WHERE
 
     return await Appointment.findAll({
       where,
-      order: [["slotJsDate", "DESC"]],
+      order: [[Constant.SLOT_JS_DATE, "DESC"]],
       raw: true,
     });
   };
@@ -983,7 +969,7 @@ WHERE
       slotJsDate: {
         [Op.between]: this.getFilterDates(fromDate, toDate),
       },
-      status: "rescheduled",
+      status: Constant.RESCHEDULED,
     };
 
     if (userUuid) where.userUuid = userUuid;
@@ -991,7 +977,7 @@ WHERE
 
     return await Appointment.findAll({
       where,
-      order: [["slotJsDate", "DESC"]],
+      order: [[Constant.SLOT_JS_DATE, "DESC"]],
       raw: true,
     });
   };
@@ -999,11 +985,11 @@ WHERE
   this.getRescheduledAppointmentsOfVisit = async ({ visitUuid }) => {
     let where = {
       visitUuid,
-      status: "rescheduled",
+      status: Constant.RESCHEDULED,
     };
     return await Appointment.findAll({
       where,
-      order: [["slotJsDate", "DESC"]],
+      order: [[Constant.SLOT_JS_DATE, "DESC"]],
       raw: true,
     });
   };
@@ -1019,7 +1005,7 @@ WHERE
       slotJsDate: {
         [Op.between]: this.getFilterDates(fromDate, toDate),
       },
-      status: "cancelled",
+      status: Constant.CANCELLED,
     };
 
     if (locationUuid) where.locationUuid = locationUuid;
@@ -1028,7 +1014,7 @@ WHERE
 
     return await Appointment.findAll({
       where,
-      order: [["slotJsDate", "DESC"]],
+      order: [[Constant.SLOT_JS_DATE, "DESC"]],
       raw: true,
     });
   };
@@ -1045,13 +1031,13 @@ WHERE
       let update = { daysOff };
       if (schedule) {
         const resp = {
-          message: "Schedule updated successfully",
+          message: MESSAGE.APPOINTMENT.SCHEDULE_UPDATED_SUCCESSFULLY,
           data: await Schedule.update(update, opts),
         };
         return resp;
       } else {
         return {
-          message: "Schedule created successfully",
+          message: MESSAGE.APPOINTMENT.SCHEDULE_CREATED_SUCCESSFULLY,
           data: await Schedule.create({
             userUuid,
             daysOff,
