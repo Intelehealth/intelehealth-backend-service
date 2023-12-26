@@ -88,12 +88,12 @@ const sendCloudNotification = async ({
 }) => {
   const payload = {
     data,
-    notification: {
-      title,
-      icon,
-      body,
-      click_action,
-    },
+    // notification: {
+    //   title,
+    //   icon,
+    //   body,
+    //   click_action,
+    // },
   };
 
   const options = {

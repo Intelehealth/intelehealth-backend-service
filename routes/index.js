@@ -9,6 +9,9 @@ const {
   downloadMindmaps,
   toggleMindmapActiveStatus,
 } = require("../controllers/mindmap.controller");
+const { sendAppNotification } = require("../controllers/firebasetest.controller");
+
+router.post('/sendAppNotification', sendAppNotification);
 
 router.post("/mindmap/upload", addUpdateMindMap);
 router.get("/mindmap", getMindmapKeys);
@@ -28,5 +31,7 @@ router.use("/links", require("./links.route"));
 router.use("/support", require("./support.route"));
 router.use("/openai", require("./openai.route"));
 router.use('/signature', require("./signature.route"));
+
+
 
 module.exports = router;
