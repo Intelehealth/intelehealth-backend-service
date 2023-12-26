@@ -43,7 +43,7 @@ const sendWebPushNotification = async ({
   parse = false,
 }) => {
   try {
-    debugger
+    debugger;
     return await webpush.sendNotification(
       parse ? JSON.parse(webpush_obj) : webpush_obj,
       JSON.stringify({
@@ -80,32 +80,42 @@ const validateParams = (params, keysAndTypeToCheck = []) => {
 };
 
 const sendCloudNotification = async ({
-  title,
-  body,
-  icon = "ic_launcher",
   data = {},
   regTokens,
-  click_action = "FCM_PLUGIN_HOME_ACTIVITY",
+  // click_action = "FCM_PLUGIN_HOME_ACTIVITY",
+  opts = {},
+  notification = null /**
+   notification: {
+    //   title,
+    //   icon ="ic_launcher",
+    //   body,
+    //   click_action,
+    // },
+   */,
 }) => {
-  const payload = {
+  const messaging = admin.messaging();
+
+  var payload = {
     data,
-    notification: {
-      title,
-      icon,
-      body,
-      click_action,
-    },
   };
+
+  if (notification) {
+    payload.notification = notification;
+  }
 
   const options = {
     priority: "high",
+    ...opts,
   };
 
-  try {
-    const result = await messaging.sendToDevice(regTokens, payload, options);
-  } catch (err) {
-    console.error("Cloud notification error:", err);
-  }
+  return messaging
+    .sendToDevice(regTokens, payload, options)
+    .then((result) => {
+      console.log(result);
+    })
+    .catch((err) => {
+      console.log("err: ", err);
+    });
 };
 
 const getFirebaseAdmin = () => admin;
