@@ -235,7 +235,7 @@ module.exports = (function () {
         where: {
           visit_id: { [Op.in]: visitIds },
         },
-        attributes: ["uuid","date_stopped"],
+        attributes: ["uuid","date_stopped","date_created"],
         include: [
           {
             model: encounter,
