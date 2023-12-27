@@ -1,12 +1,12 @@
 const fs = require('fs');
 
-   module.exports = {
+module.exports = {
 
-    mkDir : (directory) => {  
+    mkDir: (directory) => {
         try {
             fs.statSync(directory);
             console.log('folder exist')
-        } catch(e) {
+        } catch (e) {
             fs.mkdirSync(directory);
             console.log('folder created')
         }

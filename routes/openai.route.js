@@ -1,7 +1,7 @@
 const router = require("express").Router();
 const { createCompletion, createCompletion2, translateExcel, getGTPInputs, addGTPInput, setAsDefaultGTPInput, deleteGPTInput, getGPTModels, addGPTModel, setAsDefaultGPTModel, deleteGPTModel } = require("../controllers/openai.controller");
 const multer  = require('multer');
-const upload = multer({ dest: 'public/translate/uploads/' });
+const upload = multer({ dest: 'translate/uploads/' });
 
 router.post("/ddx", createCompletion);
 router.get("/gptInputs", getGTPInputs);

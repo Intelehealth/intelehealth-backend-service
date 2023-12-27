@@ -1,4 +1,4 @@
-const mysql = require("../public/javascripts/mysql/mysql");
+const mysql = require("../handlers/mysql/mysql");
 const { user_settings } = require("../models");
 const { RES } = require("../handlers/helper");
 

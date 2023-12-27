@@ -1,4 +1,4 @@
-const openMrsDB = require("../public/javascripts/mysql/mysqlOpenMrs");
+const openMrsDB = require("../handlers/mysql/mysqlOpenMrs");
 const axios = require("axios");
 const { user_settings } = require("../models");
 const { axiosInstance } = require("../handlers/helper");

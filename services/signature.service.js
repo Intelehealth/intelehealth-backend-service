@@ -36,7 +36,7 @@ module.exports = (function () {
                     break;
             }
             const dataUri = textToImage.generateSync(textOfSign, {
-                fontPath: path.join(...[__dirname, '../', 'public', 'fonts', fontPath]),
+                fontPath: path.join(...[__dirname, '../', 'fonts', fontPath]),
                 fontFamily: fontFamily,
                 verticalAlign: 'center',
                 maxWidth,

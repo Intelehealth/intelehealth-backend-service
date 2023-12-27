@@ -1,10 +1,10 @@
 const fs = require('fs')
 
-rmFile = (dirPath) => {
+const rmFile = (dirPath) => {
   let files = fs.readdirSync(dirPath); 
   if (files.length > 0)
-    for (var i = 0; i < files.length; i++) {
-      const filePath = dirPath + '/' + files[i];
+    for (const element of files) {
+      const filePath = dirPath + '/' + element;
       if (fs.statSync(filePath).isFile())
         fs.unlinkSync(filePath);
       else
@@ -12,7 +12,7 @@ rmFile = (dirPath) => {
     }
 }
 
-rmDir = (path) => {
+const rmDir = (path) => {
   if (fs.existsSync(path)) {
     fs.readdirSync(path).forEach(file => {
       const curPath = path + "/" + file;

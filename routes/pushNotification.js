@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const webpush = require("web-push");
-const mysql = require("../public/javascripts/mysql/mysql");
+const mysql = require("../handlers/mysql/mysql");
 const days = {
   0: "Sunday",
   1: "Monday",

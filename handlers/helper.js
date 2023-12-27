@@ -1,4 +1,4 @@
-const mysql = require("../public/javascripts/mysql/mysql");
+const mysql = require("../handlers/mysql/mysql");
 const webpush = require("web-push");
 const axios = require("axios");
 const admin = require("firebase-admin");

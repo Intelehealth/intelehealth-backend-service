@@ -1,10 +1,10 @@
 const { RES } = require("../handlers/helper");
 const { mindmaps, licences } = require("../models");
-const { mkDir } = require("../public/javascripts/directory");
-const { rmDir } = require("../public/javascripts/deletefile");
-const { wrMindmap } = require("../public/javascripts/writefile");
-const { zipFolder } = require("../public/javascripts/zip");
-const { getFormattedUrl } = require("../public/javascripts/functions");
+const { mkDir } = require("../handlers/directory");
+const { rmDir } = require("../handlers/deletefile");
+const { wrMindmap } = require("../handlers/writefile");
+const { zipFolder } = require("../handlers/zip");
+const { getFormattedUrl } = require("../handlers/functions");
 const Sequelize = require('sequelize');
 
 /**

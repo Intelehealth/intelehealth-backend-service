@@ -1,4 +1,4 @@
-const openMrsDB = require("../public/javascripts/mysql/mysqlOpenMrs");
+const openMrsDB = require("../handlers/mysql/mysqlOpenMrs");
 const { sendOtp, resetPassword } = require("../services/openmrs.service");
 const {
   _getAwaitingVisits,

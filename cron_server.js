@@ -1,6 +1,6 @@
 const cron = require("node-cron");
 const moment = require("moment");
-const mysql = require("./public/javascripts/mysql/mysql");
+const mysql = require("./handlers/mysql/mysql");
 const { sendWebPushNotificaion } = require("./handlers/helper");
 
 const cronString = "*/1 * * * *";

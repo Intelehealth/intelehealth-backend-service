@@ -1,4 +1,4 @@
-const openMrsDB = require("../public/javascripts/mysql/mysqlOpenMrs");
+const openMrsDB = require("../handlers/mysql/mysqlOpenMrs");
 const { supportmessages, Sequelize, sequelize, supporttickets } = require("../models");
 const { QueryTypes } = require('sequelize');
 

@@ -1,5 +1,5 @@
 const moment = require("moment");
-const openMrsDB = require("../public/javascripts/mysql/mysqlOpenMrs");
+const openMrsDB = require("../handlers/mysql/mysqlOpenMrs");
 const { user_settings, appointments: Appointment } = require("../models");
 const { axiosInstance } = require("../handlers/helper");
 const { QueryTypes } = require("sequelize");
