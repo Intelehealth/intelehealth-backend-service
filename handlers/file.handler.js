@@ -31,7 +31,6 @@ const uploadFile = async (data, filePath, type = "image") => {
     : "jpg";
   if (!extension) extension = "jpg";
 
-  // const Key = `${filePath}/${type}_${Date.now()}.${extension}`;
   const Key = `${type}_${Date.now()}.${extension}`;
   const params = {
     Bucket: AWS_BUCKET_NAME,

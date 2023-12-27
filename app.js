@@ -10,18 +10,11 @@ const db = require("./models");
 
 const app = express();
 
-let ALLOWED_ORIGINS = [
-  "http://localhost:4200",
-  "https://dev.intelehealth.org",
-  "http://localhost:3030",
-  "https://dev.intelehealth.org:3030",
-  "http://127.0.0.1:3030",
-];
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS && JSON.parse(process.env.ALLOWED_ORIGINS) || [];
 
 app.use(function (req, res, next) {
   const origin = req.headers.origin;
-  const theOrigin =
-    ALLOWED_ORIGINS.indexOf(origin) >= 0 ? origin : ALLOWED_ORIGINS[0];
+  const theOrigin = ALLOWED_ORIGINS.indexOf(origin) >= 0 ? origin : ALLOWED_ORIGINS[0];
 
   res.header("Access-Control-Allow-Origin", theOrigin);
   res.header("Access-Control-Allow-Credentials", "true");
@@ -57,7 +50,6 @@ db.sequelize.define("Session", {
   data: Sequelize.TEXT,
 });
 
-app.set("trust proxy", 1);
 app.use(
   session({
     name: "app.sid",

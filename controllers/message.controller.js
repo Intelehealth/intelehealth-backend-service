@@ -12,6 +12,8 @@ const {
 } = require("../handlers/helper");
 const { user_settings, pushnotification } = require("../models");
 const { uploadFile } = require("../handlers/file.handler");
+const Constant = require("../constants/constant");
+const { MESSAGE } = require("../constants/messages");
 
 module.exports = (function () {
   this.sendMessageNotification = async (payload) => {
@@ -58,10 +60,10 @@ module.exports = (function () {
       type,
     } = req.body;
     const keysAndTypeToCheck = [
-      { key: "fromUser", type: "string" },
-      { key: "toUser", type: "string" },
-      { key: "patientId", type: "string" },
-      { key: "message", type: "string" },
+      { key: Constant.FROM_USER, type: "string" },
+      { key: Constant.TO_USER, type: "string" },
+      { key: Constant.PATIENT_ID, type: "string" },
+      { key: Constant.MESSAGE, type: "string" },
     ];
     let isLiveMessageSent = false,
       messages = [];
@@ -134,9 +136,9 @@ module.exports = (function () {
     const { fromUser, toUser, patientId } = req.params;
     const visitId = req.query.visitId;
     const keysAndTypeToCheck = [
-      { key: "fromUser", type: "string" },
-      { key: "toUser", type: "string" },
-      { key: "patientId", type: "string" },
+      { key: Constant.FROM_USER, type: "string" },
+      { key: Constant.TO_USER, type: "string" },
+      { key: Constant.PATIENT_ID, type: "string" },
     ];
     try {
       if (validateParams(req.params, keysAndTypeToCheck)) {
@@ -159,8 +161,8 @@ module.exports = (function () {
   this.getAllMessages = async (req, res) => {
     const { fromUser, toUser } = req.params;
     const keysAndTypeToCheck = [
-      { key: "fromUser", type: "string" },
-      { key: "toUser", type: "string" },
+      { key: Constant.FROM_USER, type: "string" },
+      { key: Constant.TO_USER, type: "string" },
     ];
     try {
       if (validateParams(req.params, keysAndTypeToCheck)) {
@@ -199,7 +201,7 @@ module.exports = (function () {
    */
   this.readMessagesById = async (req, res) => {
     const { messageId } = req.params;
-    const keysAndTypeToCheck = [{ key: "messageId", type: "string" }];
+    const keysAndTypeToCheck = [{ key: Constant.MESSAGE_ID, type: "string" }];
     try {
       if (validateParams(req.params, keysAndTypeToCheck)) {
         const data = await readMessagesById(messageId);
@@ -220,7 +222,7 @@ module.exports = (function () {
    */
   this.getVisits = async (req, res) => {
     const { patientId } = req.params;
-    const keysAndTypeToCheck = [{ key: "patientId", type: "string" }];
+    const keysAndTypeToCheck = [{ key: Constant.PATIENT_ID, type: "string" }];
     try {
       if (validateParams(req.params, keysAndTypeToCheck)) {
         const data = await getVisits(patientId);
@@ -240,7 +242,7 @@ module.exports = (function () {
   this.upload = async (req, res) => {
     try {
       if (!req.files.length) {
-        throw new Error("File must be passed!");
+        throw new Error(MESSAGE.COMMON.FILE_MUST_BE_PASSED);
       }
       const file = req.files[0];
       const data = await uploadFile(file, "zeetest");

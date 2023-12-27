@@ -21,8 +21,7 @@ module.exports = (function () {
         },
       });
 
-      let resp = {
-        // data: data?.data,
+      const resp = {
         status: false,
       };
 
