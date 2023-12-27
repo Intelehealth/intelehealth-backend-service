@@ -1,4 +1,4 @@
-const { RES, asyncForEach } = require("../handlers/helper");
+const { RES } = require("../handlers/helper");
 const { mindmaps, licences } = require("../models");
 const { mkDir } = require("../public/javascripts/directory");
 const { rmDir } = require("../public/javascripts/deletefile");

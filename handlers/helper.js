@@ -1,4 +1,3 @@
-// const gcm = require("node-gcm");
 const mysql = require("../public/javascripts/mysql/mysql");
 const webpush = require("web-push");
 const axios = require("axios");
@@ -12,140 +11,140 @@ admin.initializeApp({
   databaseURL: "https://ezazi-8712a-default-rtdb.firebaseio.com",
 });
 
-module.exports = (function () {
-  const vapidKeys = {
-    /** web push keys for  - https://ezazi.intelehealth.org */
-    publicKey:
-      "BLDLmm1FrOhRJsumFL3lZ8fgnC_c1rFoNp-mz6KWObQpgPkhWzUh66GCGPzioTWBc4u0SB8P4spimU8SH2eWNfg",
-    privateKey: "ziCGVBiegKF4tTYxp1ruG3xgrDJ3mcC31Euxpekxsto",
-    mailTo: "mailto:support@intelehealth.org",
-  };
+const vapidKeys = {
+  /** web push keys for  - https://ezazi.intelehealth.org */
+  publicKey:
+    "BM4tUVW1UwkMpfAWh2mwhA-wwdIC2rCF1MFypbFpjn23qYMQXaeAaYi6ydGslRb_Vdr2Ws0MW5RSUH9InEbYNhA",
+  privateKey: "2x0DTVhRpzAaBfbcdWJNrBk7yTTE2gJivTavfLjQXhY",
+  mailTo: "mailto: <support@intelehealth.org>",
+};
 
-  webpush.setVapidDetails(
-    vapidKeys.mailTo,
-    vapidKeys.publicKey,
-    vapidKeys.privateKey
-  );
+webpush.setVapidDetails(
+  vapidKeys.mailTo,
+  vapidKeys.publicKey,
+  vapidKeys.privateKey
+);
 
-  const baseURL = `https://${config.domain}`;
+const baseURL = `https://${config.domain}`;
 
-  this.axiosInstance = axios.create({
-    baseURL,
-    timeout: 50000,
-    headers: {
-      Authorization: `Basic ${Buffer.from(
-        `${config.openMrsUsername}:${config.openMrsPassword}`
-      ).toString("base64")}`,
-    },
-  });
+const axiosInstance = axios.create({
+  baseURL,
+  timeout: 50000,
+  headers: {
+    Authorization: `Basic ${Buffer.from(
+      `${config.openMrsUsername}:${config.openMrsPassword}`
+    ).toString("base64")}`,
+  },
+});
 
-  this.sendWebPushNotificaion = async ({ webpush_obj, title, body }) => {
-    webpush
-      .sendNotification(
-        JSON.parse(webpush_obj),
-        JSON.stringify({
-          notification: {
-            title,
-            body,
-            vibrate: [100, 50, 100],
-          },
-        })
-      )
-      .catch((error) => {
-        console.log("appointment notification error", error);
-      });
-  };
+const messaging = admin.messaging();
 
-  this.validateParams = (params, keysAndTypeToCheck = []) => {
-    try {
-      keysAndTypeToCheck.forEach((obj) => {
-        if (!params[obj.key] && typeof params[obj.key] !== obj.type) {
-          if (!params[obj.key]) {
-            throw new Error(`Invalid request, ${obj.key} is missing.`);
-          }
-          if (!params[obj.key]) {
-            throw new Error(
-              `Wrong param type for ${obj.key}(${typeof params[
+const sendWebPushNotification = async ({
+  webpush_obj,
+  title,
+  body,
+  data = {},
+  parse = false,
+}) => {
+  try {
+    return await webpush.sendNotification(
+      parse ? JSON.parse(webpush_obj) : webpush_obj,
+      JSON.stringify({
+        notification: {
+          title,
+          body,
+          vibrate: [100, 50, 100],
+          data,
+        },
+      })
+    );
+  } catch (error) {
+    console.error("Web Push notification error:", error);
+  }
+};
+
+const validateParams = (params, keysAndTypeToCheck = []) => {
+  try {
+    keysAndTypeToCheck.forEach((obj) => {
+      if (!params[obj.key] || typeof params[obj.key] !== obj.type) {
+        throw new Error(
+          !params[obj.key]
+            ? `Invalid request, ${obj.key} is missing.`
+            : `Wrong param type for ${obj.key} (${typeof params[
                 obj.key
               ]}), required type is ${obj.type}.`
-            );
-          }
-        }
-      });
-      return true;
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  this.sendCloudNotification = async ({
-    title,
-    body,
-    icon = "ic_launcher",
-    data = {},
-    regTokens,
-    click_action = "FCM_PLUGIN_HOME_ACTIVITY",
-  }) => {
-    const admin = this.getFirebaseAdmin();
-    const messaging = admin.messaging();
-
-    var payload = {
-      data,
-      // notification: {
-      //   title,
-      //   icon,
-      //   body,
-      //   click_action,
-      // },
-    };
-
-    const options = {
-      priority: "high",
-    };
-
-    return messaging
-      .sendToDevice(regTokens, payload, options)
-      .then((result) => {
-        console.log(result);
-      })
-      .catch((err) => {
-        console.log("err: ", err);
-      });
-  };
-
-  this.getFirebaseAdmin = () => {
-    return admin;
-  };
-
-  this.RES = (res, data, statusCode = 200) => {
-    res.status(statusCode).json(data);
-  };
-
-  this.asyncForEach = async function (array, callback) {
-    for (let index = 0; index < array.length; index++) {
-      await callback(array[index], index, array);
-    }
-  };
-
-  this.getDataFromQuery = (query) => {
-    return new Promise((resolve, reject) => {
-      mysql.query(query, (err, results) => {
-        if (err) {
-          console.log("err: ", err);
-          reject(err.message);
-        }
-        resolve(results);
-      });
+        );
+      }
     });
+    return true;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const sendCloudNotification = async ({
+  title,
+  body,
+  icon = "ic_launcher",
+  data = {},
+  regTokens,
+  click_action = "FCM_PLUGIN_HOME_ACTIVITY",
+}) => {
+  const payload = {
+    data,
+    notification: {
+      title,
+      icon,
+      body,
+      click_action,
+    },
   };
 
-  this.generateHash = (length) => {
-    return Math.round(
-      Math.pow(36, length + 1) - Math.random() * Math.pow(36, length)
-    )
-      .toString(36)
-      .slice(1);
+  const options = {
+    priority: "high",
   };
 
-  return this;
-})();
+  try {
+    const result = await messaging.sendToDevice(regTokens, payload, options);
+  } catch (err) {
+    console.error("Cloud notification error:", err);
+  }
+};
+
+const getFirebaseAdmin = () => admin;
+
+const RES = (res, data, statusCode = 200) => res.status(statusCode).json(data);
+
+const asyncForEach = async (array, callback) => {
+  for (let index = 0; index < array.length; index++) {
+    await callback(array[index], index, array);
+  }
+};
+
+const getDataFromQuery = (query) =>
+  new Promise((resolve, reject) => {
+    mysql.query(query, (err, results) => {
+      if (err) {
+        console.error("MySQL query error:", err);
+        reject(err.message);
+      }
+      resolve(results);
+    });
+  });
+
+const generateHash = (length) =>
+  Math.round(Math.pow(36, length + 1) - Math.random() * Math.pow(36, length))
+    .toString(36)
+    .slice(1);
+
+module.exports = {
+  axiosInstance,
+  sendWebPushNotification,
+  validateParams,
+  sendCloudNotification,
+  getFirebaseAdmin,
+  RES,
+  asyncForEach,
+  getDataFromQuery,
+  generateHash
+};

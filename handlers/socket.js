@@ -22,8 +22,6 @@ const CALL_STATUSES = {
 module.exports = function (server) {
   const db = admin.database();
   const DB_NAME = `${config.domain.replace(/\./g, "_")}/rtc_notify`;
-  // const DB_NAME = "rtc_notify_dev";
-  console.log("DB_NAME:>>>>>>> ", DB_NAME);
   const rtcNotifyRef = db.ref(DB_NAME);
   const io = require("socket.io")(server);
   global.users = {};
@@ -50,10 +48,10 @@ module.exports = function (server) {
   }
 
   function emitAllUserStatus() {
-    const allUsers = [];
-    for (const key in users) {
-      allUsers.push({ ...users[key], socketId: key });
-    }
+    const allUsers = Object.keys(users).map((key) => ({
+      ...users[key],
+      socketId: key,
+    }));
     io.sockets.emit("allUsers", allUsers);
   }
 
@@ -80,20 +78,20 @@ module.exports = function (server) {
 
     function callInRoom(room, data) {
       for (const socketId in users) {
-        if (Object.hasOwnProperty.call(users, socketId)) {
+        // if (Object.hasOwnProperty.call(users, socketId)) {
           const user = users[socketId];
           if (user && user.uuid === data.connectToDrId) {
             io.sockets.to(socketId).emit("incoming_call", data);
             users[socketId].callStatus = CALL_STATUSES.CALLING;
             users[socketId].room = room;
           }
-        }
+        // }
       }
-      emitAllUserStatus();
+      // emitAllUserStatus();
 
       setTimeout(() => {
         for (const socketId in users) {
-          if (Object.hasOwnProperty.call(users, socketId)) {
+          // if (Object.hasOwnProperty.call(users, socketId)) {
             if (
               users[socketId] &&
               users[socketId].room &&
@@ -103,7 +101,7 @@ module.exports = function (server) {
               users[socketId].callStatus = CALL_STATUSES.IDLE;
               users[socketId].room = null;
             }
-          }
+          // }
         }
         emitAllUserStatus();
       }, 610000);
@@ -114,33 +112,33 @@ module.exports = function (server) {
       if (initiator === "dr") {
         users[socketId].callStatus = CALL_STATUSES.IN_CALL;
         users[socketId].room = roomId;
-        for (const socketId in users) {
-          if (Object.hasOwnProperty.call(users, socketId)) {
-            if (users[socketId].uuid === nurseId) {
-              users[socketId].callStatus = CALL_STATUSES.IN_CALL;
-              users[socketId].room = roomId;
+        for (const id in users) {
+          // if (Object.hasOwnProperty.call(users, socketId)) {
+            if (users[id].uuid === nurseId) {
+              users[id].callStatus = CALL_STATUSES.IN_CALL;
+              users[id].room = roomId;
             }
-          }
+          // }
         }
       } else {
-        for (const socketId in users) {
-          if (Object.hasOwnProperty.call(users, socketId)) {
+        for (const id in users) {
+          // if (Object.hasOwnProperty.call(users, socketId)) {
             if (
-              socketId === data?.socketId &&
-              users[socketId].uuid === data?.connectToDrId
+              id === data?.socketId &&
+              users[id].uuid === data?.connectToDrId
             ) {
-              users[socketId].callStatus = CALL_STATUSES.IN_CALL;
-            } else if (users[socketId].room === room) {
-              users[socketId].callStatus = CALL_STATUSES.IDLE;
-              users[socketId].room = null;
-              io.sockets.to(socketId).emit("call-connected");
+              users[id].callStatus = CALL_STATUSES.IN_CALL;
+            } else if (users[id].room === room) {
+              users[id].callStatus = CALL_STATUSES.IDLE;
+              users[id].room = null;
+              io.sockets.to(id).emit("call-connected");
             }
-          }
+          // }
         }
 
-        if (data?.appSocketId) {
-          users[data?.appSocketId].callStatus = CALL_STATUSES.IN_CALL;
-          users[data?.appSocketId].room = room;
+        if (data.appSocketId) {
+          users[data.appSocketId].callStatus = CALL_STATUSES.IN_CALL;
+          users[data.appSocketId].room = room;
         }
       }
       emitAllUserStatus();
@@ -168,113 +166,108 @@ module.exports = function (server) {
         users[data?.appSocketId].room = null;
       }
 
-      for (const socketId in users) {
-        if (Object.hasOwnProperty.call(users, socketId)) {
-          if (users[socketId].uuid === data?.nurseId) {
-            users[socketId].callStatus = CALL_STATUSES.IDLE;
-            users[socketId].room = null;
+      for (const id in users) {
+        // if (Object.hasOwnProperty.call(users, socketId)) {
+          if (users[id].uuid === data?.nurseId) {
+            users[id].callStatus = CALL_STATUSES.IDLE;
+            users[id].room = null;
           }
-        }
+        // }
       }
       emitAllUserStatus();
     });
 
     socket.on("ack_msg_received", function (data) {
-      if (typeof data === "string") {
-        data = JSON.parse(data);
-        deliveredById(data?.messageId);
-      } else {
-        deliveredById(data?.messageId);
-      }
+      data = typeof data === "string" ? JSON.parse(data) : data;
+      deliveredById(data?.messageId);
     });
 
-    socket.on("call-connected", async function (data) {
+    socket.on("call-connected", function (data) {
       markConnected(data);
     });
 
     socket.on("cancel_hw", async function (data) {
-      for (const socketId in users) {
-        if (Object.hasOwnProperty.call(users, socketId)) {
-          if (users[socketId].uuid === data?.connectToDrId) {
-            users[socketId].callStatus = CALL_STATUSES.HW_CANCELLED;
-            users[socketId].room = null;
+      for (const id in users) {
+        // if (Object.hasOwnProperty.call(users, socketId)) {
+          if (users[id].uuid === data?.connectToDrId) {
+            users[id].callStatus = CALL_STATUSES.HW_CANCELLED;
+            users[id].room = null;
             emitAllUserStatus();
             setTimeout(() => {
-              users[socketId].callStatus = CALL_STATUSES.IDLE;
+              users[id].callStatus = CALL_STATUSES.IDLE;
               emitAllUserStatus();
             }, 2000);
-            io.to(socketId).emit("cancel_hw", "app");
+            io.to(id).emit("cancel_hw", "app");
           }
-        }
+        // }
       }
     });
 
-    socket.on("cancel_dr", async function (data) {
-      for (const socketId in users) {
-        if (Object.hasOwnProperty.call(users, socketId)) {
-          if (users[socketId].uuid === data?.nurseId) {
-            users[socketId].callStatus = CALL_STATUSES.DR_CANCELLED;
-            users[socketId].room = null;
+    socket.on("cancel_dr", function (data) {
+      for (const id in users) {
+        // if (Object.hasOwnProperty.call(users, socketId)) {
+          if (users[id].uuid === data?.nurseId) {
+            users[id].callStatus = CALL_STATUSES.DR_CANCELLED;
+            users[id].room = null;
             emitAllUserStatus();
             setTimeout(() => {
-              users[socketId].callStatus = CALL_STATUSES.IDLE;
+              users[id].callStatus = CALL_STATUSES.IDLE;
               emitAllUserStatus();
             }, 2000);
-            io.to(socketId).emit("cancel_dr", "webapp");
+            io.to(id).emit("cancel_dr", "webapp");
           }
-        }
+        // }
       }
     });
 
     socket.on("call_time_up", async function (toUserUuid) {
-      console.log("toUserUuid: ", toUserUuid);
-      for (const socketId in users) {
-        if (Object.hasOwnProperty.call(users, socketId)) {
-          if (users[socketId].uuid === toUserUuid) {
-            users[socketId].callStatus = CALL_STATUSES.IDLE;
-            users[socketId].room = null;
+      for (const id in users) {
+        // if (Object.hasOwnProperty.call(users, socketId)) {
+          if (users[id].uuid === toUserUuid) {
+            users[id].callStatus = CALL_STATUSES.IDLE;
+            users[id].room = null;
             emitAllUserStatus();
             setTimeout(() => {
-              users[socketId].callStatus = CALL_STATUSES.IDLE;
+              users[id].callStatus = CALL_STATUSES.IDLE;
               emitAllUserStatus();
             }, 2000);
-            io.to(socketId).emit("call_time_up", toUserUuid);
+            io.to(id).emit("call_time_up", toUserUuid);
           }
-        }
+        // }
       }
     });
 
     socket.on("hw_call_reject", async function (toUserUuid) {
-      for (const socketId in users) {
-        if (Object.hasOwnProperty.call(users, socketId)) {
-          if (users[socketId].uuid === toUserUuid) {
-            users[socketId].callStatus = CALL_STATUSES.HW_REJECTED;
-            users[socketId].room = null;
+      for (const id in users) {
+        // if (Object.hasOwnProperty.call(users, socketId)) {
+          if (users[id].uuid === toUserUuid) {
+            users[id].callStatus = CALL_STATUSES.HW_REJECTED;
+            users[id].room = null;
             emitAllUserStatus();
             setTimeout(() => {
-              users[socketId].callStatus = CALL_STATUSES.IDLE;
+              users[id].callStatus = CALL_STATUSES.IDLE;
               emitAllUserStatus();
             }, 2000);
-            io.to(socketId).emit("hw_call_reject", "app");
+            io.to(id).emit("hw_call_reject", "app");
           }
-        }
+        // }
       }
     });
 
     socket.on("dr_call_reject", async function (toUserUuid) {
-      for (const socketId in users) {
-        if (Object.hasOwnProperty.call(users, socketId)) {
-          if (users[socketId].uuid === toUserUuid) {
-            users[socketId].callStatus = CALL_STATUSES.DR_REJECTED;
-            users[socketId].room = null;
+      for (const id in users) {
+        // if (Object.hasOwnProperty.call(users, socketId)) {
+          if (users[id].uuid === toUserUuid) {
+            users[id].callStatus = CALL_STATUSES.DR_REJECTED;
+            users[id].room = null;
             emitAllUserStatus();
             setTimeout(() => {
-              users[socketId].callStatus = CALL_STATUSES.IDLE;
+              users[id].callStatus = CALL_STATUSES.IDLE;
               emitAllUserStatus();
             }, 2000);
-            io.to(socketId).emit("dr_call_reject", "webapp");
+            io.to(id).emit("dr_call_reject", "webapp");
           }
-        }
+        // }
       }
     });
 
@@ -309,18 +302,18 @@ module.exports = function (server) {
       users[socket.id].callStatus = CALL_STATUSES.CALLING;
       users[socket.id].room = roomId;
 
-      for (const socketId in users) {
-        if (Object.hasOwnProperty.call(users, socketId)) {
-          const userObj = users[socketId];
+      for (const id in users) {
+        // if (Object.hasOwnProperty.call(users, socketId)) {
+          const userObj = users[id];
           if (userObj.uuid === nurseId) {
-            io.sockets.to(socketId).emit("call", dataIds);
+            io.sockets.to(id).emit("call", dataIds);
             isCalling = true;
-            users[socketId].callStatus = CALL_STATUSES.CALLING;
-            users[socketId].room = roomId;
+            userObj.callStatus = CALL_STATUSES.CALLING;
+            userObj.room = roomId;
 
             setTimeout(() => {
               for (const socketId in users) {
-                if (Object.hasOwnProperty.call(users, socketId)) {
+                // if (Object.hasOwnProperty.call(users, socketId)) {
                   if (
                     users[socketId] &&
                     users[socketId].room &&
@@ -330,16 +323,15 @@ module.exports = function (server) {
                     users[socketId].callStatus = CALL_STATUSES.IDLE;
                     users[socketId].room = null;
                   }
-                }
+                // }
               }
               emitAllUserStatus();
             }, 610000);
           }
-        }
+        // }
       }
       emitAllUserStatus();
 
-      let data = "";
       if (!isCalling) {
         const room = roomId;
         setTimeout(() => {
@@ -358,11 +350,31 @@ module.exports = function (server) {
         }, 10000);
       }
 
+      let data = "";
       try {
         data = await user_settings.findOne({
           where: { user_uuid: nurseId },
         });
       } catch (error) {}
+
+      // sendCloudNotification({
+      //   title: "",
+      //   body: "",
+      //   regTokens: [data?.device_reg_token],
+      //   opts: {
+      //     timeToLive: 60,
+      //   },
+      //   data: {
+      //     id: generateUUID(),
+      //     ...dataIds,
+      //     doctorName,
+      //     nurseId,
+      //     roomId,
+      //     type: "video_call",
+      //     timestamp: Date.now().toString(),
+      //     device_token: data?.device_reg_token || "",
+      //   },
+      // });
 
       await rtcNotifyRef.update({
         [nurseId]: {
@@ -375,7 +387,7 @@ module.exports = function (server) {
             roomId,
             timestamp: Date.now(),
             device_token:
-              data && data.device_reg_token ? data.device_reg_token : "",
+              data?.device_reg_token ? data.device_reg_token : "",
           },
         },
       });

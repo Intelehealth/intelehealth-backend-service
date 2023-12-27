@@ -6,12 +6,37 @@ const {
   readMessagesById,
   getVisits,
 } = require("../services/message.service");
-const { validateParams } = require("../handlers/helper");
-const { user_settings } = require("../models");
+const { validateParams, sendWebPushNotification } = require("../handlers/helper");
+const { user_settings, pushnotification } = require("../models");
 const { uploadFile } = require("../handlers/file.handler");
-const { sendNotification, getSubscriptions } = require("../handlers/web-push");
 
 module.exports = (function () {
+
+  this.sendMessageNotification = async (payload) => {
+    const subscriptions = await pushnotification.findAll({
+      where: { user_uuid: payload.toUser },
+    });
+    
+    subscriptions.forEach(async (sub) => {
+      sendWebPushNotification({
+        webpush_obj: sub.notification_object,
+        data: {
+          ...payload,
+          url: `${
+            process.env.NODE_ENV === "prod" ? "/intelehealth" : ""
+          }/#/dashboard/elcg/${payload.visitId}?openChat=true`,
+        },
+        title: `New Chat from ${payload.hwName || "HW"}(${
+          payload.patientName || "Patient"
+        }):${payload.openMrsId || ""}`,
+        body: payload.message,
+        options: {
+          TTL: "3600000",
+        },
+      });
+    });
+  };
+
   /**
    * Method to create message entry and transmit it to socket on realtime
    * @param {*} req
@@ -54,19 +79,20 @@ module.exports = (function () {
           hwPic,
           type
         );
-        console.log("type: ", type);
         try {
           messages = await getMessages(fromUser, toUser, patientId, visitId);
         } catch (error) {}
         for (const key in users) {
           if (Object.hasOwnProperty.call(users, key)) {
             const user = users[key];
+            let messageData = {};
             if (user && user.uuid == toUser) {
               try {
                 data.data.dataValues.createdAt = new Date(
                   data.data.dataValues.createdAt
                 ).toGMTString();
                 messageData = data.data.toJSON();
+                data.data.dataValues.allMessages = messages.data;
               } catch (error) {}
               io.to(key).emit("updateMessage", messageData);
               isLiveMessageSent = true;
@@ -78,7 +104,7 @@ module.exports = (function () {
           const userSetting = await user_settings.findOne({
             where: { user_uuid: toUser },
           });
-          if (userSetting && userSetting.device_reg_token) {
+          if (userSetting?.device_reg_token) {
             notificationResponse = await sendCloudNotification({
               title: "New chat message",
               body: message,
@@ -100,23 +126,16 @@ module.exports = (function () {
             user_uuid: toUser,
           },
         });
-        if (us && us?.notification) {
-          const subscriptions = await getSubscriptions(us.user_uuid);
-          if (subscriptions.length) {
-            subscriptions.forEach(async (sub) => {
-              await sendNotification(
-                JSON.parse(sub.notification_object),
-                "Hey! You got new chat message",
-                message
-              );
-            });
+
+        if (us?.notification) {
+          if (us?.snooze_till ? new Date().valueOf() > us?.snooze_till : true) {
+            notificationResponse = this.sendMessageNotification(req.body);
           }
         }
 
         res.json({ ...data, notificationResponse });
       }
     } catch (error) {
-      console.log("error: ", error);
       res.json({
         status: false,
         message: error,

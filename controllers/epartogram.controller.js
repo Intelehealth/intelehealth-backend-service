@@ -1,4 +1,5 @@
 const { epartogram_configs } = require("../models");
+const { RES } = require("../handlers/helper");
 
 /**
  * Return epartogram_configs respect to key
