@@ -1,7 +1,7 @@
 "use strict";
 const { Model } = require("sequelize");
 module.exports = (sequelize, DataTypes) => {
-  class pushnotification extends Model {
+  class pushnotifications extends Model {
     /**
      * Helper method for defining associations.
      * This method is not a part of Sequelize lifecycle.
@@ -11,7 +11,7 @@ module.exports = (sequelize, DataTypes) => {
       // define association here
     }
   }
-  pushnotification.init(
+  pushnotifications.init(
     {
       notification_object: DataTypes.JSON,
       speciality: DataTypes.STRING,
@@ -24,10 +24,10 @@ module.exports = (sequelize, DataTypes) => {
     },
     {
       sequelize,
-      modelName: "pushnotification",
+      modelName: "pushnotifications",
     }
   );
-  pushnotification.removeAttribute("updatedAt");
+  pushnotifications.removeAttribute("updatedAt");
 
-  return pushnotification;
+  return pushnotifications;
 };

@@ -36,7 +36,7 @@ async function sendNotification(subscription, title, body) {
 };
 
 async function getSubscriptions(uuid) {
-    let query = `SELECT * FROM pushnotification WHERE user_uuid = '${uuid}'`;
+    let query = `SELECT * FROM pushnotifications WHERE user_uuid = '${uuid}'`;
     let data = await new Promise((resolve, reject) => {
         mindmapDB.query(query, (err, results, fields) => {
         if (err) reject(err);

@@ -45,6 +45,7 @@ const sendWebPushNotification = async ({
   body,
   data = {},
   parse = false,
+  options = { TTL: "3600000" }
 }) => {
   try {
     return await webpush.sendNotification(
@@ -55,8 +56,10 @@ const sendWebPushNotification = async ({
           body,
           vibrate: [100, 50, 100],
           data,
+          icon: 'assets/icons/icon-512x512.png'
         },
-      })
+      }),
+      options
     );
   } catch (error) {
     console.error("Web Push notification error:", error);

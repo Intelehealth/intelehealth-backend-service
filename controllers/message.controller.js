@@ -7,13 +7,13 @@ const {
   getVisits,
 } = require("../services/message.service");
 const { validateParams, sendWebPushNotification } = require("../handlers/helper");
-const { user_settings, pushnotification } = require("../models");
+const { user_settings, pushnotifications } = require("../models");
 const { uploadFile } = require("../handlers/file.handler");
 
 module.exports = (function () {
 
   this.sendMessageNotification = async (payload) => {
-    const subscriptions = await pushnotification.findAll({
+    const subscriptions = await pushnotifications.findAll({
       where: { user_uuid: payload.toUser },
     });
     
@@ -22,9 +22,7 @@ module.exports = (function () {
         webpush_obj: sub.notification_object,
         data: {
           ...payload,
-          url: `${
-            process.env.NODE_ENV === "prod" ? "/intelehealth" : ""
-          }/#/dashboard/elcg/${payload.visitId}?openChat=true`,
+          url: `/intelehealth/index.html#/dashboard/elcg/${payload.visitId}?openChat=true`,
         },
         title: `New Chat from ${payload.hwName || "HW"}(${
           payload.patientName || "Patient"
