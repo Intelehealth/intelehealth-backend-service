@@ -1,5 +1,6 @@
 const { default: axios } = require("axios");
 const { links } = require("../models");
+const { MESSAGE } = require("../constants/messages");
 
 module.exports = (function () {
   /**
@@ -14,7 +15,7 @@ module.exports = (function () {
       });
 
       if (!link) {
-        throw new Error("Invalid link!");
+        throw new Error(MESSAGE.PRESCRIPTION.INVALID_LINK);
       }
       const otp = (
         await axios.get(
@@ -36,13 +37,13 @@ module.exports = (function () {
     });
 
     if (!link) {
-      throw new Error("Invalid link!");
+      throw new Error(MESSAGE.PRESCRIPTION.INVALID_LINK);
     }
 
     if (link.otp === otp) {
       return true;
     } else {
-      throw new Error("Invalid OTP!");
+      throw new Error(MESSAGE.PRESCRIPTION.INVALID_OTP);
     }
   };
 

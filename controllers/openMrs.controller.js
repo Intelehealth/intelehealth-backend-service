@@ -1,3 +1,4 @@
+const { MESSAGE } = require("../constants/messages");
 const openMrsDB = require("../handlers/mysql/mysqlOpenMrs");
 const { sendOtp, resetPassword } = require("../services/openmrs.service");
 const {
@@ -136,7 +137,7 @@ const getVisitCounts = async (req, res, next) => {
     });
     res.json({
       data,
-      message: "Visit count fetched successfully",
+      message: MESSAGE.OPENMRS.VISIT_COUNT_FETCHED_SUCCESSFULLY,
     });
   } catch (error) {
     res.statusCode = 422;
@@ -206,7 +207,6 @@ const forgetPasswordResetPassword = async (req, res, next) => {
 const getAwaitingVisits = async (req, res, next) => {
   try {
     const data = await _getAwaitingVisits(
-      // req.query.state,
       req.query.speciality,
       req.query.page
     );
@@ -225,7 +225,6 @@ const getAwaitingVisits = async (req, res, next) => {
 const getPriorityVisits = async (req, res, next) => {
   try {
     const data = await _getPriorityVisits(
-      // req.query.state,
       req.query.speciality,
       req.query.page
     );
@@ -244,7 +243,6 @@ const getPriorityVisits = async (req, res, next) => {
 const getInProgressVisits = async (req, res, next) => {
   try {
     const data = await _getInProgressVisits(
-      // req.query.state,
       req.query.speciality,
       req.query.page
     );
@@ -263,7 +261,6 @@ const getInProgressVisits = async (req, res, next) => {
 const getCompletedVisits = async (req, res, next) => {
   try {
     const data = await _getCompletedVisits(
-      // req.query.state,
       req.query.speciality,
       req.query.page
     );
@@ -282,7 +279,6 @@ const getCompletedVisits = async (req, res, next) => {
 const getEndedVisits = async (req, res, next) => {
   try {
     const data = await _getEndedVisits(
-      // req.query.state,
       req.query.speciality,
       req.query.page
     );

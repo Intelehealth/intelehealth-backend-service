@@ -3,11 +3,12 @@ const configuration = new Configuration({
     apiKey: process.env.OPEN_AI_KEY,
 });
 const openai = new OpenAIApi(configuration);
-const { gptinputs, gptmodels, Sequelize, sequelize } = require("../models");
+const { gptinputs, gptmodels, Sequelize } = require("../models");
 const axios = require("axios");
 const readXlsxFile = require('read-excel-file/node');
 const xlsx = require('node-xlsx').default;
 const fs = require('fs');
+const { MESSAGE } = require("../constants/messages");
 
 module.exports = (function () {
 
@@ -35,14 +36,14 @@ module.exports = (function () {
 
             if (gptModel == 'specialized-llm') {
                 const axiosInstance = axios.create({
-                    baseURL: 'https://ci.intelehealth.org',
+                    baseURL: process.env.OPEN_AI_BASE_URL,
                     timeout: 50000,
                 });
                 const response = await axiosInstance.post('/ask', { question: `${gptInput} ${payload}` });
                 return {
                     code: 200,
                     success: true,
-                    message: "Chat completion created successfully!",
+                    message: MESSAGE.OPEN_AI.CHAT_COMPLETION_CREATED_SUCCESSFULLY,
                     data: { output: { choices: [{ message: { content: response.data.data } }] }, model: gptModel }
                 };
             } else {
@@ -58,7 +59,7 @@ module.exports = (function () {
                 return {
                     code: 200,
                     success: true,
-                    message: "Chat completion created successfully!",
+                    message: MESSAGE.OPEN_AI.CHAT_COMPLETION_CREATED_SUCCESSFULLY,
                     data: { output: response.data, model: gptModel }
                 };
             }
@@ -85,7 +86,7 @@ module.exports = (function () {
             return {
                 code: 200,
                 success: true,
-                message: "Chat completion created successfully!",
+                message: MESSAGE.OPEN_AI.CHAT_COMPLETION_CREATED_SUCCESSFULLY,
                 data: response.data
             };
         } catch (error) {
@@ -112,7 +113,7 @@ module.exports = (function () {
             return {
                 code: 200,
                 success: true,
-                message: "List of GPT Inputs retreived successfully!",
+                message: MESSAGE.OPEN_AI.LIST_OF_GPT_INPUTS_RETREIVED_SUCCESSFULLY,
                 data: response
             };
         } catch (error) {
@@ -131,7 +132,7 @@ module.exports = (function () {
             return {
                 code: 200,
                 success: true,
-                message: "GPT Input added successfully!",
+                message: MESSAGE.OPEN_AI.GPT_INPUT_ADDED_SUCCESSFULLY,
                 data: data
             };
         } catch (error) {
@@ -166,7 +167,7 @@ module.exports = (function () {
             return {
                 code: 200,
                 success: true,
-                message: "GPT Input set as default successfully!",
+                message: MESSAGE.OPEN_AI.GPT_INPUT_SET_AS_DEFAULT_SUCCESSFULLY,
                 data: data
             };
         } catch (error) {
@@ -191,14 +192,14 @@ module.exports = (function () {
                 return {
                     code: 200,
                     success: true,
-                    message: "GPT Input deleted successfully!",
+                    message: MESSAGE.OPEN_AI.GPT_INPUT_DELETED_SUCCESSFULLY,
                     data: null
                 };
             } else {
                 return {
                     code: 200,
                     success: false,
-                    message: "Can't delete default GPT Input/No GPT Input with such id exists!",
+                    message: MESSAGE.OPEN_AI.CANT_DELETE_DEFAULT_GPT_INPUT_NO_GPT_INPUT_WITH_SUCH_ID_EXISTS,
                     data: null
                 };
             }
@@ -226,7 +227,7 @@ module.exports = (function () {
             return {
                 code: 200,
                 success: true,
-                message: "List of GPT models retreived successfully!",
+                message: MESSAGE.OPEN_AI.LIST_OF_GPT_INPUTS_RETREIVED_SUCCESSFULLY,
                 data: response
             };
         } catch (error) {
@@ -245,7 +246,7 @@ module.exports = (function () {
             return {
                 code: 200,
                 success: true,
-                message: "GPT model added successfully!",
+                message: MESSAGE.OPEN_AI.GPT_MODEL_ADDED_SUCCESSFULLY,
                 data: data
             };
         } catch (error) {
@@ -280,7 +281,7 @@ module.exports = (function () {
             return {
                 code: 200,
                 success: true,
-                message: "GPT model set as default successfully!",
+                message: MESSAGE.OPEN_AI.GPT_MODEL_SET_AS_DEFAULT_SUCCESSFULLY,
                 data: data
             };
         } catch (error) {
@@ -305,14 +306,14 @@ module.exports = (function () {
                 return {
                     code: 200,
                     success: true,
-                    message: "GPT model deleted successfully!",
+                    message: MESSAGE.OPEN_AI.GPT_MODEL_DELETED_SUCCESSFULLY,
                     data: null
                 };
             } else {
                 return {
                     code: 200,
                     success: false,
-                    message: "Can't delete default GPT Input/No GPT Input with such id exists!",
+                    message: MESSAGE.OPEN_AI.CANT_DELETE_DEFAULT_GPT_INPUT_NO_GPT_INPUT_WITH_SUCH_ID_EXISTS,
                     data: null
                 };
             }
@@ -328,7 +329,6 @@ module.exports = (function () {
     this.translateExcel = async function (file, language) {
         try {
             const data = await readXlsxFile(file.path);
-            // const workSheetsFromFile = xlsx.parse(file.path);
             let words = [];
             let jsonObject = { };
             for (let i = 1; i < data.length; i++) {
@@ -393,7 +393,7 @@ module.exports = (function () {
             return {
                 code: 200,
                 success: true,
-                message: "Chat completion created successfully!",
+                message: MESSAGE.OPEN_AI.CHAT_COMPLETION_CREATED_SUCCESSFULLY,
                 data: buffer
             };
         } catch (error) {

@@ -1,3 +1,4 @@
+const { MESSAGE } = require("../constants/messages");
 const { RES } = require("../handlers/helper");
 const {
   resetPassword,
@@ -28,7 +29,7 @@ module.exports = (function () {
               res,
               {
                 success: false,
-                message: "Bad request! Invalid arguments.",
+                message: MESSAGE.COMMON.BAD_REQUEST,
                 data: null,
               },
               400
@@ -56,7 +57,7 @@ module.exports = (function () {
           res,
           {
             success: false,
-            message: "Bad request! Invalid arguments.",
+            message: MESSAGE.COMMON.BAD_REQUEST,
             data: null,
           },
           400
@@ -104,7 +105,7 @@ module.exports = (function () {
           res,
           {
             success: false,
-            message: "Bad request! Invalid arguments.",
+            message: MESSAGE.COMMON.BAD_REQUEST,
             data: null,
           },
           400
@@ -148,7 +149,7 @@ module.exports = (function () {
           res,
           {
             success: false,
-            message: "Bad request! Invalid arguments.",
+            message: MESSAGE.COMMON.BAD_REQUEST,
             data: null,
           },
           400
@@ -198,8 +199,7 @@ module.exports = (function () {
             res,
             {
               success: false,
-              message:
-                "Bad request! Attribute type should be emailId/phoneNumber.",
+              message: MESSAGE.AUTH.BAD_REQUEST_ATTRIBUTE_SHOULD_BE_EMAILID_PHONE_NUMBER,
               data: null,
             },
             400
@@ -224,7 +224,7 @@ module.exports = (function () {
           res,
           {
             success: false,
-            message: "Bad request! Invalid arguments.",
+            message: MESSAGE.COMMON.BAD_REQUEST,
             data: null,
           },
           400

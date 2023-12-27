@@ -21,6 +21,8 @@ const {
   concept,
   concept_name
 } = require("../openmrs_models");
+const { MESSAGE } = require("../constants/messages");
+const Constant = require("../constants/constant");
 const Op = Sequelize.Op;
 
 module.exports = (function () {
@@ -70,10 +72,9 @@ module.exports = (function () {
         data = data.length && data[0] ? data[0] : null;
 
         if (!data) {
-          throw new Error(`Invalid username!`);
+          throw new Error(MESSAGE.OPENMRS.INVALID_USERNAME);
         }
 
-        // const otp = Math.floor(Math.random() * 900000);
         await saveOTP(data.uuid, "111111");
       } else if (phoneNumber) {
         query = `SELECT
@@ -102,7 +103,7 @@ module.exports = (function () {
         data = data.length && data[0] ? data[0] : null;
 
         if (!data) {
-          throw new Error(`Invalid phoneNumber!`);
+          throw new Error(MESSAGE.OPENMRS.INVALID_PHONENUMBER);
         }
 
         const users = await new Promise((resolve, reject) => {
@@ -120,7 +121,7 @@ module.exports = (function () {
         const user = users.length && users[0] ? users[0] : null;
 
         if (!user) {
-          throw new Error(`No Active used found with the passed phoneNumber!`);
+          throw new Error(MESSAGE.OPENMRS.NO_ACTIVE_USED_FOUND_WITH_THE_PASSED_PHONENUMBER);
         }
 
         await saveOTP(user.uuid, "111111");
@@ -131,7 +132,7 @@ module.exports = (function () {
       return {
         success: true,
         data,
-        message: "OTP sent successfully!",
+        message: MESSAGE.OPENMRS.OTP_SENT_SUCCESSFULLY,
       };
     } catch (error) {
       return {
@@ -151,7 +152,7 @@ module.exports = (function () {
     });
 
     if (!userSetting || !userSetting.otp) {
-      throw new Error("Request OTP first!");
+      throw new Error(MESSAGE.OPENMRS.REQUEST_OTP_FIRST);
     }
 
     const otpUpdatedAtDifference = moment(userSetting.updatedAt).diff(
@@ -163,11 +164,11 @@ module.exports = (function () {
       userSetting.otp = "";
       await userSetting.save();
 
-      throw new Error("OTP expired, request a new OTP!");
+      throw new Error(MESSAGE.OPENMRS.OTP_EXPIRED_REQUEST_A_NEW_OTP);
     }
 
     if (userSetting.otp !== otp) {
-      throw new Error("Invalid OTP!");
+      throw new Error(MESSAGE.OPENMRS.INVALID_OTP);
     }
 
     const payload = {
@@ -180,7 +181,7 @@ module.exports = (function () {
     return {
       success: true,
       data,
-      message: "Password reset successfully!",
+      message: MESSAGE.OPENMRS.PASSWORD_RESET_SUCCESSFULLY,
     };
   };
 
@@ -194,10 +195,10 @@ module.exports = (function () {
       let appointmentVisitIds = [];
       if(type === "Awaiting Consult"){
         const data = await Appointment.findAll({
-          attributes: ['visitUuid'],
+          attributes: [Constant.VISIT_UUID],
           where: {
             speciality: speciality,
-            status: "booked",
+            status: Constant.BOOKED,
           },
           raw: true,
         });
@@ -219,7 +220,6 @@ module.exports = (function () {
    * 15 - Flagged
    */
   this.getVisitsByType = async (
-    // state,
     speciality,
     page = 1,
     limit = 1000,
@@ -230,11 +230,6 @@ module.exports = (function () {
 
       if (limit > 5000) limit = 5000;
       const visitIds = await this.getVisits(type, speciality);
-
-      // const value_reference = [speciality];
-      // if (state !== "All") {
-      //   value_reference.push(state);
-      // }
 
       const visits = await visit.findAll({
         where: {
@@ -285,15 +280,6 @@ module.exports = (function () {
               },
             ],
           },
-          // {
-          //   model: visit_attribute,
-          //   as: "attributes",
-          //   attributes: ["value_reference", "attribute_type_id"],
-          //   where: {
-          //     attribute_type_id: { [Op.in]: [5, 6, 8] },
-          //     // value_reference: { [Op.in]: value_reference },
-          //   },
-          // },
           {
             model: patient_identifier,
             as: "patient",
@@ -327,14 +313,12 @@ module.exports = (function () {
   };
 
   this._getPriorityVisits = async (
-    // state,
     speciality,
     page = 1,
     limit = 1000
   ) => {
     try {
       return await getVisitsByType(
-        // state, 
         speciality, 
         page, 
         limit, 
@@ -345,14 +329,12 @@ module.exports = (function () {
   };
 
   this._getAwaitingVisits = async (
-    // state,
     speciality,
     page = 1,
     limit = 1000
   ) => {
     try {
       return await getVisitsByType(
-        // state,
         speciality,
         page,
         limit,
@@ -364,14 +346,12 @@ module.exports = (function () {
   };
 
   this._getInProgressVisits = async (
-    // state,
     speciality,
     page = 1,
     limit = 1000
   ) => {
     try {
       return await getVisitsByType(
-        // state,
         speciality,
         page,
         limit,
@@ -383,14 +363,12 @@ module.exports = (function () {
   };
 
   this._getCompletedVisits = async (
-    // state,
     speciality,
     page = 1,
     limit = 1000
   ) => {
     try {
       return await getVisitsByType(
-        // state,
         speciality,
         page,
         limit,
@@ -402,14 +380,12 @@ module.exports = (function () {
   };
 
   this._getEndedVisits = async (
-    // state,
     speciality,
     page = 1,
     limit = 1000
   ) => {
     try {
       return await getVisitsByType(
-        // state,
         speciality,
         page,
         limit,

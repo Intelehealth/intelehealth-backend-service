@@ -1,6 +1,6 @@
+const { MESSAGE } = require("../constants/messages");
 const { RES } = require("../handlers/helper");
 const { createCompletion, createCompletion2, translateExcel, getGTPInputs, addGTPInput, setAsDefaultGTPInput, deleteGPTInput, getGPTModels, addGPTModel, setAsDefaultGPTModel, deleteGPTModel } = require("../services/openai.service");
-const fs = require('fs');
 
 module.exports = (function () {
     /**
@@ -27,7 +27,7 @@ module.exports = (function () {
             res,
             {
               success: false,
-              message: "Bad request! Invalid arguments.",
+              message: MESSAGE.COMMON.BAD_REQUEST,
               data: null,
             },
             400
@@ -69,7 +69,7 @@ module.exports = (function () {
             res,
             {
               success: false,
-              message: "Bad request! Invalid arguments.",
+              message: MESSAGE.COMMON.BAD_REQUEST,
               data: null,
             },
             400
@@ -140,7 +140,7 @@ module.exports = (function () {
             res,
             {
               success: false,
-              message: "Bad request! Invalid arguments.",
+              message: MESSAGE.COMMON.BAD_REQUEST,
               data: null,
             },
             400
@@ -182,7 +182,7 @@ module.exports = (function () {
             res,
             {
               success: false,
-              message: "Bad request! Invalid arguments.",
+              message: MESSAGE.COMMON.BAD_REQUEST,
               data: null,
             },
             400
@@ -224,7 +224,7 @@ module.exports = (function () {
             res,
             {
               success: false,
-              message: "Bad request! Invalid arguments.",
+              message: MESSAGE.COMMON.BAD_REQUEST,
               data: null,
             },
             400
@@ -295,7 +295,7 @@ module.exports = (function () {
             res,
             {
               success: false,
-              message: "Bad request! Invalid arguments.",
+              message: MESSAGE.COMMON.BAD_REQUEST,
               data: null,
             },
             400
@@ -337,7 +337,7 @@ module.exports = (function () {
             res,
             {
               success: false,
-              message: "Bad request! Invalid arguments.",
+              message: MESSAGE.COMMON.BAD_REQUEST,
               data: null,
             },
             400
@@ -379,7 +379,7 @@ module.exports = (function () {
             res,
             {
               success: false,
-              message: "Bad request! Invalid arguments.",
+              message: MESSAGE.COMMON.BAD_REQUEST,
               data: null,
             },
             400
@@ -426,7 +426,7 @@ module.exports = (function () {
             res,
             {
               success: false,
-              message: "Bad request! Invalid arguments.",
+              message: MESSAGE.COMMON.BAD_REQUEST,
               data: null,
             },
             400
