@@ -1,8 +1,8 @@
-import jwt from "jsonwebtoken";
+const jwt = require('jsonwebtoken');
 const fs = require('fs');
 const path = require('path');
-const publicKey  = fs.readFileSync(path.join(__dirname, './../../', '.pem', 'public_key.pem'), 
-  { encoding: 'utf8', flag: 'r' }
+const publicKey  = fs.readFileSync(path.join(__dirname, '../', '.pem', 'public_key.pem'), 
+{ encoding: 'utf8', flag: 'r' }
 )
 
 const authMiddleware = (req, res, next) => {
@@ -20,10 +20,11 @@ const authMiddleware = (req, res, next) => {
     }
     try {
         const decoded = jwt.verify(token, publicKey);
-        (req as any).user = decoded;
+        req.user = decoded;
         next();
     } catch (err) {
      return res.status(401).json({ success: false, message: "Invalid token" });
     }
 };
-export default authMiddleware;
+
+module.exports = authMiddleware;

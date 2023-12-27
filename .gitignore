@@ -1,4 +1,6 @@
 *.zip
+*.env
+*.DS_Store
 /portal/config/config.json
 /portal/config/serviceAccountKey.json
 /node_modules
