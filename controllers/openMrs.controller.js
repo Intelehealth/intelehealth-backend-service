@@ -189,6 +189,12 @@ const forgetPasswordSendOtp = async (req, res, next) => {
   }
 };
 
+/**
+ * Request for reset the password of user.
+ * @param {request} req
+ * @param {response} res
+ * @returns 
+ */
 const forgetPasswordResetPassword = async (req, res, next) => {
   try {
     const userUuid = req.params.userUuid;
@@ -204,6 +210,12 @@ const forgetPasswordResetPassword = async (req, res, next) => {
   }
 };
 
+/**
+ * Get awaiting visit.
+ * @param {request} req
+ * @param {response} res
+ * @returns visits
+ */
 const getAwaitingVisits = async (req, res, next) => {
   try {
     const data = await _getAwaitingVisits(
@@ -221,7 +233,12 @@ const getAwaitingVisits = async (req, res, next) => {
     res.json({ status: false, message: error.message });
   }
 };
-
+/**
+ * Get priorities visit.
+ * @param {request} req
+ * @param {response} res
+ * @returns visits
+ */
 const getPriorityVisits = async (req, res, next) => {
   try {
     const data = await _getPriorityVisits(
@@ -239,7 +256,12 @@ const getPriorityVisits = async (req, res, next) => {
     res.json({ status: false, message: error.message });
   }
 };
-
+/**
+ * Get in progress visit.
+ * @param {request} req
+ * @param {response} res
+ * @returns visits
+ */
 const getInProgressVisits = async (req, res, next) => {
   try {
     const data = await _getInProgressVisits(
@@ -258,6 +280,12 @@ const getInProgressVisits = async (req, res, next) => {
   }
 };
 
+/**
+ * Get completed visit.
+ * @param {request} req
+ * @param {response} res
+ * @returns visits
+ */
 const getCompletedVisits = async (req, res, next) => {
   try {
     const data = await _getCompletedVisits(
@@ -276,6 +304,12 @@ const getCompletedVisits = async (req, res, next) => {
   }
 };
 
+/**
+ * Get ended visit.
+ * @param {request} req
+ * @param {response} res
+ * @returns visits
+ */
 const getEndedVisits = async (req, res, next) => {
   try {
     const data = await _getEndedVisits(

@@ -167,6 +167,11 @@ module.exports = (function () {
     }
   };
 
+  /**
+   * Check the current session remember me. 
+   * @param {*} req
+   * @param {*} res
+   */
   this.checkSession = async (req, res) => {
     RES(res, {
       success: true,
@@ -174,6 +179,11 @@ module.exports = (function () {
     });
   };
 
+  /**
+   * Funtion for making remember me login during requested session.
+   * @param {*} req
+   * @param {*} res
+   */
   this.rememberme = async (req, res) => {
     req.session.rememberme = true;
     req.session.userUuid = req.body.userUuid;

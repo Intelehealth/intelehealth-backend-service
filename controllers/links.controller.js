@@ -48,6 +48,11 @@ module.exports = (function () {
     }
   };
 
+  /**
+   * Request for get Link
+   * @param {*} req
+   * @param {*} res
+   */
   this.getLink = async (req, res) => {
     try {
       const hash = req.params.hash;
@@ -66,6 +71,11 @@ module.exports = (function () {
     }
   };
 
+  /**
+   * Request otp for prescription validation
+   * @param {*} req
+   * @param {*} res
+   */
   this.requestOtp = async (req, res) => {
     try {
       const hash = req.body.hash;
@@ -79,6 +89,11 @@ module.exports = (function () {
     }
   };
 
+  /**
+   * Verify otp for prescription validation
+   * @param {*} req
+   * @param {*} res
+   */
   this.verifyOtp = async (req, res) => {
     try {
       const hash = req.body.hash;

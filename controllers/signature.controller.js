@@ -7,6 +7,11 @@ const Constant = require("../constants/constant");
 const { MESSAGE } = require("../constants/messages");
 
 module.exports = (function () {
+    /**
+     * Request for create signature.
+     * @param {request} req
+     * @param {response} res
+     */
     this.createSign = async (req, res) => {
         try {
             const {
@@ -43,6 +48,11 @@ module.exports = (function () {
         }
     };
 
+    /**
+     * Request for upload the signature.
+     * @param {request} req
+     * @param {response} res
+     */
     this.uploadSign = async (req, res) => {
         try {
             const {

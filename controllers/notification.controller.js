@@ -1,4 +1,3 @@
-const mysql = require("../handlers/mysql/mysql");
 const { user_settings } = require("../models");
 const { RES } = require("../handlers/helper");
 const { MESSAGE } = require("../constants/messages");
@@ -13,116 +12,11 @@ Date.prototype.addHours = function (h) {
   return this;
 };
 
-const setSnoozeToDBb = async (user_uuid, snooze_till) => {
-  return await new Promise((resolve, reject) => {
-    mysql.query(
-      "Insert into user_settings SET ?",
-      { user_uuid, snooze_till },
-      (err, results, fields) => {
-        if (err) {
-          reject(err.message);
-        }
-        resolve(MESSAGE.NOTIFICATION.SNOOZED_SUCCESSFULLY);
-      }
-    );
-  });
-};
-
-const removeUserSnooze = async (user_uuid) => {
-  return await new Promise((resolve, reject) => {
-    mysql.query(
-      `DELETE from user_settings where user_uuid='${user_uuid}'`,
-      (err, results, fields) => {
-        if (err) res.status(400).json({ message: err.message });
-        resolve(results);
-      }
-    );
-  });
-};
-
-// const snoozeNotification = async ({ body }, res) => {
-//   try {
-//     const type = body.custom ? "custom" : body.snooze_for;
-//     let snooze_till = "";
-//     let resp = {};
-//     let statusCode = 200;
-//     if (!body.user_uuid)
-//       res.status(422).json({ message: "Please pass correct user uuid!" });
-
-//     await removeUserSnooze(body.user_uuid);
-
-//     switch (type) {
-//       case "30m":
-//         snooze_till = new Date().addMinutes(30).valueOf();
-//         resp = {
-//           snooze_till: snooze_till - new Date().valueOf(),
-//           message: await setSnoozeToDBb(body.user_uuid, snooze_till),
-//         };
-//         break;
-//       case "1h":
-//         snooze_till = new Date().addHours(1).valueOf();
-//         resp = {
-//           snooze_till: snooze_till - new Date().valueOf(),
-//           message: await setSnoozeToDBb(body.user_uuid, snooze_till),
-//         };
-//         break;
-//       case "2h":
-//         snooze_till = new Date().addHours(2).valueOf();
-//         resp = {
-//           snooze_till: snooze_till - new Date().valueOf(),
-//           message: await setSnoozeToDBb(body.user_uuid, snooze_till),
-//         };
-//         break;
-
-//       case "custom": {
-//         let message;
-//         try {
-//           message = await setSnoozeToDBb(body.user_uuid, body.snooze_for);
-//         } catch (error) {
-//           message = error.message;
-//         }
-//         resp = {
-//           snooze_till: type,
-//           message,
-//         };
-//         break;
-//       }
-
-//       case "off":
-//         resp = {
-//           snooze_till: "",
-//           message: await setSnoozeToDBb(body.user_uuid, snooze_till),
-//         };
-//         break;
-//       default:
-//         {
-//           statusCode = 422;
-//           resp = {
-//             message: "Please pass correct snooze_for!",
-//           };
-//         }
-//         break;
-//     }
-//     res.status(statusCode).json(resp);
-//   } catch (err) {
-//     res.status(500).json({
-//       message: err.message || "Something went wrong with the request",
-//     });
-//   }
-// };
-
-const getSettings = async (uuid) => {
-  return new Promise((resolve, reject) => {
-    mysql.query(
-      `select * from user_settings where user_uuid='${uuid}' LIMIT 0 , 1`,
-      (err, results, fields) => {
-        if (err) reject(err);
-        resolve(results[0]);
-      }
-    );
-  });
-};
-
+/**
+ * Return Requested user settings.
+ * @param {request} req
+ * @param {response} res
+ */
 const getUserSettings = async ({ params }, res) => {
   if (!params.uuid)
     res.status(422).json({ message: "Please pass correct user uuid!" });
@@ -139,6 +33,11 @@ const getUserSettings = async ({ params }, res) => {
   });
 };
 
+/**
+ * Request for update or set the user settings.
+ * @param {request} req
+ * @param {response} res
+ */
 const setUserSettings = async ({ body }, res) => {
   if (!body.user_uuid)
     res.status(422).json({ message: MESSAGE.NOTIFICATION.PLEASE_PASS_CORRECT_USER_UUID });
@@ -165,6 +64,11 @@ const setUserSettings = async ({ body }, res) => {
   });
 };
 
+/**
+ * Request for get notification status from user settings.
+ * @param {request} req
+ * @param {response} res
+ */
 const getNotificationStatus = async ( req, res) => {
   try {
     const { uuid } = req.params;
@@ -217,6 +121,11 @@ const getNotificationStatus = async ( req, res) => {
   }
 };
 
+/**
+ * Request for update the notification status to user settings.
+ * @param {request} req
+ * @param {response} res
+ */
 const toggleNotificationStatus = async ( req, res) => {
   try {
     const { uuid } = req.params;
@@ -264,6 +173,11 @@ const toggleNotificationStatus = async ( req, res) => {
   }
 };
 
+/**
+ * Request for update the snooze time of the notification to user settings.
+ * @param {request} req
+ * @param {response} res
+ */
 const snoozeNotification = async ( req, res) => {
   try {
     const { uuid } = req.params;

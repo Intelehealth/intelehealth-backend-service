@@ -56,6 +56,11 @@ module.exports = (function () {
     }
   };
 
+  /**
+   * Get scheduled appointments based on year, month and user unique id.
+   * @param {*} req
+   * @param {*} res
+   */
   this.getAppointmentSchedule = async (req, res, next) => {
     try {
       const userUuid = req.params.userUuid;
@@ -74,6 +79,11 @@ module.exports = (function () {
     }
   };
 
+  /**
+   * Get scheduled months based on years and unique user id.
+   * @param {*} req
+   * @param {*} res
+   */
   this.getScheduledMonths = async (req, res, next) => {
     try {
       const userUuid = req.params.userUuid;
@@ -88,6 +98,11 @@ module.exports = (function () {
     }
   };
 
+  /**
+   * Get users slots between durations.
+   * @param {*} req
+   * @param {*} res
+   */
   this.getUserSlots = async (req, res, next) => {
     try {
       const keysAndTypeToCheck = [
@@ -107,6 +122,12 @@ module.exports = (function () {
     }
   };
 
+  /**
+   * Function for checking the current appointments between the timeline.
+   * @param {*} req
+   * @param {*} res
+   * @returns Appointments
+   */
   this.checkAppointment = async (req, res, next) => {
     try {
       const keysAndTypeToCheck = [
@@ -127,6 +148,12 @@ module.exports = (function () {
     }
   };
 
+  /**
+   * Update speciality for slots.
+   * @param {*} req
+   * @param {*} res
+   * @returns Updated speciality slots data
+   */
   this.updateSlotSpeciality = async (req, res, next) => {
     try {
       const keysAndTypeToCheck = [
@@ -145,6 +172,12 @@ module.exports = (function () {
     }
   };
 
+  /**
+   * Get speciality slots between specified timeline.
+   * @param {*} req
+   * @param {*} res
+   * @returns Speciality slots data
+   */
   this.getSpecialitySlots = async (req, res, next) => {
     try {
       const keysAndTypeToCheck = [
@@ -165,6 +198,12 @@ module.exports = (function () {
     }
   };
 
+  /**
+   * Get slots between specified timeline of selected location.
+   * @param {*} req
+   * @param {*} res
+   * @returns Get all slots of selected locations.
+   */
   this.getSlots = async (req, res, next) => {
     try {
       const keysAndTypeToCheck = [
@@ -188,6 +227,12 @@ module.exports = (function () {
     }
   };
 
+  /**
+   * Get appointments slots between specified timeline of selected speciality.
+   * @param {*} req
+   * @param {*} res
+   * @returns Appointment slots data of speciality.
+   */
   this.getAppointmentSlots = async (req, res, next) => {
     try {
       const keysAndTypeToCheck = [
@@ -215,6 +260,12 @@ module.exports = (function () {
     }
   };
 
+  /**
+   * Request for book new appointment.
+   * @param {*} req
+   * @param {*} res
+   * @returns Newly booked appointment.
+   */
   this.bookAppointment = async (req, res, next) => {
     try {
       const keysAndTypeToCheck = [
@@ -243,6 +294,12 @@ module.exports = (function () {
     }
   };
 
+  /**
+   * Request for rechedule the appointment.
+   * @param {*} req
+   * @param {*} res
+   * @returns updated appointment.
+   */
   this.rescheduleAppointment = async (req, res, next) => {
     try {
       const keysAndTypeToCheck = [
@@ -272,6 +329,12 @@ module.exports = (function () {
     }
   };
 
+  /**
+   * Request for cancel the appointment.
+   * @param {*} req
+   * @param {*} res
+   * @returns Appointment.
+   */
   this.cancelAppointment = async (req, res, next) => {
     try {
       const keysAndTypeToCheck = [
@@ -288,6 +351,12 @@ module.exports = (function () {
     }
   };
 
+  /**
+   * Request for complete the appointment.
+   * @param {*} req
+   * @param {*} res
+   * @returns Appointment.
+   */
   this.completeAppointment = async (req, res, next) => {
     try {
       const keysAndTypeToCheck = [{ key: Constant.VISIT_UUID, type: "string" }];
@@ -300,6 +369,12 @@ module.exports = (function () {
     }
   };
 
+  /**
+   * Request for get the appointment.
+   * @param {*} req
+   * @param {*} res
+   * @returns Appointment.
+   */
   this.getAppointment = async (req, res, next) => {
     try {
       const keysAndTypeToCheck = [{ key: Constant.VISIT_UUID, type: "string" }];
@@ -319,6 +394,12 @@ module.exports = (function () {
     }
   };
 
+  /**
+   * Request for start the appointment.
+   * @param {*} req
+   * @param {*} res
+   * @returns Appointment.
+   */
   this.startAppointment = async (req, res, next) => {
     try {
       const keysAndTypeToCheck = [
@@ -335,6 +416,12 @@ module.exports = (function () {
     }
   };
 
+  /**
+   * Request for release the appointment.
+   * @param {*} req
+   * @param {*} res
+   * @returns Appointment.
+   */
   this.releaseAppointment = async (req, res, next) => {
     try {
       const keysAndTypeToCheck = [{ key: Constant.VISIT_UUID, type: "string" }];
@@ -346,7 +433,13 @@ module.exports = (function () {
       next(error);
     }
   };
-
+  
+  /**
+   * Request for update the dayoff.
+   * @param {*} req
+   * @param {*} res
+   * @returns Dayoffs schedule.
+   */
   this.updateDaysOff = async (req, res, next) => {
     const keysAndTypeToCheck = [
       { key: Constant.USER_UUID, type: "string" },
@@ -367,6 +460,12 @@ module.exports = (function () {
     }
   };
 
+  /**
+   * Request for book new appointment.
+   * @param {*} req
+   * @param {*} res
+   * @returns Newly booked appointment.
+   */
   this.appointmentPush = async (req, res, next) => {
     try {
       const keysAndTypeToCheck = [
