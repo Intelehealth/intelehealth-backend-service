@@ -183,10 +183,14 @@ WHERE
 
   this.getScheduledMonths = async ({ userUuid, year }) => {
     try {
+      //Getting currentYear & nextYear Data
+      const nextYear = (+(year) + 1);
       const data = await Schedule.findAll({
         where: {
           userUuid,
-          year,
+          year:{
+            [Op.in]:[year,nextYear.toString()]
+          },
         },
         raw: true,
       });
