@@ -1,5 +1,9 @@
 const fs = require('fs')
 
+/**
+ * Remove files from the specified directory path
+ * @param { string } - Directory path
+ */
 const rmFile = (dirPath) => {
   let files = fs.readdirSync(dirPath); 
   if (files.length > 0)
@@ -12,6 +16,10 @@ const rmFile = (dirPath) => {
     }
 }
 
+/**
+ * Remove directory from the specified path
+ * @param { string } - Directory path
+ */
 const rmDir = (path) => {
   if (fs.existsSync(path)) {
     fs.readdirSync(path).forEach(file => {

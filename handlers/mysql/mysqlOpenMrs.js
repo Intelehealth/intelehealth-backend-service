@@ -1,6 +1,10 @@
 const mysql = require("mysql");
 let db;
 
+/**
+ * Connect to openmrs database
+ * @returns - database instance
+ */
 connectDatabase = () => {
   if (!db) {
     const { MYSQL_OPENMRS_DB, MYSQL_USERNAME, MYSQL_PASS, MYSQL_HOST, MYSQL_PORT } =

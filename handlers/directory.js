@@ -2,6 +2,10 @@ const fs = require('fs');
 
 module.exports = {
 
+    /**
+     * Create directory at the specified path
+     * @param { string } - path
+     */
     mkDir: (directory) => {
         try {
             fs.statSync(directory);

@@ -33,6 +33,11 @@ async function sendEmail(to, subject, message) {
   return mail;
 }
 
+/**
+ * Get formatted url
+ * @param {*} req - req object
+ * @returns { string } - formatted url
+ */
 const getFormattedUrl = (req) => {
   return url.format({
     protocol: req.protocol,
@@ -40,6 +45,11 @@ const getFormattedUrl = (req) => {
   });
 }
 
+/**
+ * Read license key file
+ * @param {*} contents - file contents
+ * @param {*} key - key to be read
+ */
 const readLicenseFile = (contents, key) => {
   let flag = true;
   return new Promise((resolve, reject) => {
@@ -55,6 +65,10 @@ const readLicenseFile = (contents, key) => {
   })
 }
 
+/**
+ * Write license key
+ * @param {*} contents - Contents to be written to license file
+ */
 const writeToLicenseKey = (contents) => {
   return new Promise((resolve, reject) => {
     try {

@@ -4,7 +4,9 @@ const { MESSAGE } = require("../constants/messages");
 
 module.exports = (function () {
   /**
-   * Request otp for prescription
+   * Request otp for verification to view prescription
+   * @param {string} hash - Hash 
+   * @param {string} phoneNumber - Phone number
    */
   this.requestPresctionOtp = async (hash, phoneNumber) => {
     try {
@@ -29,6 +31,11 @@ module.exports = (function () {
     }
   };
 
+  /**
+    * Verify OTP sent for view prescription verification
+    * @param { string } hash - Hash
+    * @param { string } otp - OTP
+    */
   this.verfifyPresctionOtp = async (hash, otp) => {
     let link = await links.findOne({
       where: {

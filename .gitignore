@@ -36,7 +36,7 @@ yarn-error.log*
 Thumbs.db
 
 # dotenv environment variable files
-.env
+.env*
 
 # Dependency directories
 jspm_packages/

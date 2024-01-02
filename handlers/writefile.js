@@ -1,6 +1,11 @@
 const fs = require("fs");
 
 module.exports = {
+    /**
+     * Write mindmap
+     * @param { string } mindmap - Mindmap contents
+     * @param {*} result - content
+     */
     wrMindmap: (mindmap, result) => {
         if (mindmap.match('famHist') || mindmap.match('patHist') || mindmap.match('physExam') || mindmap.match('config') !== null) {
             path = `./public/key/${mindmap}`;

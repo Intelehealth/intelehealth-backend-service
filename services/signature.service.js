@@ -3,6 +3,12 @@ const path = require("path");
 const fs = require("fs");
 
 module.exports = (function () {
+    /**
+     * Create signature for a given provider with specified font and text
+     * @param { string } textOfSign - Signature text
+     * @param { string } fontName - Font name
+     * @param { string } providerId - Provider uuid
+     */
     this._createSign = async (textOfSign, fontName, providerId) => {
         try {
             let fontFamily = '';
@@ -55,6 +61,11 @@ module.exports = (function () {
         }
     };
 
+    /**
+     * Upload provider signature
+     * @param { * } file - Signature file
+     * @param { string } providerId - Provider uuid
+     */
     this._uploadSign = async (file, providerid) => {
         try {
             fs.writeFileSync(path.join(...['/var', 'www', 'html', 'docsign',`${providerid}_sign.png`]), file.replace('data:image/png;base64,',''),'base64');  

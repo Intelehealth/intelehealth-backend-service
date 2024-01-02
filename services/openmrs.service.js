@@ -26,6 +26,11 @@ const Constant = require("../constants/constant");
 const Op = Sequelize.Op;
 
 module.exports = (function () {
+  /**
+  * Save OTP to database
+  * @param { string } userUuid - User uuid
+  * @param { number } otp - OTP
+  */
   const saveOTP = async (userUuid, otp) => {
     let user = await user_settings.findOne({
       where: {
@@ -46,6 +51,11 @@ module.exports = (function () {
     return user;
   };
 
+  /**
+  * Send otp
+  * @param { string } userName - Username
+  * @param { string } phoneNumber - Phone number
+  */
   this.sendOtp = async (userName, phoneNumber) => {
     try {
       let query,
@@ -142,6 +152,12 @@ module.exports = (function () {
     }
   };
 
+  /**
+  * Reset openmrs password
+  * @param { string } userUuid - User uuid
+  * @param { number } otp - OTP
+  * @param { string } newPassword - New password
+  */
   this.resetPassword = async (userUuid, otp, newPassword) => {
     const url = `/openmrs/ws/rest/v1/password/${userUuid}`;
 
@@ -185,6 +201,11 @@ module.exports = (function () {
     };
   };
 
+  /**
+  * Get visits
+  * @param { string } type - Visit type
+  * @param { string } speciality - Doctor speciality
+  */
   this.getVisits = async (type, speciality) => {
     if (!type) {
       return [];
@@ -219,6 +240,13 @@ module.exports = (function () {
    * 14 - Visit Complete
    * 15 - Flagged
    */
+  /**
+  * Get visits by type
+  * @param { string } speciality - Doctor speciality
+  * @param { number } page - Page number
+  * @param { number } limit - Limit
+  * @param { string } type - Visit type
+  */
   this.getVisitsByType = async (
     speciality,
     page = 1,
@@ -312,6 +340,12 @@ module.exports = (function () {
     }
   };
 
+  /**
+  * Get priority visits
+  * @param { string } speciality - Doctor speciality
+  * @param { number } page - Page number
+  * @param { number } limit - Limit
+  */
   this._getPriorityVisits = async (
     speciality,
     page = 1,
@@ -328,6 +362,12 @@ module.exports = (function () {
     }
   };
 
+  /**
+  * Get awaiting visits
+  * @param { string } speciality - Doctor speciality
+  * @param { number } page - Page number
+  * @param { number } limit - Limit
+  */
   this._getAwaitingVisits = async (
     speciality,
     page = 1,
@@ -345,6 +385,12 @@ module.exports = (function () {
     }
   };
 
+  /**
+  * Get inprogress visits
+  * @param { string } speciality - Doctor speciality
+  * @param { number } page - Page number
+  * @param { number } limit - Limit
+  */
   this._getInProgressVisits = async (
     speciality,
     page = 1,
@@ -362,6 +408,12 @@ module.exports = (function () {
     }
   };
 
+  /**
+  * Get completed visits
+  * @param { string } speciality - Doctor speciality
+  * @param { number } page - Page number
+  * @param { number } limit - Limit
+  */
   this._getCompletedVisits = async (
     speciality,
     page = 1,
@@ -379,6 +431,12 @@ module.exports = (function () {
     }
   };
 
+  /**
+  * Get ended visits
+  * @param { string } speciality - Doctor speciality
+  * @param { number } page - Page number
+  * @param { number } limit - Limit
+  */
   this._getEndedVisits = async (
     speciality,
     page = 1,

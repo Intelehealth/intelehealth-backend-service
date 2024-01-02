@@ -36,6 +36,12 @@ module.exports = (function () {
   const TIME_FORMAT = "LT";
   const FILTER_TIME_DATE_FORMAT = "DD/MM/YYYY HH:mm:ss";
 
+  /**
+     * Send appointment cancel notification
+     * @param { number } id - Appointment id
+     * @param { string } slotTime - Slot time
+     * @param { string } patientName - Patient name
+     */
   const sendCancelNotification = async ({ id, slotTime, patientName }) => {
     const query = `
     select
@@ -63,13 +69,20 @@ where
                   ? `Причина: В связи с изменением графика врача`
                   : `Reason : Due to doctor's change in schedule.`,
               regTokens: [token],
-            }).catch((err) => {});
+            }).catch((err) => { });
           }
         });
       }
-    } catch (error) {}
+    } catch (error) { }
   };
 
+  /**
+     * Send appointment cancel notification to doctor
+     * @param { number } id - Appointment id
+     * @param { string } slotTime - Slot time
+     * @param { string } patientName - Patient name
+     * @param { string } openMrsId - OpenMRS id
+     */
   const sendCancelNotificationToWebappDoctor = async ({
     id,
     slotTime,
@@ -101,18 +114,28 @@ WHERE
           }
         });
       }
-    } catch (error) {}
+    } catch (error) { }
   };
 
+  /**
+     * Get todays date
+     */
   const getTodayDate = () => {
     return this.getFilterDates(moment().format("DD/MM/YYYY"), null)[0];
   };
 
   /**
    * Create & updates a schedule if already exist for userUuid
-   * @param {string} userUuid
-   * @param {string} slotDays
-   * @param {object} slotSchedule
+   * @param {string} userUuid - User uuid
+   * @param {string} slotDays - Slot days
+   * @param {object} slotSchedule - Slot schedule
+   * @param {string} speciality - Doctor speciality
+   * @param {string} drName -Doctor name
+   * @param {string} type - Type of schedule
+   * @param {string} month - Month
+   * @param {string} year - Year
+   * @param {string} startDate - Start date
+   * @param {string} endDate - End date
    */
   this.upsertAppointmentSchedule = async ({
     userUuid,
@@ -181,6 +204,11 @@ WHERE
     }
   };
 
+  /**
+     * Get scheduled months for a given user
+     * @param { string } userUuid - User uuid
+     * @param { string } year - Year
+     */
   this.getScheduledMonths = async ({ userUuid, year }) => {
     try {
       //Getting currentYear & nextYear Data
@@ -188,8 +216,8 @@ WHERE
       const data = await Schedule.findAll({
         where: {
           userUuid,
-          year:{
-            [Op.in]:[year,nextYear.toString()]
+          year: {
+            [Op.in]: [year, nextYear.toString()]
           },
         },
         raw: true,
@@ -209,6 +237,11 @@ WHERE
     }
   };
 
+  /**
+     * Get filtered dates
+     * @param { string } fromDate - From date
+     * @param { string } toDate - To date
+     */
   this.getFilterDates = (fromDate, toDate) => {
     return [
       moment.utc(`${fromDate} 00:00:00`, FILTER_TIME_DATE_FORMAT).format(),
@@ -216,6 +249,12 @@ WHERE
     ];
   };
 
+  /**
+     * Get user slots
+     * @param { string } userUuid - User uuid
+     * @param { string } fromDate - From date
+     * @param { string } toDate - To date
+     */
   this.getUserSlots = async ({ userUuid, fromDate, toDate }) => {
     try {
       const data = await Appointment.findAll({
@@ -282,13 +321,20 @@ WHERE
           },
         ]
       });
-      const mergedArray = data.map(x=> ({ ...x, visit: visits.find(y=>y.uuid==x.visitUuid)?.dataValues, visitStatus: visitStatus.find(z=>z.uuid==x.visitUuid)?.Status }));
+      const mergedArray = data.map(x => ({ ...x, visit: visits.find(y => y.uuid == x.visitUuid)?.dataValues, visitStatus: visitStatus.find(z => z.uuid == x.visitUuid)?.Status }));
       return mergedArray;
     } catch (error) {
       throw error;
     }
   };
 
+  /**
+     * Check if appointment present
+     * @param { string } userUuid - User uuid
+     * @param { string } fromDate - From date
+     * @param { string } toDate - To date
+     * @param { string } speciality - Doctor speciality
+     */
   this.checkAppointment = async ({ userUuid, fromDate, toDate, speciality }) => {
     try {
       const data = await Appointment.findAll({
@@ -309,22 +355,33 @@ WHERE
     }
   };
 
+  /**
+     * Update slot speciality
+     * @param { string } userUuid - User uuid
+     * @param { string } speciality - Doctor speciality
+     */
   this.updateSlotSpeciality = async ({ userUuid, speciality }) => {
     try {
       const data = await Schedule.update({
         speciality
-      }, 
-      {
-        where: {
-          userUuid
-        }
-      });
+      },
+        {
+          where: {
+            userUuid
+          }
+        });
       return data;
     } catch (error) {
       throw error;
     }
   };
 
+  /**
+     * Get slots by speciality
+     * @param { string } speciality - Speciality
+     * @param { string } fromDate - From date
+     * @param { string } toDate - To date
+     */
   this.getSpecialitySlots = async ({ speciality, fromDate, toDate }) => {
     try {
       let setting = await Setting.findOne({ where: {}, raw: true });
@@ -350,7 +407,7 @@ WHERE
       asyncForEach(data, async (apnmt) => {
         try {
           const url = `/openmrs/ws/rest/v1/patient?q=${apnmt.openMrsId}&v=custom:(uuid,identifiers:(identifierType:(name),identifier),person)`;
-          const patient = await axiosInstance.get(url).catch((err) => {});
+          const patient = await axiosInstance.get(url).catch((err) => { });
 
           if (
             patient &&
@@ -369,7 +426,7 @@ WHERE
               }
             }
           }
-        } catch (error) {}
+        } catch (error) { }
       });
 
       return data;
@@ -378,6 +435,12 @@ WHERE
     }
   };
 
+  /**
+     * Get slots
+     * @param { string } locationUuid - Location uuid
+     * @param { string } fromDate - From date
+     * @param { string } toDate - Patient name
+     */
   this.getSlots = async ({ locationUuid, fromDate, toDate }) => {
     try {
       const data = await Appointment.findAll({
@@ -411,6 +474,13 @@ WHERE
     }
   };
 
+  /**
+     * Get month slots
+     * @param { object } schedule - Schedule
+     * @param { string } days - Comma seperated days
+     * @param { string } SLOT_DURATION - Slot duration
+     * @param { string } SLOT_DURATION_UNIT - Slot duration unit
+     */
   const getMonthSlots = ({
     schedule,
     days,
@@ -459,6 +529,13 @@ WHERE
     return dates;
   };
 
+  /**
+     * Get week slots
+     * @param { object } schedule - Schedule
+     * @param { string } days - Comma seperated days
+     * @param { string } SLOT_DURATION - Slot duration
+     * @param { string } SLOT_DURATION_UNIT - Slot duration unit
+     */
   const getWeekSlots = ({
     schedule,
     days,
@@ -497,6 +574,13 @@ WHERE
     return dates;
   };
 
+  /**
+     * Get appointment slots
+     * @param { string } fromDate - From date
+     * @param { string } toDate - To date
+     * @param { string } speciality - Speciality
+     * @param { boolean } returnAllSlots - Whether to return all slots
+     */
   this._getAppointmentSlots = async ({
     fromDate,
     toDate,
@@ -541,17 +625,17 @@ WHERE
         schedules.forEach((schedule) => {
           const _dates = true
             ? getMonthSlots({
-                schedule,
-                days,
-                SLOT_DURATION,
-                SLOT_DURATION_UNIT,
-              })
+              schedule,
+              days,
+              SLOT_DURATION,
+              SLOT_DURATION_UNIT,
+            })
             : getWeekSlots({
-                schedule,
-                days,
-                SLOT_DURATION,
-                SLOT_DURATION_UNIT,
-              });
+              schedule,
+              days,
+              SLOT_DURATION,
+              SLOT_DURATION_UNIT,
+            });
           dates = dates.concat(_dates);
         });
         const appointments = await Appointment.findAll({
@@ -603,6 +687,22 @@ WHERE
     }
   };
 
+  /**
+     * Create appointment
+     * @param { string } openMrsId - OpenMRS id
+     * @param { string } patientName - Patient name
+     * @param { string } locationUuid - Location uuid
+     * @param { string } hwUUID - HW uuid
+     * @param {string } slotDay - Slot day
+     * @param {string } slotDate - Slot date
+     * @param {string } slotDuration - Slot duration
+     * @param {string } slotDurationUnit - Slot duration unit
+     * @param {string } speciality - Speciality
+     * @param {string } userUuid - User uuid
+     * @param {string } visitUuid - Visit uuid
+     * @param {string } patientId - Patient uuid
+     * 
+     */
   const createAppointment = async ({
     openMrsId,
     patientName,
@@ -645,6 +745,10 @@ WHERE
     });
   };
 
+  /**
+     * Book appointment
+     * @param { object } params - (slotDate, slotTime, speciality, visitUuid)
+     */
   this._bookAppointment = async (params) => {
     const { slotDate, slotTime, speciality, visitUuid } = params;
     try {
@@ -690,6 +794,13 @@ WHERE
     }
   };
 
+  /**
+     * Cancel appointment
+     * @param { object } params - (id, visitUuid, hwUuid, reason)
+     * @param { boolean } validate - Whether to validate
+     * @param { boolean } notify - Whether to notify
+     * @param { boolean } reschedule - Whether to reschedule
+     */
   this._cancelAppointment = async (
     params,
     validate = true,
@@ -725,6 +836,10 @@ WHERE
     }
   };
 
+  /**
+     * Complete appointment
+     * @param { Object } params - (id, visitUuid, hwUuid, reason)
+     */
   this._completeAppointment = async (params) => {
     const { id, visitUuid, hwUUID, reason } = params;
     let where = {
@@ -751,12 +866,20 @@ WHERE
     }
   };
 
+  /**
+     * Get appointment
+     * @param { object } - (visitUuid)
+     */
   this.getAppointment = async ({ visitUuid }) => {
     return await Appointment.findOne({
       where: { visitUuid, status: Constant.BOOKED },
     });
   };
 
+  /**
+     * Reschedule or Cancel appointment
+     * @param { string } - User uuid
+     */
   this.rescheduleOrCancelAppointment = async (userUuid) => {
     const todayDate = moment.utc().format();
     const data = await Appointment.findAll({
@@ -815,7 +938,7 @@ WHERE
         );
         if (slot) {
           let apnmtData = { ...apnmt, ...slot };
-          [Constant.ID, Constant.SLOT_JS_DATE,Constant.CREATED_AT, Constant.UPDATED_AT].forEach((key) => {
+          [Constant.ID, Constant.SLOT_JS_DATE, Constant.CREATED_AT, Constant.UPDATED_AT].forEach((key) => {
             delete apnmtData[key];
           });
           await this._cancelAppointment(appointment, true, false, true);
@@ -829,6 +952,10 @@ WHERE
     }
   };
 
+  /**
+     * Reschedule appointment
+     * @param { object } - (openMrsId,patientName,locationUuid,hwUUID,slotDay,slotDate,slotDuration,slotDurationUnit,slotTime,speciality,userUuid,drName,visitUuid,patientId,appointmentId,reason,patientAge,patientGender,patientPic,hwName,hwAge,hwGender,webApp,)
+     */
   this._rescheduleAppointment = async ({
     openMrsId,
     patientName,
@@ -905,6 +1032,10 @@ WHERE
     }
   };
 
+  /**
+     * Start appointment
+     * @param { object } - (drName, userUuid, appointmentId)
+     */
   this.startAppointment = async ({ drName, userUuid, appointmentId }) => {
     let appointment = await Appointment.findOne({
       where: {
@@ -922,6 +1053,10 @@ WHERE
     }
   };
 
+  /**
+     * Release appointment
+     * @param { object } - (visitUuid)
+     */
   this.releaseAppointment = async ({ visitUuid }) => {
     let appointment = await Appointment.findOne({
       where: {
@@ -940,6 +1075,10 @@ WHERE
     }
   };
 
+  /**
+     * Get booked appointments
+     * @param { object } - (fromDate, toDate, speciality, userUuid)
+     */
   this.getBookedAppointments = async ({
     fromDate,
     toDate,
@@ -963,6 +1102,10 @@ WHERE
     });
   };
 
+  /**
+     * Get rescheduled appointments
+     * @param { object } - (fromDate, toDate, specilaityy, userUuid)
+     */
   this.getRescheduledAppointments = async ({
     fromDate,
     toDate,
@@ -986,6 +1129,10 @@ WHERE
     });
   };
 
+  /**
+     * Get rescheduled appointments of visit
+     * @param { object } - (visitUuid)
+     */
   this.getRescheduledAppointmentsOfVisit = async ({ visitUuid }) => {
     let where = {
       visitUuid,
@@ -998,6 +1145,10 @@ WHERE
     });
   };
 
+  /**
+     * Get cancelled appointments
+     * @param { object } - (fromDate, toDate, speciality, locationUuid,userUuid)
+     */
   this.getCancelledAppointments = async ({
     fromDate,
     toDate,
@@ -1025,8 +1176,10 @@ WHERE
 
   /**
    * updates daysoff schedule if already exist for userUuid
-   * @param {string} userUuid
-   * @param {object} dates
+   * @param {string} userUuid - User uuid
+   * @param {string[]} daysOff - Day off's
+   * @param {string} month - Month
+   * @param {string} year - Year
    */
   this.updateDaysOffSchedule = async ({ userUuid, daysOff, month, year }) => {
     try {

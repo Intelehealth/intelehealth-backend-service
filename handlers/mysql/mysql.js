@@ -1,6 +1,10 @@
 const mysql = require("mysql");
 let db;
 
+/**
+ * Connect to mindmap database
+ * @returns - database instance
+ */
 connectDatabase = () => {
   if (!db) {
     const { MYSQL_DB, MYSQL_USERNAME, MYSQL_PASS, MYSQL_HOST, MYSQL_PORT } =
@@ -8,6 +12,7 @@ connectDatabase = () => {
 
     db = mysql.createConnection({
       dialect: "mysql",
+      port: MYSQL_PORT || 3306,
       host: MYSQL_HOST || "localhost",
       user: MYSQL_USERNAME || "root",
       password: MYSQL_PASS,

@@ -10,6 +10,12 @@ const { MESSAGE } = require("../constants/messages");
 const Constant = require("../constants/constant");
 
 module.exports = (function () {
+  /**
+     * Save otp to database
+     * @param { string } userUuid - User uuid
+     * @param { string } otp - OTP
+     * @param { string } otpFor - otp for
+     */
   const saveOtp = async function (userUuid, otp, otpFor) {
     let user = await user_settings.findOne({
       where: { user_uuid: userUuid }
@@ -29,12 +35,26 @@ module.exports = (function () {
     return user;
   };
 
+  /**
+     * Verify otp
+     * @param { string } email - Email of the provider
+     * @param { string } phonenumber - Phone number of the provider
+     * @param { string } username - Username of the provider
+     * @param { string } verifyFor - Verification for
+     * @param { string } otp - OTP
+     */
   const getOtpFrom2Factor = async function (phoneNumber) {
     return axios.get(
       `https://2factor.in/API/V1/${process.env.APIKEY_2FACTOR}/SMS/${phoneNumber}/AUTOGEN2`
     );
   };
 
+  /**
+     * Send email containing otp
+     * @param { string } email - Email of the provider
+     * @param { string } subject - Subject for email
+     * @param { string } otp - OTP
+     */
   const sendEmailOtp = async function (email, subject, otp) {
     const otpTemplate = fs
       .readFileSync("./common/emailtemplates/otpTemplate.html", "utf8")
@@ -51,6 +71,12 @@ module.exports = (function () {
     ).catch((error) => { throw error });
   };
 
+  /**
+     * Send Email containing provider username
+     * @param { string } email - Email of the provider
+     * @param { string } subject - Subject for the email
+     * @param { string } username - Username of the provider
+     */
   const sendEmailUsername = async function (email, subject, username) {
     const otpTemplate = fs
       .readFileSync("./common/emailtemplates/usernameTemplate.html", "utf8")
@@ -66,6 +92,13 @@ module.exports = (function () {
     ).catch((error) => { throw error });
   };
 
+  /**
+     * Get user data
+     * @param { string } phonenumber - Phone number of the provider
+     * @param { string } email - Email of the provider
+     * @param { string } username - Username of the provider
+     * @param { string } dataFor - Data for which operation like username, password or verification.
+     */
   const getUserData = async function (phoneNumber, email, username, dataFor) {
     let query;
     switch (dataFor) {
@@ -101,6 +134,14 @@ module.exports = (function () {
     return data;
   };
 
+  /**
+     * Send otp
+     * @param { string } email - Email of the provider
+     * @param { string } phonenumber - Phone number of the provider
+     * @param { string } countryCode - Country code of the phone number
+     * @param { string } username - Username of the provider
+     * @param { string } otpFor - Verification for
+     */
   const requestOtp = async function (email, phoneNumber, countryCode, username, otpFor) {
     try {
       let attributes;
@@ -228,6 +269,14 @@ module.exports = (function () {
     }
   };
 
+  /**
+     * Verify otp
+     * @param { string } email - Email of the provider
+     * @param { string } phonenumber - Phone number of the provider
+     * @param { string } username - Username of the provider
+     * @param { string } verifyFor - Verification for
+     * @param { string } otp - OTP
+     */
   const verifyOtp = async function (email, phoneNumber, username, verifyFor, otp) {
     try {
       let user, index;
@@ -405,6 +454,11 @@ module.exports = (function () {
     }
   };
 
+  /**
+     * Reset openmrs password
+     * @param { string } userUuid - User uuid
+     * @param { string } newPassword - New password
+     */
   const resetPassword = async function (userUuid, newPassword) {
     try {
       const url = `/openmrs/ws/rest/v1/password/${userUuid}`;
@@ -450,6 +504,12 @@ module.exports = (function () {
     }
   };
 
+  /**
+  * Check if provider attribute value already exits or not
+  * @param { string } attributeType - Provider attribute type
+  * @param { string } attributeValue - Attribute value
+  * @param { string } providerUuid - Provider uuid
+  */
   const checkProviderAttribute = async function (
     attributeType,
     attributeValue,

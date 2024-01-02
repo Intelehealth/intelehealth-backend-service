@@ -4,6 +4,9 @@ const { QueryTypes } = require('sequelize');
 
 module.exports = (function () {
 
+    /**
+     * Get list of system administrator type users
+     */
     this.getSystemAdministrators = async function () {
         try {
             const query = `SELECT * FROM users u LEFT JOIN user_role ur ON ur.user_id = u.user_id WHERE ur.role = 'Organizational: System Administrator' AND u.retired = 0`;
@@ -21,6 +24,10 @@ module.exports = (function () {
         } 
     };
 
+    /**
+     * Check if user is system administrator
+     * @param { string } uuid - User uuid
+     */
     this.checkIfSystemAdmin = async function (uuid) {
         try {
             const query = `SELECT * FROM users u LEFT JOIN user_role ur ON ur.user_id = u.user_id WHERE u.uuid = '${uuid}' AND ur.role = 'Organizational: System Administrator' AND u.retired = 0`;
@@ -42,6 +49,13 @@ module.exports = (function () {
         } 
     };
 
+    /**
+     * Send support message
+     * @param { string } from - From user uuid
+     * @param { string } to - To user uuid
+     * @param { string } message - Message to be sent
+     * @param { string } type - message type
+     */
     this.sendMessage = async function (from, to, message, type) {
         try {
             if (await this.checkIfSystemAdmin(from)) {
@@ -70,6 +84,11 @@ module.exports = (function () {
         }
     };
 
+    /**
+     * Read support message
+     * @param { string } userId - user uuid
+     * @param { string } messageId - Message id to be read
+     */
     this.readMessage = async function (userId, messageId) {
         try {
             if (await this.checkIfSystemAdmin(userId)) {
@@ -129,6 +148,11 @@ module.exports = (function () {
         }
     };
 
+    /**
+     * Get all support messages
+     * @param { string } from - From user uuid
+     * @param { string } to - To user uuid
+     */
     this.getMessages = async function (from, to) {
         try {
             if (await this.checkIfSystemAdmin(from)) {
@@ -166,6 +190,10 @@ module.exports = (function () {
         }
     };
 
+    /**
+     * Get doctors list from which support messages received to a given user
+     * @param { string } userId - User uuid
+     */
     this.getDoctorsList = async function (userId) {
         try {
             if (await this.checkIfSystemAdmin(userId)) {
@@ -225,6 +253,11 @@ module.exports = (function () {
         }
     };
 
+    /**
+     * Create support ticket
+     * @param { string } userId - User uuid
+     * @param { string } ticketnumber - Ticket number
+     */
     this.createTicket = async function (userId, ticketnumber) {
         try {
             

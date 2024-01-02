@@ -1,3 +1,10 @@
+/**
+ * Error handler
+ * @param {*} err - error object
+ * @param {*} req - req object
+ * @param {*} res - res object
+ * @param {*} next - next object 
+ */
 const errorHandler = (err, req, res, next) => {
   if (err.message === "jwt expired") {
     return res

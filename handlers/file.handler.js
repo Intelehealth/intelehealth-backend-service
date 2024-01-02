@@ -11,6 +11,12 @@ const {
   AWS_URL,
 } = process.env;
 
+/**
+ * File parser
+ * @param {*} req - req object
+ * @param {*} res - res object
+ * @param {*} next - next object 
+ */
 const fileParser = async (req, res, next) => {
   upload.any()(req, res, (err) => {
     if (err) res.json({ success: false, message: err.message });
@@ -18,6 +24,12 @@ const fileParser = async (req, res, next) => {
   });
 };
 
+/**
+ * Upload file to aws
+ * @param {*} data - file
+ * @param {string} filepath - file path
+ * @param {string} type - file type
+ */
 const uploadFile = async (data, filePath, type = "image") => {
   AWS.config.update({
     accessKeyId: AWS_ACCESS_KEY_ID,
