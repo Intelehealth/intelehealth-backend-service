@@ -63,9 +63,8 @@ module.exports = (function () {
    */
   this.getAppointmentSchedule = async (req, res, next) => {
     try {
-      const userUuid = req.params.userUuid;
-      const year = req.query.year;
-      const month = req.query.month;
+      const { userUuid } = req.params;
+      const { year, month } = req.query;
       let where = { userUuid };
       if (year) where.year = year;
       if (month) where.month = month;
@@ -86,8 +85,8 @@ module.exports = (function () {
    */
   this.getScheduledMonths = async (req, res, next) => {
     try {
-      const userUuid = req.params.userUuid;
-      const year = req.query.year;
+      const { userUuid } = req.params;
+      const { year } = req.query;
       const data = await getScheduledMonths({ userUuid, year });
       res.json({
         status: true,
@@ -110,7 +109,7 @@ module.exports = (function () {
         { key: Constant.TO_DATE, type: "string" },
       ];
       if (validateParams(req.query, keysAndTypeToCheck)) {
-        const userUuid = req.params.userUuid;
+        const { userUuid } = req.params;
         const data = await getUserSlots({ ...req.query, userUuid });
         res.json({
           status: true,
@@ -136,7 +135,7 @@ module.exports = (function () {
         { key: Constant.SPECIALITY, type: "string" }
       ];
       if (validateParams(req.query, keysAndTypeToCheck)) {
-        const userUuid = req.params.userUuid;
+        const { userUuid } = req.params;
         const data = await checkAppointment({ ...req.query, userUuid });
         res.json({
           status: true,
@@ -160,7 +159,7 @@ module.exports = (function () {
         { key: Constant.SPECIALITY, type: "string" }
       ];
       if (validateParams(req.query, keysAndTypeToCheck)) {
-        const userUuid = req.params.userUuid;
+        const { userUuid } = req.params;
         const data = await updateSlotSpeciality({ ...req.query, userUuid });
         res.json({
           status: true,
@@ -186,7 +185,7 @@ module.exports = (function () {
       ];
 
       if (validateParams(req.query, keysAndTypeToCheck)) {
-        const speciality = req.params.speciality;
+        const { speciality } = req.params;
         const data = await getSpecialitySlots({ ...req.query, speciality });
         res.json({
           status: true,

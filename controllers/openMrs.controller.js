@@ -120,7 +120,7 @@ order by 4 ;`;
  * @param {*} next
  */
 const getVisitCounts = async (req, res, next) => {
-  const speciality = req.query.speciality;
+  const { speciality } = req.query;
   const query =
     speciality === "General Physician"
       ? getVisitCountQueryForGp()
@@ -152,7 +152,7 @@ const getVisitCounts = async (req, res, next) => {
  * @param {*} next
  */
 const getFollowUpVisit = async (req, res, next) => {
-  const providerId = req.params.providerId;
+  const { providerId } = req.params;
   const query = getFollowUpVisitOfDr(providerId);
   try {
     const data = await new Promise((resolve, reject) => {
@@ -180,7 +180,8 @@ const getFollowUpVisit = async (req, res, next) => {
  */
 const forgetPasswordSendOtp = async (req, res, next) => {
   try {
-    const data = await sendOtp(req.body.userName, req.body.phoneNumber);
+    const { userName, phoneNumber } = req.body;
+    const data = await sendOtp(userName, phoneNumber);
 
     res.json(data);
   } catch (error) {
@@ -197,9 +198,8 @@ const forgetPasswordSendOtp = async (req, res, next) => {
  */
 const forgetPasswordResetPassword = async (req, res, next) => {
   try {
-    const userUuid = req.params.userUuid;
-    const newPassword = req.body.newPassword;
-    const otp = req.body.otp;
+    const { userUuid } = req.params;
+    const { newPassword, otp } = req.body;
 
     const data = await resetPassword(userUuid, otp, newPassword);
 
@@ -218,10 +218,8 @@ const forgetPasswordResetPassword = async (req, res, next) => {
  */
 const getAwaitingVisits = async (req, res, next) => {
   try {
-    const data = await _getAwaitingVisits(
-      req.query.speciality,
-      req.query.page
-    );
+    const { speciality, page } = req.query;
+    const data = await _getAwaitingVisits(speciality, page);
     res.json({
       count: data.currentCount,
       totalCount: data.totalCount,
@@ -241,10 +239,8 @@ const getAwaitingVisits = async (req, res, next) => {
  */
 const getPriorityVisits = async (req, res, next) => {
   try {
-    const data = await _getPriorityVisits(
-      req.query.speciality,
-      req.query.page
-    );
+    const { speciality, page } = req.query;
+    const data = await _getPriorityVisits(speciality, page);
     res.json({
       count: data.currentCount,
       totalCount: data.totalCount,
@@ -264,10 +260,8 @@ const getPriorityVisits = async (req, res, next) => {
  */
 const getInProgressVisits = async (req, res, next) => {
   try {
-    const data = await _getInProgressVisits(
-      req.query.speciality,
-      req.query.page
-    );
+    const { speciality, page } = req.query;
+    const data = await _getInProgressVisits(speciality, page);
     res.json({
       count: data.currentCount,
       totalCount: data.totalCount,
@@ -288,10 +282,8 @@ const getInProgressVisits = async (req, res, next) => {
  */
 const getCompletedVisits = async (req, res, next) => {
   try {
-    const data = await _getCompletedVisits(
-      req.query.speciality,
-      req.query.page
-    );
+    const { speciality, page } = req.query;
+    const data = await _getCompletedVisits(speciality, page);
     res.json({
       count: data.currentCount,
       totalCount: data.totalCount,
@@ -312,10 +304,8 @@ const getCompletedVisits = async (req, res, next) => {
  */
 const getEndedVisits = async (req, res, next) => {
   try {
-    const data = await _getEndedVisits(
-      req.query.speciality,
-      req.query.page
-    );
+    const { speciality, page } = req.query;
+    const data = await _getEndedVisits(speciality, page);
     res.json({
       count: data.currentCount,
       totalCount: data.totalCount,

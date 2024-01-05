@@ -130,8 +130,8 @@ module.exports = (function () {
    */
   this.resetPassword = async (req, res) => {
     try {
-      const userUuid = req.params.userUuid;
-      const newPassword = req.body.newPassword;
+      const { userUuid } = req.params;
+      const { newPassword } = req.body;
 
       if (userUuid && newPassword) {
         const data = await resetPassword(userUuid, newPassword);

@@ -15,7 +15,7 @@ module.exports = (function () {
    */
   this.shortLink = async (req, res) => {
     try {
-      const link = req.body.link;
+      const { link } = req.body;
       if (!link) {
         RES(res, { success: false, message: MESSAGE.LINK.PLEASE_PASS_LINK }, 422);
         return;
@@ -55,7 +55,7 @@ module.exports = (function () {
    */
   this.getLink = async (req, res) => {
     try {
-      const hash = req.params.hash;
+      const { hash } = req.params;
 
       const data = await links.findOne({
         where: { hash },
@@ -78,9 +78,7 @@ module.exports = (function () {
    */
   this.requestOtp = async (req, res) => {
     try {
-      const hash = req.body.hash;
-      const phoneNumber = req.body.phoneNumber;
-
+      const { hash, phoneNumber } = req.body;
       await requestPresctionOtp(hash, phoneNumber);
 
       RES(res, { success: true });
@@ -96,9 +94,7 @@ module.exports = (function () {
    */
   this.verifyOtp = async (req, res) => {
     try {
-      const hash = req.body.hash;
-      const otp = req.body.otp;
-
+      const { hash, otp } = req.body;
       const data = await verfifyPresctionOtp(hash, otp);
 
       RES(res, { success: true, data });
