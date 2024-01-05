@@ -1,6 +1,5 @@
 "use strict";
 const { Model } = require("sequelize");
-const { Sequelize } = require("../openmrs_models");
 
 module.exports = (sequelize, DataTypes) => {
   class person_name extends Model {
