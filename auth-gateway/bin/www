@@ -3,43 +3,46 @@
 /**
  * Module dependencies.
  */
+
 require("dotenv").config();
-const app = require("../app");
-const debug = require("debug")("mindmapbackend:server");
+var app = require("../app");
+var debug = require("debug")("auth-gateway:server");
+
+const isDevelopment = process.env.NODE_ENV !== "production";
+if (isDevelopment) {
+  var http = require("http");
+  var server = http.createServer(app);
+} else {
+  const https = require("https");
+  const fs = require("fs");
+  const options = {
+    key: fs.readFileSync(
+      "/etc/letsencrypt/live/afitraining.ekalarogya.org/privkey.pem"
+    ),
+    cert: fs.readFileSync(
+      "/etc/letsencrypt/live/afitraining.ekalarogya.org/fullchain.pem"
+    ),
+  };
+  var server = https.createServer(options, app);
+}
 
 /**
  * Get port from environment and store in Express.
  */
 
-var port = normalizePort(process.env.PORT || "3004");
+var port = normalizePort(process.env.PORT || "3000");
 app.set("port", port);
 
 /**
  * Create HTTP server.
  */
 
-var server;
-if (process.env.NODE_ENV === "prod") {
-  const https = require("https");
-  const fs = require("fs");
-
-  const options = {
-    key: fs.readFileSync(process.env.SSL_PRIVATE_KEY),
-    cert: fs.readFileSync(process.env.SSL_CERT),
-  };
-  server = https.createServer(options, app);
-} else {
-  const http = require("http");
-  server = http.createServer(app);
-}
-/**
- * Initializing socket
- */
-require("../handlers/socket")(server);
+var server = http.createServer(app);
 
 /**
  * Listen on provided port, on all network interfaces.
  */
+
 server.listen(port);
 server.on("error", onError);
 server.on("listening", onListening);
