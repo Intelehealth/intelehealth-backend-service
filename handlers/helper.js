@@ -46,7 +46,7 @@ const axiosInstance = axios.create({
 });
 
 /**
- * Firebase messaging instance 
+ * Firebase messaging instance
  */
 const messaging = admin.messaging();
 
@@ -107,32 +107,32 @@ const validateParams = (params, keysAndTypeToCheck = []) => {
  * @param {*} data - (title, body, icon, data(payload), regTokens, click_action)
  */
 const sendCloudNotification = async ({
-  title,
-  body,
-  icon = "ic_launcher",
   data = {},
   regTokens,
-  click_action = "FCM_PLUGIN_HOME_ACTIVITY",
+  opts = {},
+  notification = null,
 }) => {
-  const payload = {
+  let payload = {
     data,
-    notification: {
-      title,
-      icon,
-      body,
-      click_action,
-    },
   };
+
+  if (notification) {
+    payload.notification = notification;
+  }
 
   const options = {
     priority: "high",
+    ...opts,
   };
 
-  try {
-    const result = await messaging.sendToDevice(regTokens, payload, options);
-  } catch (err) {
-    console.error("Cloud notification error:", err);
-  }
+  return messaging
+    .sendToDevice(regTokens, payload, options)
+    .then((result) => {
+      console.log(result);
+    })
+    .catch((err) => {
+      console.log("err: ", err);
+    });
 };
 
 /**
@@ -161,7 +161,7 @@ const asyncForEach = async (array, callback) => {
 };
 
 /**
- * Execute query 
+ * Execute query
  * @param { string } - Query
  * @returns {promise} - Promise containing data fetched by executing the query
  */

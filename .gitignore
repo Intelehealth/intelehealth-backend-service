@@ -2,6 +2,7 @@
 **/settings.json
 **/license
 *.zip
+*.pem
 /config/
 
 /livekit-token-microservice/node_modules
