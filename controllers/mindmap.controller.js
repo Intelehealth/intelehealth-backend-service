@@ -99,7 +99,7 @@ const addUpdateMindMap = async (req, res) => {
     let data = await mindmaps.findOne({
       where: { keyName: key, name: filename },
     });
-    let dataToUpdate = {
+    const dataToUpdate = {
       name: filename,
       json: value,
       keyName: key,

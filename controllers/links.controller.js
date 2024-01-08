@@ -20,7 +20,7 @@ module.exports = (function () {
         RES(res, { success: false, message: MESSAGE.LINK.PLEASE_PASS_LINK }, 422);
         return;
       }
-      let linkAlreadyExist = await links.findOne({
+      const linkAlreadyExist = await links.findOne({
         where: { link },
         raw: true,
       });

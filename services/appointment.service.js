@@ -153,7 +153,7 @@ WHERE
     try {
       const opts = { where: { userUuid, year, month } };
       const schedule = await this.getUserAppointmentSchedule(opts);
-      let update = { slotDays };
+      const update = { slotDays };
       if (slotSchedule) update.slotSchedule = slotSchedule;
       if (drName) update.drName = drName;
       if (speciality) update.speciality = speciality;
@@ -1086,7 +1086,7 @@ WHERE
     speciality,
     userUuid,
   }) => {
-    let where = {
+    const where = {
       slotJsDate: {
         [Op.between]: this.getFilterDates(fromDate, toDate),
       },
@@ -1113,7 +1113,7 @@ WHERE
     speciality,
     userUuid,
   }) => {
-    let where = {
+    const where = {
       slotJsDate: {
         [Op.between]: this.getFilterDates(fromDate, toDate),
       },
@@ -1135,7 +1135,7 @@ WHERE
      * @param { object } - (visitUuid)
      */
   this.getRescheduledAppointmentsOfVisit = async ({ visitUuid }) => {
-    let where = {
+    const where = {
       visitUuid,
       status: Constant.RESCHEDULED,
     };
@@ -1157,7 +1157,7 @@ WHERE
     locationUuid,
     userUuid,
   }) => {
-    let where = {
+    const where = {
       slotJsDate: {
         [Op.between]: this.getFilterDates(fromDate, toDate),
       },
@@ -1186,7 +1186,7 @@ WHERE
     try {
       const opts = { where: { userUuid, month, year } };
       const schedule = await this.getUserAppointmentSchedule(opts);
-      let update = { daysOff };
+      const update = { daysOff };
       if (schedule) {
         const resp = {
           message: MESSAGE.APPOINTMENT.SCHEDULE_UPDATED_SUCCESSFULLY,

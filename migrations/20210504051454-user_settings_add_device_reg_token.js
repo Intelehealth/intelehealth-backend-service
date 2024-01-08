@@ -1,8 +1,8 @@
 "use strict";
 
 const getColumns = (Sequelize) => {
-  let tableName = "user_settings";
-  let columns = [
+  const tableName = "user_settings";
+  const columns = [
     { name: "device_reg_token", type: Sequelize.STRING },
     { name: "createdAt", type: Sequelize.DATE },
     { name: "updatedAt", type: Sequelize.DATE },
@@ -17,7 +17,7 @@ module.exports = {
       columns.map((column) => {
         queryInterface.describeTable(tableName).then((tableDefinition) => {
           if (tableDefinition[column.name]) return Promise.resolve();
-          let opts = { ...column };
+          const opts = { ...column };
           delete opts.name;
           return queryInterface.addColumn(tableName, column.name, opts);
         });

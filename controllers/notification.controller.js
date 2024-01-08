@@ -46,7 +46,7 @@ const setUserSettings = async ({ body }, res) => {
   let data = await user_settings.findOne({
     where: { user_uuid: body.user_uuid },
   });
-  let dataToUpdate = { ...body.data };
+  const dataToUpdate = { ...body.data };
   if (data) {
     delete dataToUpdate.user_uuid;
     data = await data.update(dataToUpdate);

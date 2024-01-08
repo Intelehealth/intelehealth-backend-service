@@ -65,7 +65,7 @@ module.exports = (function () {
     try {
       const { userUuid } = req.params;
       const { year, month } = req.query;
-      let where = { userUuid };
+      const where = { userUuid };
       if (year) where.year = year;
       if (month) where.month = month;
       const data = await getUserAppointmentSchedule({ where });

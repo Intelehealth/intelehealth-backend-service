@@ -22,7 +22,7 @@ module.exports = (function () {
     type
   ) => {
     try {
-      let msg = {
+      const msg = {
         fromUser,
         toUser,
         patientId,

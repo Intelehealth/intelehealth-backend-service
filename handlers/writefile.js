@@ -12,8 +12,8 @@ module.exports = {
             fs.writeFileSync(path, result);
         }
         else if (mindmap.match('.png') || mindmap.match('.jpg') || mindmap.match('jpeg') !== null) {
-            let ImageURL = result
-            let base64Image = ImageURL.split(';base64,').pop();
+            const ImageURL = result
+            const base64Image = ImageURL.split(';base64,').pop();
             path = `./public/key/logo/${mindmap}`;
             fs.writeFileSync(path, base64Image, { encoding: 'base64' });
         } else {

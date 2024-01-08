@@ -10,7 +10,7 @@ module.exports = (function () {
    */
   this.requestPresctionOtp = async (hash, phoneNumber) => {
     try {
-      let link = await links.findOne({
+      const link = await links.findOne({
         where: {
           hash,
         },
@@ -37,7 +37,7 @@ module.exports = (function () {
     * @param { string } otp - OTP
     */
   this.verfifyPresctionOtp = async (hash, otp) => {
-    let link = await links.findOne({
+    const link = await links.findOne({
       where: {
         hash,
       },
