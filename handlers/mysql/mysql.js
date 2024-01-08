@@ -5,9 +5,15 @@ let db;
  * Connect to mindmap database
  * @returns - database instance
  */
-connectDatabase = () => {
+const connectDatabase = () => {
   if (!db) {
-    const { MYSQL_DB, MYSQL_USERNAME, MYSQL_PASS, MYSQL_HOST, MYSQL_PORT } =
+    handleDisconnect();
+  }
+  return db;
+};
+
+const handleDisconnect = () => {
+  const { MYSQL_DB, MYSQL_USERNAME, MYSQL_PASS, MYSQL_HOST, MYSQL_PORT } =
       process.env;
 
     db = mysql.createConnection({
@@ -26,8 +32,15 @@ connectDatabase = () => {
         console.log("Error connecting database!");
       }
     });
-  }
-  return db;
-};
+
+    db.on('error', (err) => {
+      console.log('database error', err);
+      if (err.code === 'PROTOCOL_CONNECTION_LOST') {
+        handleDisconnect();
+      } else {
+        throw err;
+      }
+    });
+}
 
 module.exports = connectDatabase();
