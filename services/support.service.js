@@ -225,7 +225,7 @@ module.exports = (function () {
                 }).catch((err) => {
                     throw err;
                 });
-                let doctorList = [];
+                const doctorList = [];
                 for (const chat of data) {
                     const m = queryResult.find(d => chat.from == d.userUuid);
                     const c = unreadcount.find(d => chat.from == d.from);

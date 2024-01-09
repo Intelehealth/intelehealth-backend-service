@@ -18,11 +18,12 @@ Date.prototype.addHours = function (h) {
  * @param {response} res
  */
 const getUserSettings = async ({ params }, res) => {
-  if (!params.uuid)
+  const { uuid } = params;
+  if (!uuid)
     res.status(422).json({ message: "Please pass correct user uuid!" });
 
   let data = await user_settings.findOne({
-    where: { user_uuid: params.uuid },
+    where: { user_uuid: uuid },
   });
   if (!data) data = {};
   res.status(200).json({
@@ -45,7 +46,7 @@ const setUserSettings = async ({ body }, res) => {
   let data = await user_settings.findOne({
     where: { user_uuid: body.user_uuid },
   });
-  let dataToUpdate = { ...body.data };
+  const dataToUpdate = { ...body.data };
   if (data) {
     delete dataToUpdate.user_uuid;
     data = await data.update(dataToUpdate);

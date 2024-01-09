@@ -5,7 +5,7 @@ const fs = require('fs')
  * @param { string } - Directory path
  */
 const rmFile = (dirPath) => {
-  let files = fs.readdirSync(dirPath); 
+  const files = fs.readdirSync(dirPath); 
   if (files.length > 0)
     for (const element of files) {
       const filePath = dirPath + '/' + element;

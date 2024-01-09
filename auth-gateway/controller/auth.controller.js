@@ -10,9 +10,7 @@ module.exports = (function () {
    */
   this.login = async (req, res, next) => {
     try {
-      const username = req.body.username;
-      const password = req.body.password;
-      const rememberme = req.body.rememberme;
+      const { username, password, rememberme } = req.body;
       const base64 = buffer.from(`${username}:${password}`).toString("base64");
 
       const data = await axiosInstance.get("/openmrs/ws/rest/v1/session", {

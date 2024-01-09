@@ -14,9 +14,9 @@ const days = {
 const { VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_MAILTO } = process.env;
 
 router.post("/subscribe", async (req, res) => {
-  let speciality = req.body.speciality;
-  let notification_object = JSON.stringify(req.body.sub);
-  let details = {
+  const speciality = req.body.speciality;
+  const notification_object = JSON.stringify(req.body.sub);
+  const details = {
     notification_object,
     speciality,
     doctor_name: req.body.providerName,
