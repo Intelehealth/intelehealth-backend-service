@@ -1,12 +1,11 @@
 const express = require("express");
-const path = require("path");
 const cookieParser = require("cookie-parser");
 const bodyParser = require("body-parser");
-const logger = require("morgan");
 const Sequelize = require("sequelize");
 const session = require("express-session");
 const SequelizeStore = require("connect-session-sequelize")(session.Store);
 const db = require("./models");
+const morganMiddleware = require("./middleware/morgan");
 
 const app = express();
 
@@ -29,7 +28,7 @@ app.use(function (req, res, next) {
   next();
 });
 
-app.use(logger("dev"));
+app.use(morganMiddleware);
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(bodyParser.json());
