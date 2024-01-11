@@ -22,7 +22,7 @@ const authMiddleware = (req, res, next) => {
     if (!authorizationHeader || !authorizationHeader.startsWith("Bearer ")) {
       return res
         .status(401)
-        .json({ success: false, message: "Invalid authorization header" });
+        .json({ success: false, message: "Invalid authorization header", code: 401 });
     }
     const token = authorizationHeader.replace("Bearer ", "")
     if (!token) {
