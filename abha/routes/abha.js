@@ -1,18 +1,46 @@
 var express = require("express");
 
-const { getToken, getOTP, getProfile, getAddress } = require("../controller/abha.controller");
+const { 
+    getToken, 
+    getOTPByMobile, 
+    enrollByAadhar, 
+    getEnrollSuggestion, 
+    setPreferredAddress,
+    getDetails,
+    getOTPByAadhar
+} = require("../controller/abha.controller");
+
+const { 
+    otpSchema, 
+    mobileSchema,
+    profileSchema, 
+    addressSchema, 
+    preferAddressSchema,
+    getAbhaNumberSchema 
+} = require("../schema/index");
 
 const authMiddleware = require("../middleware/auth");
 
-var router = express.Router();
+const {
+    validate
+  } = require('../middleware/validationMiddleware')
+
+
+const router = express.Router();
 
 router.get("/getToken", getToken);
 
-router.get("/getOTP", [authMiddleware, getOTP]);
+router.get("/getOTPByAadhar", [authMiddleware, validate(otpSchema), getOTPByAadhar]);
 
-router.get("/getProfile", [authMiddleware, getProfile]);
+router.post("/enrollByAadhar", [authMiddleware, validate(profileSchema),  enrollByAadhar]);
 
-router.get("/getAddress", [authMiddleware, getAddress]);
+router.get("/getEnrollSuggestion", [authMiddleware, validate(addressSchema), getEnrollSuggestion]);
+
+router.post("/setPreferredAddress", [authMiddleware, validate(preferAddressSchema), setPreferredAddress]);
+
+router.get("/getOTPByMobile", [authMiddleware, validate(mobileSchema), getOTPByMobile]);
+
+router.get("/getDetails", [authMiddleware, validate(getAbhaNumberSchema), getDetails]);
 
 
 module.exports = router;
