@@ -58,6 +58,7 @@ module.exports = (function () {
       hwName,
       hwPic,
       type,
+      openMrsId
     } = req.body;
     const keysAndTypeToCheck = [
       { key: Constant.FROM_USER, type: "string" },
@@ -80,7 +81,8 @@ module.exports = (function () {
           patientName,
           hwName,
           hwPic,
-          type
+          type,
+          openMrsId
         );
 
         try {
