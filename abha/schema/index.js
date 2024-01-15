@@ -8,12 +8,10 @@ exports.otpSchema = Joi.object()
       .required(),
 });
 
-exports.mobileSchema = Joi.object()
+exports.loginOTPSchema = Joi.object()
   .keys({
-    mobile: Joi.string()
-      .min(10)
-      .max(10)
-      .required(),
+    value: Joi.string().required(),
+    scope: Joi.string().valid('aadhar','mobile').required()
 });
 
 
@@ -47,4 +45,5 @@ exports.getAbhaNumberSchema = Joi.object()
       .required(),
     txnId: Joi.string()
     .required(),
+    scope: Joi.string().valid('aadhar','mobile').required()
 });

@@ -99,22 +99,22 @@ const { uuid } = require('uuidv4');
    * @param {res} object
    * @param {next} function
    */
-  this.getOTPByAadhar = async (req, res, next) => {
+  this.getEnrollOTPReq = async (req, res, next) => {
     try {
     
-      const { aadhar, scope } = req.body;
+      const { aadhar } = req.body;
 
       const accessToken = req.token
 
-      logStream("debug", 'Calling API to Get Public Key', 'Get OTP Aadhar');
+      logStream("debug", 'Calling API to Get Public Key', 'Enroll OTP Req');
 
       const publicKey = await this.getPublicKey(accessToken);
 
-      logStream("debug", 'Got Public Key', 'Get OTP Aadhar');
+      logStream("debug", 'Got Public Key', 'Enroll OTP Req');
 
       const encryptedText = this.getRSAText(publicKey, aadhar);
 
-      logStream("debug", 'Aadhar Encrypted', 'Get OTP Aadhar');
+      logStream("debug", 'Aadhar Encrypted', 'Enroll OTP Req');
       
 
       const payload = {
@@ -125,9 +125,9 @@ const { uuid } = require('uuidv4');
          "loginId": encryptedText
       }
 
-      logStream("debug", JSON.stringify(payload), 'Get OTP Aadhar');
+      logStream("debug", JSON.stringify(payload), 'Enroll OTP Req');
 
-      logStream("debug", 'Calling API to get otp', 'Get OTP Aadhar');
+      logStream("debug", 'Calling API to get otp', 'Enroll OTP Req');
 
       const apiResponse = await axiosInstance.post(
         process.env.REQ_OTP_URL, 
@@ -311,28 +311,27 @@ const { uuid } = require('uuidv4');
  * @param {res} object
  * @param {next} function
  */
-  this.getOTPByMobile = async (req, res, next) => {
+  this.getLoginOTPReq = async (req, res, next) => {
     try {
     
-      const { mobile } = req.body;
+      const { value, scope } = req.body;
 
       const accessToken = req.token
 
-      console.log(accessToken)
-
-      logStream("debug", 'Calling API to Get Public Key', 'Get OTP BY MOBILE');
+    
+      logStream("debug", 'Calling API to Get Public Key', 'GET Login OTP Req');
 
       const publicKey = await this.getPublicKey(accessToken);
 
-      logStream("debug", 'Got Public Key', 'Get OTP BY MOBILE');
+      logStream("debug", 'Got Public Key', 'GET Login OTP Req');
 
-      console.log(mobile)
+    
+      const encryptedText = this.getRSAText(publicKey, value);
 
-      const encryptedText = this.getRSAText(publicKey, mobile);
-
-      logStream("debug", 'Aadhar Encrypted', 'Get OTP BY MOBILE');
+      logStream("debug", 'Aadhar Encrypted', 'GET Login OTP Req');
       
-      const payload = {
+      
+      let payload = {
           "scope": [
               "abha-login",
               "mobile-verify"
@@ -342,9 +341,21 @@ const { uuid } = require('uuidv4');
           "otpSystem": "abdm"
       }
 
-      logStream("debug", JSON.stringify(payload), 'Get OTP BY MOBILE');
+      if(scope === 'aadhar') {
+        payload = {
+          "scope": [
+              "abha-login",
+              "aadhaar-verify"
+          ],
+          "loginHint": "aadhaar",
+          "loginId": encryptedText,
+          "otpSystem": "aadhaar"
+        }
+      }
 
-      logStream("debug", 'Calling API to get otp', 'Get OTP BY MOBILE');
+      logStream("debug", JSON.stringify(payload), 'GET Login OTP Req');
+
+      logStream("debug", 'Calling API to get otp', 'GET Login OTP Req');
 
       const apiResponse = await axiosInstance.post(
         process.env.MOBILE_OTP_URL, 
@@ -377,25 +388,25 @@ const { uuid } = require('uuidv4');
    * @param {res} object
    * @param {next} function
    */
-  this.getDetails = async (req, res, next) => {
+  this.getLoginOTPVerify = async (req, res, next) => {
     try {
 
-      const { otp, txnId }  = req.body
+      const { otp, txnId, scope }  = req.body
 
       const accessToken = req.token
 
-      logStream("debug", 'Calling API to Get Public Key', 'Get Details');
+      logStream("debug", 'Calling API to Get Public Key', 'Get Login OTP Verify');
 
       const publicKey = await this.getPublicKey(accessToken);
 
-      logStream("debug", 'Got Public Key', 'Get Details');
+      logStream("debug", 'Got Public Key', 'Get Login OTP Verify');
 
     
       const encryptedText = this.getRSAText(publicKey, otp);
 
-      logStream("debug", 'Encrypted Text', 'Get Details');
+      logStream("debug", 'Encrypted Text', 'Get Login OTP Verify');
 
-      const payload = { 
+      let payload = { 
           "scope": [
               "abha-login",
               "mobile-verify"
@@ -411,9 +422,29 @@ const { uuid } = require('uuidv4');
           }
       }
 
-      logStream("debug", JSON.stringify(payload), 'Get Details');
+      if(scope === 'aadhar') {
+          payload = { 
+            "scope": [
+              "abha-login",
+              "aadhaar-verify"
+            ],
+            "authData": {
+                "authMethods": [
+                    "otp"
+                ],
+                "otp": {
+                    "txnId": txnId,
+                    "otpValue": encryptedText
+                }
+            }
+        }
+      }
 
-      logStream("debug", 'Calling API to Get Details', 'Get Details');
+      console.log(payload)
+
+      logStream("debug", JSON.stringify(payload), 'Get Login OTP Verify');
+
+      logStream("debug", 'Calling API to Get Login OTP Verify', 'Get Login OTP Verify');
 
       const apiResponse = await axiosInstance.post(
         process.env.LOGIN_VERIFY_URL, 
@@ -424,6 +455,52 @@ const { uuid } = require('uuidv4');
             'REQUEST-ID': uuid(),
             'TIMESTAMP': this.getTimestamp(),
           }
+        }
+      );
+      
+      logStream("debug", 'Got Profile Response', 'Enroll By Aadhar');
+
+      return res.json(apiResponse.data)
+    
+    } catch (error) {
+        logStream("error", error.message);
+        next(error);
+    }
+  };
+
+  /**
+   * Get Profile
+   * @param {req} object
+   * @param {res} object
+   * @param {next} function
+   */
+  this.getProfile = async (req, res, next) => {
+    try {
+
+      const xToken = req.xtoken
+
+      const accessToken = req.token;
+
+      logStream("debug", 'Calling API to Get Profile', 'Get Profile');
+
+      console.log({
+        headers: {
+          ...this.getInitialHeaderrs(accessToken),
+          'REQUEST-ID': uuid(),
+          'TIMESTAMP': this.getTimestamp(),
+          'X-Token': `Bearer ${xToken}`
+        }
+      })
+
+      const apiResponse = await axiosInstance.get(
+        process.env.ACCOUNT_PROFILE_URL, 
+        {
+          headers: {
+            ...this.getInitialHeaderrs(accessToken),
+            'REQUEST-ID': uuid(),
+            'TIMESTAMP': this.getTimestamp(),
+            'X-Token': `Bearer ${xToken}`
+           }
         }
       );
       
