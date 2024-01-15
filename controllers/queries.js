@@ -182,7 +182,7 @@ module.exports = (function () {
   `;
     };
 
-    this.getVisitCountV3 = () => {
+    this.getVisitCountV3 = (visitTypeId) => {
         return `select
         t1.visit_id,
         t1.uuid,
@@ -234,7 +234,8 @@ module.exports = (function () {
                 LEFT JOIN encounter e using (visit_id)
                 LEFT JOIN visit_attribute va on (va.visit_id= v.visit_id and va.voided = 0 and va.attribute_type_id = 5)
             where
-                v.voided = 0
+                v.voided = 0 and
+                v.visit_type_id = ${visitTypeId}
                 and e.voided = 0
             group by
                 v.visit_id,
@@ -243,7 +244,8 @@ module.exports = (function () {
     where
         encounter_id = max_enc
     `;
-    };
+      };
+  
 
     this.getVisitCountV4 = (visitIds) => {
         return `select

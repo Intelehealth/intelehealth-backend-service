@@ -189,7 +189,17 @@ module.exports = (function () {
       return [];
     } else {
 
-      const visits = await sequelize.query(getVisitCountV3(), {
+      const visitType = await sequelize.query(
+        `select
+          visit_type_id from visit_type 
+          where name = 'Video consultation' 
+        `, {
+          type: QueryTypes.SELECT,
+        });
+        
+      const visitTypeId = visitType[0]['visit_type_id'];
+
+      const visits = await sequelize.query(getVisitCountV3(visitTypeId), {
         type: QueryTypes.SELECT,
       });
 
