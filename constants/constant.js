@@ -32,7 +32,7 @@ module.exports = {
     IMAGE_VALUE: "imageValue",
     IMAGE_NAME: "imageName",
     FILE: 'file',
-    PROVIDER_ID: 'providerid',
+    PROVIDER_ID: 'providerId',
     TEXT_OF_SIGN: 'textOfSign',
     FONT_NAME: 'fontName',
     CANCELLED: "cancelled",
