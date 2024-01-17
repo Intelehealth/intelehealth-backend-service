@@ -116,12 +116,12 @@ const sendCloudNotification = async ({
 }) => {
   const payload = {
     data,
-    notification: {
-      title,
-      icon,
-      body,
-      click_action,
-    },
+    // notification: { //TODO: removed this as per comment IDA4-3303
+    //   title,
+    //   icon,
+    //   body,
+    //   click_action,
+    // },
   };
 
   const options = {
