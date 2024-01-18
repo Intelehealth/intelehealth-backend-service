@@ -64,7 +64,7 @@ module.exports = (function () {
       .replace("$otpFor", subject)
       .replace("$otp", otp);
 
-    await functions.sendEmail(
+    return await functions.sendEmail(
       email,
       subject,
       replacedTemplate
@@ -85,7 +85,7 @@ module.exports = (function () {
     const replacedTemplate = otpTemplate
       .replace("$username", username);
 
-    await functions.sendEmail(
+    return await functions.sendEmail(
       email,
       subject,
       replacedTemplate
@@ -172,7 +172,7 @@ module.exports = (function () {
             if (element.attributeTypeName == Constant.EMAIL_ID) {
               // Send email here
               const randomOtp = otpGenerator.generate(6, { lowerCaseAlphabets: false, upperCaseAlphabets: false, specialChars: false });
-              const mail = await sendEmailOtp(email, otpFor === Constant.USERNAME ? MESSAGE.AUTH.VERIFICATION_CODE_FOR_FORGOT_PASSWORD : MESSAGE.AUTH.VERIFICATION_CODE_FOR_SIGN_IN, randomOtp);
+              const mail = await sendEmailOtp(email, otpFor === Constant.USERNAME ? MESSAGE.AUTH.VERIFICATION_CODE_FOR_FORGOT_PASSWORD : MESSAGE.AUTH.VERIFICATION_CODE_FOR_SIGN_IN, randomOtp).catch((err) => {throw err;});
               if (mail.messageId) {
                 // Save OTP in database for verification
                 await saveOtp(element.uuid, randomOtp, otpFor === Constant.USERNAME ? "U" : "A");
@@ -475,6 +475,7 @@ module.exports = (function () {
         };
 
         await axiosInstance.post(url, payload).catch((err) => {
+          throw err;
         });
 
         return {
