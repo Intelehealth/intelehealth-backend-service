@@ -11,7 +11,7 @@ const {
   asyncForEach,
   getDataFromQuery,
   sendCloudNotification,
-  sendWebPushNotificaion,
+  sendWebPushNotification,
 } = require("../handlers/helper");
 
 module.exports = (function () {
@@ -76,7 +76,7 @@ WHERE
             const engTitle = `Appointment for ${patientName}(${slotTime}) has been cancelled.`;
             const ruTitle = `Запись на прием за ${patientName}(${slotTime}) отменена.`;
             const title = data.locale === "ru" ? ruTitle : engTitle;
-            sendWebPushNotificaion({
+            sendWebPushNotification({
               webpush_obj: data.webpush_obj,
               title,
               body: openMrsId,
@@ -550,7 +550,6 @@ WHERE
     if (appointment) {
       appointment.update({ status, updatedBy: hwUUID, reason });
       if (notify) {
-
         sendCancelNotificationToWebappDoctor(appointment);
         await sendCancelNotification(appointment);
       }
