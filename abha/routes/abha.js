@@ -8,7 +8,8 @@ const {
     setPreferredAddress,
     getLoginOTPVerify,
     getEnrollOTPReq,
-    getProfile
+    getProfile,
+    getCard
 } = require("../controller/abha.controller");
 
 const { 
@@ -17,7 +18,8 @@ const {
     profileSchema, 
     addressSchema, 
     preferAddressSchema,
-    getAbhaNumberSchema 
+    getAbhaNumberSchema,
+    getProfileSchema
 } = require("../schema/index");
 
 const { authMiddleware, xTokenMiddleware } = require("../middleware/auth");
@@ -43,7 +45,9 @@ router.get("/getLoginOTPReq", [authMiddleware, validate(loginOTPSchema), getLogi
 
 router.get("/getLoginOTPVerify", [authMiddleware, validate(getAbhaNumberSchema), getLoginOTPVerify]);
 
-router.get("/getProfile", [authMiddleware, xTokenMiddleware, getProfile]);
+router.get("/getProfile", [authMiddleware, xTokenMiddleware,  validate(getProfileSchema), getProfile]);
+
+router.get("/getCard", [authMiddleware, xTokenMiddleware, getCard]);
 
 
 module.exports = router;

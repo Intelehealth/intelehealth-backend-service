@@ -479,21 +479,74 @@ const { uuid } = require('uuidv4');
 
       const xToken = req.xtoken
 
+      const { txnId, abhaNumber } = req.body;
+
       const accessToken = req.token;
 
-      logStream("debug", 'Calling API to Get Profile', 'Get Profile');
+      logStream("debug", 'Calling API to Login Verify User', 'Get Profile');
 
-      console.log({
-        headers: {
-          ...this.getInitialHeaderrs(accessToken),
-          'REQUEST-ID': uuid(),
-          'TIMESTAMP': this.getTimestamp(),
-          'X-Token': `Bearer ${xToken}`
+      const loginVerifyRes = await axiosInstance.post(
+        process.env.LOGIN_VERIFY_USER_URL, 
+        {
+          "ABHANumber" : abhaNumber,
+	        "txnId" : txnId
+        },
+        {
+          headers: {
+            ...this.getInitialHeaderrs(accessToken),
+            'REQUEST-ID': uuid(),
+            'TIMESTAMP': this.getTimestamp(),
+            'T-Token': `Bearer ${xToken}`
+           }
         }
-      })
+      );
+      
+      logStream("debug", 'Calling API to Login Verify User - Token Received', 'Get Profile');
 
+      logStream("debug", 'Calling API to Get Profile', 'Get Profile');
+    
       const apiResponse = await axiosInstance.get(
-        process.env.ACCOUNT_PROFILE_URL, 
+        process.env.ACCOUNT_VERIFY_USER_URL, 
+        {
+          headers: {
+            ...this.getInitialHeaderrs(accessToken),
+            'REQUEST-ID': uuid(),
+            'TIMESTAMP': this.getTimestamp(),
+            'X-Token': `Bearer ${loginVerifyRes.data.token}`
+           }
+        }
+      );
+
+      logStream("debug", 'Calling API to Get Profile', 'Get Profile');
+    
+
+      return res.json(apiResponse.data)
+    
+    } catch (error) {
+        logStream("error", error.message);
+        next(error);
+    }
+  };
+
+  /**
+   * Get Card
+   * @param {req} object
+   * @param {res} object
+   * @param {next} function
+   */
+  this.getCard = async (req, res, next) => {
+    try {
+
+      const xToken = req.xtoken
+
+      const accessToken = req.token;
+      
+
+      
+      logStream("debug", 'Calling API to Get Card', 'Get Card');
+    
+      const apiResponse = await axiosInstance.get(
+        process.env.GET_CARD_URL, 
         {
           headers: {
             ...this.getInitialHeaderrs(accessToken),
@@ -503,8 +556,9 @@ const { uuid } = require('uuidv4');
            }
         }
       );
-      
-      logStream("debug", 'Got Profile Response', 'Enroll By Aadhar');
+
+      logStream("debug", 'Got API Response', 'Get Card');
+    
 
       return res.json(apiResponse.data)
     

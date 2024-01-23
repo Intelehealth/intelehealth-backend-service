@@ -47,3 +47,11 @@ exports.getAbhaNumberSchema = Joi.object()
     .required(),
     scope: Joi.string().valid('aadhar','mobile').required()
 });
+
+exports.getProfileSchema = Joi.object()
+  .keys({
+    txnId: Joi.string()
+      .required(),
+    abhaNumber: Joi.string()
+    .required()
+});
