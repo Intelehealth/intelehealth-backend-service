@@ -49,12 +49,16 @@ module.exports = (function () {
   };
 
   this.getToken = (data, expiresIn = "15 days") => {
-
-    
-    return jwt.sign(data, privateKEY, {
-      expiresIn,
-      algorithm: 'RS256'
-    });
+    return jwt.sign(
+      {
+        exp: expiresIn,
+        data,
+      },
+      privateKEY,
+      {
+        algorithm: "RS256",
+      }
+    );
   };
 
   return this;

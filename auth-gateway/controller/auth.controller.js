@@ -1,3 +1,4 @@
+const moment = require("moment");
 const { getToken } = require("../handlers/checkAuth");
 const { axiosInstance } = require("../handlers/helper");
 const buffer = require("buffer").Buffer;
@@ -29,15 +30,15 @@ module.exports = (function () {
         status: false,
       };
 
-    
       if (data?.data?.authenticated) {
+        const expiresIn = rememberme ? 3 : 15;
         resp.token = getToken(
           {
             sessionId: data?.data?.sessionId,
             userId: data?.data?.user?.uuid,
             name: data?.data?.user?.display,
           },
-          rememberme ? "15 days" : "2 days"
+          moment().add(expiresIn, "days").endOf("day").unix()
         );
         resp.status = true;
       }
