@@ -24,7 +24,6 @@ export class MainController {
 
 
         res.json({
-            test:true,
             token,
             appToken,
             success: true
