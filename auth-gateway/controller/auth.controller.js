@@ -41,7 +41,6 @@ module.exports = (function () {
           moment().add(expiresIn, "days").endOf("day").unix()
         );
         resp.status = true;
-        resp.success = true;
       }
 
       res.json(resp);
