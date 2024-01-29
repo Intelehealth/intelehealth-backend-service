@@ -298,7 +298,7 @@ module.exports = (function () {
                           {
                             model: person_name,
                             as: "person_name",
-                            attributes: ["given_name", "family_name"],
+                            attributes: ["given_name", "family_name", "middle_name"],
                           },
                         ],
                       },
@@ -316,7 +316,7 @@ module.exports = (function () {
           {
             model: person_name,
             as: "patient_name",
-            attributes: ["given_name", "family_name"],
+            attributes: ["given_name", "family_name", "middle_name"],
           },
           {
             model: person,
