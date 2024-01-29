@@ -38,7 +38,9 @@ module.exports = (function () {
             userId: data?.data?.user?.uuid,
             name: data?.data?.user?.display,
           },
-          moment().add(expiresIn, "days").endOf("day").unix()
+          moment()
+          // .add(expiresIn, "days")
+          .endOf("day").unix()
         );
         resp.status = true;
       }
