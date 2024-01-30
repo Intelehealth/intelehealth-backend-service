@@ -43,7 +43,6 @@ module.exports = (function () {
           .endOf("day").unix()
         );
         resp.status = true;
-        resp.expireInAday = true;
       }
 
       res.json(resp);
