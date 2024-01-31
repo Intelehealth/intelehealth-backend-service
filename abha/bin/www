@@ -17,10 +17,10 @@ if (isDevelopment) {
   const fs = require("fs");
   const options = {
     key: fs.readFileSync(
-      "/etc/letsencrypt/live/afitraining.ekalarogya.org/privkey.pem"
+      process.env.SSL_KEY_PATH
     ),
     cert: fs.readFileSync(
-      "/etc/letsencrypt/live/afitraining.ekalarogya.org/fullchain.pem"
+      process.env.SSL_CERT_PATH
     ),
   };
   var server = https.createServer(options, app);
