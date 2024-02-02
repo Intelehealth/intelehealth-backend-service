@@ -33,19 +33,19 @@ const router = express.Router();
 
 router.get("/getToken", getToken);
 
-router.get("/getEnrollOTPReq", [authMiddleware, validate(otpSchema), getEnrollOTPReq]);
+router.post("/enrollOTPReq", [authMiddleware, validate(otpSchema), getEnrollOTPReq]);
 
 router.post("/enrollByAadhar", [authMiddleware, validate(profileSchema),  enrollByAadhar]);
 
-router.get("/getEnrollSuggestion", [authMiddleware, validate(addressSchema), getEnrollSuggestion]);
+router.post("/enrollSuggestion", [authMiddleware, validate(addressSchema), getEnrollSuggestion]);
 
 router.post("/setPreferredAddress", [authMiddleware, validate(preferAddressSchema), setPreferredAddress]);
 
-router.get("/getLoginOTPReq", [authMiddleware, validate(loginOTPSchema), getLoginOTPReq]);
+router.post("/loginOTPReq", [authMiddleware, validate(loginOTPSchema), getLoginOTPReq]);
 
-router.get("/getLoginOTPVerify", [authMiddleware, validate(getAbhaNumberSchema), getLoginOTPVerify]);
+router.post("/loginOTPVerify", [authMiddleware, validate(getAbhaNumberSchema), getLoginOTPVerify]);
 
-router.get("/getProfile", [authMiddleware, xTokenMiddleware,  validate(getProfileSchema), getProfile]);
+router.post("/profile", [authMiddleware, xTokenMiddleware,  validate(getProfileSchema), getProfile]);
 
 router.get("/getCard", [authMiddleware, xTokenMiddleware, getCard]);
 
