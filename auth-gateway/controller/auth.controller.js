@@ -11,7 +11,7 @@ module.exports = (function () {
    */
   this.login = async (req, res, next) => {
     try {
-      console.log(req.body)
+      console.log(req.body);
       const username = req.body.username;
       const password = req.body.password;
       const rememberme = req.body.rememberme;
@@ -23,8 +23,6 @@ module.exports = (function () {
         },
       });
 
-      
-      
       let resp = {
         // data: data?.data,
         status: false,
@@ -38,9 +36,7 @@ module.exports = (function () {
             userId: data?.data?.user?.uuid,
             name: data?.data?.user?.display,
           },
-          moment()
-          // .add(expiresIn, "days")
-          .endOf("day").unix()
+          moment().add(expiresIn, "days").endOf("day").unix()
         );
         resp.status = true;
       }
