@@ -2,12 +2,20 @@
 **/settings.json
 **/license
 *.zip
-/config/
 
-/livekit-token-microservice/node_modules
-/livekit-token-microservice/.env
-/public/translate/uploads/*
-/public/translate/translated.xlsx
+/portal/config/config.json
+/portal/config/serviceAccountKey.json
+/portal/public/translate/uploads/*
+/portal/public/translate/translated.xlsx
+/auth-gateway/node_modules
+/web-rtc/node_modules
+/portal/node_modules
+/auth-gateway/.env
+/web-rtc/.env
+/portal/.env
+/auth-gateway/.pem
+/web-rtc/.pem
+/portal-rtc/.pem
 
 # Node.js
 node_modules/

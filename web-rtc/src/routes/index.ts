@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { MainController } from "../controllers/main.controller";
+import authMiddleware  from "../middleware/auth";
 
 const router = Router();
 
@@ -11,7 +12,7 @@ class IndexRoute {
     }
 
     initRoutes() {
-        router.get('/getToken', this.mainController.getToken)
+        router.get('/getToken', [authMiddleware, this.mainController.getToken])
     }
 }
 

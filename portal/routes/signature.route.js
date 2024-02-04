@@ -3,8 +3,9 @@ const {
     createSign,
     uploadSign
 } = require("../controllers/signature.controller");
+const authMiddleware = require("../middleware/auth");
 
-router.post("/create", createSign);
-router.post("/upload", uploadSign);
+router.post("/create", [authMiddleware,createSign]);
+router.post("/upload", [authMiddleware,uploadSign]);
 
 module.exports = router;
