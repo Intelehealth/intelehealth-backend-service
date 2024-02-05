@@ -15,6 +15,7 @@ module.exports = (sequelize, DataTypes) => {
     {
       title: DataTypes.STRING,
       projectId: DataTypes.INTEGER,
+      videoId: DataTypes.STRING,
       createdBy: DataTypes.STRING,
     },
     {
