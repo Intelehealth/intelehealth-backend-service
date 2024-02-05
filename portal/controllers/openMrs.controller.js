@@ -145,7 +145,6 @@ const getDoctorVisits = async (req, res, next) => {
     }).catch((err) => {
       throw err;
     });
-    // let states = data.filter((d) => d.tag === "State");
 
     res.json({
       rawData,

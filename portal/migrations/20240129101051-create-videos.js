@@ -21,6 +21,9 @@ module.exports = {
           as: "projectId",
         },
       },
+      videoId: {
+        type: Sequelize.STRING,
+      },
       createdBy: {
         type: Sequelize.STRING,
       },
