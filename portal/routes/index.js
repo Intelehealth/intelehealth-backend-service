@@ -9,17 +9,18 @@ const {
   downloadMindmaps,
   toggleMindmapActiveStatus,
 } = require("../controllers/mindmap.controller");
+const authMiddleware = require("../middleware/auth");
 // const limiter = require("../middleware/rate-limiter");
 // router.use(limiter);
 
-router.post("/mindmap/upload", addUpdateMindMap);
-router.get("/mindmap", getMindmapKeys);
+router.post("/mindmap/upload", [authMiddleware, addUpdateMindMap]);
+router.get("/mindmap", [authMiddleware, getMindmapKeys]);
 
-router.post("/mindmap/addUpdatekey", addUpdateLicenceKey);
-router.get("/mindmap/details/:key", getMindmapDetails);
-router.post("/mindmap/delete/:key", deleteMindmapKey);
-router.get("/mindmap/download", downloadMindmaps);
-router.post("/mindmap/toggleStatus", toggleMindmapActiveStatus);
+router.post("/mindmap/addUpdatekey", [authMiddleware, addUpdateLicenceKey]);
+router.get("/mindmap/details/:key", [authMiddleware, getMindmapDetails]);
+router.post("/mindmap/delete/:key", [authMiddleware, deleteMindmapKey]);
+router.get("/mindmap/download", [authMiddleware, downloadMindmaps]);
+router.post("/mindmap/toggleStatus", [authMiddleware, toggleMindmapActiveStatus]);
 
 router.use("/mindmap", require("./notification.route"));
 router.use("/messages", require("./message.route"));

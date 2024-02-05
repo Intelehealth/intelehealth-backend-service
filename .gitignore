@@ -7,18 +7,22 @@
 /portal/config/serviceAccountKey.json
 /portal/public/translate/uploads/*
 /portal/public/translate/translated.xlsx
-/auth-gateway/node_modules
-/web-rtc/node_modules
-/portal/node_modules
+
+#.env
 /auth-gateway/.env
 /web-rtc/.env
 /portal/.env
+
+#.pem
 /auth-gateway/.pem
 /web-rtc/.pem
-/portal-rtc/.pem
+/portal/.pem
 
 # Node.js
 node_modules/
+/auth-gateway/node_modules
+/web-rtc/node_modules
+/portal/node_modules
 
 # Logs
 logs
