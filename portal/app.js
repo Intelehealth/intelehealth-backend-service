@@ -8,6 +8,7 @@ var indexRouter = require("./routes/index");
 var pushRouter = require("./routes/pushNotification");
 const { log } = require("./handlers/helper");
 const cors = require("cors");
+const errorHandler = require("./handlers/error.handler");
 
 var app = express();
 global.log = log;
@@ -23,5 +24,7 @@ app.use(express.static(path.join(__dirname, "public")));
 
 app.use("/api", indexRouter);
 app.use("/notification", pushRouter);
+
+app.use(errorHandler);
 
 module.exports = app;
