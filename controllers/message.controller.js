@@ -28,7 +28,7 @@ module.exports = (function () {
           ...payload,
           url: `${
             process.env.NODE_ENV === "prod" ? "/intelehealth" : ""
-          }/#/dashboard/visit-summary/${payload.visitId}?openChat=true`,
+          }/#/dashboard/open-chat/${payload.visitId}`,
         },
         title: `New Chat from ${payload.hwName || "HW"}(${
           payload.patientName || "Patient"
