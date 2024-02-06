@@ -192,74 +192,31 @@ where
     v.creator AS Creator_Id,
     CONCAT(pnu.given_name, ' ', pnu.family_name) AS CHW_Name,
     v.date_created AS Time_of_upload,
-    MAX(CASE
-    WHEN e.encounter_type = 9 THEN e.encounter_datetime
-    ELSE NULL
-    END) AS Consultation_Start_time,
-    MAX(CASE
-    WHEN e.encounter_type = 14 THEN e.creator
-    ELSE NULL
-    END) AS Doctor_Id,
-    MAX(CASE
-    WHEN e.encounter_type = 14 THEN w.uuid
-    ELSE NULL
-    END) AS Doctor_uuid,
-    MAX(CASE WHEN e.encounter_type = 14 THEN CONCAT(pnd.given_name, ' ', pnd.family_name)
-    END) AS Doctor_Name,
+    MAX(CASE WHEN e.encounter_type = 9 THEN e.encounter_datetime ELSE NULL END) AS Consultation_Start_time,
+    MAX(CASE WHEN e.encounter_type = 14 THEN e.creator ELSE NULL END) AS Doctor_Id,
+    MAX(CASE WHEN e.encounter_type = 14 THEN w.uuid ELSE NULL END) AS Doctor_uuid,
+    MAX(CASE WHEN e.encounter_type = 14 THEN CONCAT(pnd.given_name, ' ', pnd.family_name) END) AS Doctor_Name,
    HOUR(TIMEDIFF(MAX(CASE WHEN e.encounter_type = 14 THEN e.encounter_datetime
    ELSE NULL END),v.date_created))*3600 +
    (MINUTE(TIMEDIFF(MAX(CASE WHEN e.encounter_type = 14 THEN e.encounter_datetime
    ELSE NULL END),v.date_created))*60) +
    (SECOND(TIMEDIFF(MAX(CASE WHEN e.encounter_type = 14 THEN e.encounter_datetime
    ELSE NULL END),v.date_created))) as Doctor_TAT_Secs,
-    MAX(CASE
-    WHEN e.encounter_type = 14 THEN e.encounter_datetime
-    ELSE NULL
-    END) AS Sign_Submit_time
+    MAX(CASE WHEN e.encounter_type = 14 THEN e.encounter_datetime ELSE NULL END) AS Sign_Submit_time
     FROM
     visit v
-    LEFT JOIN
-    encounter e ON (v.visit_id = e.visit_id AND e.voided = 0)
-    LEFT JOIN
-    obs o ON (e.encounter_id = o.encounter_id
-    AND o.voided = 0)
-    LEFT JOIN
-    patient p ON (v.patient_id = p.patient_id
-    AND p.voided = 0)
-    LEFT JOIN
-    patient_identifier pi ON (p.patient_id = pi.patient_id
-    AND pi.voided = 0)
-    LEFT JOIN
-    person pe ON (p.patient_id = pe.person_id
-    AND pe.voided = 0)
-    LEFT JOIN
-    person_address padd ON (pe.person_id = padd.person_id
-    AND padd.voided = 0
-    AND padd.preferred = 1)
-    LEFT JOIN
-    person_name pn ON (pe.person_id = pn.person_id
-    AND pn.voided = 0
-    AND pn.preferred = 1)
-    LEFT JOIN
-    person_attribute pet ON (pe.person_id = pet.person_id
-    AND pet.voided = 0
-    AND pet.person_attribute_type_id IN (8 , 12))
-    LEFT JOIN
-    location l ON (v.location_id = l.location_id
-    AND l.retired = 0)
-   LEFT JOIN
-   users u ON (v.creator = u.user_id AND u.retired = 0)
-   LEFT JOIN
-   person_name pnu ON (u.person_id = pnu.person_id AND pnu.voided = 0)
-   LEFT JOIN
-   users w ON (e.creator = w.user_id AND w.retired = 0)
-   LEFT JOIN
-   person_name pnd ON (w.person_id = pnd.person_id AND pnd.voided = 0)
+    LEFT JOIN encounter e ON (v.visit_id = e.visit_id AND e.voided = 0 and e.encounter_type in (9,14))
+    LEFT JOIN obs o ON (e.encounter_id = o.encounter_id AND o.voided = 0)
+    LEFT JOIN patient p ON (v.patient_id = p.patient_id AND p.voided = 0)
+   LEFT JOIN users u ON (v.creator = u.user_id AND u.retired = 0)
+   LEFT JOIN person_name pnu ON (u.person_id = pnu.person_id AND pnu.voided = 0)
+   LEFT JOIN users w ON (e.creator = w.user_id AND w.retired = 0)
+   LEFT JOIN person_name pnd ON (w.person_id = pnd.person_id AND pnd.voided = 0)
     WHERE
     v.voided = 0
     GROUP BY v.visit_id , p.patient_id ,
     v.date_started , v.date_stopped , v.creator , u.username , v.date_created, CONCAT(pnu.given_name, ' ', pnu.family_name)
-    ORDER BY v.date_started ;`;
+    ORDER BY v.date_started;`;
   };
 
   this.locationQuery = () => `SELECT
