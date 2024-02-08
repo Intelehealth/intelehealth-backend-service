@@ -17,6 +17,7 @@ export class WebSocketController {
         });
 
         // this.token = this.webrtcSvc.getToken("myRoom1", "zee2");
+        // console.log('this.token: 's, this.token);
     }
 
     onWebSocketConnection(ws: any) {
