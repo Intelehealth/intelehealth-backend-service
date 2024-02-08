@@ -103,6 +103,7 @@ PORT=xxxx
 SSL_KEY_PATH=xxxx
 SSL_CERT_PATH=xxxx
 DOMAIN=xxxx
+ALLOWED_ORIGINS=[xxxx, xxxx, xxxx]
 ```
 
 ## web-rtc .env (Create .env in the web-rtc folder and use below environment keys)
