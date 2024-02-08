@@ -15,12 +15,12 @@ module.exports = (function () {
    */
   this.shortLink = async (req, res) => {
     try {
-      const link = req.body.link;
+      const { link } = req.body;
       if (!link) {
         RES(res, { success: false, message: MESSAGE.LINK.PLEASE_PASS_LINK }, 422);
         return;
       }
-      let linkAlreadyExist = await links.findOne({
+      const linkAlreadyExist = await links.findOne({
         where: { link },
         raw: true,
       });
@@ -48,9 +48,14 @@ module.exports = (function () {
     }
   };
 
+  /**
+   * Request for get Link
+   * @param {*} req
+   * @param {*} res
+   */
   this.getLink = async (req, res) => {
     try {
-      const hash = req.params.hash;
+      const { hash } = req.params;
 
       const data = await links.findOne({
         where: { hash },
@@ -66,11 +71,14 @@ module.exports = (function () {
     }
   };
 
+  /**
+   * Request otp for prescription validation
+   * @param {*} req
+   * @param {*} res
+   */
   this.requestOtp = async (req, res) => {
     try {
-      const hash = req.body.hash;
-      const phoneNumber = req.body.phoneNumber;
-
+      const { hash, phoneNumber } = req.body;
       await requestPresctionOtp(hash, phoneNumber);
 
       RES(res, { success: true });
@@ -79,11 +87,14 @@ module.exports = (function () {
     }
   };
 
+  /**
+   * Verify otp for prescription validation
+   * @param {*} req
+   * @param {*} res
+   */
   this.verifyOtp = async (req, res) => {
     try {
-      const hash = req.body.hash;
-      const otp = req.body.otp;
-
+      const { hash, otp } = req.body;
       const data = await verfifyPresctionOtp(hash, otp);
 
       RES(res, { success: true, data });

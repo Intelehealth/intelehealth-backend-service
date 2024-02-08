@@ -12,6 +12,12 @@ const { MESSAGE } = require("../constants/messages");
 
 module.exports = (function () {
 
+    /**
+     * Create chatgpt completion
+     * @param { string } payload - Payload
+     * @param { string } inputtype - Input type
+     * @param { string } customInput - Custom input
+     */
     this.createCompletion = async function (payload, inputtype, customInput) {
         try {
             let gptInput = '';
@@ -72,6 +78,10 @@ module.exports = (function () {
 
     };
 
+    /**
+     * Create chatgpt completion
+     * @param { string } payload - Payload
+     */
     this.createCompletion2 = async function (payload) {
         try {
             const response = await openai.createChatCompletion({
@@ -98,6 +108,9 @@ module.exports = (function () {
 
     };
 
+    /**
+     * Get chatgpt inputs saved in database
+     */
     this.getGTPInputs = async function () {
         try {
             const response = await gptinputs.findAll({
@@ -124,6 +137,10 @@ module.exports = (function () {
         }
     };
 
+    /**
+     * Create chatgpt input
+     * @param { string } gptInput - GPT input
+     */
     this.addGTPInput = async function (gptinput) {
         try {
             const data = await gptinputs.create({
@@ -143,6 +160,10 @@ module.exports = (function () {
         }
     };
 
+    /**
+     * Set gptinput as default
+     * @param { number } id - GPT input id
+     */
     this.setAsDefaultGTPInput = async function (id) {
         try {
 
@@ -178,6 +199,10 @@ module.exports = (function () {
         }
     };
 
+    /**
+     * Delete chatgpt input
+     * @param { number } id - GPT input id
+     */
     this.deleteGPTInput = async function (id) {
         try {
             const data = await gptinputs.destroy(
@@ -212,6 +237,9 @@ module.exports = (function () {
         }
     };
 
+    /**
+     * Get all ChatGPT models
+     */
     this.getGPTModels = async function () {
         try {
             const response = await gptmodels.findAll({
@@ -238,6 +266,10 @@ module.exports = (function () {
         }
     };
 
+    /**
+     * Add a chatgpt model
+     * @param { string } model - Model name
+     */
     this.addGPTModel = async function (model) {
         try {
             const data = await gptmodels.create({
@@ -257,6 +289,10 @@ module.exports = (function () {
         }
     };
 
+    /**
+     * Set gpt model as default
+     * @param { number } id - Model id
+     */
     this.setAsDefaultGPTModel = async function (id) {
         try {
 
@@ -292,6 +328,10 @@ module.exports = (function () {
         }
     };
 
+    /**
+     * Delete chatgpt model
+     * @param { number } id - Model id
+     */
     this.deleteGPTModel = async function (id) {
         try {
             const data = await gptmodels.destroy(
@@ -326,6 +366,11 @@ module.exports = (function () {
         }
     };
 
+    /**
+     * Translate excel
+     * @param { * } file - Input file
+     * @param { string } language - Language into which the translation to be done
+     */
     this.translateExcel = async function (file, language) {
         try {
             const data = await readXlsxFile(file.path);

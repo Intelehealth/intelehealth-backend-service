@@ -1,4 +1,4 @@
-const mysql = require("../public/javascripts/mysql/mysql");
+const mysql = require("../handlers/mysql/mysql");
 const webpush = require("web-push");
 const axios = require("axios");
 const admin = require("firebase-admin");
@@ -14,15 +14,27 @@ const {
   OPENMRS_PASS,
 } = process.env;
 
+/**
+ * Initialize firebase app with credentials
+ */
 admin.initializeApp({
   credential: admin.credential.cert(JSON.parse(FIREBASE_SERVICE_ACCOUNT_KEY)),
   databaseURL: FIREBASE_DB_URL,
 });
 
+/**
+ * Set vapid public and private keys for web push notification
+ */
 webpush.setVapidDetails(VAPID_MAILTO, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
+/**
+ * BaseUrl for domain
+ */
 const baseURL = `https://${DOMAIN}`;
 
+/**
+ * Axios instance to ftech openmrs api
+ */
 const axiosInstance = axios.create({
   baseURL,
   timeout: 50000,
@@ -33,8 +45,15 @@ const axiosInstance = axios.create({
   },
 });
 
+/**
+ * Firebase messaging instance 
+ */
 const messaging = admin.messaging();
 
+/**
+ * Send web pushnotification
+ * @param {*} data - { webpush_obj, title, body, data(payload) }
+ */
 const sendWebPushNotification = async ({
   webpush_obj,
   title,
@@ -59,6 +78,11 @@ const sendWebPushNotification = async ({
   }
 };
 
+/**
+ * Validate request params
+ * @param {string[]} params - Array of params in request
+ * @param {string[]} keysAndTypeToCheck - Array of params to be present
+ */
 const validateParams = (params, keysAndTypeToCheck = []) => {
   try {
     keysAndTypeToCheck.forEach((obj) => {
@@ -78,6 +102,10 @@ const validateParams = (params, keysAndTypeToCheck = []) => {
   }
 };
 
+/**
+ * Send cloud notification using fcm
+ * @param {*} data - (title, body, icon, data(payload), regTokens, click_action)
+ */
 const sendCloudNotification = async ({
   title,
   body,
@@ -88,12 +116,12 @@ const sendCloudNotification = async ({
 }) => {
   const payload = {
     data,
-    notification: {
-      title,
-      icon,
-      body,
-      click_action,
-    },
+    // notification: { //TODO: removed this as per comment IDA4-3303
+    //   title,
+    //   icon,
+    //   body,
+    //   click_action,
+    // },
   };
 
   const options = {
@@ -107,16 +135,36 @@ const sendCloudNotification = async ({
   }
 };
 
+/**
+ * Get firebase admin instance
+ * @returns - firebase admin instance
+ */
 const getFirebaseAdmin = () => admin;
 
+/**
+ * Send response
+ * @param {*} res - res object
+ * @param {*} data - Data payload
+ * @param {number} statusCode - Status code
+ */
 const RES = (res, data, statusCode = 200) => res.status(statusCode).json(data);
 
+/**
+ * Call callback for each item in array
+ * @param { string } array - Array
+ * @param {*} callback - Callback function
+ */
 const asyncForEach = async (array, callback) => {
   for (let index = 0; index < array.length; index++) {
     await callback(array[index], index, array);
   }
 };
 
+/**
+ * Execute query 
+ * @param { string } - Query
+ * @returns {promise} - Promise containing data fetched by executing the query
+ */
 const getDataFromQuery = (query) =>
   new Promise((resolve, reject) => {
     mysql.query(query, (err, results) => {
@@ -128,6 +176,10 @@ const getDataFromQuery = (query) =>
     });
   });
 
+/**
+ * Generate hash
+ * @param { number } length - Length
+ */
 const generateHash = (length) =>
   Math.round(Math.pow(36, length + 1) - Math.random() * Math.pow(36, length))
     .toString(36)

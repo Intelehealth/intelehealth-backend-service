@@ -1,10 +1,10 @@
 const { RES } = require("../handlers/helper");
 const { mindmaps, licences } = require("../models");
-const { mkDir } = require("../public/javascripts/directory");
-const { rmDir } = require("../public/javascripts/deletefile");
-const { wrMindmap } = require("../public/javascripts/writefile");
-const { zipFolder } = require("../public/javascripts/zip");
-const { getFormattedUrl } = require("../public/javascripts/functions");
+const { mkDir } = require("../handlers/directory");
+const { rmDir } = require("../handlers/deletefile");
+const { wrMindmap } = require("../handlers/writefile");
+const { zipFolder } = require("../handlers/zip");
+const { getFormattedUrl } = require("../handlers/functions");
 const Sequelize = require('sequelize');
 const Constant = require("../constants/constant");
 const { MESSAGE } = require("../constants/messages");
@@ -15,7 +15,7 @@ const { MESSAGE } = require("../constants/messages");
  * @param {response} res
  */
 const getMindmapDetails = async (req, res) => {
-  const key = req.params.key;
+  const { key } = req.params;
   if (!key)
     RES(res, {
       message: MESSAGE.MINDMAP.PLEASE_ENTER_A_LICENCE_KEY,
@@ -37,30 +37,30 @@ const getMindmapDetails = async (req, res) => {
  * @param {response} res
  */
 const addUpdateLicenceKey = async (req, res) => {
-  const body = req.body;
+  const {imageName, imageValue, key, expiryDate, type} = req.body;
   let message = "";
   let dataToUpdate;
   try {
     let data = await licences.findOne({
-      where: { keyName: body.key },
+      where: { keyName: key },
     });
-    if ((body.type === "image")) {
+    if ((type === "image")) {
       dataToUpdate = {
-        imageName: body.imageName,
-        imageValue: body.imageValue,
+        imageName: imageName,
+        imageValue: imageValue,
       };
     } else {
       dataToUpdate = {
-        keyName: body.key,
-        expiry: body.expiryDate,
+        keyName: key,
+        expiry: expiryDate,
       };
     }
     if (data) {
       data = await data.update(dataToUpdate);
-      message = body.type === "image" ? MESSAGE.COMMON.IMAGE_UPDATED : MESSAGE.COMMON.UPDATED_SUCCESSFULLY;
+      message = type === "image" ? MESSAGE.COMMON.IMAGE_UPDATED : MESSAGE.COMMON.UPDATED_SUCCESSFULLY;
     } else {
       data = await licences.create(dataToUpdate);
-      message = body.type === "image" ? MESSAGE.COMMON.IMAGE_UPLOADED : MESSAGE.COMMON.ADDED_SUCCESSFULLY;
+      message = type === "image" ? MESSAGE.COMMON.IMAGE_UPLOADED : MESSAGE.COMMON.ADDED_SUCCESSFULLY;
     }
     RES(res, { data, success: true, message });
   } catch (error) {
@@ -93,16 +93,16 @@ const getMindmapKeys = async (req, res) => {
  * @param {response} res
  */
 const addUpdateMindMap = async (req, res) => {
-  const body = req.body;
+  const {filename, key, value} = req.body;
   let message = "";
   try {
     let data = await mindmaps.findOne({
-      where: { keyName: body.key, name: body.filename },
+      where: { keyName: key, name: filename },
     });
-    let dataToUpdate = {
-      name: body.filename,
-      json: body.value,
-      keyName: body.key,
+    const dataToUpdate = {
+      name: filename,
+      json: value,
+      keyName: key,
       isActive: data ? data.isActive : true
     };
     if (data) {
@@ -124,8 +124,8 @@ const addUpdateMindMap = async (req, res) => {
  * @param {response} res
  */
 const deleteMindmapKey = async (req, res) => {
-  const key = req.params.key;
-  const mindmapName = req.body.mindmapName;
+  const { key } = req.params;
+  const { mindmapName } = req.body;
   try {
     if (!key) {
       RES(res, {
@@ -165,7 +165,7 @@ const deleteMindmapKey = async (req, res) => {
  * @param {response} res
  */
 const downloadMindmaps = async (req, res) => {
-  const key = req.query.key;
+  const { key } = req.query;
   try {
     if (!key) {
       RES(res, {

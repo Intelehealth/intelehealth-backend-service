@@ -1,12 +1,16 @@
 const fs = require('fs');
 
-   module.exports = {
+module.exports = {
 
-    mkDir : (directory) => {  
+    /**
+     * Create directory at the specified path
+     * @param { string } - path
+     */
+    mkDir: (directory) => {
         try {
             fs.statSync(directory);
             console.log('folder exist')
-        } catch(e) {
+        } catch (e) {
             fs.mkdirSync(directory);
             console.log('folder created')
         }

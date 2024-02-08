@@ -24,7 +24,7 @@ module.exports = function (server) {
   global.users = {};
 
   /**
-   * Declare functions here.
+   * Generate UUID
    */
   function generateUUID() {
     let d = new Date().getTime();
@@ -44,6 +44,9 @@ module.exports = function (server) {
     );
   }
 
+  /**
+   * Emit all active socket users
+   */
   function emitAllUserStatus() {
     const allUsers = Object.keys(users).map((key) => ({
       ...users[key],
@@ -73,6 +76,11 @@ module.exports = function (server) {
       emitAllUserStatus();
     });
 
+    /**
+     * Setup call in a room
+     * @param {*} room - Room
+     * @param {*} data - Call data
+     */
     function callInRoom(room, data) {
       for (const socketId in users) {
         const user = users[socketId];
@@ -99,6 +107,10 @@ module.exports = function (server) {
       }, 610000);
     }
 
+    /**
+     * Perform call connected actions
+     * @param {*} data - Call data
+     */
     function markConnected(data) {
       const { room, initiator, socketId, nurseId, roomId } = data;
       if (initiator === "dr") {

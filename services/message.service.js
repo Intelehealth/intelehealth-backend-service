@@ -19,10 +19,11 @@ module.exports = (function () {
     patientName,
     hwName,
     hwPic,
-    type
+    type,
+    openMrsId
   ) => {
     try {
-      let msg = {
+      const msg = {
         fromUser,
         toUser,
         patientId,
@@ -33,6 +34,7 @@ module.exports = (function () {
         patientName,
         hwName,
         hwPic,
+        openMrsId
       };
 
       if (type) msg.type = type;
@@ -77,6 +79,7 @@ module.exports = (function () {
             "visitId",
             "hwName",
             "createdAt",
+            "openMrsId"
           ],
           order: [["createdAt", "DESC"]],
         });
@@ -184,7 +187,8 @@ module.exports = (function () {
             "hwName",
             "visitId",
             "fromUser",
-            "toUser"
+            "toUser",
+            "openMrsId"
           ],
           where: {
             id: msg.id
@@ -197,6 +201,7 @@ module.exports = (function () {
         data[idx].visitId = record.visitId;
         data[idx].fromUser = record.fromUser;
         data[idx].toUser = record.toUser;
+        data[idx].openMrsId = record.openMrsId;
       });
       return { success: true, data };
     } catch (error) {

@@ -9,8 +9,8 @@ const {
   downloadMindmaps,
   toggleMindmapActiveStatus,
 } = require("../controllers/mindmap.controller");
-const limiter = require("../middleware/rate-limiter");
-router.use(limiter);
+// const limiter = require("../middleware/rate-limiter");
+// router.use(limiter);
 
 router.post("/mindmap/upload", addUpdateMindMap);
 router.get("/mindmap", getMindmapKeys);

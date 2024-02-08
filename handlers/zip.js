@@ -2,6 +2,10 @@ const fs = require('fs');
 const archiver = require('archiver');
 
 module.exports = {
+    /**
+     * Zip folder
+     * @param { string } key - zip name
+     */
     zipFolder : (key) => {
         const archive = archiver.create('zip', {});
         const output = fs.createWriteStream(`./public/${key}.zip`);

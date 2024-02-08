@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const webpush = require("web-push");
-const mysql = require("../public/javascripts/mysql/mysql");
+const mysql = require("../handlers/mysql/mysql");
 const days = {
   0: "Sunday",
   1: "Monday",
@@ -14,58 +14,76 @@ const days = {
 const { VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_MAILTO } = process.env;
 
 router.post("/subscribe", async (req, res) => {
-  let speciality = req.body.speciality;
-  let notification_object = JSON.stringify(req.body.sub);
-  let details = {
-    notification_object,
-    speciality,
-    doctor_name: req.body.providerName,
-    date_created: new Date(),
-    user_uuid: req.body.user_uuid,
-    locale: req.body.locale ? req.body.locale : "en",
-  };
-  const pushnotification = await new Promise((res, rej) => {
-    mysql.query(
-      `Select * from pushnotification where user_uuid='${details.user_uuid}'`,
-      (err, results) => {
-        if (!err) res(results);
-        else rej(err);
-      }
-    );
-  });
+  try{
+    const speciality = req.body.speciality;
+    const notification_object = JSON.stringify(req.body.sub);
+    const finger_print = req.body.finger_print ? req.body.finger_print : "";
+    const details = {
+      notification_object,
+      speciality,
+      doctor_name: req.body.providerName,
+      user_uuid: req.body.user_uuid,
+      locale: req.body.locale ? req.body.locale : "en",
+      finger_print
+    };
+    const pushnotification = await new Promise((res, rej) => {
+      mysql.query(
+        `Select * from pushnotification where user_uuid='${details.user_uuid}'`,
+        (err, results) => {
+          if (!err) res(results);
+          else rej(err);
+        }
+      );
+    });
 
-  // Delete pushNotification records for another user with the same M/C logged in
-  await new Promise((res, rej) => {
-    mysql.query(
-      `DELETE FROM pushnotification WHERE user_uuid !='${details.user_uuid}'`,
-      (err, results) => {
-        if (!err) res(results);
-        else rej(err);
-      }
-    );
-  });
+    // Delete pushNotification records for another user with the same M/C logged in
+    await new Promise((res, rej) => {
+      mysql.query(
+        `DELETE FROM pushnotification WHERE user_uuid !='${details.user_uuid}' and finger_print = '${details.finger_print}'`,
+        (err, results) => {
+          if (!err) res(results);
+          else rej(err);
+        }
+      );
+    });
 
-  if (pushnotification && pushnotification.length) {
-    mysql.query(
-      `UPDATE pushnotification SET notification_object='${details.notification_object}',locale='${details.locale}'
-       WHERE user_uuid='${details.user_uuid}'`,
-      (err, results, fields) => {
-        if (err) res.status(400).json({ message: err.message });
-        else
-          res
-            .status(200)
-            .json({ results, fields, message: "Updated Successfully" });
-      }
-    );
-  } else {
-    mysql.query(
-      "Insert into pushnotification SET ?",
-      details,
-      (err, results, fields) => {
-        if (!err) res.status(200).json({ message: "Subscribed Successfully" });
-        else res.status(400).json({ message: "Not Subscribed" });
-      }
-    );
+    if (pushnotification && pushnotification.length) {
+      mysql.query(
+        `UPDATE pushnotification SET notification_object='${details.notification_object}',locale='${details.locale}'
+        WHERE user_uuid='${details.user_uuid}' and finger_print = '${details.finger_print}'`,
+        (err, results, fields) => {
+          if (err) res.status(400).json({ message: err.message });
+          else
+            res
+              .status(200)
+              .json({ results, fields, message: "Updated Successfully" });
+        }
+      );
+    } else {
+      mysql.query(
+        `INSERT INTO mindmap_server.pushnotification
+        (notification_object,
+        speciality,
+        doctor_name,
+        date_created,
+        user_uuid,
+        finger_print,
+        locale)VALUES
+        ('${details.notification_object}',
+        '${details.speciality}',
+        '${details.doctor_name}',
+        CURRENT_TIMESTAMP,
+        '${details.user_uuid}',
+        '${details.finger_print}',
+        '${details.locale}')`,
+        (err, results, fields) => {
+          if (!err) res.status(200).json({ message: "Subscribed Successfully" });
+          else res.status(400).json({ message: "Not Subscribed" });
+        }
+      );
+    }
+  } catch(e){
+    res.status(400).json({ message: "Error", error });
   }
 });
 

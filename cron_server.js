@@ -1,7 +1,7 @@
 const cron = require("node-cron");
 const moment = require("moment");
-const mysql = require("./public/javascripts/mysql/mysql");
-const { sendWebPushNotificaion } = require("./handlers/helper");
+const mysql = require("./handlers/mysql/mysql");
+const { sendWebPushNotification } = require("./handlers/helper");
 
 const cronString = "*/1 * * * *";
 const SQL_DATE_FORMAT = "YYYY-MM-DD HH:mm:ss";
@@ -49,7 +49,7 @@ const queryAndSendNotification = async (query) => {
         const engTitle = `Appointment Reminder(${schedule.slotTime}): ${schedule.patientName}`;
         const ruTitle = `Напоминание о встрече(${schedule.slotTime}): ${schedule.patientName}`;
         const title = schedule.locale === "ru" ? ruTitle : engTitle;
-        sendWebPushNotificaion({
+        sendWebPushNotification({
           webpush_obj: schedule.webpush_obj,
           title,
           body: schedule.openMrsId,

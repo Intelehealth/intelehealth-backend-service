@@ -130,8 +130,8 @@ module.exports = (function () {
    */
   this.resetPassword = async (req, res) => {
     try {
-      const userUuid = req.params.userUuid;
-      const newPassword = req.body.newPassword;
+      const { userUuid } = req.params;
+      const { newPassword } = req.body;
 
       if (userUuid && newPassword) {
         const data = await resetPassword(userUuid, newPassword);
@@ -167,6 +167,11 @@ module.exports = (function () {
     }
   };
 
+  /**
+   * Check the current session remember me. 
+   * @param {*} req
+   * @param {*} res
+   */
   this.checkSession = async (req, res) => {
     RES(res, {
       success: true,
@@ -174,6 +179,11 @@ module.exports = (function () {
     });
   };
 
+  /**
+   * Funtion for making remember me login during requested session.
+   * @param {*} req
+   * @param {*} res
+   */
   this.rememberme = async (req, res) => {
     req.session.rememberme = true;
     req.session.userUuid = req.body.userUuid;
