@@ -70,6 +70,11 @@ module.exports = (function () {
     }
   };
 
+  
+/**
+ * Send cloud notification using fcm
+ * @param {*} data - (title, body, icon, data(payload), regTokens, click_action)
+ */
   this.sendCloudNotification = async ({
     title,
     body,
@@ -78,33 +83,28 @@ module.exports = (function () {
     regTokens,
     click_action = "FCM_PLUGIN_HOME_ACTIVITY",
   }) => {
-    const admin = this.getFirebaseAdmin();
     const messaging = admin.messaging();
-
-    var payload = {
+    const payload = {
       data,
-      notification: {
-        title,
-        icon,
-        body,
-        click_action,
-      },
+      // notification: { //TODO: removed this as per comment IDA4-3303
+      //   title,
+      //   icon,
+      //   body,
+      //   click_action,
+      // },
     };
 
     const options = {
       priority: "high",
     };
 
-    return messaging
-      .sendToDevice(regTokens, payload, options)
-      .then((result) => {
-        console.log(result);
-      })
-      .catch((err) => {
-        console.log("err: ", err);
-      });
+    try {
+      const result = await messaging.sendToDevice(regTokens, payload, options);
+    } catch (err) {
+      console.error("Cloud notification error:", err);
+    }
   };
-
+  
   this.RES = (res, data, statusCode = 200) => {
     res.status(statusCode).json(data);
   };
