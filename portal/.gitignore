@@ -1,0 +1,8 @@
+/node_modules
+**/settings.json
+**/license
+*.zip
+/config/config.json
+/config/serviceAccountKey.json
+/livekit-token-microservice/node_modules*
+.env
