@@ -25,6 +25,8 @@ module.exports = (sequelize, DataTypes) => {
     {
       sequelize,
       modelName: "pushnotification",
+      freezeTableName: true,
+      timestamps: false,
     }
   );
   pushnotification.removeAttribute("updatedAt");
