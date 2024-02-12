@@ -28,6 +28,7 @@ router.post("/subscribe", async (req, res) => {
     date_created: new Date(),
     user_uuid: req.body.user_uuid,
     finger_print: req.body.finger_print,
+    locale: req.body.locale || null
   };
   const pushnotification = await new Promise((res, rej) => {
     mysql.query(
@@ -41,8 +42,7 @@ router.post("/subscribe", async (req, res) => {
 
   if (pushnotification && pushnotification.length) {
     mysql.query(
-      `UPDATE pushnotification SET notification_object='${details.notification_object},locale='${details.locale}'
-       WHERE user_uuid='${details.user_uuid}' and finger_print='${details.finger_print}'`,
+      `UPDATE pushnotification SET notification_object='${details.notification_object}',locale='${details.locale}' WHERE user_uuid='${details.user_uuid}' and finger_print='${details.finger_print}'`,
       (err, results, fields) => {
         if (err) res.status(400).json({ message: err.message });
         else

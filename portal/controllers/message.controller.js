@@ -26,7 +26,7 @@ module.exports = (function () {
         body: payload.message,
         options: {
           TTL: "3600000",
-        },
+        }
       });
     });
   };
