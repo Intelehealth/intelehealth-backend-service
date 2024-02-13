@@ -49,8 +49,8 @@ router.post("/subscribe", async (req, res) => {
 
     if (pushnotification && pushnotification.length) {
       mysql.query(
-        `UPDATE pushnotification SET notification_object='${details.notification_object}',locale='${details.locale}'
-        WHERE user_uuid='${details.user_uuid}' and finger_print = '${details.finger_print}'`,
+        `UPDATE pushnotification SET notification_object='${details.notification_object}',locale='${details.locale}', finger_print = '${details.finger_print}'
+        WHERE user_uuid='${details.user_uuid}'`,
         (err, results, fields) => {
           if (err) res.status(400).json({ message: err.message });
           else
