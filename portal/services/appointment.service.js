@@ -1207,5 +1207,24 @@ WHERE
     }
   };
 
+   /**
+   * validate the dayoff for current user
+   * @param {string} userUuid - User uuid
+   * @param {string} date - date
+   * @param {string} time - time
+   */
+  this.validateDayOff = async ({ userUuid, month, year, date, time }) => {
+    try {
+      const opts = { where: { userUuid, month, year  } };
+    
+      const schedule = await this.getUserAppointmentSchedule(opts);
+      if(schedule?.daysOff?.includes(date)) throw new Error(MESSAGE.APPOINTMENT.CANNOT_SCHEDULE_THE_VISIT);
+      
+      return {schedule};
+    } catch (error) {
+      throw error;
+    }
+  };
+
   return this;
 })();
