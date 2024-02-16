@@ -12,6 +12,6 @@ router.put("/snooze_notification", [authMiddleware, snoozeNotification]);
 router.put("/user_settings", [authMiddleware, setUserSettings]);
 router.get("/user_settings/:uuid", [authMiddleware, getUserSettings]);
 
-router.post("/notify-app/:userId", [ notifyApp]);
+router.post("/notify-app/:userId", [authMiddleware, notifyApp]);
 
 module.exports = router;
