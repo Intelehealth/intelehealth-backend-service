@@ -528,6 +528,13 @@ const { uuid } = require('uuidv4');
     }
   };
 
+  this.getBase64 = (url) => {
+    return axios
+      .get(url, {
+        responseType: 'arraybuffer'
+      })
+      .then(response => Buffer.from(response.data, 'binary').toString('base64'))
+  }
   /**
    * Get Card
    * @param {req} object
@@ -544,10 +551,13 @@ const { uuid } = require('uuidv4');
 
       
       logStream("debug", 'Calling API to Get Card', 'Get Card');
+
+      
     
       const apiResponse = await axiosInstance.get(
         process.env.GET_CARD_URL, 
         {
+          responseType: 'arraybuffer',
           headers: {
             ...this.getInitialHeaderrs(accessToken),
             'REQUEST-ID': uuid(),
@@ -555,13 +565,14 @@ const { uuid } = require('uuidv4');
             'X-Token': `Bearer ${xToken}`
            }
         }
-      );
+      ).then(response => Buffer.from(response.data, 'binary').toString('base64'))
 
       logStream("debug", 'Got API Response', 'Get Card');
-    
+        
+      res.json({
+        image: apiResponse
+      }); 
 
-      return res.json(apiResponse.data)
-    
     } catch (error) {
         logStream("error", error.message);
         next(error);
