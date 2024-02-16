@@ -101,7 +101,7 @@ const sendCloudNotification = async ({
   };
 
   try {
-    const result = await messaging.sendToDevice(regTokens, payload, options);
+    return await messaging.sendToDevice(regTokens, payload, options);
   } catch (err) {
     console.error("Cloud notification error:", err);
   }

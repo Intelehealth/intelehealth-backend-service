@@ -1,6 +1,6 @@
 const mysql = require("../public/javascripts/mysql/mysql");
 const { user_settings } = require("../models");
-const { log } = require("../handlers/helper");
+const { log, sendCloudNotification } = require("../handlers/helper");
 Date.prototype.addMinutes = function (m) {
   this.setTime(this.getTime() + m * 60000);
   return this;
@@ -165,8 +165,40 @@ const setUserSettings = async ({ body }, res) => {
   });
 };
 
+const notifyApp = async (req, res, next) => {
+  try {
+    let userSetting = await user_settings.findOne({
+      where: { user_uuid: req.params.userId },
+    });
+    let data = null;
+
+    if (userSetting?.device_reg_token) {
+      let notficationObj = {
+        title: req.body.title,
+        body: req.body.body,
+        regTokens: [userSetting.device_reg_token],
+      };
+      if (req.body.data) notficationObj.data = req.body.data;
+      if (req.body.title) notficationObj.title = req.body.title;
+      if (req.body.body) notficationObj.body = req.body.body;
+
+      data = await sendCloudNotification(notficationObj).catch((err) => {
+        console.log("err: ", err);
+      });
+    }
+
+    res.json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   snoozeNotification,
   getUserSettings,
   setUserSettings,
+  notifyApp,
 };
