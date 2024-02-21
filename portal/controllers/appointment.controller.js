@@ -22,7 +22,8 @@ const {
   updateDaysOffSchedule,
   _completeAppointment,
   checkAppointment,
-  updateSlotSpeciality
+  updateSlotSpeciality,
+  validateDayOff
 } = require("../services/appointment.service");
 
 module.exports = (function () {
@@ -489,6 +490,26 @@ module.exports = (function () {
           message: MESSAGE.APPOINTMENT.APPOINTMENT_PUSH_SUCCESSFULLY,
         });
       }
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get dayoff based on date & time user unique id.
+   * @param {*} req
+   * @param {*} res
+   */
+  this.validateDayOff = async (req, res, next) => {
+    console.log("CALLED")
+    try {
+      const { userUuid } = req.params;
+      const { year, month, date, time } = req.query;
+      const data = await validateDayOff({ userUuid, year, month, date, time });
+      res.json({
+        status: true,
+        data,
+      });
     } catch (error) {
       next(error);
     }

@@ -17,7 +17,8 @@ const {
   updateDaysOff,
   appointmentPush,
   checkAppointment,
-  updateSlotSpeciality
+  updateSlotSpeciality,
+  validateDayOff
 } = require("../controllers/appointment.controller");
 const authMiddleware = require("../middleware/auth");
 const router = express.Router();
@@ -28,6 +29,7 @@ router.get("/getUserSlots/:userUuid", [authMiddleware, getUserSlots]);
 router.get("/checkAppointment/:userUuid", [authMiddleware, checkAppointment]);
 router.put("/updateSlotSpeciality/:userUuid", [authMiddleware, updateSlotSpeciality]);
 router.get("/getSpecialitySlots/:speciality", [authMiddleware, getSpecialitySlots]);
+router.get('/validateDayOff/:userUuid', [authMiddleware, validateDayOff]);
 router.get("/getSlots", [authMiddleware, getSlots]);
 router.get("/getAppointmentSlots", [authMiddleware, getAppointmentSlots]);
 router.get("/getScheduledMonths/:userUuid", [authMiddleware, getScheduledMonths]);

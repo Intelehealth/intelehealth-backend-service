@@ -44,7 +44,8 @@ const MESSAGE = {
         APPOINTMENT_FOR_THIS_VISIT_IS_ALREADY_PRESENT: "Appointment for this visit is already present.",
         APPOINTMENT_NOT_AVAILABLE_ITS_ALREADY_BOOKED: "Appointment not available, it's already booked.",
         INCORRECT_DATE_RANGE_FROMDATE_SHOULD_BE_GREATER_OR_EQUAL_TO_TODATE_DAY: "Incorrect date range - fromDate should be greater or equal to toDate day",
-        ANOTHER_APPOINTMENT_HAS_ALREADY_BEEN_BOOKED_FOR_THIS_TIME_SLOT: "Another appointment has already been booked for this time slot."
+        ANOTHER_APPOINTMENT_HAS_ALREADY_BEEN_BOOKED_FOR_THIS_TIME_SLOT: "Another appointment has already been booked for this time slot.",
+        CANNOT_SCHEDULE_THE_VISIT: "Cannot schedule the visit doctor is not available during that date and time."
     },
     LINK: {
         PLEASE_PASS_LINK: "Please pass link"
