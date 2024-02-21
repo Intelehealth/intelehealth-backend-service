@@ -1,6 +1,7 @@
 const textToImage = require('text-to-image');
 const path = require("path");
 const fs = require("fs");
+const { logStream } = require("../logger/index");
 
 module.exports = (function () {
     /**
@@ -11,6 +12,7 @@ module.exports = (function () {
      */
     this._createSign = async (textOfSign, fontName, providerId) => {
         try {
+            logStream('debug','Signature Service', 'Create Sign');
             let fontFamily = '';
             let fontPath = '';
             let maxWidth = 300;
@@ -52,8 +54,10 @@ module.exports = (function () {
                 customHeight
             });
             fs.writeFileSync(path.join(...['/var', 'www', 'html', 'docsign',`${providerId}_sign.png`]), dataUri.replace('data:image/png;base64,',''),'base64');
+            logStream('debug','Signature Created', 'Create Sign');
             return { url: `https://${process.env.DOMAIN}/ds/${providerId}_sign.png` };
         } catch (error) {
+            logStream("error", error.message);
             if (error.code === null || error.code === undefined) {
                 error.code = 500;
             }
@@ -68,9 +72,12 @@ module.exports = (function () {
      */
     this._uploadSign = async (file, providerid) => {
         try {
+            logStream('debug','Signature Service', 'Upload Sign');
             fs.writeFileSync(path.join(...['/var', 'www', 'html', 'docsign',`${providerid}_sign.png`]), file.replace('data:image/png;base64,',''),'base64');  
+            logStream('debug','Signature Uploaded', 'Upload Sign');
             return { url: `https://${process.env.DOMAIN}/ds/${providerid}_sign.png` };
         } catch (error) {
+            logStream("error", error.message);
             if (error.code === null || error.code === undefined) {
                 error.code = 500;
             }

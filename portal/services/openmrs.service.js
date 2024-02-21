@@ -22,6 +22,7 @@ const {
   concept_name
 } = require("../openmrs_models");
 const { MESSAGE } = require("../constants/messages");
+const { logStream } = require("../logger/index");
 const Constant = require("../constants/constant");
 const Op = Sequelize.Op;
 
@@ -32,6 +33,7 @@ module.exports = (function () {
   * @param { number } otp - OTP
   */
   const saveOTP = async (userUuid, otp) => {
+    logStream('debug','Openmrs Service', 'Save Otp');
     let user = await user_settings.findOne({
       where: {
         user_uuid: userUuid,
@@ -47,7 +49,7 @@ module.exports = (function () {
         otp,
       });
     }
-
+    logStream('debug','Success', 'Save Otp');
     return user;
   };
 
@@ -58,11 +60,13 @@ module.exports = (function () {
   */
   this.sendOtp = async (userName, phoneNumber) => {
     try {
+      logStream('debug','Openmrs Service', 'send Otp');
       let query,
         data = "",
         contactData;
       const noPayload = userName || phoneNumber;
       if (!noPayload) {
+        logStream("error", 'Invalid Arguments!');     
         throw new Error(
           "userName and phoneNumber both the empty, pass atleast any one."
         );
@@ -82,6 +86,7 @@ module.exports = (function () {
         data = data.length && data[0] ? data[0] : null;
 
         if (!data) {
+          logStream("error", 'Invalid username!');     
           throw new Error(MESSAGE.OPENMRS.INVALID_USERNAME);
         }
 
@@ -107,6 +112,7 @@ module.exports = (function () {
             resolve(results);
           });
         }).catch((err) => {
+          logStream("error", err.message);
           throw err;
         });
 
@@ -125,6 +131,7 @@ module.exports = (function () {
             }
           );
         }).catch((err) => {
+          logStream("error", err.message);
           throw err;
         });
 
@@ -138,13 +145,14 @@ module.exports = (function () {
 
         data = { ...data, ...user };
       }
-
+      logStream('debug','Success', 'send Otp');
       return {
         success: true,
         data,
         message: MESSAGE.OPENMRS.OTP_SENT_SUCCESSFULLY,
       };
     } catch (error) {
+      logStream("error", error.message);
       return {
         success: false,
         message: error.message,
@@ -159,6 +167,8 @@ module.exports = (function () {
   * @param { string } newPassword - New password
   */
   this.resetPassword = async (userUuid, otp, newPassword) => {
+
+    logStream('debug','Openmrs Service', 'Reset Password');
     const url = `/openmrs/ws/rest/v1/password/${userUuid}`;
 
     let userSetting = await user_settings.findOne({
@@ -184,6 +194,7 @@ module.exports = (function () {
     }
 
     if (userSetting.otp !== otp) {
+      logStream("error","")
       throw new Error(MESSAGE.OPENMRS.INVALID_OTP);
     }
 
@@ -193,7 +204,7 @@ module.exports = (function () {
 
     const data = await axiosInstance.post(url, payload).catch((err) => {
     });
-
+    logStream('debug','Openmrs Service', 'Reset Password');
     return {
       success: true,
       data,
@@ -207,6 +218,7 @@ module.exports = (function () {
   * @param { string } speciality - Doctor speciality
   */
   this.getVisits = async (type, speciality) => {
+    logStream('debug','Openmrs Service', 'Get Visits');
     if (!type) {
       return [];
     } else {
@@ -254,6 +266,7 @@ module.exports = (function () {
     type
   ) => {
     try {
+      logStream('debug','Openmrs Service', 'Get Visits By Type');
       let offset = limit * (Number(page) - 1);
 
       if (limit > 5000) limit = 5000;
@@ -336,6 +349,7 @@ module.exports = (function () {
 
       return {  totalCount: visitIds.length, currentCount: visits.length, visits: visits};
     } catch (error) {
+      logStream("error", error.message);
       throw error;
     }
   };
@@ -352,12 +366,14 @@ module.exports = (function () {
     limit = 1000
   ) => {
     try {
+      logStream('debug','Openmrs Service', 'Get Priority Visits');
       return await getVisitsByType(
         speciality, 
         page, 
         limit, 
         "Priority");
     } catch (error) {
+      logStream("error", error.message);
       throw error;
     }
   };
@@ -374,6 +390,7 @@ module.exports = (function () {
     limit = 1000
   ) => {
     try {
+      logStream('debug','Openmrs Service', 'Get Awaiting Visits');
       return await getVisitsByType(
         speciality,
         page,
@@ -381,6 +398,7 @@ module.exports = (function () {
         "Awaiting Consult"
       );
     } catch (error) {
+      logStream("error", error.message);
       throw error;
     }
   };
@@ -397,6 +415,7 @@ module.exports = (function () {
     limit = 1000
   ) => {
     try {
+      logStream('debug','Openmrs Service', 'Get In Progress Visits');
       return await getVisitsByType(
         speciality,
         page,
@@ -404,6 +423,7 @@ module.exports = (function () {
         "Visit In Progress"
       );
     } catch (error) {
+      logStream("error", error.message);
       throw error;
     }
   };
@@ -420,6 +440,7 @@ module.exports = (function () {
     limit = 1000
   ) => {
     try {
+      logStream('debug','Openmrs Service', 'Get Completed Visits');
       return await getVisitsByType(
         speciality,
         page,
@@ -427,6 +448,7 @@ module.exports = (function () {
         "Completed Visit"
       );
     } catch (error) {
+      logStream("error", error.message);
       throw error;
     }
   };
@@ -443,6 +465,7 @@ module.exports = (function () {
     limit = 1000
   ) => {
     try {
+      logStream('debug','Openmrs Service', 'Get Ended Visits');
       return await getVisitsByType(
         speciality,
         page,
@@ -450,6 +473,7 @@ module.exports = (function () {
         "Ended Visit"
       );
     } catch (error) {
+      logStream("error", error.message);
       throw error;
     }
   };
