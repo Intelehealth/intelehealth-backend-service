@@ -3,25 +3,23 @@ const mysql = require("../public/javascripts/mysql/mysql");
 const webpush = require("web-push");
 const admin = require("firebase-admin");
 
-const serviceAccount = require(__dirname + "/../config/serviceAccountKey.json");
+const {
+  FIREBASE_SERVICE_ACCOUNT_KEY,
+  FIREBASE_DB_URL,
+  VAPID_MAILTO,
+  VAPID_PUBLIC_KEY,
+  VAPID_PRIVATE_KEY,
+  DEBUG
+} = process.env;
 
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  databaseURL: "https://syriana-7d290-default-rtdb.firebaseio.com",
+  credential: admin.credential.cert(JSON.parse(FIREBASE_SERVICE_ACCOUNT_KEY)),
+  databaseURL: FIREBASE_DB_URL,
 });
 
+
 module.exports = (function () {
-  const vapidKeys = {
-    publicKey:
-      "BJJvSw6ltFPN5GDxIOwbRtJUBBJp2CxftaRNGbntvE0kvzpe05D9zKr-SknKvNBihXDoyd09KuHrWwC3lFlTe54",
-    privateKey: "7A59IAQ78P3qbnLL0uICspWr2BJ8II1FnxTatMNelkI",
-    mailTo: "mailto:support@intelehealth.org",
-  };
-  webpush.setVapidDetails(
-    vapidKeys.mailTo,
-    vapidKeys.publicKey,
-    vapidKeys.privateKey
-  );
+  webpush.setVapidDetails(VAPID_MAILTO, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
   this.sendWebPushNotificaion = async ({ webpush_obj, title, body }) => {
     webpush
