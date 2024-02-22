@@ -9,6 +9,7 @@ const readXlsxFile = require('read-excel-file/node');
 const xlsx = require('node-xlsx').default;
 const fs = require('fs');
 const { MESSAGE } = require("../constants/messages");
+const { logStream } = require("../logger/index");
 
 module.exports = (function () {
 
@@ -20,6 +21,7 @@ module.exports = (function () {
      */
     this.createCompletion = async function (payload, inputtype, customInput) {
         try {
+            logStream('debug','Openai Service', 'Create Completion');
             let gptInput = '';
             if (inputtype == 'default') {
                 const data = await gptinputs.findAll({
@@ -84,6 +86,7 @@ module.exports = (function () {
      */
     this.createCompletion2 = async function (payload) {
         try {
+            logStream('debug','Openai Service', 'Create Completion2');
             const response = await openai.createChatCompletion({
                 model: 'gpt-3.5-turbo-0613',
                 messages: [
@@ -113,6 +116,7 @@ module.exports = (function () {
      */
     this.getGTPInputs = async function () {
         try {
+            logStream('debug','Openai Service', 'Get GTP Inputs');
             const response = await gptinputs.findAll({
                 where: {
                     id: {
@@ -143,6 +147,7 @@ module.exports = (function () {
      */
     this.addGTPInput = async function (gptinput) {
         try {
+            logStream('debug','Openai Service', 'add GTP Input');
             const data = await gptinputs.create({
                 gptinput
             });
@@ -166,7 +171,7 @@ module.exports = (function () {
      */
     this.setAsDefaultGTPInput = async function (id) {
         try {
-
+            logStream('debug','Openai Service', 'set As Default GTP Input');
             const response = await gptinputs.update(
                 { isDefault: false },
                 {
@@ -205,6 +210,7 @@ module.exports = (function () {
      */
     this.deleteGPTInput = async function (id) {
         try {
+            logStream('debug','Openai Service', 'Delete GPT Input');
             const data = await gptinputs.destroy(
                 {
                     where: {
@@ -242,6 +248,7 @@ module.exports = (function () {
      */
     this.getGPTModels = async function () {
         try {
+            logStream('debug','Openai Service', 'Get GPT Models');
             const response = await gptmodels.findAll({
                 where: {
                     id: {
@@ -272,6 +279,7 @@ module.exports = (function () {
      */
     this.addGPTModel = async function (model) {
         try {
+            logStream('debug','Openai Service', 'Add GPT Model');
             const data = await gptmodels.create({
                 model
             });
@@ -295,7 +303,7 @@ module.exports = (function () {
      */
     this.setAsDefaultGPTModel = async function (id) {
         try {
-
+            logStream('debug','Openai Service', 'Set As Default GPT Model');
             const response = await gptmodels.update(
                 { isDefault: false },
                 {
@@ -334,6 +342,7 @@ module.exports = (function () {
      */
     this.deleteGPTModel = async function (id) {
         try {
+            logStream('debug','Openai Service', 'Delete GPT Model');
             const data = await gptmodels.destroy(
                 {
                     where: {
@@ -373,6 +382,7 @@ module.exports = (function () {
      */
     this.translateExcel = async function (file, language) {
         try {
+            logStream('debug','Openai Service', 'Translate Excel');
             const data = await readXlsxFile(file.path);
             let words = [];
             let jsonObject = { };

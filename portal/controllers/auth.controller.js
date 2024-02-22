@@ -1,5 +1,6 @@
 const { MESSAGE } = require("../constants/messages");
 const { RES } = require("../handlers/helper");
+const { logStream } = require("../logger/index");
 const {
   resetPassword,
   checkProviderAttribute,
@@ -15,6 +16,7 @@ module.exports = (function () {
    */
   this.requestOtp = async (req, res) => {
     try {
+      logStream('debug', 'API calling', 'Request Otp');
       const {
         email,
         phoneNumber,
@@ -25,6 +27,7 @@ module.exports = (function () {
       if ((email || phoneNumber || username) && otpFor) {
         if (phoneNumber) {
           if (!countryCode) {
+            logStream('debug', 'Arguments Missing', 'Request Otp');
             RES(
               res,
               {
@@ -43,6 +46,7 @@ module.exports = (function () {
           username,
           otpFor
         );
+        logStream('debug', 'OTP Received', 'Request Otp');
         RES(
           res,
           {
@@ -53,6 +57,7 @@ module.exports = (function () {
           data.code
         );
       } else {
+        logStream('debug', 'Arguments Missing', 'Request Otp');
         RES(
           res,
           {
@@ -64,6 +69,7 @@ module.exports = (function () {
         );
       }
     } catch (error) {
+      logStream("error", error.message);
       if (error.code === null || error.code === undefined) {
         error.code = 500;
       }
@@ -82,6 +88,7 @@ module.exports = (function () {
    */
   this.verifyOtp = async (req, res) => {
     try {
+      logStream('debug', 'API call', 'Verify Otp');
       const { email, phoneNumber, username, verifyFor, otp } = req.body;
       if ((email || phoneNumber || username) && verifyFor && otp) {
         const data = await verifyOtp(
@@ -91,6 +98,7 @@ module.exports = (function () {
           verifyFor,
           otp
         );
+        logStream('debug', 'Verified OTP', 'Verify Otp');
         RES(
           res,
           {
@@ -101,6 +109,7 @@ module.exports = (function () {
           data.code
         );
       } else {
+        logStream('debug', 'Arguments Missing', 'Verify Otp');
         RES(
           res,
           {
@@ -112,6 +121,7 @@ module.exports = (function () {
         );
       }
     } catch (error) {
+      logStream("error", error.message);
       if (error.code === null || error.code === undefined) {
         error.code = 500;
       }
@@ -130,11 +140,13 @@ module.exports = (function () {
    */
   this.resetPassword = async (req, res) => {
     try {
+      logStream('debug', 'API call', 'Reset Password');
       const { userUuid } = req.params;
       const { newPassword } = req.body;
 
       if (userUuid && newPassword) {
         const data = await resetPassword(userUuid, newPassword);
+        logStream('debug', 'Reset Password Success', 'Reset Password');
         RES(
           res,
           {
@@ -145,6 +157,7 @@ module.exports = (function () {
           data.code
         );
       } else {
+        logStream('debug', 'Arguments Missing', 'Reset Password');
         RES(
           res,
           {
@@ -156,6 +169,7 @@ module.exports = (function () {
         );
       }
     } catch (error) {
+      logStream("error", error.message);
       if (error.code === null || error.code === undefined) {
         error.code = 500;
       }
@@ -173,6 +187,7 @@ module.exports = (function () {
    * @param {*} res
    */
   this.checkSession = async (req, res) => {
+    logStream('debug', 'API call', 'Check Session');
     RES(res, {
       success: true,
       rememberme: req.session.rememberme,
@@ -187,7 +202,7 @@ module.exports = (function () {
   this.rememberme = async (req, res) => {
     req.session.rememberme = true;
     req.session.userUuid = req.body.userUuid;
-
+    logStream('debug', 'Remember me Success', 'Check Session');
     RES(res, {
       success: true,
       rememberme: req.session.rememberme,
@@ -202,9 +217,11 @@ module.exports = (function () {
    */
   this.checkProviderAttribute = async (req, res) => {
     try {
+      logStream('debug', 'API call', 'Check Provider Attribute');
       const { attributeType, attributeValue, providerUuid } = req.body;
       if (attributeType && attributeValue && providerUuid) {
         if (!["emailId", "phoneNumber"].includes(attributeType)) {
+          logStream('debug', 'Bad Request', 'Check Provider Attribute');
           RES(
             res,
             {
@@ -220,6 +237,7 @@ module.exports = (function () {
           attributeValue,
           providerUuid
         );
+        logStream('debug', 'Success', 'Check Provider Attribute');
         RES(
           res,
           {
@@ -230,6 +248,7 @@ module.exports = (function () {
           data.code
         );
       } else {
+        logStream('debug', 'Bad Request', 'Check Provider Attribute');
         RES(
           res,
           {
@@ -241,6 +260,7 @@ module.exports = (function () {
         );
       }
     } catch (error) {
+      logStream("error", error.message);
       if (error.code === null || error.code === undefined) {
         error.code = 500;
       }

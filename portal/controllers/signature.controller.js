@@ -5,6 +5,7 @@ const {
 const { validateParams, RES } = require("../handlers/helper");
 const Constant = require("../constants/constant");
 const { MESSAGE } = require("../constants/messages");
+const { logStream } = require("../logger/index");
 
 module.exports = (function () {
     /**
@@ -14,6 +15,7 @@ module.exports = (function () {
      */
     this.createSign = async (req, res) => {
         try {
+            logStream('debug', 'API call', 'Create Sign');
             const {
                 textOfSign,
                 fontName,
@@ -26,6 +28,7 @@ module.exports = (function () {
             ];
             if (validateParams(req.body, keysAndTypeToCheck)) {
                 const data = await _createSign(textOfSign, fontName, providerId);
+                logStream('debug', 'Success', 'Create Sign');
                 RES(
                     res,
                     {
@@ -37,6 +40,7 @@ module.exports = (function () {
                 );
             }
         } catch (error) {
+            logStream("error", error.message);
             if (error.code === null || error.code === undefined) {
                 error.code = 500;
             }
@@ -55,6 +59,7 @@ module.exports = (function () {
      */
     this.uploadSign = async (req, res) => {
         try {
+            logStream('debug', 'API call', 'Upload Sign');
             const {
                 file,
                 providerid
@@ -65,6 +70,7 @@ module.exports = (function () {
             ];
             if (validateParams(req.body, keysAndTypeToCheck)) {
                 const data = await _uploadSign(file, providerid);
+                logStream('debug', 'Success', 'Upload Sign');
                 RES(
                     res,
                     {
@@ -76,6 +82,7 @@ module.exports = (function () {
                 );
             }
         } catch (error) {
+            logStream("error", error.message);
             if (error.code === null || error.code === undefined) {
                 error.code = 500;
             }

@@ -1,6 +1,7 @@
 const { MESSAGE } = require("../constants/messages");
 const openMrsDB = require("../handlers/mysql/mysqlOpenMrs");
 const { sendOtp, resetPassword } = require("../services/openmrs.service");
+const { logStream } = require("../logger/index");
 const {
   _getAwaitingVisits,
   _getPriorityVisits,
@@ -127,6 +128,7 @@ const getVisitCounts = async (req, res, next) => {
       : getVisitCountQuery({ speciality });
 
   try {
+    logStream('debug', 'API call', 'Get Visit Counts');
     const data = await new Promise((resolve, reject) => {
       openMrsDB.query(query, (err, results, fields) => {
         if (err) reject(err);
@@ -135,11 +137,13 @@ const getVisitCounts = async (req, res, next) => {
     }).catch((err) => {
       throw err;
     });
+    logStream('debug', 'Success', 'Get Visit Counts');
     res.json({
       data,
       message: MESSAGE.OPENMRS.VISIT_COUNT_FETCHED_SUCCESSFULLY,
     });
   } catch (error) {
+    logStream("error", error.message);
     res.statusCode = 422;
     res.json({ status: false, message: err.message });
   }
@@ -155,6 +159,7 @@ const getFollowUpVisit = async (req, res, next) => {
   const { providerId } = req.params;
   const query = getFollowUpVisitOfDr(providerId);
   try {
+    logStream('debug', 'API call', 'Get FollowUp Visit');
     const data = await new Promise((resolve, reject) => {
       openMrsDB.query(query, (err, results, fields) => {
         if (err) reject(err);
@@ -163,10 +168,12 @@ const getFollowUpVisit = async (req, res, next) => {
     }).catch((err) => {
       throw err;
     });
+    logStream('debug', 'Success', 'Get FollowUp Visit');
     res.json(
       data
     );
   } catch (error) {
+    logStream("error", error.message);
     res.statusCode = 422;
     res.json({ status: false, message: err.message });
   }
@@ -180,11 +187,13 @@ const getFollowUpVisit = async (req, res, next) => {
  */
 const forgetPasswordSendOtp = async (req, res, next) => {
   try {
+    logStream('debug', 'API call', 'Forget Password Send Otp');
     const { userName, phoneNumber } = req.body;
     const data = await sendOtp(userName, phoneNumber);
-
+    logStream('debug', 'Success', 'Forget Password Send Otp');
     res.json(data);
   } catch (error) {
+    logStream("error", error.message);
     res.statusCode = 422;
     res.json({ status: false, message: error.message });
   }
@@ -198,13 +207,15 @@ const forgetPasswordSendOtp = async (req, res, next) => {
  */
 const forgetPasswordResetPassword = async (req, res, next) => {
   try {
+    logStream('debug', 'API call', 'Forget Password Reset Password');
     const { userUuid } = req.params;
     const { newPassword, otp } = req.body;
 
     const data = await resetPassword(userUuid, otp, newPassword);
-
+    logStream('debug', 'Success', 'Forget Password Reset Password');
     res.json(data);
   } catch (error) {
+    logStream("error", error.message);
     res.statusCode = 422;
     res.json({ status: false, message: error.message });
   }
@@ -218,8 +229,10 @@ const forgetPasswordResetPassword = async (req, res, next) => {
  */
 const getAwaitingVisits = async (req, res, next) => {
   try {
+    logStream('debug', 'API call', 'Get Awaiting Visits');
     const { speciality, page } = req.query;
     const data = await _getAwaitingVisits(speciality, page);
+    logStream('debug', 'Success', 'Get Awaiting Visits');
     res.json({
       count: data.currentCount,
       totalCount: data.totalCount,
@@ -227,6 +240,7 @@ const getAwaitingVisits = async (req, res, next) => {
       success: true,
     });
   } catch (error) {
+    logStream("error", error.message);
     res.statusCode = 422;
     res.json({ status: false, message: error.message });
   }
@@ -239,8 +253,10 @@ const getAwaitingVisits = async (req, res, next) => {
  */
 const getPriorityVisits = async (req, res, next) => {
   try {
+    logStream('debug', 'API call', 'Get Priority Visits');
     const { speciality, page } = req.query;
     const data = await _getPriorityVisits(speciality, page);
+    logStream('debug', 'Success', 'Get Priority Visits');
     res.json({
       count: data.currentCount,
       totalCount: data.totalCount,
@@ -248,6 +264,7 @@ const getPriorityVisits = async (req, res, next) => {
       success: true,
     });
   } catch (error) {
+    logStream("error", error.message);
     res.statusCode = 422;
     res.json({ status: false, message: error.message });
   }
@@ -260,8 +277,10 @@ const getPriorityVisits = async (req, res, next) => {
  */
 const getInProgressVisits = async (req, res, next) => {
   try {
+    logStream('debug', 'API call', 'Get In Progress Visits');
     const { speciality, page } = req.query;
     const data = await _getInProgressVisits(speciality, page);
+    logStream('debug', 'Success', 'Get In Progress Visits');
     res.json({
       count: data.currentCount,
       totalCount: data.totalCount,
@@ -269,6 +288,7 @@ const getInProgressVisits = async (req, res, next) => {
       success: true,
     });
   } catch (error) {
+    logStream("error", error.message);
     res.statusCode = 422;
     res.json({ status: false, message: error.message });
   }
@@ -282,8 +302,10 @@ const getInProgressVisits = async (req, res, next) => {
  */
 const getCompletedVisits = async (req, res, next) => {
   try {
+    logStream('debug', 'API call', 'Get Completed Visits');
     const { speciality, page } = req.query;
     const data = await _getCompletedVisits(speciality, page);
+    logStream('debug', 'Success', 'Get Completed Visits');
     res.json({
       count: data.currentCount,
       totalCount: data.totalCount,
@@ -291,6 +313,7 @@ const getCompletedVisits = async (req, res, next) => {
       success: true,
     });
   } catch (error) {
+    logStream("error", error.message);
     res.statusCode = 422;
     res.json({ status: false, message: error.message });
   }
@@ -304,8 +327,10 @@ const getCompletedVisits = async (req, res, next) => {
  */
 const getEndedVisits = async (req, res, next) => {
   try {
+    logStream('debug', 'API call', 'Get Ended Visits');
     const { speciality, page } = req.query;
     const data = await _getEndedVisits(speciality, page);
+    logStream('debug', 'Success', 'Get Ended Visits');
     res.json({
       count: data.currentCount,
       totalCount: data.totalCount,
@@ -313,6 +338,7 @@ const getEndedVisits = async (req, res, next) => {
       success: true,
     });
   } catch (error) {
+    logStream("error", error.message);
     res.statusCode = 422;
     res.json({ status: false, message: error.message });
   }

@@ -1,6 +1,7 @@
 const Constant = require("../constants/constant");
 const { MESSAGE } = require("../constants/messages");
 const { validateParams } = require("../handlers/helper");
+const { logStream } = require("../logger/index");
 const {
   getUserAppointmentSchedule,
   upsertAppointmentSchedule,
@@ -45,14 +46,17 @@ module.exports = (function () {
       { key: Constant.END_DATE, type: "string" },
     ];
     try {
+      logStream('debug','API calling', 'Upsert Schedule');
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await upsertAppointmentSchedule(req.body);
+        logStream('debug','Upserted Schedule', 'Upsert Schedule');
         res.json({
           ...data,
           status: true,
         });
       }
     } catch (error) {
+      logStream("error", error.message);
       next(error);
     }
   };
@@ -69,12 +73,15 @@ module.exports = (function () {
       const where = { userUuid };
       if (year) where.year = year;
       if (month) where.month = month;
+      logStream('debug','API calling', 'Get Appointment Schedule');
       const data = await getUserAppointmentSchedule({ where });
+      logStream('debug','Got Appointment Schedule', 'Get Appointment Schedule');
       res.json({
         status: true,
         data,
       });
     } catch (error) {
+      logStream("error", error.message);
       next(error);
     }
   };
@@ -86,14 +93,17 @@ module.exports = (function () {
    */
   this.getScheduledMonths = async (req, res, next) => {
     try {
+      logStream('debug', 'API calling', 'Get Scheduled Months')
       const { userUuid } = req.params;
       const { year } = req.query;
       const data = await getScheduledMonths({ userUuid, year });
+      logStream('debug', 'Got Scheduled Months', 'Get Scheduled Months')
       res.json({
         status: true,
         data,
       });
     } catch (error) {
+      logStream("error", error.message);
       next(error);
     }
   };
@@ -105,6 +115,7 @@ module.exports = (function () {
    */
   this.getUserSlots = async (req, res, next) => {
     try {
+      logStream('debug','API calling', 'Get User Slots');
       const keysAndTypeToCheck = [
         { key: Constant.FROM_DATE, type: "string" },
         { key: Constant.TO_DATE, type: "string" },
@@ -112,12 +123,14 @@ module.exports = (function () {
       if (validateParams(req.query, keysAndTypeToCheck)) {
         const { userUuid } = req.params;
         const data = await getUserSlots({ ...req.query, userUuid });
+        logStream('debug','Got User Slots', 'Get User Slots');
         res.json({
           status: true,
           data,
         });
       }
     } catch (error) {
+      logStream("error", error.message);
       next(error);
     }
   };
@@ -130,6 +143,7 @@ module.exports = (function () {
    */
   this.checkAppointment = async (req, res, next) => {
     try {
+      logStream('debug','API calling', 'Check Appointment');
       const keysAndTypeToCheck = [
         { key: Constant.FROM_DATE, type: "string" },
         { key: Constant.TO_DATE, type: "string" },
@@ -138,12 +152,14 @@ module.exports = (function () {
       if (validateParams(req.query, keysAndTypeToCheck)) {
         const { userUuid } = req.params;
         const data = await checkAppointment({ ...req.query, userUuid });
+        logStream('debug','Got Appointment', 'Check Appointment');
         res.json({
           status: true,
           data
         });
       }
     } catch (error) {
+      logStream("error", error.message);
       next(error);
     }
   };
@@ -156,18 +172,21 @@ module.exports = (function () {
    */
   this.updateSlotSpeciality = async (req, res, next) => {
     try {
+      logStream('debug','API calling', 'Update Slot Speciality');
       const keysAndTypeToCheck = [
         { key: Constant.SPECIALITY, type: "string" }
       ];
       if (validateParams(req.query, keysAndTypeToCheck)) {
         const { userUuid } = req.params;
         const data = await updateSlotSpeciality({ ...req.query, userUuid });
+        logStream('debug','Updated Slot Speciality', 'Update Slot Speciality');
         res.json({
           status: true,
           data
         });
       }
     } catch (error) {
+      logStream("error", error.message);
       next(error);
     }
   };
@@ -180,6 +199,7 @@ module.exports = (function () {
    */
   this.getSpecialitySlots = async (req, res, next) => {
     try {
+      logStream('debug','API calling', 'Get Speciality Slots');
       const keysAndTypeToCheck = [
         { key: Constant.FROM_DATE, type: "string" },
         { key: Constant.TO_DATE, type: "string" },
@@ -188,12 +208,14 @@ module.exports = (function () {
       if (validateParams(req.query, keysAndTypeToCheck)) {
         const { speciality } = req.params;
         const data = await getSpecialitySlots({ ...req.query, speciality });
+        logStream('debug','Got Speciality Slots', 'Get Speciality Slots');
         res.json({
           status: true,
           data,
         });
       }
     } catch (error) {
+      logStream("error", error.message);
       next(error);
     }
   };
@@ -206,6 +228,7 @@ module.exports = (function () {
    */
   this.getSlots = async (req, res, next) => {
     try {
+      logStream('debug','API calling', 'Get Slots');
       const keysAndTypeToCheck = [
         { key: Constant.FROM_DATE, type: "string" },
         { key: Constant.TO_DATE, type: "string" },
@@ -215,7 +238,7 @@ module.exports = (function () {
         const data = await getSlots(req.query);
 
         const cancelledAppointments = await getCancelledAppointments(req.query);
-
+        logStream('debug','Got Cancelled Appointments', 'Get Slots');
         res.json({
           status: true,
           data,
@@ -223,6 +246,7 @@ module.exports = (function () {
         });
       }
     } catch (error) {
+      logStream("error", error.message);
       next(error);
     }
   };
@@ -235,6 +259,7 @@ module.exports = (function () {
    */
   this.getAppointmentSlots = async (req, res, next) => {
     try {
+      logStream('debug','API calling', 'Get Appointment  Slots');
       const keysAndTypeToCheck = [
         { key: Constant.FROM_DATE, type: "string" },
         { key: Constant.TO_DATE, type: "string" },
@@ -242,11 +267,13 @@ module.exports = (function () {
       ];
       if (validateParams(req.query, keysAndTypeToCheck)) {
         const data = await _getAppointmentSlots(req.query);
-
+        logStream('debug','Got Appointment Slots', 'Get Appointment  Slots');
         const bookedAppointments = await getBookedAppointments(req.query);
+        logStream('debug','Got Booked Appointments', 'Get Appointment  Slots');
         const rescheduledAppointments = await getRescheduledAppointments(
           req.query
         );
+        logStream('debug','Got Rescheduled Appointments', 'Get Appointment  Slots');
 
         res.json({
           status: true,
@@ -256,6 +283,7 @@ module.exports = (function () {
         });
       }
     } catch (error) {
+      logStream("error", error.message);
       next(error);
     }
   };
@@ -268,6 +296,7 @@ module.exports = (function () {
    */
   this.bookAppointment = async (req, res, next) => {
     try {
+      logStream('debug','API calling', 'Book Appointment');
       const keysAndTypeToCheck = [
         { key: Constant.SLOT_DAY, type: "string" },
         { key: Constant.SLOT_DURATION, type: "number" },
@@ -284,12 +313,14 @@ module.exports = (function () {
       ];
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await _bookAppointment(req.body);
+        logStream('debug','Appointment booked', 'Book Appointment');
         res.json({
           status: true,
           ...data,
         });
       }
     } catch (error) {
+      logStream("error", error.message);
       next(error);
     }
   };
@@ -302,6 +333,7 @@ module.exports = (function () {
    */
   this.rescheduleAppointment = async (req, res, next) => {
     try {
+      logStream('debug','API calling', 'Reschedule Appointment');
       const keysAndTypeToCheck = [
         { key: Constant.SLOT_DAY, type: "string" },
         { key: Constant.SLOT_DURATION, type: "number" },
@@ -319,12 +351,14 @@ module.exports = (function () {
       ];
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await _rescheduleAppointment(req.body);
+        logStream('debug','Appointment Rescheduled', 'Reschedule Appointment');
         res.json({
           status: true,
           ...data,
         });
       }
     } catch (error) {
+      logStream("error", error.message);
       next(error);
     }
   };
@@ -337,6 +371,7 @@ module.exports = (function () {
    */
   this.cancelAppointment = async (req, res, next) => {
     try {
+      logStream('debug','API calling', 'Cancel Appointment');
       const keysAndTypeToCheck = [
         { key: Constant.ID, type: "number" },
         { key: Constant.VISIT_UUID, type: "string" },
@@ -344,9 +379,11 @@ module.exports = (function () {
       ];
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await _cancelAppointment(req.body);
+        logStream('debug','Appointment Cancelled', 'Cancel Appointment');
         res.json(data);
       }
     } catch (error) {
+      logStream("error", error.message);
       next(error);
     }
   };
@@ -359,12 +396,15 @@ module.exports = (function () {
    */
   this.completeAppointment = async (req, res, next) => {
     try {
+      logStream('debug','API calling', 'Complete Appointment');
       const keysAndTypeToCheck = [{ key: Constant.VISIT_UUID, type: "string" }];
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await _completeAppointment(req.body);
+        logStream('debug','Appointment Completed', 'Complete Appointment');
         res.json(data);
       }
     } catch (error) {
+      logStream("error", error.message);
       next(error);
     }
   };
@@ -377,12 +417,15 @@ module.exports = (function () {
    */
   this.getAppointment = async (req, res, next) => {
     try {
+      logStream('debug','API calling', 'Get Appointment');
       const keysAndTypeToCheck = [{ key: Constant.VISIT_UUID, type: "string" }];
       if (validateParams(req.params, keysAndTypeToCheck)) {
         const data = await getAppointment(req.params);
+        logStream('debug','Got Appointments', 'Get Appointment');
         const rescheduledAppointments = await getRescheduledAppointmentsOfVisit(
           req.params
         );
+        logStream('debug','Got rescheduled Appointments', 'Get Appointment');
         res.json({
           status: true,
           data,
@@ -390,6 +433,7 @@ module.exports = (function () {
         });
       }
     } catch (error) {
+      logStream("error", error.message);
       next(error);
     }
   };
@@ -402,6 +446,7 @@ module.exports = (function () {
    */
   this.startAppointment = async (req, res, next) => {
     try {
+      logStream('debug','API calling', 'Start Appointment');
       const keysAndTypeToCheck = [
         { key: Constant.APPOINTMENT_ID, type: "number" },
         { key: Constant.DR_NAME, type: "string" },
@@ -409,9 +454,11 @@ module.exports = (function () {
       ];
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await startAppointment(req.body);
+        logStream('debug','Appointment Started', 'Start Appointment');
         res.json({ status: true, data });
       }
     } catch (error) {
+      logStream("error", error.message);
       next(error);
     }
   };
@@ -424,12 +471,15 @@ module.exports = (function () {
    */
   this.releaseAppointment = async (req, res, next) => {
     try {
+      logStream('debug','API calling', 'Release Appointment');
       const keysAndTypeToCheck = [{ key: Constant.VISIT_UUID, type: "string" }];
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await releaseAppointment(req.body);
+        logStream('debug','Appointment Released', 'Release Appointment');
         res.json({ status: true, data });
       }
     } catch (error) {
+      logStream("error", error.message);
       next(error);
     }
   };
@@ -448,14 +498,17 @@ module.exports = (function () {
       { key: Constant.YEAR, type: "string" },
     ];
     try {
+      logStream('debug','API calling', 'Update Days Off');
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await updateDaysOffSchedule(req.body);
+        logStream('debug','Days Off Updated', 'Update Days Off');
         res.json({
           ...data,
           status: true,
         });
       }
     } catch (error) {
+      logStream("error", error.message);
       next(error);
     }
   };
@@ -468,6 +521,7 @@ module.exports = (function () {
    */
   this.appointmentPush = async (req, res, next) => {
     try {
+      logStream('debug','API calling', 'Appointment Push');
       const keysAndTypeToCheck = [
         { key: Constant.SLOT_DAY, type: "string" },
         { key: Constant.SLOT_DURATION, type: "number" },
@@ -484,13 +538,14 @@ module.exports = (function () {
       ];
       if (validateParams(req.body, keysAndTypeToCheck)) {
         await _bookAppointment(req.body);
-
+        logStream('debug','Appointment Pushed', 'Appointment Push');
         res.json({
           status: true,
           message: MESSAGE.APPOINTMENT.APPOINTMENT_PUSH_SUCCESSFULLY,
         });
       }
     } catch (error) {
+      logStream("error", error.message);
       next(error);
     }
   };

@@ -1,6 +1,7 @@
 const { default: axios } = require("axios");
 const { links } = require("../models");
 const { MESSAGE } = require("../constants/messages");
+const { logStream } = require("../logger/index");
 
 module.exports = (function () {
   /**
@@ -10,6 +11,7 @@ module.exports = (function () {
    */
   this.requestPresctionOtp = async (hash, phoneNumber) => {
     try {
+      logStream('debug','PrescriptionLink Service', 'Request Presction Otp');
       const link = await links.findOne({
         where: {
           hash,
@@ -24,9 +26,10 @@ module.exports = (function () {
           `https://2factor.in/API/V1/${process.env.APIKEY_2FACTOR}/SMS/${phoneNumber}/AUTOGEN2`
         )
       ).data.OTP;
-
+      logStream('debug','Success', 'Request Presction Otp');
       return await link.update({ otp });
     } catch (error) {
+      logStream("error", error.message);
       throw error;
     }
   };
@@ -37,6 +40,7 @@ module.exports = (function () {
     * @param { string } otp - OTP
     */
   this.verfifyPresctionOtp = async (hash, otp) => {
+    logStream('debug','PrescriptionLink Service', 'Verify Prescription Otp');
     const link = await links.findOne({
       where: {
         hash,
@@ -44,15 +48,17 @@ module.exports = (function () {
     });
 
     if (!link) {
+      logStream("error", error.message);
       throw new Error(MESSAGE.PRESCRIPTION.INVALID_LINK);
     }
 
     if (link.otp === otp) {
       return true;
     } else {
+      logStream("error", error.message);
       throw new Error(MESSAGE.PRESCRIPTION.INVALID_OTP);
     }
   };
-
+  logStream('debug','Success', 'Verify Prescription Otp');
   return this;
 })();

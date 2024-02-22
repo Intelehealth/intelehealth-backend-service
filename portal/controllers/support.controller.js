@@ -12,6 +12,7 @@ const {
 const { Sequelize, sequelize } = require("../models");
 const { QueryTypes } = require('sequelize');
 const { MESSAGE } = require("../constants/messages");
+const { logStream } = require("../logger/index");
 
 module.exports = (function () {
     /**
@@ -21,6 +22,7 @@ module.exports = (function () {
      */
     this.sendMessage = async (req, res) => {
         try {
+            logStream('debug', 'API call', 'Support Send Message');
             const { from, to, message, type } = req.body;
             if (from && to && message && type) {
                 const data = await sendMessage(from, to, message, type);
@@ -100,7 +102,7 @@ module.exports = (function () {
                         }
                     }
                 }
-
+                logStream('debug', 'Success', 'Support Send Message');
                 RES(
                     res,
                     {
@@ -111,6 +113,7 @@ module.exports = (function () {
                     data.code
                 );
             } else {
+                logStream('debug', 'Bad request', 'Support Send Message');
                 RES(
                     res, 
                     { success: false, message: MESSAGE.COMMON.BAD_REQUEST, data: null }, 
@@ -118,6 +121,7 @@ module.exports = (function () {
                 );
             }
         } catch (error) {
+            logStream("error", error.message);
             if (error.code === null || error.code === undefined) {
                 error.code = 500;
             }
@@ -136,9 +140,11 @@ module.exports = (function () {
      */
     this.readMessage = async (req, res) => {
         try {
+            logStream('debug', 'API call', 'Read Message');
             const { userId, messageId } = req.params;
             if (userId, messageId) {
                 const data = await readMessage(userId, messageId);
+                logStream('debug', 'Success', 'Read Message');
                 RES(
                     res,
                     {
@@ -149,6 +155,7 @@ module.exports = (function () {
                     data.code
                 );
             } else {
+                logStream('debug', 'Bad request', 'Read Message');
                 RES(
                     res, 
                     { success: false, message: MESSAGE.COMMON.BAD_REQUEST, data: null }, 
@@ -156,6 +163,7 @@ module.exports = (function () {
                 );
             }
         } catch (error) {
+            logStream("error", error.message);
             if (error.code === null || error.code === undefined) {
                 error.code = 500;
             }
@@ -174,9 +182,11 @@ module.exports = (function () {
      */
     this.getMessages = async (req, res) => {
         try {
+            logStream('debug', 'API call', 'Get Messages');
             const { from, to } = req.params;
             if (from, to) {
                 const data = await getMessages(from, to);
+                logStream('debug', 'Success', 'Get Messages');
                 RES(
                     res,
                     {
@@ -187,6 +197,7 @@ module.exports = (function () {
                     data.code
                 );
             } else {
+                logStream('debug', 'Bad request', 'Get Message');
                 RES(
                     res, 
                     { success: false, message: MESSAGE.COMMON.BAD_REQUEST, data: null }, 
@@ -194,6 +205,7 @@ module.exports = (function () {
                 );
             }
         } catch (error) {
+            logStream("error", error.message);
             if (error.code === null || error.code === undefined) {
                 error.code = 500;
             }
@@ -212,9 +224,11 @@ module.exports = (function () {
      */
     this.getDoctorsList = async (req, res) => {
         try {
+            logStream('debug', 'API call', 'Get Doctors List');
             const { userId } = req.params;
             if (userId) {
                 const data = await getDoctorsList(userId);
+                logStream('debug', 'Success', 'Get Doctors List');
                 RES(
                     res,
                     {
@@ -225,6 +239,7 @@ module.exports = (function () {
                     data.code
                 );
             } else {
+                logStream('debug', 'Bad request', 'Get Doctors List');
                 RES(
                     res, 
                     { success: false, message: MESSAGE.COMMON.BAD_REQUEST, data: null }, 
@@ -232,6 +247,7 @@ module.exports = (function () {
                 );
             }
         } catch (error) {
+            logStream("error", error.message);
             if (error.code === null || error.code === undefined) {
                 error.code = 500;
             }
@@ -250,10 +266,12 @@ module.exports = (function () {
      */
     this.createTicket = async (req, res) => {
         try {
+            logStream('debug', 'API call', 'Create Sign');
             const { userId } = req.params;
             const { ticketnumber } = req.body;
             if (userId && ticketnumber) {
                 const data = await createTicket(userId, ticketnumber);
+                logStream('debug', 'Success', 'Create Sign');
                 RES(
                     res,
                     {
@@ -271,6 +289,7 @@ module.exports = (function () {
                 );
             }
         } catch (error) {
+            logStream("error", error.message);
             if (error.code === null || error.code === undefined) {
                 error.code = 500;
             }

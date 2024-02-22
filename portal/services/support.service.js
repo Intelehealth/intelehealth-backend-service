@@ -1,6 +1,7 @@
 const openMrsDB = require("../handlers/mysql/mysqlOpenMrs");
 const { supportmessages, Sequelize, sequelize, supporttickets } = require("../models");
 const { QueryTypes } = require('sequelize');
+const { logStream } = require("../logger/index");
 
 module.exports = (function () {
 
@@ -9,6 +10,7 @@ module.exports = (function () {
      */
     this.getSystemAdministrators = async function () {
         try {
+            logStream('debug','Support Service', 'Get System Administrators');
             const query = `SELECT * FROM users u LEFT JOIN user_role ur ON ur.user_id = u.user_id WHERE ur.role = 'Organizational: System Administrator' AND u.retired = 0`;
             const queryResult = await new Promise((resolve, reject) => {
                 openMrsDB.query(query, (err, results, fields) => {
@@ -16,10 +18,13 @@ module.exports = (function () {
                 resolve(results);
                 });
             }).catch((err) => {
+                logStream("error", err.message);
                 throw err;
             });
+            logStream('debug','Success', 'Get System Administrators');
             return queryResult;
         } catch (error) {
+            logStream("error", error.message);
             throw error;
         } 
     };
@@ -30,6 +35,7 @@ module.exports = (function () {
      */
     this.checkIfSystemAdmin = async function (uuid) {
         try {
+            logStream('debug','Support Service', 'Check If SystemAdmin');
             const query = `SELECT * FROM users u LEFT JOIN user_role ur ON ur.user_id = u.user_id WHERE u.uuid = '${uuid}' AND ur.role = 'Organizational: System Administrator' AND u.retired = 0`;
             const queryResult = await new Promise((resolve, reject) => {
                 openMrsDB.query(query, (err, results, fields) => {
@@ -39,12 +45,14 @@ module.exports = (function () {
             }).catch((err) => {
                 throw err;
             });
+            logStream('debug','Success', 'Check If SystemAdmin');
             if (queryResult.length) {
                 return true;
             } else {
                 return false;
             }
         } catch (error) {
+            logStream("error", error.message);
             throw error;
         } 
     };
@@ -58,6 +66,7 @@ module.exports = (function () {
      */
     this.sendMessage = async function (from, to, message, type) {
         try {
+            logStream('debug','Support Service', 'Send Message');
             if (await this.checkIfSystemAdmin(from)) {
                 from = 'System Administrator';
             } else {
@@ -70,6 +79,7 @@ module.exports = (function () {
                 type,
                 isRead: false
             });
+            logStream('debug','Success', 'Send Message');
             return {
                 code: 200,
                 success: true,
@@ -77,6 +87,7 @@ module.exports = (function () {
                 data: data
             }
         } catch (error) {
+            logStream("error", error.message);
             if(error.code === null || error.code === undefined){
                 error.code = 500;
             }
@@ -91,6 +102,7 @@ module.exports = (function () {
      */
     this.readMessage = async function (userId, messageId) {
         try {
+            logStream('debug','Support Service', 'Read Message');
             if (await this.checkIfSystemAdmin(userId)) {
                 userId = 'System Administrator';
             }
@@ -127,6 +139,7 @@ module.exports = (function () {
                     }
                   }
                 );
+                logStream('debug','Success', 'Read Message');
                 return {
                     code: 200,
                     success: true,
@@ -134,6 +147,7 @@ module.exports = (function () {
                     data: data
                 }
             }
+            logStream('debug','No message exists', 'Read Message');
             return {
                 code: 200,
                 success: false,
@@ -141,6 +155,7 @@ module.exports = (function () {
                 data: null
             }
         } catch (error) {
+            logStream("error", error.message);
             if(error.code === null || error.code === undefined){
                 error.code = 500;
             }
@@ -155,6 +170,7 @@ module.exports = (function () {
      */
     this.getMessages = async function (from, to) {
         try {
+            logStream('debug','Support Service', 'Get Messages');
             if (await this.checkIfSystemAdmin(from)) {
                 from = 'System Administrator';
             } else {
@@ -176,6 +192,7 @@ module.exports = (function () {
                 ],
                 order: [["createdAt", "DESC"]]
             });
+            logStream('debug','Success', 'Get Messages');
             return {
                 code: 200,
                 success: true,
@@ -183,6 +200,7 @@ module.exports = (function () {
                 data: data
             }
         } catch (error) {
+            logStream("error", error.message);
             if(error.code === null || error.code === undefined){
                 error.code = 500;
             }
@@ -196,6 +214,7 @@ module.exports = (function () {
      */
     this.getDoctorsList = async function (userId) {
         try {
+            logStream('debug','Support Service', 'Get Doctors List');
             if (await this.checkIfSystemAdmin(userId)) {
                 const data = await supportmessages.findAll({
                     
@@ -231,6 +250,7 @@ module.exports = (function () {
                     const c = unreadcount.find(d => chat.from == d.from);
                     doctorList.push({ ...chat, ...m, unread: (c?.unread)?c?.unread : 0 });
                 }
+                logStream('debug','Success', 'Get Doctors List');
                 return {
                     code: 200,
                     success: true,
@@ -238,6 +258,7 @@ module.exports = (function () {
                     data: doctorList
                 }
             } else {
+                logStream('debug','Only system administrator can access doctor list', 'Get Doctors List');
                 return {
                     code: 200,
                     success: false,
@@ -246,6 +267,7 @@ module.exports = (function () {
                 }
             }
         } catch (error) {
+            logStream("error", error.message);
             if(error.code === null || error.code === undefined){
                 error.code = 500;
             }
@@ -260,11 +282,12 @@ module.exports = (function () {
      */
     this.createTicket = async function (userId, ticketnumber) {
         try {
-            
+            logStream('debug','Support Service', 'Create Ticket');
             const data = await supporttickets.create({
                 userId,
                 ticketnumber
             });
+            logStream('debug','Ticket Created', 'Create Ticket');
             return {
                 code: 200,
                 success: true,
@@ -272,6 +295,7 @@ module.exports = (function () {
                 data: data
             }
         } catch (error) {
+            logStream("error", error.message);
             if(error.code === null || error.code === undefined){
                 error.code = 500;
             }

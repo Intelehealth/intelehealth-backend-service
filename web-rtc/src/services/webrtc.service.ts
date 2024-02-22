@@ -1,5 +1,6 @@
 import { WebSocketServer } from 'ws';
 import { RoomServiceClient, Room, AccessToken } from 'livekit-server-sdk';
+const { logStream } = require("../logger/index");
 
 export class WebRTCService {
     wss: WebSocketServer | null = null;
@@ -13,6 +14,7 @@ export class WebRTCService {
         onWebSocketMessage,
         onWebSocketError
     }: any) {
+        logStream('debug','API calling', 'Start Web Socket Server');
         this.wss = new WebSocketServer({ server });
 
         this.wss.on('connection', (ws) => {
@@ -24,7 +26,7 @@ export class WebRTCService {
 
             onConnection(ws);
         })
-        console.log(`The WebSocket server is running on port ${process.env.PORT}`);
+        logStream('debug',`The WebSocket server is running on port ${process.env.PORT}`,'Start Web Socket Server');
     }
 
     initLiveSvc() {
