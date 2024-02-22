@@ -8,7 +8,7 @@ const CATEGORY = 'LOG';
 const fileRotateTransport = new transports.DailyRotateFile({
   filename: "logs/rotate-%DATE%.log",
   datePattern: "YYYY-MM-DD",
-  maxFiles: "1d",
+  maxFiles: "14d",
 });
 
 const customFormat = printf(({ 

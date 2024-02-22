@@ -40,7 +40,7 @@ module.exports = (function () {
         );
         resp.status = true;
       }
-      logStream('debug','Login Success', 'Login');
+      logStream('debug',`Login Success for ${username}`, 'Login');
       res.json(resp);
     } catch (error) {
       logStream("error", error.message);
