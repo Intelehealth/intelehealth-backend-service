@@ -1,5 +1,5 @@
 const { user_settings } = require("../models");
-const { RES } = require("../handlers/helper");
+const { RES, sendCloudNotification } = require("../handlers/helper");
 const { MESSAGE } = require("../constants/messages");
 const { logStream } = require("../logger/index");
 Date.prototype.addMinutes = function (m) {
@@ -267,10 +267,44 @@ const snoozeNotification = async ( req, res) => {
   }
 };
 
+const notifyApp = async (req, res, next) => {
+  try {
+    logStream('debug', 'API call', 'Notify App');
+    let userSetting = await user_settings.findOne({
+      where: { user_uuid: req.params.userId },
+    });
+    let data = null;
+
+    if (userSetting?.device_reg_token) {
+      let notficationObj = {
+        title: req.body.title,
+        body: req.body.body,
+        regTokens: [userSetting.device_reg_token],
+      };
+      if (req.body.data) notficationObj.data = req.body.data;
+      if (req.body.title) notficationObj.title = req.body.title;
+      if (req.body.body) notficationObj.body = req.body.body;
+
+      data = await sendCloudNotification(notficationObj).catch((err) => {
+        logStream("error", err.message);
+      });
+    }
+    logStream('debug', `Success`, 'Notify App');
+    res.json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    logStream("error", error.message);
+    next(error);
+  }
+};
+
 module.exports = {
   snoozeNotification,
   getUserSettings,
   setUserSettings,
   getNotificationStatus,
-  toggleNotificationStatus
+  toggleNotificationStatus,
+  notifyApp
 };
