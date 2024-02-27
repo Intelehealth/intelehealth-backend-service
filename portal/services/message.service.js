@@ -155,7 +155,8 @@ module.exports = (function () {
             Sequelize.fn("DISTINCT", Sequelize.col("patientId")),
             "patientId",
           ],
-          [Sequelize.fn("min", Sequelize.col("id")), "id"],
+          [Sequelize.fn("max", Sequelize.col("id")), "id"],
+          [Sequelize.fn("min", Sequelize.col("id")), "firstId"]
         ],
         group: ["patientId"],
         order: [[Sequelize.col("id"), "DESC"]],
@@ -191,7 +192,7 @@ module.exports = (function () {
             "openMrsId"
           ],
           where: {
-            id: msg.id
+            id: msg.firstId
           }
         });
         data[idx].message = record.message;
