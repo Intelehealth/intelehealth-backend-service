@@ -1,6 +1,7 @@
 const { MESSAGE } = require("../constants/messages");
 const { RES, generateHash } = require("../handlers/helper");
 const { links } = require("../models");
+const { logStream } = require("../logger/index");
 const {
   requestPresctionOtp,
   verfifyPresctionOtp,
@@ -15,6 +16,7 @@ module.exports = (function () {
    */
   this.shortLink = async (req, res) => {
     try {
+      logStream('debug', 'API call', 'Create Short Link');
       const { link } = req.body;
       if (!link) {
         RES(res, { success: false, message: MESSAGE.LINK.PLEASE_PASS_LINK }, 422);
@@ -25,6 +27,7 @@ module.exports = (function () {
         raw: true,
       });
       if (linkAlreadyExist) {
+        logStream('debug', 'Link Already Exist', 'Create Short Link');
         RES(res, { success: true, data: linkAlreadyExist });
         return;
       }
@@ -42,8 +45,10 @@ module.exports = (function () {
         tried++;
       }
       const data = await links.create({ link, hash });
+      logStream('debug', 'Success', 'Create Short Link');
       RES(res, { success: true, data });
     } catch (error) {
+      logStream("error", error.message);
       RES(res, { success: false, message: error.message }, 422);
     }
   };
@@ -55,6 +60,7 @@ module.exports = (function () {
    */
   this.getLink = async (req, res) => {
     try {
+      logStream('debug', 'API call', 'Get Link');
       const { hash } = req.params;
 
       const data = await links.findOne({
@@ -63,10 +69,13 @@ module.exports = (function () {
         raw: true,
       });
       if (!data) {
+        logStream('debug', 'Invalid Link', 'Get Link');
         throw new Error(MESSAGE.COMMON.INVALID_LINK);
       }
+      logStream('debug', 'Success', 'Get Link');
       RES(res, { success: true, data });
     } catch (error) {
+      logStream("error", error.message);
       RES(res, { success: false, message: error.message }, 422);
     }
   };
@@ -78,11 +87,13 @@ module.exports = (function () {
    */
   this.requestOtp = async (req, res) => {
     try {
+      logStream('debug', 'API call', 'Request Otp');
       const { hash, phoneNumber } = req.body;
       await requestPresctionOtp(hash, phoneNumber);
-
+      logStream('debug', 'Success', 'Request Otp');
       RES(res, { success: true });
     } catch (error) {
+      logStream("error", error.message);
       RES(res, { success: false, message: error.message }, 422);
     }
   };
@@ -94,11 +105,13 @@ module.exports = (function () {
    */
   this.verifyOtp = async (req, res) => {
     try {
+      logStream('debug', 'API call', 'Verify Otp');
       const { hash, otp } = req.body;
       const data = await verfifyPresctionOtp(hash, otp);
-
+      logStream('debug', 'Success', 'Verify Otp');
       RES(res, { success: true, data });
     } catch (error) {
+      logStream("error", error.message);
       RES(res, { success: false, message: error.message }, 422);
     }
   };

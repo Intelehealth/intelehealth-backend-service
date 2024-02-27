@@ -1,7 +1,7 @@
 const { user_settings } = require("../models");
-const { RES } = require("../handlers/helper");
+const { RES, sendPrescriptionCloudNotification } = require("../handlers/helper");
 const { MESSAGE } = require("../constants/messages");
-
+const { logStream } = require("../logger/index");
 Date.prototype.addMinutes = function (m) {
   this.setTime(this.getTime() + m * 60000);
   return this;
@@ -18,6 +18,7 @@ Date.prototype.addHours = function (h) {
  * @param {response} res
  */
 const getUserSettings = async ({ params }, res) => {
+  logStream('debug', 'API call', 'Get Link');
   const { uuid } = params;
   if (!uuid)
     res.status(422).json({ message: "Please pass correct user uuid!" });
@@ -26,6 +27,7 @@ const getUserSettings = async ({ params }, res) => {
     where: { user_uuid: uuid },
   });
   if (!data) data = {};
+  logStream('debug', 'Success', 'Create Short Link');
   res.status(200).json({
     message: MESSAGE.NOTIFICATION.SETTINGS_RECEVIED_SUCCESSFULLY,
     data,
@@ -40,6 +42,7 @@ const getUserSettings = async ({ params }, res) => {
  * @param {response} res
  */
 const setUserSettings = async ({ body }, res) => {
+  logStream('debug', 'API call', 'Get Link');
   if (!body.user_uuid)
     res.status(422).json({ message: MESSAGE.NOTIFICATION.PLEASE_PASS_CORRECT_USER_UUID });
 
@@ -57,6 +60,7 @@ const setUserSettings = async ({ body }, res) => {
       snooze_till: "",
     });
   }
+  logStream('debug', 'Success', 'Get Link');
   res.status(200).json({
     message: data
       ? MESSAGE.NOTIFICATION.SETTINGS_SAVED_SUCCESSFULLY
@@ -72,6 +76,7 @@ const setUserSettings = async ({ body }, res) => {
  */
 const getNotificationStatus = async ( req, res) => {
   try {
+    logStream('debug', 'API call', 'Get Notification Status');
     const { uuid } = req.params;
     if (uuid) {
       let user = await user_settings.findOne({
@@ -91,6 +96,7 @@ const getNotificationStatus = async ( req, res) => {
           snooze_till: ''
         });
       }
+      logStream('debug', 'Success', 'Get Notification Status');
       RES(
         res,
         {
@@ -104,6 +110,7 @@ const getNotificationStatus = async ( req, res) => {
         200
       );
     } else {
+      logStream('debug', 'Bad Request', 'Get Notification Status');
       RES(
         res, 
         { success: false, message: MESSAGE.COMMON.BAD_REQUEST, data: null }, 
@@ -111,6 +118,7 @@ const getNotificationStatus = async ( req, res) => {
       );
     }
   } catch (error) {
+    logStream("error", error.message);
     if (error.code === null || error.code === undefined) {
       error.code = 500;
     }
@@ -129,6 +137,7 @@ const getNotificationStatus = async ( req, res) => {
  */
 const toggleNotificationStatus = async ( req, res) => {
   try {
+    logStream('debug', 'API call', 'Toggle Notification Status');
     const { uuid } = req.params;
     if (uuid) {
       let user = await user_settings.findOne({
@@ -146,6 +155,7 @@ const toggleNotificationStatus = async ( req, res) => {
           notification: 1
         });
       }
+      logStream('debug', 'Success', 'Toggle Notification Status');
       RES(
         res,
         {
@@ -156,6 +166,7 @@ const toggleNotificationStatus = async ( req, res) => {
         200
       );
     } else {
+      logStream('debug', 'Bad Request', 'Toggle Notification Status');
       RES(
         res, 
         { success: false, message: MESSAGE.COMMON.BAD_REQUEST, data: null }, 
@@ -163,6 +174,7 @@ const toggleNotificationStatus = async ( req, res) => {
       );
     }
   } catch (error) {
+    logStream("error", error.message);
     if (error.code === null || error.code === undefined) {
       error.code = 500;
     }
@@ -181,6 +193,7 @@ const toggleNotificationStatus = async ( req, res) => {
  */
 const snoozeNotification = async ( req, res) => {
   try {
+    logStream('debug', 'API call', 'Snooze Notification');
     const { uuid } = req.params;
     const { snooze_for } = req.body;
 
@@ -210,6 +223,7 @@ const snoozeNotification = async ( req, res) => {
         }
         user.snooze_till = snooze_till;
         await user.save();
+        logStream('debug', 'Success', 'Snooze Notification');
         RES(
           res,
           {
@@ -220,6 +234,7 @@ const snoozeNotification = async ( req, res) => {
           200
         );
       } else {
+        logStream('debug', 'No Such User Exists', 'Snooze Notification');
         RES(
           res,
           {
@@ -232,6 +247,7 @@ const snoozeNotification = async ( req, res) => {
       }
       
     } else {
+      logStream('debug', 'Bad Request', 'Snooze Notification');
       RES(
         res, 
         { success: false, message: MESSAGE.COMMON.BAD_REQUEST, data: null }, 
@@ -239,6 +255,7 @@ const snoozeNotification = async ( req, res) => {
       );
     }
   } catch (error) {
+    logStream("error", error.message);
     if (error.code === null || error.code === undefined) {
       error.code = 500;
     }
@@ -250,10 +267,44 @@ const snoozeNotification = async ( req, res) => {
   }
 };
 
+const notifyApp = async (req, res, next) => {
+  try {
+    logStream('debug', 'API call', 'Notify App');
+    let userSetting = await user_settings.findOne({
+      where: { user_uuid: req.params.userId },
+    });
+    let data = null;
+
+    if (userSetting?.device_reg_token) {
+      let notficationObj = {
+        title: req.body.title,
+        body: req.body.body,
+        regTokens: [userSetting.device_reg_token],
+      };
+      if (req.body.data) notficationObj.data = req.body.data;
+      if (req.body.title) notficationObj.title = req.body.title;
+      if (req.body.body) notficationObj.body = req.body.body;
+
+      data = await sendPrescriptionCloudNotification(notficationObj).catch((err) => {
+        logStream("error", err.message);
+      });
+    }
+    logStream('debug', `Success`, 'Notify App');
+    res.json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    logStream("error", error.message);
+    next(error);
+  }
+};
+
 module.exports = {
   snoozeNotification,
   getUserSettings,
   setUserSettings,
   getNotificationStatus,
-  toggleNotificationStatus
+  toggleNotificationStatus,
+  notifyApp
 };

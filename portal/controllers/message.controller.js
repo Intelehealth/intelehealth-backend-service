@@ -14,9 +14,11 @@ const { user_settings, pushnotification } = require("../models");
 const { uploadFile } = require("../handlers/file.handler");
 const Constant = require("../constants/constant");
 const { MESSAGE } = require("../constants/messages");
+const { logStream } = require("../logger/index");
 
 module.exports = (function () {
   this.sendMessageNotification = async (payload) => {
+    logStream('debug', 'API call', 'Send Message Notification');
     const subscriptions = await pushnotification.findAll({
       where: { user_uuid: payload.toUser },
     });
@@ -39,6 +41,7 @@ module.exports = (function () {
         },
       });
     });
+    logStream('debug', 'Success', 'Send Message Notification');
   };
   /**
    * Method to create message entry and transmit it to socket on realtime
@@ -69,6 +72,7 @@ module.exports = (function () {
     let isLiveMessageSent = false,
       messages = [];
     try {
+      logStream('debug', 'API call', 'Send Message');
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await sendMessage(
           fromUser,
@@ -118,10 +122,11 @@ module.exports = (function () {
             notificationResponse = this.sendMessageNotification(req.body);
           }
         }
-
+        logStream('debug', 'Success', 'Send Message');
         res.json({ ...data, notificationResponse });
       }
     } catch (error) {
+      logStream("error", error.message);
       res.json({
         status: false,
         message: error,
@@ -143,11 +148,14 @@ module.exports = (function () {
       { key: Constant.PATIENT_ID, type: "string" },
     ];
     try {
+      logStream('debug', 'API call', 'Get Messages');
       if (validateParams(req.params, keysAndTypeToCheck)) {
         const data = await getMessages(fromUser, toUser, patientId, visitId);
+        logStream('debug', 'Success', 'Get Messages');
         res.json(data);
       }
     } catch (error) {
+      logStream("error", error.message);
       res.json({
         status: false,
         message: error,
@@ -167,11 +175,14 @@ module.exports = (function () {
       { key: Constant.TO_USER, type: "string" },
     ];
     try {
+      logStream('debug', 'API call', 'Get All Messages');
       if (validateParams(req.params, keysAndTypeToCheck)) {
         const data = await getAllMessages(fromUser, toUser);
+        logStream('debug', 'Success', 'Get All Messages');
         res.json(data);
       }
     } catch (error) {
+      logStream("error", error.message);
       res.json({
         status: false,
         message: error,
@@ -186,9 +197,12 @@ module.exports = (function () {
    */
   this.getPatientMessageList = async (req, res) => {
     try {
+      logStream('debug', 'API call', 'Get Patient Message List');
       const data = await getPatientMessageList(req.query.drUuid);
+      logStream('debug', 'Success', 'Get Patient Message List');
       res.json(data);
     } catch (error) {
+      logStream("error", error.message);
       res.json({
         status: false,
         message: error,
@@ -205,11 +219,14 @@ module.exports = (function () {
     const { messageId } = req.params;
     const keysAndTypeToCheck = [{ key: Constant.MESSAGE_ID, type: "string" }];
     try {
+      logStream('debug', 'API call', 'Read Messages By Id');
       if (validateParams(req.params, keysAndTypeToCheck)) {
         const data = await readMessagesById(messageId);
+        logStream('debug', 'Success', 'Read Messages By Id');
         res.json(data);
       }
     } catch (error) {
+      logStream("error", error.message);
       res.json({
         status: false,
         message: error,
@@ -226,11 +243,14 @@ module.exports = (function () {
     const { patientId } = req.params;
     const keysAndTypeToCheck = [{ key: Constant.PATIENT_ID, type: "string" }];
     try {
+      logStream('debug', 'API call', 'Get Visits');
       if (validateParams(req.params, keysAndTypeToCheck)) {
         const data = await getVisits(patientId);
+        logStream('debug', 'Success', 'Get Visits');
         res.json(data);
       }
     } catch (error) {
+      logStream("error", error.message);
       res.json({
         status: false,
         message: error,
@@ -243,17 +263,19 @@ module.exports = (function () {
    */
   this.upload = async (req, res) => {
     try {
+      logStream('debug', 'API call', 'Upload File');
       if (!req.files.length) {
         throw new Error(MESSAGE.COMMON.FILE_MUST_BE_PASSED);
       }
       const file = req.files[0];
       const data = await uploadFile(file, "zeetest");
-
+      logStream('debug', 'Success', 'Upload File');
       res.json({
         data,
         success: true,
       });
     } catch (error) {
+      logStream("error", error.message);
       res.json({
         status: false,
         message: error.message,

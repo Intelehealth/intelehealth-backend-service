@@ -5,9 +5,10 @@ const { rmDir } = require("../handlers/deletefile");
 const { wrMindmap } = require("../handlers/writefile");
 const { zipFolder } = require("../handlers/zip");
 const { getFormattedUrl } = require("../handlers/functions");
+const { logStream } = require("../logger/index");
+const { MESSAGE } = require("../constants/messages");
 const Sequelize = require('sequelize');
 const Constant = require("../constants/constant");
-const { MESSAGE } = require("../constants/messages");
 
 /**
  * Return mindmaps respect to key
@@ -15,20 +16,28 @@ const { MESSAGE } = require("../constants/messages");
  * @param {response} res
  */
 const getMindmapDetails = async (req, res) => {
-  const { key } = req.params;
-  if (!key)
+  try {
+    logStream('debug', 'API calling', 'Get mindmap details');
+    const { key } = req.params;
+    if (!key) {
+      RES(res, {
+        message: MESSAGE.MINDMAP.PLEASE_ENTER_A_LICENCE_KEY,
+      });
+      logStream('debug', 'Mindmap Key missing', 'Get mindmap details');
+    }
     RES(res, {
-      message: MESSAGE.MINDMAP.PLEASE_ENTER_A_LICENCE_KEY,
+      data: await mindmaps.findAll({
+        where: {
+          keyName: key,
+        },
+        raw: false,
+      }),
     });
-
-  RES(res, {
-    data: await mindmaps.findAll({
-      where: {
-        keyName: key,
-      },
-      raw: false,
-    }),
-  });
+    logStream("debug", 'Mindmaps Recieved', 'Get mindmap details');
+  } catch (error) {
+    logStream("error", error.message);
+    RES(res, { message: error.message, success: false }, 422);
+  }
 };
 
 /**
@@ -37,13 +46,15 @@ const getMindmapDetails = async (req, res) => {
  * @param {response} res
  */
 const addUpdateLicenceKey = async (req, res) => {
-  const {imageName, imageValue, key, expiryDate, type} = req.body;
+  const { imageName, imageValue, key, expiryDate, type } = req.body;
   let message = "";
   let dataToUpdate;
   try {
+    logStream('debug', 'API calling', 'Add Update LicenceKey');
     let data = await licences.findOne({
       where: { keyName: key },
     });
+    logStream('debug', JSON.stringify(data), 'Got LicenceKey');
     if ((type === "image")) {
       dataToUpdate = {
         imageName: imageName,
@@ -58,12 +69,15 @@ const addUpdateLicenceKey = async (req, res) => {
     if (data) {
       data = await data.update(dataToUpdate);
       message = type === "image" ? MESSAGE.COMMON.IMAGE_UPDATED : MESSAGE.COMMON.UPDATED_SUCCESSFULLY;
+      logStream('debug', JSON.stringify(data), 'Updated Existing LicenceKey');
     } else {
       data = await licences.create(dataToUpdate);
       message = type === "image" ? MESSAGE.COMMON.IMAGE_UPLOADED : MESSAGE.COMMON.ADDED_SUCCESSFULLY;
+      logStream('debug', JSON.stringify(data), 'Added New LicenceKey');
     }
     RES(res, { data, success: true, message });
   } catch (error) {
+    logStream("error", error.message);
     RES(res, { message: error.message, success: false }, 422);
   }
 };
@@ -74,17 +88,24 @@ const addUpdateLicenceKey = async (req, res) => {
  * @param {response} res
  */
 const getMindmapKeys = async (req, res) => {
-  RES(res, {
-    data: await licences.findAll({
-      attributes: [
-        Constant.KEY_NAME,
-        Constant.EXPIRY,
-        Constant.IMAGE_VALUE,
-        Constant.IMAGE_NAME
-      ],
-    }),
-    success: true,
-  });
+  try {
+    logStream('debug', 'API calling', 'Get mindmap keys')
+    RES(res, {
+      data: await licences.findAll({
+        attributes: [
+          Constant.KEY_NAME,
+          Constant.EXPIRY,
+          Constant.IMAGE_VALUE,
+          Constant.IMAGE_NAME
+        ],
+      }),
+      success: true,
+    });
+    logStream("debug", 'Mindmap Keys Recieved', 'Get Mindmap Keys');
+  } catch (error) {
+    logStream("error", error.message);
+    RES(res, { message: error.message, success: false }, 422);
+  }
 };
 
 /**
@@ -93,12 +114,14 @@ const getMindmapKeys = async (req, res) => {
  * @param {response} res
  */
 const addUpdateMindMap = async (req, res) => {
-  const {filename, key, value} = req.body;
+  const { filename, key, value } = req.body;
   let message = "";
   try {
+    logStream('debug', 'API calling', 'Add Update MindMap')
     let data = await mindmaps.findOne({
       where: { keyName: key, name: filename },
     });
+    logStream('debug', JSON.stringify(data), 'Got MindMap');
     const dataToUpdate = {
       name: filename,
       json: value,
@@ -108,12 +131,15 @@ const addUpdateMindMap = async (req, res) => {
     if (data) {
       data = await data.update(dataToUpdate);
       message = MESSAGE.MINDMAP.MINDMAP_UPDATED_SUCCESSFULLY;
+      logStream('debug', JSON.stringify(data), 'Updated Existing MindMap');
     } else {
       data = await mindmaps.create(dataToUpdate);
       message = MESSAGE.MINDMAP.MINDMAP_ADDED_SUCCESSFULLY;
+      logStream('debug', JSON.stringify(data), 'Added New MindMap');
     }
     RES(res, { data, success: true, message });
   } catch (error) {
+    logStream("error", error.message);
     RES(res, { message: error.message, success: false }, 422);
   }
 };
@@ -127,7 +153,9 @@ const deleteMindmapKey = async (req, res) => {
   const { key } = req.params;
   const { mindmapName } = req.body;
   try {
+    logStream('debug', 'API calling', 'Delete Mindmap Key')
     if (!key) {
+      logStream('debug', 'Mindmap Key missing', 'Delete Mindmap Key');
       RES(res, {
         message: MESSAGE.MINDMAP.PLEASE_ENTER_A_MINDMAP_KEY,
         success: false,
@@ -135,6 +163,7 @@ const deleteMindmapKey = async (req, res) => {
       return;
     }
     if (!mindmapName) {
+      logStream('debug', 'Mindmap name missing', 'Delete Mindmap Key');
       RES(res, {
         message: MESSAGE.MINDMAP.PLEASE_PASS_A_MINDMAP_NAME,
         success: false,
@@ -148,13 +177,14 @@ const deleteMindmapKey = async (req, res) => {
         name: mindmapName,
       },
     });
-
+    logStream('debug', 'Mindmap deleted', 'Delete Mindmap Key');
     RES(res, {
       data,
       success: true,
       message: MESSAGE.MINDMAP.MINDMAP_DELETED_SUCCESSFULLY,
     });
   } catch (error) {
+    logStream("error", error.message);
     RES(res, { message: error.message, success: false }, 422);
   }
 };
@@ -167,7 +197,9 @@ const deleteMindmapKey = async (req, res) => {
 const downloadMindmaps = async (req, res) => {
   const { key } = req.query;
   try {
+    logStream('debug', 'API calling', 'Download Mindmaps')
     if (!key) {
+      logStream('debug', 'Mindmap Key missing', 'Download Mindmaps');
       RES(res, {
         message: MESSAGE.MINDMAP.PLEASE_PASS_A_LICENCE_KEY,
         success: false,
@@ -184,6 +216,7 @@ const downloadMindmaps = async (req, res) => {
     });
 
     if (!licenceData) {
+      logStream('debug', 'Not Found Mindmap Key', 'Download Mindmaps');
       RES(res, {
         message: MESSAGE.MINDMAP.LICENCE_KEY_DIDNOT_FOUND_IN_THE_DATABASE,
         success: false,
@@ -213,12 +246,14 @@ const downloadMindmaps = async (req, res) => {
       await zipFolder(key);
       const host = getFormattedUrl(req);
       rmDir("./public/key");
-
+      logStream('debug', 'Downloaded Mindmaps', 'Download Mindmaps');
       RES(res, { message: MESSAGE.COMMON.SUCCESS, mindmap: `${host}/${key}.zip` });
     } else {
+      logStream('debug', 'Licence key expired', 'Download Mindmaps');
       RES(res, { message: MESSAGE.MINDMAP.LICENCE_KEY_EXPIRED, success: false }, 422);
     }
   } catch (error) {
+    logStream("error", error.message);
     RES(res, { message: error.message, success: false }, 422);
   }
 };
@@ -231,23 +266,28 @@ const downloadMindmaps = async (req, res) => {
 const toggleMindmapActiveStatus = async (req, res) => {
   const { keyName, mindmapName } = req.body;
   try {
+    logStream('debug', 'API calling', 'Toggle Mindmap Active Status')
     if (!(keyName && mindmapName)) {
+      logStream('debug', 'Missing Arguments', 'Toggle Mindmap Active Status');
       RES(res, { message: MESSAGE.COMMON.BAD_REQUEST, success: false }, 400);
     }
     let data = await mindmaps.update({ isActive: Sequelize.literal('NOT isActive') }, {
       where: { keyName: keyName, name: mindmapName }
     });
-    if(data && data[0]) {
+    if (data && data[0]) {
       data = await mindmaps.findOne({
         where: { keyName: keyName, name: mindmapName }
       })
       message = MESSAGE.MINDMAP.ACTIVE_STATUS_UPDATED_SUCCESSFULLY;
+      logStream('debug', 'Status Updated Successfully', 'Toggle Mindmap Active Status');
       RES(res, { data, success: true, message });
     } else {
       message = MESSAGE.MINDMAP.MINDMAP_NOT_FOUND;
+      logStream('debug', 'Mindmap Not Found', 'Toggle Mindmap Active Status');
       RES(res, { data: null, success: false, message });
     }
   } catch (error) {
+    logStream("error", error.message);
     RES(res, { message: error.message, success: false }, 422);
   }
 };
