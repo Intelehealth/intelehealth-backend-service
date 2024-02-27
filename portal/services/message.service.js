@@ -155,7 +155,7 @@ module.exports = (function () {
             Sequelize.fn("DISTINCT", Sequelize.col("patientId")),
             "patientId",
           ],
-          [Sequelize.fn("max", Sequelize.col("id")), "id"],
+          [Sequelize.fn("min", Sequelize.col("id")), "id"],
         ],
         group: ["patientId"],
         order: [[Sequelize.col("id"), "DESC"]],
