@@ -212,7 +212,7 @@ WHERE
         where: {
           slotJsDate: {
             [Op.between]: this.getFilterDates(fromDate, toDate, {
-              to: new Date(),
+              from: new Date(),
             }),
           },
           status: "booked",
