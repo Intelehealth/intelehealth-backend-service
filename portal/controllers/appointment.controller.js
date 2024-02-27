@@ -1,4 +1,4 @@
-const { validateParams, log } = require("../handlers/helper");
+const { validateParams } = require("../handlers/helper");
 const {
   getUserAppointmentSchedule,
   upsertAppointmentSchedule,
@@ -38,7 +38,6 @@ module.exports = (function () {
         });
       }
     } catch (error) {
-      log("error: ", error);
       next(error);
     }
   };
@@ -57,7 +56,6 @@ module.exports = (function () {
         data,
       });
     } catch (error) {
-      log("error: ", error);
       next(error);
     }
   };
@@ -77,7 +75,6 @@ module.exports = (function () {
         });
       }
     } catch (error) {
-      log("error: ", error);
       next(error);
     }
   };
@@ -96,7 +93,6 @@ module.exports = (function () {
         });
       }
     } catch (error) {
-      log("error: ", error);
       next(error);
     }
   };
@@ -115,7 +111,6 @@ module.exports = (function () {
         });
       }
     } catch (error) {
-      log("error: ", error);
       next(error);
     }
   };

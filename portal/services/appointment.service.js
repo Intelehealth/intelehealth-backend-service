@@ -158,11 +158,16 @@ WHERE
     }
   };
 
-  this.getFilterDates = (fromDate, toDate) => {
-    return [
-      moment.utc(`${fromDate} 00:00:00`, FILTER_TIME_DATE_FORMAT).format(),
-      moment.utc(`${toDate} 23:59:59`, FILTER_TIME_DATE_FORMAT).format(),
-    ];
+  this.getFilterDates = (fromDate, toDate, { from, to } = {}) => {
+    const _fromDate = from
+      ? moment.utc(from).format()
+      : moment.utc(`${fromDate} 00:00:00`, FILTER_TIME_DATE_FORMAT).format();
+
+    const _toDate = to
+      ? moment.utc(to).format()
+      : moment.utc(`${toDate} 23:59:59`, FILTER_TIME_DATE_FORMAT).format();
+
+    return [_fromDate, _toDate];
   };
 
   this.getUserSlots = async ({ userUuid, fromDate, toDate }) => {
@@ -206,7 +211,9 @@ WHERE
       const data = await Appointment.findAll({
         where: {
           slotJsDate: {
-            [Op.between]: this.getFilterDates(fromDate, toDate),
+            [Op.between]: this.getFilterDates(fromDate, toDate, {
+              to: new Date(),
+            }),
           },
           status: "booked",
         },
