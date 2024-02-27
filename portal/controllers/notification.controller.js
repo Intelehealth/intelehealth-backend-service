@@ -1,5 +1,5 @@
 const { user_settings } = require("../models");
-const { RES, sendCloudNotification } = require("../handlers/helper");
+const { RES, sendPrescriptionCloudNotification } = require("../handlers/helper");
 const { MESSAGE } = require("../constants/messages");
 const { logStream } = require("../logger/index");
 Date.prototype.addMinutes = function (m) {
@@ -285,7 +285,7 @@ const notifyApp = async (req, res, next) => {
       if (req.body.title) notficationObj.title = req.body.title;
       if (req.body.body) notficationObj.body = req.body.body;
 
-      data = await sendCloudNotification(notficationObj).catch((err) => {
+      data = await sendPrescriptionCloudNotification(notficationObj).catch((err) => {
         logStream("error", err.message);
       });
     }

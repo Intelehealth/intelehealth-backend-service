@@ -91,8 +91,8 @@ const validateParams = (params, keysAndTypeToCheck = []) => {
           !params[obj.key]
             ? `Invalid request, ${obj.key} is missing.`
             : `Wrong param type for ${obj.key} (${typeof params[
-                obj.key
-              ]}), required type is ${obj.type}.`
+            obj.key
+            ]}), required type is ${obj.type}.`
         );
       }
     });
@@ -135,6 +135,39 @@ const sendCloudNotification = async ({
   }
 };
 
+/**
+ * Send Prescription cloud notification using fcm
+ * @param {*} data - (title, body, icon, data(payload), regTokens, click_action)
+ */
+  const sendPrescriptionCloudNotification = async ({
+    title,
+    body,
+    icon = "ic_launcher",
+    data = {},
+    regTokens,
+    click_action = "FCM_PLUGIN_HOME_ACTIVITY",
+  }) => {
+    const payload = {
+      data,
+      notification: {
+        title,
+        icon,
+        body,
+        click_action,
+      },
+    };
+
+    const options = {
+      priority: "high",
+    };
+
+    try {
+      const result = await messaging.sendToDevice(regTokens, payload, options);
+    } catch (err) {
+      console.error("Cloud notification error:", err);
+    }
+  };
+  
 /**
  * Get firebase admin instance
  * @returns - firebase admin instance
@@ -195,4 +228,5 @@ module.exports = {
   asyncForEach,
   getDataFromQuery,
   generateHash,
+  sendPrescriptionCloudNotification
 };
