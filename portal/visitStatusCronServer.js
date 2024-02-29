@@ -66,11 +66,11 @@ const resetVisit = async (visit) => {
 const statusCron = () => {
   new Promise(async (res, rej) => {
     const visitIds = await getVisits("Visit In Progress");
+    // let startTime = moment();
+    // startTime = startTime.subtract(8, "hour").format("YYYY-MM-DD HH:mm:ss");
 
-    let startTime = moment.utc();
-    startTime = startTime.subtract(8, "hour").format("YYYY-MM-DD HH:mm:ss");
-    let endTime = moment.utc();
-    endTime = endTime.subtract(1, "hour").format("YYYY-MM-DD HH:mm:ss");
+    let endTime = moment().subtract(1, "hour");
+    endTime = endTime.format("YYYY-MM-DD HH:mm:ss");
 
     const visits = await visit.findAll({
       where: {
@@ -94,7 +94,6 @@ const statusCron = () => {
             voided: false,
             encounter_type: 9,
             encounter_datetime: {
-              //   [Op.between]: [startTime, endTime],
               [Op.lt]: endTime,
             },
           },
@@ -106,8 +105,6 @@ const statusCron = () => {
     for (let idx = 0; idx < visits.length; idx++) {
       await resetVisit(visits[idx]);
     }
-
-    console.log("visits: ", visits.length);
 
     res(1);
   });
