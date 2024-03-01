@@ -111,6 +111,7 @@ const sendCloudNotification = async ({
   body,
   icon = "ic_launcher",
   data = {},
+  notification = null,
   regTokens,
   click_action = "FCM_PLUGIN_HOME_ACTIVITY",
 }) => {
@@ -123,6 +124,8 @@ const sendCloudNotification = async ({
     //   click_action,
     // },
   };
+
+  if(notification) payload.notification = notification;
 
   const options = {
     priority: "high",
