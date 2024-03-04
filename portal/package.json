@@ -23,7 +23,9 @@
     "sequelize-cli": "^6.2.0",
     "socket.io": "2.4.1",
     "web-push": "^3.4.4",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "cors": "^2.8.5",
+    "jsonwebtoken": "^9.0.2"
   },
   "devDependencies": {
     "sequelize-cli": "^6.2.0"
