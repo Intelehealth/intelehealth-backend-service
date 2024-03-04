@@ -10,6 +10,7 @@ const {
   getAppointment,
   getSlots,
 } = require("../services/appointment.service");
+const { logStream } = require("../logger/index");
 
 module.exports = (function () {
   /**
@@ -29,6 +30,7 @@ module.exports = (function () {
       { key: "year", type: "string" },
     ];
     try {
+      logStream('debug','API calling', 'Upsert Schedule');
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await upsertAppointmentSchedule(req.body);
         res.json({
@@ -38,12 +40,14 @@ module.exports = (function () {
       }
     } catch (error) {
       console.log("error: ", error);
+      logStream("error", error.message);
       next(error);
     }
   };
 
   this.getAppointmentSchedule = async (req, res, next) => {
     try {
+      logStream('debug','API calling', 'Get Appointment Schedule');
       const userUuid = req.params.userUuid;
       const year = req.query.year;
       const month = req.query.month;
@@ -51,18 +55,20 @@ module.exports = (function () {
       if (year) where.year = year;
       if (month) where.month = month;
       const data = await getUserAppointmentSchedule({ where });
+      logStream('debug','Got Appointment Schedule', 'Get Appointment Schedule');
       res.json({
         status: true,
         data,
       });
     } catch (error) {
-      console.log("error: ", error);
+      logStream("error", error.message);
       next(error);
     }
   };
 
   this.getUserSlots = async (req, res, next) => {
     try {
+      logStream('debug','API calling', 'Get User Slots');
       const keysAndTypeToCheck = [
         { key: "fromDate", type: "string" },
         { key: "toDate", type: "string" },
@@ -70,18 +76,21 @@ module.exports = (function () {
       if (validateParams(req.query, keysAndTypeToCheck)) {
         const userUuid = req.params.userUuid;
         const data = await getUserSlots({ ...req.query, userUuid });
+        logStream('debug','Got User Slots', 'Get User Slots');
         res.json({
           status: true,
           data,
         });
       }
     } catch (error) {
-      console.log("error: ", error);
+      logStream("error", error.message);
       next(error);
     }
   };
+
   this.getSlots = async (req, res, next) => {
     try {
+      logStream('debug','API calling', 'Get Slots');
       const keysAndTypeToCheck = [
         { key: "fromDate", type: "string" },
         { key: "toDate", type: "string" },
@@ -89,19 +98,21 @@ module.exports = (function () {
       ];
       if (validateParams(req.query, keysAndTypeToCheck)) {
         const data = await getSlots(req.query);
+        logStream('debug','Got Slots', 'Get Slots');
         res.json({
           status: true,
           data,
         });
       }
     } catch (error) {
-      console.log("error: ", error);
+      logStream("error", error.message);
       next(error);
     }
   };
 
   this.getAppointmentSlots = async (req, res, next) => {
     try {
+      logStream('debug','API calling', 'Get Appointment Slots');
       const keysAndTypeToCheck = [
         { key: "fromDate", type: "string" },
         { key: "toDate", type: "string" },
@@ -109,18 +120,21 @@ module.exports = (function () {
       ];
       if (validateParams(req.query, keysAndTypeToCheck)) {
         const data = await _getAppointmentSlots(req.query);
+        logStream('debug','Got Appointment Slots', 'Get Appointment Slots');
         res.json({
           status: true,
           ...data,
         });
       }
     } catch (error) {
+      logStream("error", error.message);
       next(error);
     }
   };
 
   this.bookAppointment = async (req, res, next) => {
     try {
+      logStream('debug','API calling', 'Book Appointment');
       const keysAndTypeToCheck = [
         { key: "slotDay", type: "string" },
         { key: "slotDuration", type: "number" },
@@ -137,18 +151,21 @@ module.exports = (function () {
       ];
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await _bookAppointment(req.body);
+        logStream('debug','Appointment booked', 'Book Appointment');
         res.json({
           status: true,
           ...data,
         });
       }
     } catch (error) {
+      logStream("error", error.message);
       next(error);
     }
   };
 
   this.rescheduleAppointment = async (req, res, next) => {
     try {
+      logStream('debug','API calling', 'Reschedule Appointment');
       const keysAndTypeToCheck = [
         { key: "slotDay", type: "string" },
         { key: "slotDuration", type: "number" },
@@ -166,39 +183,47 @@ module.exports = (function () {
       ];
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await _rescheduleAppointment(req.body);
+        logStream('debug','Appointment Rescheduled', 'Reschedule Appointment');
         res.json({
           status: true,
           ...data,
         });
       }
     } catch (error) {
+      logStream("error", error.message);
       next(error);
     }
   };
 
   this.cancelAppointment = async (req, res, next) => {
     try {
+      logStream('debug','API calling', 'Cancel Appointment');
       const keysAndTypeToCheck = [
         { key: "id", type: "number" },
         { key: "visitUuid", type: "string" },
       ];
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await _cancelAppointment(req.body);
+        logStream('debug','Appointment Cancelled', 'Cancel Appointment');
         res.json(data);
       }
     } catch (error) {
+      logStream("error", error.message);
       next(error);
     }
   };
 
   this.getAppointment = async (req, res, next) => {
     try {
+      logStream('debug','API calling', 'Get Appointment');
       const keysAndTypeToCheck = [{ key: "visitUuid", type: "string" }];
       if (validateParams(req.params, keysAndTypeToCheck)) {
         const data = await getAppointment(req.params);
+        logStream('debug','Got Appointments', 'Get Appointment');
         res.json({ status: true, data });
       }
     } catch (error) {
+      logStream("error", error.message);
       next(error);
     }
   };

@@ -1,5 +1,5 @@
 import { WebRTCService } from "../services/webrtc.service";
-
+const { logStream } = require("../logger/index");
 
 export class WebSocketController {
     token: string = "";
@@ -21,14 +21,14 @@ export class WebSocketController {
     }
 
     onWebSocketConnection(ws: any) {
-        console.log('onConnection: ');
+        logStream('debug','onConnection', 'On WebSocket Connection');
     }
 
     onWebSocketMessage(message: any) {
-        console.log('message:onWebSocketMessage ', message);
+        logStream('debug', JSON.stringify(message), 'On WebSocket Message');
     }
 
     onWebSocketError(err: any) {
-        console.log('onWebSocketError:  --- ', err);
+        logStream('debug', JSON.stringify(err), 'On WebSocket Error');
     }
 }

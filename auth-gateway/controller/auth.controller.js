@@ -1,6 +1,7 @@
 const moment = require("moment");
 const { getToken } = require("../handlers/checkAuth");
 const { axiosInstance } = require("../handlers/helper");
+const { logStream } = require("../logger/index");
 const buffer = require("buffer").Buffer;
 
 module.exports = (function () {
@@ -11,6 +12,7 @@ module.exports = (function () {
    */
   this.login = async (req, res, next) => {
     try {
+      logStream('debug','API calling', 'Login');
       console.log(req.body)
       const username = req.body.username;
       const password = req.body.password;
@@ -42,9 +44,10 @@ module.exports = (function () {
         );
         resp.status = true;
       }
-
+      logStream('debug',`Login Success for user ${username}`, 'Login');
       res.json(resp);
     } catch (error) {
+      logStream("error", error.message);
       next(error);
     }
   };
