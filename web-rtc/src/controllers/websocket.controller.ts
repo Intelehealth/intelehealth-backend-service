@@ -1,7 +1,6 @@
 import { WebRTCService } from "../services/webrtc.service";
 const { logStream } = require("../logger/index");
 
-
 export class WebSocketController {
     token: string = "";
 

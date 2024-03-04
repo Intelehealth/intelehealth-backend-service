@@ -11,11 +11,11 @@ const {
   sendWebPushNotification,
   sendCloudNotification
 } = require("../handlers/helper");
+const { logStream } = require("../logger/index");
 const { user_settings, pushnotification } = require("../models");
 const { uploadFile } = require("../handlers/file.handler");
 const Constant = require("../constants/constant");
 const { MESSAGE } = require("../constants/messages");
-const { logStream } = require("../logger/index");
 
 module.exports = (function () {
   this.sendMessageNotification = async (payload) => {

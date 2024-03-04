@@ -26,7 +26,7 @@ export class WebRTCService {
 
             onConnection(ws);
         })
-        logStream('debug',`The WebSocket server is running on port ${process.env.PORT}`,'Start Web Socket Server');
+        logStream('debug',`The WebSocket server is running on port ${process.env.PORT}`, 'Start Web Socket server');
     }
 
     initLiveSvc() {

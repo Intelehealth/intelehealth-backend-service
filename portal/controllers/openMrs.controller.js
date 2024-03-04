@@ -249,6 +249,7 @@ const getVisitCounts = async (req, res, next) => {
         resolve(results);
       });
     }).catch((err) => {
+      logStream("error", err.message);
       throw err;
     });
     logStream('debug', 'Success', 'Get Visit Counts');
@@ -259,7 +260,7 @@ const getVisitCounts = async (req, res, next) => {
   } catch (error) {
     logStream("error", error.message);
     res.statusCode = 422;
-    res.json({ status: false, message: err.message });
+    res.json({ status: false, message: error.message });
   }
 };
 
@@ -461,19 +462,23 @@ const getEndedVisits = async (req, res, next) => {
 const getFollowupVisits = async (req, res, next) => {
   const query = getFollowupVisitsQuery();
   try {
+    logStream('debug', 'API call', 'Get FollowUp Visit');
     const data = await new Promise((resolve, reject) => {
       openMrsDB.query(query, (err, results, fields) => {
         if (err) reject(err);
         resolve(results);
       });
     }).catch((err) => {
+      logStream("error", err.message);
       throw err;
     });
+    logStream('debug', 'Success', 'Get FollowUp Visit');
     res.json({
       data,
       message: "Followup Visits fetched successfully",
     });
   } catch (error) {
+    logStream("error", error.message);
     res.statusCode = 422;
     res.json({ status: false, message: err.message });
   }

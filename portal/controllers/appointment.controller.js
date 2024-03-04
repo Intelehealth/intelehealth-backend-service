@@ -71,6 +71,7 @@ module.exports = (function () {
       const { userUuid } = req.params;
       const { year, month } = req.query;
       const where = { userUuid };
+      logStream('debug','API calling', 'Get Appointment Schedule');
       if (year) where.year = year;
       if (month) where.month = month;
       logStream('debug','API calling', 'Get Appointment Schedule');
@@ -259,7 +260,7 @@ module.exports = (function () {
    */
   this.getAppointmentSlots = async (req, res, next) => {
     try {
-      logStream('debug','API calling', 'Get Appointment  Slots');
+      logStream('debug','API calling', 'Get Appointment Slots');
       const keysAndTypeToCheck = [
         { key: Constant.FROM_DATE, type: "string" },
         { key: Constant.TO_DATE, type: "string" },

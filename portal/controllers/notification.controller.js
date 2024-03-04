@@ -22,12 +22,12 @@ const getUserSettings = async ({ params }, res) => {
   const { uuid } = params;
   if (!uuid)
     res.status(422).json({ message: "Please pass correct user uuid!" });
-
+    
   let data = await user_settings.findOne({
     where: { user_uuid: uuid },
   });
   if (!data) data = {};
-  logStream('debug', 'Success', 'Create Short Link');
+  logStream('debug', 'Success', 'Get User Settings');
   res.status(200).json({
     message: MESSAGE.NOTIFICATION.SETTINGS_RECEVIED_SUCCESSFULLY,
     data,
@@ -42,9 +42,11 @@ const getUserSettings = async ({ params }, res) => {
  * @param {response} res
  */
 const setUserSettings = async ({ body }, res) => {
-  logStream('debug', 'API call', 'Get Link');
-  if (!body.user_uuid)
-    res.status(422).json({ message: MESSAGE.NOTIFICATION.PLEASE_PASS_CORRECT_USER_UUID });
+  logStream('debug', 'API call', 'Set User Settings');
+  if (!body.user_uuid) {
+    logStream("error", "Please pass correct user uuid!");
+    res.status(422).json({ message: "Please pass correct user uuid!" });
+  }
 
   let data = await user_settings.findOne({
     where: { user_uuid: body.user_uuid },
@@ -60,7 +62,7 @@ const setUserSettings = async ({ body }, res) => {
       snooze_till: "",
     });
   }
-  logStream('debug', 'Success', 'Get Link');
+  logStream('debug', 'Success', 'Set User Settings');
   res.status(200).json({
     message: data
       ? MESSAGE.NOTIFICATION.SETTINGS_SAVED_SUCCESSFULLY

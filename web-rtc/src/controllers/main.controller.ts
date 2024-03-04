@@ -9,14 +9,17 @@ export class MainController {
     getToken(req: Request, res: Response, next: NextFunction) {
         logStream('debug','API calling', 'Get Token');
         if (!req.query.roomId) {
+            logStream("error", "Missing roomId.");
             res.json({ message: "Missing roomId.", success: false });
             return;
         }
         if (!req.query.name) {
+            logStream("error", "Missing name.");
             res.json({ message: "Missing name.", success: false });
             return;
         }
         if (!req.query.nurseName) {
+            logStream("error", "Missing nurseName");
             res.json({ message: "Missing nurseName.", success: false });
             return;
         }

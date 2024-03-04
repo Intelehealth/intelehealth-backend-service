@@ -38,7 +38,10 @@
     "sequelize": "^6.6.2",
     "socket.io": "2.4.1",
     "text-to-image": "^5.2.0",
-    "web-push": "^3.4.4"
+    "web-push": "^3.4.4",
+    "jsonwebtoken": "^9.0.2",
+    "winston": "^3.11.0",
+    "winston-daily-rotate-file": "^4.7.1"
   },
   "devDependencies": {
     "sequelize-cli": "^6.2.0",
