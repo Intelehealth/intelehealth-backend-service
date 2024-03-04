@@ -9,12 +9,40 @@ const {
 const {
   validateParams,
   sendWebPushNotification,
+  sendCloudNotification,
+  generateUUID
 } = require("../handlers/helper");
 const { user_settings, pushnotification } = require("../models");
 const { uploadFile } = require("../handlers/file.handler");
 const Constant = require("../constants/constant");
 const { MESSAGE } = require("../constants/messages");
 const { logStream } = require("../logger/index");
+
+const sendMobileNotification = (body, userData) => {
+  try {
+    sendCloudNotification({
+      regTokens: [userData?.device_reg_token],
+      notification: {
+        title: "Chat",
+        body: body.message,
+        regTokens: [userData?.device_reg_token],
+        opts: {
+          timeToLive: 60,
+        } 
+      },
+      data: {
+        id: generateUUID(),
+        nurseId: body.toUser,
+        body: body.message,
+        type: "chat_message",
+        timestamp: Date.now().toString(),
+        device_token: userData?.device_reg_token || "",
+      },
+    });
+  } catch (e) {
+    logStream('error', e, 'send cloud notification chat')
+  }
+}
 
 module.exports = (function () {
   this.sendMessageNotification = async (payload) => {
@@ -61,7 +89,8 @@ module.exports = (function () {
       hwName,
       hwPic,
       type,
-      openMrsId
+      openMrsId,
+      appType = ''
     } = req.body;
     const keysAndTypeToCheck = [
       { key: Constant.FROM_USER, type: "string" },
@@ -86,9 +115,9 @@ module.exports = (function () {
           hwName,
           hwPic,
           type,
-          openMrsId
+          openMrsId,
         );
-
+        
         try {
           messages = await getMessages(fromUser, toUser, patientId, visitId);
         } catch (error) {}
@@ -117,10 +146,14 @@ module.exports = (function () {
             user_uuid: toUser,
           },
         });
-        if (us && us?.notification) {
+        if (us && us?.notification && appType !== 'webapp') {
           if (us?.snooze_till ? new Date().valueOf() > us?.snooze_till : true) {
             notificationResponse = this.sendMessageNotification(req.body);
           }
+        }
+        if(us && appType === 'webapp' && !isLiveMessageSent) {
+          console.log("USER",JSON.stringify(us, null, 4), fromUser, toUser)
+          sendMobileNotification(req.body, us)
         }
         logStream('debug', 'Success', 'Send Message');
         res.json({ ...data, notificationResponse });
