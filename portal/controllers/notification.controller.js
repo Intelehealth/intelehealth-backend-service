@@ -1,5 +1,6 @@
 const mysql = require("../public/javascripts/mysql/mysql");
 const { user_settings } = require("../models");
+const { logStream } = require("../logger/index");
 Date.prototype.addMinutes = function (m) {
   this.setTime(this.getTime() + m * 60000);
   return this;
@@ -18,6 +19,7 @@ const setSnoozeToDBb = async (user_uuid, snooze_till) => {
       (err, results, fields) => {
         if (err) {
           console.log("err: ", err);
+          logStream("error", err.message);
           reject(err.message);
         }
         resolve("Snoozed successfully!");
@@ -40,12 +42,15 @@ const removeUserSnooze = async (user_uuid) => {
 
 const snoozeNotification = async ({ body }, res) => {
   try {
+    logStream('debug', 'API call', 'Snooze Notification');
     const type = body.custom ? "custom" : body.snooze_for;
     let snooze_till = "";
     let resp = {};
     let statusCode = 200;
-    if (!body.user_uuid)
+    if (!body.user_uuid){
+      logStream("error", "Please pass correct user uuid!");
       res.status(422).json({ message: "Please pass correct user uuid!" });
+    }
 
     await removeUserSnooze(body.user_uuid);
 
@@ -101,9 +106,11 @@ const snoozeNotification = async ({ body }, res) => {
         }
         break;
     }
+    logStream('debug', 'Success', 'Snooze Notification');
     res.status(statusCode).json(resp);
   } catch (err) {
     console.log("error:snoozeNotification ", err);
+    logStream("error", err.message);
     res.status(500).json({
       message: err.message || "Something went wrong with the request",
     });
@@ -123,13 +130,17 @@ const getSettings = async (uuid) => {
 };
 
 const getUserSettings = async ({ params }, res) => {
-  if (!params.uuid)
+  logStream('debug', 'API call', 'Get User Settings');
+  if (!params.uuid){
+    logStream("error", "Please pass correct user uuid!");
     res.status(422).json({ message: "Please pass correct user uuid!" });
+  }
 
   let data = await user_settings.findOne({
     where: { user_uuid: params.uuid },
   });
   if (!data) data = {};
+  logStream('debug', 'Success', 'Get User Settings');
   res.status(200).json({
     message: "Settings recevied successfully.",
     data,
@@ -139,9 +150,11 @@ const getUserSettings = async ({ params }, res) => {
 };
 
 const setUserSettings = async ({ body }, res) => {
-  if (!body.user_uuid)
+  logStream('debug', 'API call', 'Set User Settings');
+  if (!body.user_uuid){
+    logStream("error", "Please pass correct user uuid!");
     res.status(422).json({ message: "Please pass correct user uuid!" });
-
+  }
   let data = await user_settings.findOne({
     where: { user_uuid: body.user_uuid },
   });
@@ -156,6 +169,7 @@ const setUserSettings = async ({ body }, res) => {
       snooze_till: "",
     });
   }
+  logStream('debug', 'Success', 'Set User Settings');
   res.status(200).json({
     message: data
       ? "Settings saved successfully."

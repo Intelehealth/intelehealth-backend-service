@@ -1,4 +1,5 @@
 const openMrsDB = require("../public/javascripts/mysql/mysqlOpenMrs");
+const { logStream } = require("../logger/index");
 
 const getVisitCountQuery = ({ speciality = "General Physician" }) => {
   return `select count(t1.visit_id) as Total,
@@ -115,19 +116,23 @@ const getVisitCounts = async (req, res, next) => {
       : getVisitCountQuery({ speciality });
 
   try {
+    logStream('debug', 'API call', 'Get Visit Counts');
     const data = await new Promise((resolve, reject) => {
       openMrsDB.query(query, (err, results, fields) => {
         if (err) reject(err);
         resolve(results);
       });
     }).catch((err) => {
+      logStream("error", err.message);
       throw err;
     });
+    logStream('debug', 'Success', 'Get Visit Counts');
     res.json({
       data,
       message: "Visit count fetched successfully",
     });
   } catch (error) {
+    logStream("error", error.message);
     res.statusCode = 422;
     res.json({ status: false, message: err.message });
   }
@@ -141,12 +146,14 @@ const getVisitCounts = async (req, res, next) => {
  */
  const getLocations = async (req, res, next) => {
   try {
+    logStream('debug', 'API call', 'Get Locations');
     const data = await new Promise((resolve, reject) => {
       openMrsDB.query(getLocationQuery(), (err, results, fields) => {
         if (err) reject(err);
         resolve(results);
       });
     }).catch((err) => {
+      logStream("error", err.message);
       throw err;
     });
     let states = data.filter((d) => d.tag === "State");
@@ -202,11 +209,13 @@ const getVisitCounts = async (req, res, next) => {
         };
       });
     }
+    logStream('debug', 'Success', 'Get Locations');
     res.json({
       states,
       message: "Locations fetched successfully",
     });
   } catch (error) {
+    logStream("error", error.message);
     res.statusCode = 422;
     res.json({ status: false, message: error.message });
   }

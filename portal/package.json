@@ -24,7 +24,9 @@
     "sequelize": "^6.6.2",
     "sequelize-cli": "^6.2.0",
     "socket.io": "2.4.1",
-    "web-push": "^3.4.4"
+    "web-push": "^3.4.4",
+    "winston": "^3.11.0",
+    "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
     "sequelize-cli": "^6.2.0"

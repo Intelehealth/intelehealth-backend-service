@@ -50,6 +50,7 @@ module.exports = (function () {
     let isLiveMessageSent = false,
       messages = [];
     try {
+      logStream('debug', 'API call', 'Send Message');
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await sendMessage(
           fromUser,
@@ -149,8 +150,10 @@ module.exports = (function () {
         }
 
         res.json({ ...data, notificationResponse });
+        logStream('debug', 'Success', 'Send Message');
       }
     } catch (error) {
+      logStream('error', error.message);
       console.log("error: ", error);
       res.json({
         status: false,
@@ -172,11 +175,14 @@ module.exports = (function () {
       { key: "patientId", type: "string" },
     ];
     try {
+      logStream('debug', 'API call', 'Get Messages');
       if (validateParams(req.params, keysAndTypeToCheck)) {
         const data = await getMessages(fromUser, toUser, patientId, visitId);
+        logStream('debug', 'Success', 'Get Message');
         res.json(data);
       }
     } catch (error) {
+      logStream('error', error.message);
       res.json({
         status: false,
         message: error,
@@ -196,11 +202,14 @@ module.exports = (function () {
       { key: "toUser", type: "string" },
     ];
     try {
+      logStream('debug', 'API call', 'Get All Messages');
       if (validateParams(req.params, keysAndTypeToCheck)) {
         const data = await getAllMessages(fromUser, toUser);
+        logStream('debug', 'Success', 'Get All Messages');
         res.json(data);
       }
     } catch (error) {
+      logStream('error', error.message);
       res.json({
         status: false,
         message: error,
@@ -215,9 +224,12 @@ module.exports = (function () {
    */
   this.getPatientMessageList = async (req, res) => {
     try {
+      logStream('debug', 'API call', 'Get Patient Message List');
       const data = await getPatientMessageList(req.query.drUuid);
+      logStream('debug', 'Success', 'Get Patient Message List');
       res.json(data);
     } catch (error) {
+      logStream('error', error.message);
       res.json({
         status: false,
         message: error,
@@ -234,11 +246,14 @@ module.exports = (function () {
     const { messageId } = req.params;
     const keysAndTypeToCheck = [{ key: "messageId", type: "string" }];
     try {
+      logStream('debug', 'API call', 'Read Messages By Id');
       if (validateParams(req.params, keysAndTypeToCheck)) {
         const data = await readMessagesById(messageId);
+        logStream('debug', 'Success', 'Read Messages By Id');
         res.json(data);
       }
     } catch (error) {
+      logStream('error', error.message);
       res.json({
         status: false,
         message: error,
@@ -255,11 +270,14 @@ module.exports = (function () {
     const { patientId } = req.params;
     const keysAndTypeToCheck = [{ key: "patientId", type: "string" }];
     try {
+      logStream('debug', 'API call', 'Get Visits');
       if (validateParams(req.params, keysAndTypeToCheck)) {
         const data = await getVisits(patientId);
+        logStream('debug', 'Success', 'Get Visits');
         res.json(data);
       }
     } catch (error) {
+      logStream('error', error.message);
       res.json({
         status: false,
         message: error,
@@ -298,17 +316,20 @@ module.exports = (function () {
   this.sendSMS = async (req, res) => {
     const { message, patients = [] } = req.body;
     try {
+      logStream('debug', 'API call', 'Send SMS');
       if (patients) {
         for (let idx = 0; idx < patients.length; idx++) {
           const patientMobNo = patients[idx];
           await postSMSToMobileNumber(patientMobNo, message);
         }
+        logStream('debug', 'Success', 'Send SMS');
         return res.json({
           status: true,
           message: "SMS sent successfully.",
         });
       }
     } catch (error) {
+      logStream('error', error.message);
       log("error: ", error);
       res.json({
         status: false,
