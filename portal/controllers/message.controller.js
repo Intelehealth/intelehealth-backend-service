@@ -152,7 +152,6 @@ module.exports = (function () {
           }
         }
         if(us && appType === 'webapp' && !isLiveMessageSent) {
-          console.log("USER",JSON.stringify(us, null, 4), fromUser, toUser)
           sendMobileNotification(req.body, us)
         }
         logStream('debug', 'Success', 'Send Message');
