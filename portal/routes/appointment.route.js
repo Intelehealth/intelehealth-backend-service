@@ -34,7 +34,7 @@ router.get("/getSlots", [authMiddleware, getSlots]);
 router.get("/getAppointmentSlots", [authMiddleware, getAppointmentSlots]);
 router.get("/getScheduledMonths/:userUuid", [authMiddleware, getScheduledMonths]);
 router.post("/createOrUpdateSchedule", [authMiddleware, upsertSchedule]);
-router.post("/bookAppointment", [authMiddleware, bookAppointment]);
+router.post("/bookAppointment", bookAppointment); // TODO: removed the authMiddleware it's calling from MRS middleware pull/push
 router.post("/rescheduleAppointment", [authMiddleware, rescheduleAppointment]);
 router.post("/startAppointment", [authMiddleware, startAppointment]);
 router.post("/releaseAppointment", [authMiddleware, releaseAppointment]);
