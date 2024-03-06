@@ -1,27 +1,53 @@
-const { 
-  sendMessage, 
-  getMessages, 
+const {
+  sendMessage,
+  getMessages,
   getAllMessages,
   getPatientMessageList,
   readMessagesById,
-  getVisits, 
+  getVisits,
 } = require("../services/message.service");
-const { validateParams } = require("../handlers/helper");
-const { user_settings } = require("../models");
-const { uploadFile } = require("../handlers/file-handler");
-const { sendNotification, getSubscriptions } = require("../handlers/web-push");
+const {
+  validateParams,
+  sendWebPushNotification,
+} = require("../handlers/helper");
+const { user_settings, pushnotification } = require("../models");
+// const { uploadFile } = require("../handlers/file.handler");
 
 module.exports = (function () {
+  this.sendMessageNotification = async (payload) => {
+    const subscriptions = await pushnotification.findAll({
+      where: { user_uuid: payload.toUser },
+    });
+    const res = [];
+    subscriptions.forEach(async (sub) => {
+      sendWebPushNotification({
+        webpush_obj: sub.notification_object,
+        data: {
+          ...payload,
+          url: `${
+            process.env.NODE_ENV === "prod" ? "/intelehealth" : ""
+          }/#/dashboard/visit-summary/${payload.visitId}?openChat=true`,
+        },
+        title: `New Chat from ${payload.hwName || "HW"}(${
+          payload.patientName || "Patient"
+        }):${payload.openMrsId || ""}`,
+        body: payload.message,
+        options: {
+          TTL: "3600000",
+        },
+      });
+    });
+  };
   /**
    * Method to create message entry and transmit it to socket on realtime
    * @param {*} req
    * @param {*} res
    */
   this.sendMessage = async (req, res) => {
-    const { 
-      fromUser, 
-      toUser, 
-      patientId, 
+    const {
+      fromUser,
+      toUser,
+      patientId,
       message,
       isRead,
       patientPic,
@@ -30,21 +56,21 @@ module.exports = (function () {
       hwName,
       hwPic,
       type,
-     } = req.body;
+    } = req.body;
     const keysAndTypeToCheck = [
       { key: "fromUser", type: "string" },
       { key: "toUser", type: "string" },
       { key: "patientId", type: "string" },
       { key: "message", type: "string" },
     ];
-    let isLiveMessageSent = false, 
-    messages = [];
+    let isLiveMessageSent = false,
+      messages = [];
     try {
       if (validateParams(req.body, keysAndTypeToCheck)) {
         const data = await sendMessage(
-          fromUser, 
-          toUser, 
-          patientId, 
+          fromUser,
+          toUser,
+          patientId,
           message,
           isRead,
           patientPic,
@@ -53,68 +79,45 @@ module.exports = (function () {
           hwName,
           hwPic,
           type
-          );
-        console.log('type: ', type);
+        );
+
         try {
           messages = await getMessages(fromUser, toUser, patientId, visitId);
-        } catch (error) {
-          
-        }
+        } catch (error) {}
         for (const key in users) {
           if (Object.hasOwnProperty.call(users, key)) {
             const user = users[key];
+            let messageData = {};
             if (user && user.uuid == toUser) {
               try {
                 data.data.dataValues.createdAt = new Date(
                   data.data.dataValues.createdAt
                 ).toGMTString();
+                messageData = data.data.toJSON();
                 data.data.dataValues.allMessages = messages.data;
               } catch (error) {}
-              io.to(key).emit("updateMessage", data.data);
+              io.to(key).emit("updateMessage", messageData);
               isLiveMessageSent = true;
             }
           }
         }
         let notificationResponse = "";
-        if (!isLiveMessageSent) {
-          const userSetting = await user_settings.findOne({
-            where: { user_uuid: toUser },
-          });
-          if (userSetting && userSetting.device_reg_token) {
-            notificationResponse = await sendCloudNotification({
-              title: "New chat message",
-              body: message,
-              data: {
-                ...req.body,
-                ...data.data.dataValues,
-                actionType: "TEXT_CHAT",
-              },
-              regTokens: [userSetting.device_reg_token],
-            }).catch((err) => {
-              console.log("err: ", err);
-            });
-          }
-        }
 
         // Send push notification
-        const us = await user_settings.findOne({
-          where: {
-              user_uuid: toUser,
-          },
-        });
-        if (us && us?.notification) {
-          const subscriptions = await getSubscriptions(us.user_uuid);
-          if (subscriptions.length) {
-            subscriptions.forEach(async (sub) => {
-              await sendNotification(JSON.parse(sub.notification_object), 'Hey! You got new chat message', message);
-            });
-          }
-        }
+        // const us = await user_settings.findOne({
+        //   where: {
+        //     user_uuid: toUser,
+        //   },
+        // });
+        // if (us && us?.notification) {
+        //   if (us?.snooze_till ? new Date().valueOf() > us?.snooze_till : true) {
+            notificationResponse = this.sendMessageNotification(req.body);
+        //   }
+        // }
 
         res.json({ ...data, notificationResponse });
       }
     } catch (error) {
-      console.log("error: ", error);
       res.json({
         status: false,
         message: error,
@@ -171,6 +174,7 @@ module.exports = (function () {
       });
     }
   };
+
   /**
    * return all the patients messages
    * @param {*} req
@@ -187,6 +191,7 @@ module.exports = (function () {
       });
     }
   };
+
   /**
    * return message associated with toUser, fromUser and a patient
    * @param {*} req
@@ -207,6 +212,7 @@ module.exports = (function () {
       });
     }
   };
+
   /**
    * return all the visits associated with patient
    * @param {*} req
@@ -227,18 +233,20 @@ module.exports = (function () {
       });
     }
   };
+
   /**
    * Upload file to s3
    */
   this.upload = async (req, res) => {
     try {
-      if (!req.files.length) {
-        throw new Error("File must be passed!");
-      }
-      const file = req.files[0];
-      const data = await uploadFile(file, "zeetest");
+      // if (!req.files.length) {
+      //   throw new Error("File must be passed!");
+      // }
+      // const file = req.files[0];
+      // const data = await uploadFile(file, "zeetest");
+
       res.json({
-        data,
+        // data,
         success: true,
       });
     } catch (error) {

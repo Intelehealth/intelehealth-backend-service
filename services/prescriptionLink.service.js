@@ -1,9 +1,6 @@
 const { default: axios } = require("axios");
 const { links } = require("../models");
 
-const env = process.env.NODE_ENV || "development";
-const config = require(__dirname + "/../config/config.json")[env];
-
 module.exports = (function () {
   /**
    * Request otp for prescription
@@ -21,7 +18,7 @@ module.exports = (function () {
       }
       const otp = (
         await axios.get(
-          `https://2factor.in/API/V1/${config.apiKey2Factor}/SMS/${phoneNumber}/AUTOGEN2`
+          `https://2factor.in/API/V1/${process.env.APIKEY_2FACTOR}/SMS/${phoneNumber}/AUTOGEN2`
         )
       ).data.OTP;
 

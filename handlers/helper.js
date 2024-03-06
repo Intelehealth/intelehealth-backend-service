@@ -1,151 +1,157 @@
-const gcm = require("node-gcm");
 const mysql = require("../public/javascripts/mysql/mysql");
 const webpush = require("web-push");
+const axios = require("axios");
+const admin = require("firebase-admin");
 
-module.exports = (function () {
-  const vapidKeys = {
-    // unicef production
-    publicKey:
-      "BCGfng5flfhjlqR_imzFXwHGeEMBA6AzFVAex7sPLDbsMCn_IMKtQmI9TDnmP6raxmPcBcnoKO_AHKaLtctsIjg",
-    privateKey: "85omZfgs39Tt2R5JwB3sCkgYlSQd5mV-iAsTEz8lEoQ",
-    // unicef training
-    // publicKey:
-    //   "BPahLgBCajrPyOkLGQuFf5sEtuX1pXRckn6bmW5nNrxy-5QM9uJ6JPM5sp_wuaJl1jNOylgcUxLJdOJtGIGEreo",
-    // privateKey: "D3xqo6aJ-Z8YNN03zMbmTexDUpNK2GCUVSmb6FM-FeE",
-    mailTo: "mailto:support@intelehealth.org",
-  };
-  webpush.setVapidDetails(
-    vapidKeys.mailTo,
-    vapidKeys.publicKey,
-    vapidKeys.privateKey
-  );
+const {
+  FIREBASE_SERVICE_ACCOUNT_KEY,
+  FIREBASE_DB_URL,
+  VAPID_MAILTO,
+  VAPID_PUBLIC_KEY,
+  VAPID_PRIVATE_KEY,
+  DOMAIN,
+  OPENMRS_USERNAME,
+  OPENMRS_PASS,
+} = process.env;
 
-  this.sendWebPushNotificaion = async ({ webpush_obj, title, body }) => {
-    webpush
-      .sendNotification(
-        JSON.parse(webpush_obj),
-        JSON.stringify({
-          notification: {
-            title,
-            body,
-            vibrate: [100, 50, 100],
-          },
-        })
-      )
-      .catch((error) => {
-        console.log("appointment notification error", error);
-      });
-  };
+admin.initializeApp({
+  credential: admin.credential.cert(JSON.parse(FIREBASE_SERVICE_ACCOUNT_KEY)),
+  databaseURL: FIREBASE_DB_URL,
+});
 
-  this.validateParams = (params, keysAndTypeToCheck = []) => {
-    try {
-      keysAndTypeToCheck.forEach((obj) => {
-        if (!params[obj.key] && typeof params[obj.key] !== obj.type) {
-          if (!params[obj.key]) {
-            throw new Error(`Invalid request, ${obj.key} is missing.`);
-          }
-          if (!params[obj.key]) {
-            throw new Error(
-              `Wrong param type for ${obj.key}(${typeof params[
+webpush.setVapidDetails(VAPID_MAILTO, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+
+const baseURL = `https://${DOMAIN}`;
+
+const axiosInstance = axios.create({
+  baseURL,
+  timeout: 50000,
+  headers: {
+    Authorization: `Basic ${Buffer.from(
+      `${OPENMRS_USERNAME}:${OPENMRS_PASS}`
+    ).toString("base64")}`,
+  },
+});
+
+const messaging = admin.messaging();
+
+const sendWebPushNotification = async ({
+  webpush_obj,
+  title,
+  body,
+  data = {},
+  parse = false,
+}) => {
+  try {
+    debugger;
+    return await webpush.sendNotification(
+      parse ? JSON.parse(webpush_obj) : webpush_obj,
+      JSON.stringify({
+        notification: {
+          title,
+          body,
+          vibrate: [100, 50, 100],
+          data,
+        },
+      })
+    );
+  } catch (error) {
+    console.error("Web Push notification error:", error);
+  }
+};
+
+const validateParams = (params, keysAndTypeToCheck = []) => {
+  try {
+    keysAndTypeToCheck.forEach((obj) => {
+      if (!params[obj.key] || typeof params[obj.key] !== obj.type) {
+        throw new Error(
+          !params[obj.key]
+            ? `Invalid request, ${obj.key} is missing.`
+            : `Wrong param type for ${obj.key} (${typeof params[
                 obj.key
               ]}), required type is ${obj.type}.`
-            );
-          }
-        }
-      });
-      return true;
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  this.sendCloudNotification = async ({
-    title,
-    body,
-    icon = "ic_launcher",
-    data = {},
-    regTokens,
-    android = {},
-    webpush = {},
-    apns = {},
-    click_action = "FCM_PLUGIN_HOME_ACTIVITY",
-  }) => {
-    var sender = new gcm.Sender(
-      "AAAAr5qSsYE:APA91bHkQpNZ6iZc43OL7Bth5FwVhG5Y-RFoTajQqUvo6jfSn-XO2nP7P79TPsZrou0VSYPWwYlf_1ukJQOjXKMeCSmxyvpaGQe07fzLIqTZJHa8uR61IrSRS8UNtOJEzlV47wEmsM0m"
-    );
-
-    var message = new gcm.Message({
-      data,
-      notification: {
-        title,
-        icon,
-        body,
-        click_action,
-      },
-      android: {
-        ttl: "30s",
-        priority: "high",
-      },
-      webpush: {
-        headers: {
-          TTL: "30",
-          Urgency: "high",
-        },
-      },
-      apns: {
-        headers: {
-          "apns-priority": "5",
-        },
-      },
+        );
+      }
     });
+    return true;
+  } catch (error) {
+    throw error;
+  }
+};
 
-    return new Promise((res, rej) => {
-      sender.send(
-        message,
-        { registrationTokens: regTokens },
-        function (err, response) {
-          if (err) {
-            console.log("err: ", err);
-            console.error(err);
-            rej(err);
-          } else {
-            console.log(response);
-            res(response);
-          }
-        }
-      );
+const sendCloudNotification = async ({
+  data = {},
+  regTokens,
+  // click_action = "FCM_PLUGIN_HOME_ACTIVITY",
+  opts = {},
+  notification = null /**
+   notification: {
+    //   title,
+    //   icon ="ic_launcher",
+    //   body,
+    //   click_action,
+    // },
+   */,
+}) => {
+  const messaging = admin.messaging();
+
+  var payload = {
+    data,
+  };
+
+  if (notification) {
+    payload.notification = notification;
+  }
+
+  const options = {
+    priority: "high",
+    ...opts,
+  };
+
+  return messaging
+    .sendToDevice(regTokens, payload, options)
+    .then((result) => {
+      console.log(result);
+    })
+    .catch((err) => {
+      console.log("err: ", err);
     });
-  };
+};
 
-  this.RES = (res, data, statusCode = 200) => {
-    res.status(statusCode).json(data);
-  };
+const getFirebaseAdmin = () => admin;
 
-  this.asyncForEach = async function (array, callback) {
-    for (let index = 0; index < array.length; index++) {
-      await callback(array[index], index, array);
-    }
-  };
+const RES = (res, data, statusCode = 200) => res.status(statusCode).json(data);
 
-  this.getDataFromQuery = (query) => {
-    return new Promise((resolve, reject) => {
-      mysql.query(query, (err, results) => {
-        if (err) {
-          console.log("err: ", err);
-          reject(err.message);
-        }
-        resolve(results);
-      });
+const asyncForEach = async (array, callback) => {
+  for (let index = 0; index < array.length; index++) {
+    await callback(array[index], index, array);
+  }
+};
+
+const getDataFromQuery = (query) =>
+  new Promise((resolve, reject) => {
+    mysql.query(query, (err, results) => {
+      if (err) {
+        console.error("MySQL query error:", err);
+        reject(err.message);
+      }
+      resolve(results);
     });
-  };
+  });
 
-  this.generateHash = (length) => {
-    return Math.round(
-      Math.pow(36, length + 1) - Math.random() * Math.pow(36, length)
-    )
-      .toString(36)
-      .slice(1);
-  };
+const generateHash = (length) =>
+  Math.round(Math.pow(36, length + 1) - Math.random() * Math.pow(36, length))
+    .toString(36)
+    .slice(1);
 
-  return this;
-})();
+module.exports = {
+  axiosInstance,
+  sendWebPushNotification,
+  validateParams,
+  sendCloudNotification,
+  getFirebaseAdmin,
+  RES,
+  asyncForEach,
+  getDataFromQuery,
+  generateHash,
+};

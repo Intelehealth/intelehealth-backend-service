@@ -22,12 +22,11 @@ router.post("/subscribe", async (req, res) => {
     doctor_name: req.body.providerName,
     date_created: new Date(),
     user_uuid: req.body.user_uuid,
-    finger_print: req.body.finger_print,
     locale: req.body.locale ? req.body.locale : "en",
   };
   const pushnotification = await new Promise((res, rej) => {
     mysql.query(
-      `Select * from pushnotification where user_uuid='${details.user_uuid}' AND finger_print='${details.finger_print}'`,
+      `Select * from pushnotification where user_uuid='${details.user_uuid}'`,
       (err, results) => {
         if (!err) res(results);
         else rej(err);
@@ -38,7 +37,7 @@ router.post("/subscribe", async (req, res) => {
   if (pushnotification && pushnotification.length) {
     mysql.query(
       `UPDATE pushnotification SET notification_object='${details.notification_object}',locale='${details.locale}',speciality='${details.speciality}'
-       WHERE user_uuid='${details.user_uuid}' and finger_print='${details.finger_print}'`,
+       WHERE user_uuid='${details.user_uuid}'`,
       (err, results, fields) => {
         if (err) res.status(400).json({ message: err.message });
         else
@@ -92,15 +91,15 @@ router.post("/push", (req, res) => {
           let title = `Patient ${patient.name} seen by doctor`;
           let body = `${patient.provider}`;
 
-          let enPayload =  {
+          let enPayload = {
             title: `New Patient ${patient.name} has been uploaded`,
-            body:"Please start giving consultation"
-          }
+            body: "Please start giving consultation",
+          };
 
-          let ruPayload =  {
+          let ruPayload = {
             title: `Новый пациент ${patient.name} был загружен.`,
-            body: "Пожалуйста, начните давать консультации"
-          }
+            body: "Пожалуйста, начните давать консультации",
+          };
 
           const userUUID = results.map((sub) => sub.user_uuid).join(`','`);
 
@@ -152,14 +151,22 @@ router.post("/push", (req, res) => {
           });
           const allNotifications = results.map((sub) => {
             if (!patient.provider.match(sub.doctor_name)) {
-              let payload
-              if(sub.locale === 'en') {
+              let payload;
+              if (sub.locale === "en") {
                 payload = JSON.stringify({
-                  notification: { title: enPayload.title, body: enPayload.body, vibrate: [100, 50, 100] },
+                  notification: {
+                    title: enPayload.title,
+                    body: enPayload.body,
+                    vibrate: [100, 50, 100],
+                  },
                 });
-              }else if(sub.locale === 'ru'){
+              } else if (sub.locale === "ru") {
                 payload = JSON.stringify({
-                  notification: { title: ruPayload.title, body: ruPayload.body, vibrate: [100, 50, 100] },
+                  notification: {
+                    title: ruPayload.title,
+                    body: ruPayload.body,
+                    vibrate: [100, 50, 100],
+                  },
                 });
               }
               webpush
@@ -193,17 +200,14 @@ router.post("/push", (req, res) => {
 //         })
 // })
 
-router.post(
-  "/unsubscribe",
-  async ({ body: { user_uuid, finger_print } }, res) => {
-    mysql.query(
-      `DELETE from pushnotification where user_uuid='${user_uuid}' AND finger_print='${finger_print}'`,
-      (err, results) => {
-        if (err) res.status(400).json({ message: err.message });
-        else res.status(200).json({ results, message: "Unsubscribed!" });
-      }
-    );
-  }
-);
+router.post("/unsubscribe", async ({ body: { user_uuid } }, res) => {
+  mysql.query(
+    `DELETE from pushnotification where user_uuid='${user_uuid}'`,
+    (err, results) => {
+      if (err) res.status(400).json({ message: err.message });
+      else res.status(200).json({ results, message: "Unsubscribed!" });
+    }
+  );
+});
 
 module.exports = router;
