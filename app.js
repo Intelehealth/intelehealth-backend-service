@@ -12,6 +12,7 @@ var app = express();
 let ALLOWED_ORIGINS = [
   "http://localhost:4200",
   "https://uniceftraining.intelehealth.org",
+  "https://tele.med.kg",
 ];
 app.use(function (req, res, next) {
   const origin = req.headers.origin;
