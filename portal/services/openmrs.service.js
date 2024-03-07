@@ -1,5 +1,5 @@
 const { QueryTypes } = require("sequelize");
-const { getVisitCountV2 } = require("../controllers/queries");
+const { getVisitCountV2, locationQuery } = require("../controllers/queries");
 const {
   visit,
   encounter,
@@ -18,6 +18,82 @@ const {
 const Op = Sequelize.Op;
 
 module.exports = (function () {
+  this.setLocationTree = (data) => {
+    let states = data.filter((d) => d.tag === "State");
+    if (states.length) {
+      states = states.map((s) => {
+        let districts = data.filter(
+          (d) => d.parent === s.id && d.tag === "District"
+        );
+        if (districts.length) {
+          districts = districts.map((d) => {
+            let child = {};
+            const sanchs = data.filter(
+              (s) => s.parent === d.id && s.tag === "Sanch"
+            );
+            const tehsils = data.filter(
+              (t) => t.parent === d.id && t.tag === "Tehsil"
+            );
+            if (sanchs.length) {
+              child.sanchs = sanchs.map((s) => {
+                const villages = data
+                  .filter((v) => v.parent === s.id && v.tag === "Village")
+                  .map(({ name, uuid, id }) => ({ name, uuid, id }));
+
+                return { name: s.name, uuid: s.uuid, id: s.id, villages };
+              });
+            } else if (tehsils.length) {
+              child.tehsils = tehsils.map((t) => {
+                const villages = data
+                  .filter((v) => v.parent === t.id && v.tag === "Village")
+                  .map(({ name, uuid, id }) => ({ name, uuid, id }));
+
+                return { name: s.name, uuid: s.uuid, id: s.id, villages };
+              });
+            } else {
+              child.villages = data
+                .filter((v) => v.parent === d.id && v.tag === "Village")
+                .map(({ name, uuid, id }) => ({ name, uuid, id }));
+            }
+            return {
+              name: d.name,
+              uuid: d.uuid,
+              id: d.id,
+              ...child,
+            };
+          });
+        }
+
+        return {
+          name: s.name,
+          id: s.id,
+          uuid: s.uuid,
+          districts,
+        };
+      });
+    }
+
+    return states;
+  };
+
+  this.setSanchForVisits = async (data) => {
+    const visits = [];
+    locations = await sequelize.query(locationQuery(), {
+      type: QueryTypes.SELECT,
+    });
+    for (let idx = 0; idx < data.length; idx++) {
+      let vst = data[idx].toJSON();
+      if (vst?.location?.parent) {
+        vst.sanch = locations.find(
+          (l) => l?.id === vst?.location?.parent && l?.tag === "Sanch"
+        )?.name;
+      }
+      visits.push(vst);
+    }
+
+    return visits;
+  };
+
   this.getVisits = async (type) => {
     if (!type) {
       return [];
@@ -134,7 +210,7 @@ module.exports = (function () {
           {
             model: location,
             as: "location",
-            attributes: ["name"],
+            attributes: ["name", ["parent_location", "parent"]],
           },
         ],
         order: [["visit_id", "DESC"]],
@@ -142,7 +218,7 @@ module.exports = (function () {
         offset,
       });
 
-      return visits;
+      return await this.setSanchForVisits(visits);
     } catch (error) {
       throw error;
     }

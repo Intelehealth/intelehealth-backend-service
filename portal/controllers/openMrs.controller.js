@@ -13,6 +13,7 @@ const {
   _getPriorityVisits,
   _getInProgressVisits,
   _getCompletedVisits,
+  setLocationTree,
 } = require("../services/openmrs.service");
 
 /**
@@ -59,59 +60,7 @@ const getLocations = async (req, res, next) => {
     }).catch((err) => {
       throw err;
     });
-    let states = data.filter((d) => d.tag === "State");
-    if (states.length) {
-      states = states.map((s) => {
-        let districts = data.filter(
-          (d) => d.parent === s.id && d.tag === "District"
-        );
-        if (districts.length) {
-          districts = districts.map((d) => {
-            let child = {};
-            const sanchs = data.filter(
-              (s) => s.parent === d.id && s.tag === "Sanch"
-            );
-            const tehsils = data.filter(
-              (t) => t.parent === d.id && t.tag === "Tehsil"
-            );
-            if (sanchs.length) {
-              child.sanchs = sanchs.map((s) => {
-                const villages = data
-                  .filter((v) => v.parent === s.id && v.tag === "Village")
-                  .map(({ name, uuid, id }) => ({ name, uuid, id }));
-
-                return { name: s.name, uuid: s.uuid, id: s.id, villages };
-              });
-            } else if (tehsils.length) {
-              child.tehsils = tehsils.map((t) => {
-                const villages = data
-                  .filter((v) => v.parent === t.id && v.tag === "Village")
-                  .map(({ name, uuid, id }) => ({ name, uuid, id }));
-
-                return { name: s.name, uuid: s.uuid, id: s.id, villages };
-              });
-            } else {
-              child.villages = data
-                .filter((v) => v.parent === d.id && v.tag === "Village")
-                .map(({ name, uuid, id }) => ({ name, uuid, id }));
-            }
-            return {
-              name: d.name,
-              uuid: d.uuid,
-              id: d.id,
-              ...child,
-            };
-          });
-        }
-
-        return {
-          name: s.name,
-          id: s.id,
-          uuid: s.uuid,
-          districts,
-        };
-      });
-    }
+    let states = setLocationTree(data);
     res.json({
       states,
       message: "Locations fetched successfully",
