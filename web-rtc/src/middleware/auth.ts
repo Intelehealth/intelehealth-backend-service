@@ -8,7 +8,7 @@ const publicKey  = fs.readFileSync(path.join(__dirname, './../../', '.pem', 'pub
 
 const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
     const authorizationHeader = req.header("Authorization")
-    const ignore = true
+    const ignore = false
     if(ignore) {
       next();
       return;
