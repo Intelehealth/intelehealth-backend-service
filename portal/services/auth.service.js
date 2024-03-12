@@ -277,7 +277,7 @@ module.exports = (function () {
      * @param { string } verifyFor - Verification for
      * @param { string } otp - OTP
      */
-  const verifyOtp = async function (email, phoneNumber, username, verifyFor, otp) {
+  const verifyOtp = async function (email, phoneNumber, username, verifyFor, otp, countryCode = 91) {
     try {
       let user, index;
 
@@ -313,20 +313,19 @@ module.exports = (function () {
               if (moment().diff(moment(user.updatedAt), "minutes") < 5) {
                 //TODO: Code for send otp to phone number.
                 if (phoneNumber) {
-                  // const body = new URLSearchParams();
-                  // body.append('module', 'TRANS_SMS');
-                  // body.append('apikey', config[env].apiKey2Factor);
-                  // body.append('to', `+${countryCode}${phoneNumber}`);
-                  // body.append('from', 'HEADER');
-                  // body.append('msg', `Welcome to Intelehealth. Please use the username ${data[index].username} to sign in at Intelehealth.`);
-                  // body.append('from', 'HEADER');
-                  // const otp = await axios.post(`https://2factor.in/API/R1/`, body, {
-                  //     headers: { 
-                  //       "Content-Type": "application/x-www-form-urlencoded"
-                  //     }
-                  // }).catch(error => {
-                  //     throw new Error(error.message);
-                  // });
+                  const body = new URLSearchParams();
+                  body.append('module', 'TRANS_SMS');
+                  body.append('apikey', process.env.APIKEY_2FACTOR);
+                  body.append('to', `+${countryCode}${phoneNumber}`);
+                  body.append('from', 'TIFDOC');
+                  body.append('msg', `Welcome to Intelehealth. Please use the username ${data[index].username} to sign in at Intelehealth.`);
+                  const otp = await axios.post(`https://2factor.in/API/R1/`, body, {
+                      headers: { 
+                        "Content-Type": "application/x-www-form-urlencoded"
+                      }
+                  }).catch(error => {
+                      throw new Error(error.message);
+                  });
                   // if (otp) {
 
                   // }
