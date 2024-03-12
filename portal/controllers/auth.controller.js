@@ -89,14 +89,15 @@ module.exports = (function () {
   this.verifyOtp = async (req, res) => {
     try {
       logStream('debug', 'API call', 'Verify Otp');
-      const { email, phoneNumber, username, verifyFor, otp } = req.body;
+      const { email, phoneNumber, username, verifyFor, otp, countryCode} = req.body;
       if ((email || phoneNumber || username) && verifyFor && otp) {
         const data = await verifyOtp(
           email,
           phoneNumber,
           username,
           verifyFor,
-          otp
+          otp,
+          countryCode
         );
         logStream('debug', 'Verified OTP', 'Verify Otp');
         RES(
