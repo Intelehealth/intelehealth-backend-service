@@ -17,6 +17,7 @@ const MESSAGE = {
         OTP_EXPIRED: "Otp expired!",
         OTP_INCORRECT: "Otp incorrect!",
         VERIFICATION_CODE_FOR_FORGOT_PASSWORD: "Verification code for forgot password",
+        VERIFICATION_CODE_FOR_FORGOT_USERNAME: "Verification code for forgot username",
         VERIFICATION_CODE_FOR_SIGN_IN: "Verification code for sign in",
         YOUR_ACCOUNT_CREDENTIALS_AT_INTELEHEALTH: "Your account credentials at Intelehealth",
         PASSWORD_RESET_SUCCESSFUL: "Password reset successful.",
