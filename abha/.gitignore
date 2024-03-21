@@ -1,2 +1,58 @@
-node_modules
-.env
+/node_modules
+**/settings.json
+**/license
+*.zip
+
+/portal/config/config.json
+/portal/config/serviceAccountKey.json
+/portal/public/translate/uploads/*
+/portal/public/translate/translated.xlsx
+
+#.env
+/auth-gateway/.env
+/web-rtc/.env
+/portal/.env
+
+#.pem
+/auth-gateway/.pem
+/web-rtc/.pem
+/portal/.pem
+
+# Node.js
+node_modules/
+/auth-gateway/node_modules
+/web-rtc/node_modules
+/portal/node_modules
+
+# Logs
+logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Debug files
+npm-debug.log
+yarn-debug.log*
+yarn-error.log*
+
+# Editor directories and files
+.vscode/
+.idea/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# dotenv environment variable files
+.env*
+
+# Dependency directories
+jspm_packages/
+typings/
+
+# Production build
+dist/

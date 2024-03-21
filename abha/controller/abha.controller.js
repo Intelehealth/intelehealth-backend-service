@@ -20,7 +20,8 @@ const { uuid } = require('uuidv4');
     return {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
-      'Accept-Language': 'en-us'
+      'Accept-Language': 'en-us',
+      'X-HIP-ID': 'INTL-001'
     }
   }
   
@@ -579,5 +580,55 @@ const { uuid } = require('uuidv4');
     }
   };
 
+  /**
+   * Generate Linking Token
+   * @param {req} object
+   * @param {res} object
+   * @param {next} function
+   */
+  this.generateLinkToken = async (req, res, next) => {
+    try {
+      const {
+        abhaAddress,
+        name,
+        gender,
+        yearOfBirth,
+        visitUUID
+      } = req.body
+      logStream("debug", 'Calling Post API to GenerateLinkToken', 'GenerateLinkToken');
+
+      const { accessToken } = await this.getAccessToken();
+      if(!accessToken) {
+        throw new Error('Fail to generate access token');
+      }
+      const apiResponse = await axiosInstance.post(
+        process.env.POST_GENERATE_TOKEN_URL,
+        {
+          abhaAddress,
+          name,
+          gender,
+          yearOfBirth,
+        },
+        {
+          headers: {
+            ...this.getInitialHeaderrs(accessToken),
+            "X-CM-ID": "SBX",
+            'REQUEST-ID': visitUUID,
+            'TIMESTAMP': this.getTimestamp(),
+          },
+        }
+      );
+
+      logStream("debug", 'Got API Response', 'GenerateLinkToken');
+        
+      res.json({
+        data: apiResponse
+      });
+      return;
+    } catch (error) {
+        logStream("error", error.message);
+        next(error);
+    }
+  } 
   return this;
 })();

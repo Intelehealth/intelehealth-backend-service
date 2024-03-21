@@ -55,3 +55,13 @@ exports.getProfileSchema = Joi.object()
     abhaNumber: Joi.string()
     .required()
 });
+
+exports.generateLinkTokenSchema = Joi.object({
+  abhaAddress: Joi.string()
+    .required(),
+  name: Joi.string()
+    .required(),
+  gender: Joi.string().valid(null, 'M', 'F').required(),
+  yearOfBirth: Joi.number().required(),
+  visitUUID: Joi.string().required()
+});

@@ -9,7 +9,8 @@ const {
     getLoginOTPVerify,
     getEnrollOTPReq,
     getProfile,
-    getCard
+    getCard,
+    generateLinkToken
 } = require("../controller/abha.controller");
 
 const { 
@@ -19,7 +20,8 @@ const {
     addressSchema, 
     preferAddressSchema,
     getAbhaNumberSchema,
-    getProfileSchema
+    getProfileSchema,
+    generateLinkTokenSchema
 } = require("../schema/index");
 
 const { authMiddleware, xTokenMiddleware } = require("../middleware/auth");
@@ -48,6 +50,8 @@ router.post("/loginOTPVerify", [authMiddleware, validate(getAbhaNumberSchema), g
 router.post("/profile", [authMiddleware, xTokenMiddleware,  validate(getProfileSchema), getProfile]);
 
 router.get("/getCard", [authMiddleware, xTokenMiddleware, getCard]);
+
+router.post("/generate-link-token", validate(generateLinkTokenSchema), generateLinkToken);
 
 
 module.exports = router;
