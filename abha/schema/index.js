@@ -57,8 +57,8 @@ exports.getProfileSchema = Joi.object()
 });
 
 exports.generateLinkTokenSchema = Joi.object({
-  abhaAddress: Joi.string()
-    .required(),
+  abhaAddress: Joi.string(),
+  abhaNumber: Joi.string(),  
   name: Joi.string()
     .required(),
   gender: Joi.string().valid(null, 'M', 'F').required(),

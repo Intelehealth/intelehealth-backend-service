@@ -593,7 +593,8 @@ const { uuid } = require('uuidv4');
         name,
         gender,
         yearOfBirth,
-        visitUUID
+        visitUUID,
+        abhaNumber
       } = req.body
       logStream("debug", 'Calling Post API to GenerateLinkToken', 'GenerateLinkToken');
 
@@ -605,6 +606,7 @@ const { uuid } = require('uuidv4');
         process.env.POST_GENERATE_TOKEN_URL,
         {
           abhaAddress,
+          abhaNumber,
           name,
           gender,
           yearOfBirth,
@@ -620,9 +622,9 @@ const { uuid } = require('uuidv4');
       );
 
       logStream("debug", 'Got API Response', 'GenerateLinkToken');
-        
+      console.log("apiResponse", JSON.stringify(apiResponse, null, 4))
       res.json({
-        data: apiResponse
+        data: "3" 
       });
       return;
     } catch (error) {
