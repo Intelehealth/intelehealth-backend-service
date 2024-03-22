@@ -20,8 +20,7 @@ const { uuid } = require('uuidv4');
     return {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
-      'Accept-Language': 'en-us',
-      'X-HIP-ID': 'INTL-001'
+      'Accept-Language': 'en-us'
     }
   }
   
@@ -602,30 +601,37 @@ const { uuid } = require('uuidv4');
       if(!accessToken) {
         throw new Error('Fail to generate access token');
       }
-      const apiResponse = await axiosInstance.post(
+
+      const requestObj = {
+        name,
+        gender,
+        yearOfBirth,
+      };
+
+      if(abhaAddress) {
+        requestObj.abhaAddress = abhaAddress;
+      }
+
+      if(abhaNumber) {
+        requestObj.abhaNumber = abhaNumber;
+      }
+      
+      const response = await axiosInstance.post(
         process.env.POST_GENERATE_TOKEN_URL,
-        {
-          abhaAddress,
-          abhaNumber,
-          name,
-          gender,
-          yearOfBirth,
-        },
+        requestObj,
         {
           headers: {
             ...this.getInitialHeaderrs(accessToken),
             "X-CM-ID": "SBX",
             'REQUEST-ID': visitUUID,
             'TIMESTAMP': this.getTimestamp(),
+            'X-HIP-ID': 'INTL-001'
           },
         }
       );
-
+      
       logStream("debug", 'Got API Response', 'GenerateLinkToken');
-      console.log("apiResponse", JSON.stringify(apiResponse, null, 4))
-      res.json({
-        data: "3" 
-      });
+      res.json({ success: true });
       return;
     } catch (error) {
         logStream("error", error.message);
