@@ -6,7 +6,7 @@
 
 require("dotenv").config();
 var app = require("../app");
-var debug = require("debug")("auth-gateway:server");
+var debug = require("debug")("abha:server");
 
 const isDevelopment = process.env.NODE_ENV !== "production";
 if (isDevelopment) {

@@ -585,58 +585,62 @@ const { uuid } = require('uuidv4');
    * @param {res} object
    * @param {next} function
    */
-  this.generateLinkToken = async (req, res, next) => {
-    try {
-      const {
-        abhaAddress,
-        name,
-        gender,
-        yearOfBirth,
-        visitUUID,
-        abhaNumber
-      } = req.body
-      logStream("debug", 'Calling Post API to GenerateLinkToken', 'GenerateLinkToken');
+   this.generateLinkToken = async (req, res, next) => {
+     try {
+       const {
+         abhaAddress,
+         name,
+         gender,
+         yearOfBirth,
+         visitUUID,
+         abhaNumber
+       } = req.body
+       logStream("debug", 'Calling Post API to GenerateLinkToken', 'GenerateLinkToken');
 
-      const { accessToken } = await this.getAccessToken();
-      if(!accessToken) {
-        throw new Error('Fail to generate access token');
-      }
+       const { accessToken } = await this.getAccessToken();
+       if (!accessToken) {
+         throw new Error('Fail to generate access token');
+       }
 
-      const requestObj = {
-        name,
-        gender,
-        yearOfBirth,
-      };
+       const requestObj = {
+         name,
+         gender,
+         yearOfBirth,
+       };
 
-      if(abhaAddress) {
-        requestObj.abhaAddress = abhaAddress;
-      }
+       if (abhaAddress) {
+         requestObj.abhaAddress = abhaAddress;
+       }
 
-      if(abhaNumber) {
-        requestObj.abhaNumber = abhaNumber;
-      }
-      
-      const response = await axiosInstance.post(
-        process.env.POST_GENERATE_TOKEN_URL,
-        requestObj,
-        {
-          headers: {
-            ...this.getInitialHeaderrs(accessToken),
-            "X-CM-ID": "SBX",
-            'REQUEST-ID': visitUUID,
-            'TIMESTAMP': this.getTimestamp(),
-            'X-HIP-ID': 'INTL-001'
-          },
-        }
-      );
-      
-      logStream("debug", 'Got API Response', 'GenerateLinkToken');
-      res.json({ success: true });
-      return;
-    } catch (error) {
-        logStream("error", error.message);
-        next(error);
-    }
-  } 
+       if (abhaNumber) {
+         requestObj.abhaNumber = abhaNumber;
+       }
+
+       const response = await axiosInstance.post(
+         process.env.POST_GENERATE_TOKEN_URL,
+         requestObj,
+         {
+           headers: {
+             ...this.getInitialHeaderrs(accessToken),
+             "X-CM-ID": "SBX",
+             'REQUEST-ID': visitUUID,
+             'TIMESTAMP': this.getTimestamp(),
+             'X-HIP-ID': 'INTL-001'
+           },
+         }
+       );
+       logStream("debug", 'Got API Response', 'GenerateLinkToken');
+
+       res.json({ success: true });
+       return;
+     } catch (error) {
+       logStream("error", error.message);
+       return res.status(error?.response?.status ?? 500).json({
+         "success": false,
+         "code": "ERR_BAD_REQUEST",
+         "message": error.message
+       });
+     }
+   } 
   return this;
 })();
