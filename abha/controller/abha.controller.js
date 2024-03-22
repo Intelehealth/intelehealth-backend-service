@@ -635,10 +635,10 @@ const { uuid } = require('uuidv4');
        return;
      } catch (error) {
        logStream("error", error.message);
-       return res.status(error?.response?.status ?? 500).json({
+       return res.status(500).json({
          "success": false,
          "code": "ERR_BAD_REQUEST",
-         "message": error.message
+         "message": error.message,
        });
      }
    } 
