@@ -8,7 +8,6 @@ const cookieParser = require("cookie-parser");
 
 const logger = require("morgan");
 
-const indexRouter = require("./routes/index");
 const abhaRouter = require("./routes/abha");
 const { errorHandler } = require("./handlers/errorHandller");
 const cors = require("cors");
@@ -36,7 +35,7 @@ app.use("/abha", abhaRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
-  next(createError(404));
+	next(createError(404));
 });
 
 // error handler

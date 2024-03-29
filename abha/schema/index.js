@@ -65,3 +65,10 @@ exports.generateLinkTokenSchema = Joi.object({
   yearOfBirth: Joi.number().required(),
   visitUUID: Joi.string().required()
 });
+
+exports.shareCareContextSchema = Joi.object({
+  abhaAddress: Joi.string(),
+  abhaNumber: Joi.string(),  
+  linkToken: Joi.string().required(),
+  visitUUID: Joi.string().required()
+});

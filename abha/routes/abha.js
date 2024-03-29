@@ -10,7 +10,8 @@ const {
     getEnrollOTPReq,
     getProfile,
     getCard,
-    generateLinkToken
+    generateLinkToken,
+    shareCareContext
 } = require("../controller/abha.controller");
 
 const { 
@@ -21,7 +22,8 @@ const {
     preferAddressSchema,
     getAbhaNumberSchema,
     getProfileSchema,
-    generateLinkTokenSchema
+    generateLinkTokenSchema,
+    shareCareContextSchema
 } = require("../schema/index");
 
 const { authMiddleware, xTokenMiddleware } = require("../middleware/auth");
@@ -53,5 +55,6 @@ router.get("/getCard", [authMiddleware, xTokenMiddleware, getCard]);
 
 router.post("/generate-link-token", validate(generateLinkTokenSchema), generateLinkToken);
 
+router.post("/share-care-context", validate(shareCareContextSchema), shareCareContext);
 
 module.exports = router;
