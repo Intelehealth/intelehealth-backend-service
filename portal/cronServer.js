@@ -11,7 +11,7 @@ const openMrsDB = require("./public/javascripts/mysql/mysqlOpenMrs");
 
 const {
   getDataFromQuery,
-  sendWebPushNotificaion,
+  sendWebPushNotification,
   axiosInstance,
   log,
 } = require("./handlers/helper");
@@ -163,7 +163,7 @@ const sendNotification = async () => {
         log("awaiting: ", awaiting);
         log("priority: ", priority);
         if (awaiting > 0 || priority > 0) {
-          await sendWebPushNotificaion({
+          await sendWebPushNotification({
             webpush_obj: obj.notification_object,
             title: "New Patient has been uploaded",
             body: "Please start giving consultation",
