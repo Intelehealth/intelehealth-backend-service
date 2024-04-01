@@ -72,3 +72,7 @@ exports.shareCareContextSchema = Joi.object({
   linkToken: Joi.string().required(),
   visitUUID: Joi.string().required()
 });
+
+exports.updateVisitAttributeSchema = Joi.object({
+  visitUUID: Joi.string().required()
+})
