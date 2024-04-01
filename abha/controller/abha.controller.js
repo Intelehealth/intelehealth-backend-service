@@ -6,11 +6,12 @@ const EncryptRsa = require('encrypt-rsa').default;
 const { logStream } = require("./../logger/index");
 
 const encryptRsa = new EncryptRsa();
-
+ 
 const { uuid } = require('uuidv4');
+const openmrsService = require("../services/openmrs.service");
 
 
- module.exports = (function () {
+module.exports = (function () {
 
   /**
    * Get Initial Header
@@ -23,7 +24,7 @@ const { uuid } = require('uuidv4');
       'Accept-Language': 'en-us'
     }
   }
-  
+
   /**
    * Generate Access Token
    * @param {*} req
@@ -32,9 +33,9 @@ const { uuid } = require('uuidv4');
   this.getAccessToken = async (req) => {
     const resposnse = await axiosInstance.post(
       process.env.SESSION_TOKEN_GEN_URL, {
-        "clientId": process.env.CLIENT_ID,
-        "clientSecret": process.env.CLIENT_SECRET
-    }); 
+      "clientId": process.env.CLIENT_ID,
+      "clientSecret": process.env.CLIENT_SECRET
+    });
     return resposnse.data;
   }
 
@@ -59,8 +60,8 @@ const { uuid } = require('uuidv4');
    * @param {str} string
    */
   this.getRSAText = (publicKey, str) => {
-    return encryptRsa.encryptStringWithRsaPublicKey({ 
-      text: str.toString(),   
+    return encryptRsa.encryptStringWithRsaPublicKey({
+      text: str.toString(),
       publicKey,
     });
   }
@@ -101,7 +102,7 @@ const { uuid } = require('uuidv4');
    */
   this.getEnrollOTPReq = async (req, res, next) => {
     try {
-    
+
       const { aadhar } = req.body;
 
       const accessToken = req.token
@@ -115,14 +116,14 @@ const { uuid } = require('uuidv4');
       const encryptedText = this.getRSAText(publicKey, aadhar);
 
       logStream("debug", 'Aadhar Encrypted', 'Enroll OTP Req');
-      
+
 
       const payload = {
-         "txnId":"",
-         "scope":["abha-enrol"],
-         "loginHint":"aadhaar",
-         "otpSystem":"aadhaar",
-         "loginId": encryptedText
+        "txnId": "",
+        "scope": ["abha-enrol"],
+        "loginHint": "aadhaar",
+        "otpSystem": "aadhaar",
+        "loginId": encryptedText
       }
 
       logStream("debug", JSON.stringify(payload), 'Enroll OTP Req');
@@ -130,8 +131,8 @@ const { uuid } = require('uuidv4');
       logStream("debug", 'Calling API to get otp', 'Enroll OTP Req');
 
       const apiResponse = await axiosInstance.post(
-        process.env.REQ_OTP_URL, 
-        payload , 
+        process.env.REQ_OTP_URL,
+        payload,
         {
           headers: {
             ...this.getInitialHeaderrs(accessToken),
@@ -147,10 +148,10 @@ const { uuid } = require('uuidv4');
       return res.json({
         ...apiResponse.data,
       })
-    
+
     } catch (error) {
-        logStream("error", error.message);
-        next(error);
+      logStream("error", error.message);
+      next(error);
     }
   };
 
@@ -163,7 +164,7 @@ const { uuid } = require('uuidv4');
   this.enrollByAadhar = async (req, res, next) => {
     try {
 
-      const { otp, txnId, mobileNo }  = req.body
+      const { otp, txnId, mobileNo } = req.body
 
       const accessToken = req.token
 
@@ -173,26 +174,26 @@ const { uuid } = require('uuidv4');
 
       logStream("debug", 'Got Public Key', 'Get OTP');
 
-    
+
       const encryptedText = this.getRSAText(publicKey, otp);
 
       logStream("debug", 'Encrypted Text', 'Enroll By Aadhar');
 
       const payload = {
         "authData": {
-            "authMethods": [
-                "otp"
-            ],
-            "otp": {
-                "txnId": txnId,
-                "otpValue": encryptedText,
-                "timeStamp": this.getTimestamp(),
-                "mobile": mobileNo
-            }
+          "authMethods": [
+            "otp"
+          ],
+          "otp": {
+            "txnId": txnId,
+            "otpValue": encryptedText,
+            "timeStamp": this.getTimestamp(),
+            "mobile": mobileNo
+          }
         },
         "consent": {
-            "code": "abha-enrollment",
-            "version": "1.4"
+          "code": "abha-enrollment",
+          "version": "1.4"
         }
       }
 
@@ -202,8 +203,8 @@ const { uuid } = require('uuidv4');
 
 
       const apiResponse = await axiosInstance.post(
-        process.env.ENROLL_AADHAR_BY_URL, 
-        payload , 
+        process.env.ENROLL_AADHAR_BY_URL,
+        payload,
         {
           headers: {
             ...this.getInitialHeaderrs(accessToken),
@@ -213,14 +214,14 @@ const { uuid } = require('uuidv4');
           }
         }
       );
-      
+
       logStream("debug", 'Got Profile Response', 'Enroll By Aadhar');
 
       return res.json(apiResponse.data)
-    
+
     } catch (error) {
-        logStream("error", error.message);
-        next(error);
+      logStream("error", error.message);
+      next(error);
     }
   };
 
@@ -240,7 +241,7 @@ const { uuid } = require('uuidv4');
       logStream("debug", 'Calling API to Get Enroll Suggestions', 'Get Enroll Suggestions');
 
       const apiResponse = await axiosInstance.get(
-        process.env.ENROLL_SUGGESION_URL, 
+        process.env.ENROLL_SUGGESION_URL,
         {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
@@ -252,13 +253,13 @@ const { uuid } = require('uuidv4');
           }
         }
       );
-      
+
       logStream("debug", 'Got Address Address', 'Get Enroll Suggestions');
 
       return res.json(apiResponse.data)
-    
+
     } catch (error) {
-        next(error);
+      next(error);
     }
   };
 
@@ -270,22 +271,22 @@ const { uuid } = require('uuidv4');
    */
   this.setPreferredAddress = async (req, res, next) => {
     try {
-      
+
       const { txnId, abhaAddress } = req.body;
 
       const accessToken = req.token
 
       const payload = {
-        "txnId" : txnId,
+        "txnId": txnId,
         "abhaAddress": abhaAddress,
-        "preferred" : 1 
+        "preferred": 1
       }
 
       logStream("debug", 'Calling API to Set Prefer Address', 'Set Prefer Address');
 
       const apiResponse = await axiosInstance.post(
         process.env.SET_PREFERED_ADDRESS_URL,
-        payload, 
+        payload,
         {
           headers: {
             ...this.getInitialHeaderrs(accessToken),
@@ -298,10 +299,10 @@ const { uuid } = require('uuidv4');
       logStream("debug", 'Set Prefer Address Response', 'Set Prefer Address');
 
       return res.json(apiResponse.data)
-    
+
     } catch (error) {
-        logStream("error", error.message);
-        next(error);
+      logStream("error", error.message);
+      next(error);
     }
   };
 
@@ -313,39 +314,39 @@ const { uuid } = require('uuidv4');
  */
   this.getLoginOTPReq = async (req, res, next) => {
     try {
-    
+
       const { value, scope } = req.body;
 
       const accessToken = req.token
 
-    
+
       logStream("debug", 'Calling API to Get Public Key', 'GET Login OTP Req');
 
       const publicKey = await this.getPublicKey(accessToken);
 
       logStream("debug", 'Got Public Key', 'GET Login OTP Req');
 
-    
+
       const encryptedText = this.getRSAText(publicKey, value);
 
       logStream("debug", 'Aadhar Encrypted', 'GET Login OTP Req');
-      
-      
+
+
       let payload = {
-          "scope": [
-              "abha-login",
-              "mobile-verify"
-          ],
-          "loginHint": "mobile",
-          "loginId": encryptedText,
-          "otpSystem": "abdm"
+        "scope": [
+          "abha-login",
+          "mobile-verify"
+        ],
+        "loginHint": "mobile",
+        "loginId": encryptedText,
+        "otpSystem": "abdm"
       }
 
-      if(scope === 'aadhar') {
+      if (scope === 'aadhar') {
         payload = {
           "scope": [
-              "abha-login",
-              "aadhaar-verify"
+            "abha-login",
+            "aadhaar-verify"
           ],
           "loginHint": "aadhaar",
           "loginId": encryptedText,
@@ -358,8 +359,8 @@ const { uuid } = require('uuidv4');
       logStream("debug", 'Calling API to get otp', 'GET Login OTP Req');
 
       const apiResponse = await axiosInstance.post(
-        process.env.MOBILE_OTP_URL, 
-        payload , 
+        process.env.MOBILE_OTP_URL,
+        payload,
         {
           headers: {
             ...this.getInitialHeaderrs(accessToken),
@@ -375,10 +376,10 @@ const { uuid } = require('uuidv4');
       return res.json({
         ...apiResponse.data,
       })
-    
+
     } catch (error) {
-        logStream("error", error.message);
-        next(error);
+      logStream("error", error.message);
+      next(error);
     }
   };
 
@@ -391,7 +392,7 @@ const { uuid } = require('uuidv4');
   this.getLoginOTPVerify = async (req, res, next) => {
     try {
 
-      const { otp, txnId, scope }  = req.body
+      const { otp, txnId, scope } = req.body
 
       const accessToken = req.token
 
@@ -401,42 +402,42 @@ const { uuid } = require('uuidv4');
 
       logStream("debug", 'Got Public Key', 'Get Login OTP Verify');
 
-    
+
       const encryptedText = this.getRSAText(publicKey, otp);
 
       logStream("debug", 'Encrypted Text', 'Get Login OTP Verify');
 
-      let payload = { 
-          "scope": [
-              "abha-login",
-              "mobile-verify"
+      let payload = {
+        "scope": [
+          "abha-login",
+          "mobile-verify"
+        ],
+        "authData": {
+          "authMethods": [
+            "otp"
           ],
-          "authData": {
-              "authMethods": [
-                  "otp"
-              ],
-              "otp": {
-                  "txnId": txnId,
-                  "otpValue": encryptedText
-              }
+          "otp": {
+            "txnId": txnId,
+            "otpValue": encryptedText
           }
+        }
       }
 
-      if(scope === 'aadhar') {
-          payload = { 
-            "scope": [
-              "abha-login",
-              "aadhaar-verify"
+      if (scope === 'aadhar') {
+        payload = {
+          "scope": [
+            "abha-login",
+            "aadhaar-verify"
+          ],
+          "authData": {
+            "authMethods": [
+              "otp"
             ],
-            "authData": {
-                "authMethods": [
-                    "otp"
-                ],
-                "otp": {
-                    "txnId": txnId,
-                    "otpValue": encryptedText
-                }
+            "otp": {
+              "txnId": txnId,
+              "otpValue": encryptedText
             }
+          }
         }
       }
 
@@ -447,8 +448,8 @@ const { uuid } = require('uuidv4');
       logStream("debug", 'Calling API to Get Login OTP Verify', 'Get Login OTP Verify');
 
       const apiResponse = await axiosInstance.post(
-        process.env.LOGIN_VERIFY_URL, 
-        payload, 
+        process.env.LOGIN_VERIFY_URL,
+        payload,
         {
           headers: {
             ...this.getInitialHeaderrs(accessToken),
@@ -457,14 +458,14 @@ const { uuid } = require('uuidv4');
           }
         }
       );
-      
+
       logStream("debug", 'Got Profile Response', 'Enroll By Aadhar');
 
       return res.json(apiResponse.data)
-    
+
     } catch (error) {
-        logStream("error", error.message);
-        next(error);
+      logStream("error", error.message);
+      next(error);
     }
   };
 
@@ -486,10 +487,10 @@ const { uuid } = require('uuidv4');
       logStream("debug", 'Calling API to Login Verify User', 'Get Profile');
 
       const loginVerifyRes = await axiosInstance.post(
-        process.env.LOGIN_VERIFY_USER_URL, 
+        process.env.LOGIN_VERIFY_USER_URL,
         {
-          "ABHANumber" : abhaNumber,
-	        "txnId" : txnId
+          "ABHANumber": abhaNumber,
+          "txnId": txnId
         },
         {
           headers: {
@@ -497,34 +498,34 @@ const { uuid } = require('uuidv4');
             'REQUEST-ID': uuid(),
             'TIMESTAMP': this.getTimestamp(),
             'T-Token': `Bearer ${xToken}`
-           }
+          }
         }
       );
-      
+
       logStream("debug", 'Calling API to Login Verify User - Token Received', 'Get Profile');
 
       logStream("debug", 'Calling API to Get Profile', 'Get Profile');
-    
+
       const apiResponse = await axiosInstance.get(
-        process.env.ACCOUNT_VERIFY_USER_URL, 
+        process.env.ACCOUNT_VERIFY_USER_URL,
         {
           headers: {
             ...this.getInitialHeaderrs(accessToken),
             'REQUEST-ID': uuid(),
             'TIMESTAMP': this.getTimestamp(),
             'X-Token': `Bearer ${loginVerifyRes.data.token}`
-           }
+          }
         }
       );
 
       logStream("debug", 'Calling API to Get Profile', 'Get Profile');
-    
+
 
       return res.json(apiResponse.data)
-    
+
     } catch (error) {
-        logStream("error", error.message);
-        next(error);
+      logStream("error", error.message);
+      next(error);
     }
   };
 
@@ -547,15 +548,11 @@ const { uuid } = require('uuidv4');
       const xToken = req.xtoken
 
       const accessToken = req.token;
-      
 
-      
       logStream("debug", 'Calling API to Get Card', 'Get Card');
 
-      
-    
       const apiResponse = await axiosInstance.get(
-        process.env.GET_CARD_URL, 
+        process.env.GET_CARD_URL,
         {
           responseType: 'arraybuffer',
           headers: {
@@ -563,19 +560,19 @@ const { uuid } = require('uuidv4');
             'REQUEST-ID': uuid(),
             'TIMESTAMP': this.getTimestamp(),
             'X-Token': `Bearer ${xToken}`
-           }
+          }
         }
       ).then(response => Buffer.from(response.data, 'binary').toString('base64'))
 
       logStream("debug", 'Got API Response', 'Get Card');
-        
+
       res.json({
         image: apiResponse
-      }); 
+      });
 
     } catch (error) {
-        logStream("error", error.message);
-        next(error);
+      logStream("error", error.message);
+      next(error);
     }
   };
 
@@ -585,84 +582,53 @@ const { uuid } = require('uuidv4');
    * @param {res} object
    * @param {next} function
    */
-   this.generateLinkToken = async (req, res, next) => {
-     try {
-       const {
-         abhaAddress,
-         name,
-         gender,
-         yearOfBirth,
-         visitUUID,
-         abhaNumber
-       } = req.body
-       logStream("debug", 'Calling Post API to GenerateLinkToken', 'GenerateLinkToken');
-
-       const { accessToken } = await this.getAccessToken();
-       if (!accessToken) {
-         throw new Error('Fail to generate access token');
-       }
-
-       const requestObj = {
-         name,
-         gender,
-         yearOfBirth,
-       };
-
-       if (abhaAddress) {
-         requestObj.abhaAddress = abhaAddress;
-       }
-
-       if (abhaNumber) {
-         requestObj.abhaNumber = abhaNumber;
-       }
-
-       const response = await axiosInstance.post(
-         process.env.POST_GENERATE_TOKEN_URL,
-         requestObj,
-         {
-           headers: {
-             ...this.getInitialHeaderrs(accessToken),
-             "X-CM-ID": "SBX",
-             'REQUEST-ID': visitUUID,
-             'TIMESTAMP': this.getTimestamp(),
-             'X-HIP-ID': 'INTL-001'
-           },
-         }
-       );
-       logStream("debug", 'Got API Response', 'GenerateLinkToken');
-
-       res.json({ success: true });
-       return;
-     } catch (error) {
-       logStream("error", error.message);
-       return res.status(500).json({
-         "success": false,
-         "code": "ERR_BAD_REQUEST",
-         "message": error.message,
-       });
-     }
-   } 
-
-   /**
-   * Linking Care Context to ABDM portal
-   * @param {req} object
-   * @param {res} object
-   * @param {next} function
-   */
-   this.shareCareContext = async (req, res, next) => {
+  this.generateLinkToken = async (req, res, next) => {
     try {
       const {
-        linkToken,
+        abhaAddress,
+        name,
+        gender,
+        yearOfBirth,
         visitUUID,
+        abhaNumber
       } = req.body
-      logStream("debug", 'Calling Post API to Share Care Context to Abha', 'shareCareContext');
+      logStream("debug", 'Calling Post API to GenerateLinkToken', 'GenerateLinkToken');
 
       const { accessToken } = await this.getAccessToken();
       if (!accessToken) {
         throw new Error('Fail to generate access token');
       }
 
-      res.json({ success: true, message: "Care context shared successfully!" });
+      const requestObj = {
+        name,
+        gender,
+        yearOfBirth,
+      };
+
+      if (abhaAddress) {
+        requestObj.abhaAddress = abhaAddress;
+      }
+
+      if (abhaNumber) {
+        requestObj.abhaNumber = abhaNumber;
+      }
+
+      await axiosInstance.post(
+        process.env.POST_GENERATE_TOKEN_URL,
+        requestObj,
+        {
+          headers: {
+            ...this.getInitialHeaderrs(accessToken),
+            "X-CM-ID": "SBX",
+            'REQUEST-ID': visitUUID,
+            'TIMESTAMP': this.getTimestamp(),
+            'X-HIP-ID': 'INTL-001'
+          },
+        }
+      );
+      logStream("debug", 'Got API Response', 'GenerateLinkToken');
+
+      res.json({ success: true });
       return;
     } catch (error) {
       logStream("error", error.message);
@@ -672,6 +638,114 @@ const { uuid } = require('uuidv4');
         "message": error.message,
       });
     }
-  } 
+  }
+
+  /**
+  * Linking Care Context to ABDM portal
+  * @param {req} object
+  * @param {res} object
+  * @param {next} function
+  */
+  this.shareCareContext = async (req, res, next) => {
+    try {
+      const {
+        linkToken,
+        visitUUID,
+      } = req.body
+      logStream("debug", 'Calling Post API to Share Care Context to Abha', 'shareCareContext');
+
+      const response = await openmrsService.getVisitByUUID(visitUUID);
+      if (!response.success) {
+        throw new Error(response.message);
+      }
+      const visit = response.data;
+      // const abhaNumber = visit?.patient?.identifiers.find((v) => v.identifierType?.display?.toLowerCase() === 'abha number')?.identifier
+      // const abhaAddress = visit?.patient?.identifiers.find((v) => v.identifierType?.display?.toLowerCase() === 'abha address')?.identifier
+      // const requestParam = {
+      //   "abhaNumber": abhaNumber,
+      //   "abhaAddress": abhaAddress,
+      //   "patient": [
+      //     {
+      //       "referenceNumber": "visit-identifier OR a unique identifier in case we are submitting multiple visits against one token",
+      //       "display": "purpose-of-visit-identifier",
+      //       "careContexts": [
+      //         {
+      //           "referenceNumber": "visit-identifier",
+      //           "display": "purpose-of-visit"
+      //         }
+      //       ],
+      //       "hiType": "type-of-fhir-artifact-as-mandated-by-ABDM",
+      //       "count": 1
+      //     }
+      //   ]
+      // }
+
+      // const { accessToken } = await this.getAccessToken();
+      // if (!accessToken) {
+      //   throw new Error('Fail to generate access token');
+      // }
+
+      // const abdmResponse = await axiosInstance.post(
+      //   process.env.POST_CARE_CONTEXT_URL,
+      //   requestParam,
+      //   {
+      //     headers: {
+      //       ...this.getInitialHeaderrs(accessToken),
+      //       "X-CM-ID": "SBX",
+      //       'REQUEST-ID': visitUUID,
+      //       'TIMESTAMP': this.getTimestamp(),
+      //       'X-HIP-ID': 'INTL-001',
+      //       'X-LINK-TOKEN': linkToken
+      //     },
+      //   }
+      // );
+      // logStream("debug", 'Got API Response', 'shareCareContext');
+
+      res.json({ success: true, data: visit, message: "Care context shared successfully!" });
+      return;
+    } catch (error) {
+      logStream("error", error.message);
+      return res.status(500).json({
+        "success": false,
+        "code": "ERR_BAD_REQUEST",
+        "message": error.message,
+      });
+    }
+  }
+
+  /**
+   * Update the isABDMLinked attribute by visitUUID
+   * @param {req} object
+   * @param {res} object
+   * @param {next} function
+   */
+  this.updateVisitAttribute = async (req, res, next) => {
+    try {
+      const { visitUUID } = req.body
+      logStream("debug", 'Calling Post API to update the visit attributes isABDMLinked', 'updateVisitAttribute');
+
+      const response = await openmrsService.postAttribute(visitUUID,
+        {
+          attributeType: '8ac6b1c7-c781-494a-b4ef-fb7d7632874f', /** Visit Attribute Type for isABDMLinked */
+          value: true
+        }
+      );
+
+      if (!response.success) {
+        throw new Error(response.message);
+      }
+      logStream("debug", 'Got API Response', 'updateVisitAttribute');
+
+      res.json(response);
+      return;
+    } catch (error) {
+      logStream("error", error.message);
+      return res.status(500).json({
+        "success": false,
+        "code": "ERR_BAD_REQUEST",
+        "message": error.message,
+      });
+    }
+  }
   return this;
 })();
