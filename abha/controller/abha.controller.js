@@ -659,49 +659,49 @@ module.exports = (function () {
         throw new Error(response.message);
       }
       const visit = response.data;
-      // const abhaNumber = visit?.patient?.identifiers.find((v) => v.identifierType?.display?.toLowerCase() === 'abha number')?.identifier
-      // const abhaAddress = visit?.patient?.identifiers.find((v) => v.identifierType?.display?.toLowerCase() === 'abha address')?.identifier
-      // const requestParam = {
-      //   "abhaNumber": abhaNumber,
-      //   "abhaAddress": abhaAddress,
-      //   "patient": [
-      //     {
-      //       "referenceNumber": "visit-identifier OR a unique identifier in case we are submitting multiple visits against one token",
-      //       "display": "purpose-of-visit-identifier",
-      //       "careContexts": [
-      //         {
-      //           "referenceNumber": "visit-identifier",
-      //           "display": "purpose-of-visit"
-      //         }
-      //       ],
-      //       "hiType": "type-of-fhir-artifact-as-mandated-by-ABDM",
-      //       "count": 1
-      //     }
-      //   ]
-      // }
+      const abhaNumber = visit?.patient?.identifiers.find((v) => v.identifierType?.display?.toLowerCase() === 'abha number')?.identifier
+      const abhaAddress = visit?.patient?.identifiers.find((v) => v.identifierType?.display?.toLowerCase() === 'abha address')?.identifier
+      const encounter = visit?.encounters?.find((v) => v.encounterType?.display === 'Visit Complete');
+      const requestParam = {
+        "abhaNumber": abhaNumber,
+        "abhaAddress": abhaAddress,
+        "patient": [
+          {
+            "referenceNumber": visit?.uuid,
+            "display": `OpConsult:${visit?.patient?.person?.display}:${new Date(visit?.startDatetime ?? new Date()).toLocaleString()}`,
+            "careContexts": [
+              {
+                "referenceNumber": encounter?.uuid,
+                "display": "OpConsult-1"
+              }
+            ],
+            "hiType": "type-of-fhir-artifact-as-mandated-by-ABDM",
+            "count": 1
+          }
+        ]
+      }
+      const { accessToken } = await this.getAccessToken();
+      if (!accessToken) {
+        throw new Error('Fail to generate access token');
+      }
 
-      // const { accessToken } = await this.getAccessToken();
-      // if (!accessToken) {
-      //   throw new Error('Fail to generate access token');
-      // }
+      const abdmResponse = await axiosInstance.post(
+        process.env.POST_CARE_CONTEXT_URL,
+        requestParam,
+        {
+          headers: {
+            ...this.getInitialHeaderrs(accessToken),
+            "X-CM-ID": "SBX",
+            'REQUEST-ID': visitUUID,
+            'TIMESTAMP': this.getTimestamp(),
+            'X-HIP-ID': 'INTL-001',
+            'X-LINK-TOKEN': linkToken
+          },
+        }
+      );
+      logStream("debug", 'Got API Response', 'shareCareContext');
 
-      // const abdmResponse = await axiosInstance.post(
-      //   process.env.POST_CARE_CONTEXT_URL,
-      //   requestParam,
-      //   {
-      //     headers: {
-      //       ...this.getInitialHeaderrs(accessToken),
-      //       "X-CM-ID": "SBX",
-      //       'REQUEST-ID': visitUUID,
-      //       'TIMESTAMP': this.getTimestamp(),
-      //       'X-HIP-ID': 'INTL-001',
-      //       'X-LINK-TOKEN': linkToken
-      //     },
-      //   }
-      // );
-      // logStream("debug", 'Got API Response', 'shareCareContext');
-
-      res.json({ success: true, data: visit, message: "Care context shared successfully!" });
+      res.json({ success: true, data: abdmResponse?.data, message: "Care context shared successfully!" });
       return;
     } catch (error) {
       logStream("error", error.message);
