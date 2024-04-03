@@ -29,8 +29,8 @@ if (isDevelopment) {
   const fs = require("fs");
 
   const options = {
-    key: fs.readFileSync(process.env.SSL_PRIVATE_KEY),
-    cert: fs.readFileSync(process.env.SSL_CERT),
+    key: fs.readFileSync(process.env.SSL_KEY_PATH),
+    cert: fs.readFileSync(process.env.SSL_CERT_PATH),
   };
   server = https.createServer(options, app);
 }
