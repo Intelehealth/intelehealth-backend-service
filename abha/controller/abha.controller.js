@@ -675,7 +675,7 @@ module.exports = (function () {
                 "display": "OpConsult-1"
               }
             ],
-            "hiType": "type-of-fhir-artifact-as-mandated-by-ABDM",
+            "hiType": "OPConsultation",
             "count": 1
           }
         ]
