@@ -17,7 +17,7 @@
 /auth-gateway/.pem
 /web-rtc/.pem
 /portal/.pem
-/configuration-microservice/.pem
+/configuration-microservice/src/.pem
 
 # Node.js
 node_modules/

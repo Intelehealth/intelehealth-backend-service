@@ -9,6 +9,7 @@ import UserRoutes from './UserRoutes';
 import SpecializationRoutes from './SpecializationRoutes';
 import ConfigRoutes from './ConfigRoutes';
 import LanguageRoutes from './LanguageRoutes';
+import authMw from './middleware/authMw';
 
 
 // **** Variables **** //
@@ -91,7 +92,7 @@ specializationRouter.put(
 );
 
 // Add SpecializationRouter
-apiRouter.use(Paths.Specializations.Base, specializationRouter);
+apiRouter.use(Paths.Specializations.Base, authMw, specializationRouter);
 
 // **** Setup ConfigRouter **** //
 
@@ -112,6 +113,7 @@ configRouter.get(
 // Publish configuration
 configRouter.post(
   Paths.Config.Publish,
+  authMw,
   ConfigRoutes.publish,
 );
 
@@ -143,7 +145,7 @@ languageRouter.put(
 );
 
 // Add LanguageRouter
-apiRouter.use(Paths.Languages.Base, languageRouter);
+apiRouter.use(Paths.Languages.Base, authMw, languageRouter);
 
 // **** Export default **** //
 
