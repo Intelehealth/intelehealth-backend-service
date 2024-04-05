@@ -30,7 +30,7 @@ module.exports = (function () {
           ...payload,
           url: `${
             process.env.NODE_ENV === "prod" ? "/intelehealth" : ""
-          }/#/dashboard/open-chat/${payload.visitId}`,
+          }/#/visitSummary/${payload.patientId}/${payload.visitId}?openChat=true`,
         },
         title: `New Chat from ${payload.hwName || "HW"}(${
           payload.patientName || "Patient"
@@ -113,15 +113,8 @@ module.exports = (function () {
         let notificationResponse = "";
 
         // Send push notification
-        const us = await user_settings.findOne({
-          where: {
-            user_uuid: toUser,
-          },
-        });
-        if (us && us?.notification && appType !== 'webapp') {
-          if (us?.snooze_till ? new Date().valueOf() > us?.snooze_till : true) {
-            notificationResponse = this.sendMessageNotification(req.body);
-          }
+        if (appType !== 'webapp') {
+          notificationResponse = this.sendMessageNotification(req.body);
         }
         logStream('debug', 'Success', 'Send Message');
         res.json({ ...data, notificationResponse });
