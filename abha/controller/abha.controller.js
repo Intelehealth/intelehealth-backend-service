@@ -631,7 +631,7 @@ module.exports = (function () {
       res.json({ success: true });
       return;
     } catch (error) {
-      logStream("error", error.message);
+      logStream("error", error);
       return res.status(500).json({
         "success": false,
         "code": "ERR_BAD_REQUEST",
@@ -651,8 +651,16 @@ module.exports = (function () {
       const {
         linkToken,
         visitUUID,
+        msgFromAbha
       } = req.body
+
       logStream("debug", 'Calling Post API to Share Care Context to Abha', 'shareCareContext');
+
+      if(msgFromAbha !== "Ok") {
+        logStream("debug", 'msgFromAbha Response recevied from abha is not okay!', 'shareCareContext');
+        res.json({ success: true, data: null, message: "Message from abha is not okay!" });
+        return;
+      }
 
       const response = await openmrsService.getVisitByUUID(visitUUID);
       if (!response.success) {
