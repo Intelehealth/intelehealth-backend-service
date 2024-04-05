@@ -71,7 +71,7 @@ async function publish(_: IReq, res: IRes) {
     const outputFileDir = `${tmpDir}/${outputFilename}.${outputFileExtension}`;
     await fs.writeFileSync(outputFileDir, JSON.stringify(data));
     await ConfigService.publish(`${outputFilename}.${outputFileExtension}`, outputFileDir);
-    return res.status(HttpStatusCodes.OK).end('OK');
+    return res.status(HttpStatusCodes.OK).json({success: true});
 }
 
 function parseValue(type:string, value: string) {
