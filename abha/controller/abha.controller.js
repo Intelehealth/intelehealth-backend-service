@@ -797,7 +797,7 @@ module.exports = (function () {
         }
       }
       const abdmResponse = await axiosInstance.post(
-        process.env.POST_LINK_CARE_CONTEXT_URL ?? 'http://localhost:8082/v1/link-carecontexts',
+        process.env.POST_LINK_CARE_CONTEXT_URL,
         requestParam,
         {
           headers: {
@@ -808,12 +808,12 @@ module.exports = (function () {
       logStream("debug", 'Got API Response From Link care context', 'axiosInstance.post');
 
       if (abdmResponse?.data?.code !== 202) {
-        throw abdmResponse?.data?.error ?? 'Something went wrong!';
+        throw abdmResponse?.data?.error ?? abdmResponse?.data ?? 'Something went wrong!';
       }
 
       logStream("debug", 'Calling Get API to check link status of care context', 'axiosInstance.get');
       const careContexts = await axiosInstance.get(
-        (process.env.POST_LINK_CARE_CONTEXT_STATUS_URL ?? 'http://localhost:8082/v1/link-status') + '/' + visitUUID, {
+        process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + visitUUID, {
         headers: {
           ...this.getInitialHeaderrs(),
         },
@@ -836,7 +836,7 @@ module.exports = (function () {
       return res.status(500).json({
         "success": false,
         "code": "ERR_BAD_REQUEST",
-        "message": error.message,
+        "message": error?.message,
       });
     }
   }
