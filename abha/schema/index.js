@@ -77,3 +77,12 @@ exports.shareCareContextSchema = Joi.object({
 exports.updateVisitAttributeSchema = Joi.object({
   visitUUID: Joi.string().required()
 })
+
+exports.postLinkCareContextSchema = Joi.object({
+  abhaAddress: Joi.string().optional(),
+  abhaNumber: Joi.string().optional(),
+  personDisplay: Joi.string().required(),
+  encounterUUID: Joi.string().required(),
+  visitUUID: Joi.string().required(),
+  startDateTime: Joi.string().required()
+});

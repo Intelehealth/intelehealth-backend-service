@@ -12,7 +12,8 @@ const {
     getCard,
     generateLinkToken,
     shareCareContext,
-    updateVisitAttribute
+    updateVisitAttribute,
+    postLinkCareContext
 } = require("../controller/abha.controller");
 
 const { 
@@ -25,7 +26,8 @@ const {
     getProfileSchema,
     generateLinkTokenSchema,
     shareCareContextSchema,
-    updateVisitAttributeSchema
+    updateVisitAttributeSchema,
+    postLinkCareContextSchema
 } = require("../schema/index");
 
 const { authMiddleware, xTokenMiddleware } = require("../middleware/auth");
@@ -58,6 +60,8 @@ router.get("/getCard", [authMiddleware, xTokenMiddleware, getCard]);
 router.post("/generate-link-token", [validate(generateLinkTokenSchema), generateLinkToken]);
 
 router.post("/share-care-context", [validate(shareCareContextSchema), shareCareContext]);
+
+router.post("/post-care-context", [validate(postLinkCareContextSchema), postLinkCareContext])
 
 router.post("/update-visit-attribute", [validate(updateVisitAttributeSchema), updateVisitAttribute])
 

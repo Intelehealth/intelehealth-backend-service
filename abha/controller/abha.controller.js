@@ -6,7 +6,7 @@ const EncryptRsa = require('encrypt-rsa').default;
 const { logStream } = require("./../logger/index");
 
 const encryptRsa = new EncryptRsa();
- 
+
 const { uuid } = require('uuidv4');
 const openmrsService = require("../services/openmrs.service");
 
@@ -656,7 +656,7 @@ module.exports = (function () {
 
       logStream("debug", 'Calling Post API to Share Care Context to Abha', 'shareCareContext');
 
-      if(msgFromAbha !== "Ok") {
+      if (msgFromAbha !== "Ok") {
         logStream("debug", 'msgFromAbha Response recevied from abha is not okay!', 'shareCareContext');
         res.json({ success: true, data: null, message: "Message from abha is not okay!" });
         return;
@@ -752,6 +752,90 @@ module.exports = (function () {
         "success": false,
         "code": "ERR_BAD_REQUEST",
         "message": error.message,
+      });
+    }
+  }
+
+  /**
+  * Linking Care Context to ABDM portal
+  * @param {req} object
+  * @param {res} object
+  * @param {next} function
+  */
+  this.postLinkCareContext = async (req, res, next) => {
+    try {
+      const {
+        visitUUID,
+        abhaAddress,
+        abhaNumber,
+        personDisplay,
+        startDatetime,
+        encounterUUID
+      } = req.body
+
+      logStream("debug", 'Calling Post API to Post Link Care Context to Abha', 'postLinkCareContext');
+
+      const requestParam = {
+        'requestId': visitUUID,
+        'requesterId': 'IN2710001275',
+        "abhaNumber": abhaNumber,
+        "abhaAddress": abhaAddress,
+        'authMode': 'DEMOGRAPHICS',
+        "patient": [
+          {
+            "referenceNumber": visitUUID,
+            "display": `OpConsult:${personDisplay}`,
+            "careContexts": [
+              {
+                "referenceNumber": encounterUUID,
+                "display": `OpConsult-1:${personDisplay}:${new Date(startDatetime ?? new Date()).toLocaleString()}`
+              }
+            ],
+            "hiType": "OPConsultation",
+            "count": 1
+          }
+        ]
+      }
+      // const { accessToken } = await this.getAccessToken();
+      // if (!accessToken) {
+      //   throw new Error('Fail to generate access token');
+      // }
+
+      const abdmResponse = await axiosInstance.post(
+        process.env.POST_LINK_CARE_CONTEXT_URL ?? 'http://localhost:8082/v1/link-carecontexts',
+        requestParam,
+        {
+          headers: {
+            // ...this.getInitialHeaderrs(accessToken),
+            "X-CM-ID": "SBX",
+            'TIMESTAMP': this.getTimestamp(),
+            'X-HIP-ID': 'INTL-001',
+          },
+        }
+      );
+      logStream("debug", 'Got API Response From Link care context', 'axiosInstance.post');
+
+      logStream("debug", 'Calling Get API to check link status of care context', 'axiosInstance.get');
+      const careContexts = await axiosInstance.get(
+        (process.env.POST_LINK_CARE_CONTEXT_STATUS_URL ?? 'http://localhost:8082/v1/link-status') + '/' + visitUUID, {
+        headers: {
+          'TIMESTAMP': this.getTimestamp(),
+          'X-HIP-ID': 'INTL-001',
+        },
+      }
+      );
+
+      logStream("debug", 'Got API Response', 'postLinkCareContext');
+
+      res.json({ success: true, data: { abdmResponse: abdmResponse, careContexts: careContexts }, message: "Care context shared successfully!" });
+      return;
+    } catch (error) {
+      console.log("error", error)
+      logStream("error", error);
+      return res.status(500).json({
+        "success": false,
+        "code": "ERR_BAD_REQUEST",
+        "message": error,
       });
     }
   }
