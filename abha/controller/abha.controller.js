@@ -17,12 +17,14 @@ module.exports = (function () {
    * Get Initial Header
    * @param {token} string
    */
-  this.getInitialHeaderrs = (token) => {
-    return {
-      'Authorization': `Bearer ${token}`,
+  this.getInitialHeaderrs = (token = null) => {
+    const headers = {
       'Content-Type': 'application/json',
       'Accept-Language': 'en-us'
     }
+
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    return headers
   }
 
   /**
@@ -781,61 +783,60 @@ module.exports = (function () {
         "abhaNumber": abhaNumber,
         "abhaAddress": abhaAddress,
         'authMode': 'DEMOGRAPHICS',
-        "patient": [
-          {
-            "referenceNumber": visitUUID,
-            "display": `OpConsult:${personDisplay}`,
-            "careContexts": [
-              {
-                "referenceNumber": encounterUUID,
-                "display": `OpConsult-1:${personDisplay}:${new Date(startDatetime ?? new Date()).toLocaleString()}`
-              }
-            ],
-            "hiType": "OPConsultation",
-            "count": 1
-          }
-        ]
+        "patient": {
+          "referenceNumber": visitUUID,
+          "display": `OpConsult:${personDisplay}`,
+          "careContexts": [
+            {
+              "referenceNumber": encounterUUID,
+              "display": `OpConsult-1:${personDisplay}:${new Date(startDatetime ?? new Date()).toLocaleString()}`
+            }
+          ],
+          "hiType": "OPConsultation",
+          "count": 1
+        }
       }
-      // const { accessToken } = await this.getAccessToken();
-      // if (!accessToken) {
-      //   throw new Error('Fail to generate access token');
-      // }
-
       const abdmResponse = await axiosInstance.post(
         process.env.POST_LINK_CARE_CONTEXT_URL ?? 'http://localhost:8082/v1/link-carecontexts',
         requestParam,
         {
           headers: {
-            // ...this.getInitialHeaderrs(accessToken),
-            "X-CM-ID": "SBX",
-            'TIMESTAMP': this.getTimestamp(),
-            'X-HIP-ID': 'INTL-001',
+            ...this.getInitialHeaderrs(),
           },
         }
       );
       logStream("debug", 'Got API Response From Link care context', 'axiosInstance.post');
 
+      if (abdmResponse?.data?.code !== 202) {
+        throw abdmResponse?.data?.error ?? 'Something went wrong!';
+      }
+
       logStream("debug", 'Calling Get API to check link status of care context', 'axiosInstance.get');
       const careContexts = await axiosInstance.get(
         (process.env.POST_LINK_CARE_CONTEXT_STATUS_URL ?? 'http://localhost:8082/v1/link-status') + '/' + visitUUID, {
         headers: {
-          'TIMESTAMP': this.getTimestamp(),
-          'X-HIP-ID': 'INTL-001',
+          ...this.getInitialHeaderrs(),
         },
       }
       );
-
+      if (careContexts?.data?.error == null) {
+        await openmrsService.postAttribute(visitUUID,
+          {
+            attributeType: '8ac6b1c7-c781-494a-b4ef-fb7d7632874f', /** Visit Attribute Type for isABDMLinked */
+            value: true
+          }
+        );
+      }
       logStream("debug", 'Got API Response', 'postLinkCareContext');
 
-      res.json({ success: true, data: { abdmResponse: abdmResponse, careContexts: careContexts }, message: "Care context shared successfully!" });
+      res.json({ success: true, data: null, message: "Care context shared successfully!" });
       return;
     } catch (error) {
-      console.log("error", error)
       logStream("error", error);
       return res.status(500).json({
         "success": false,
         "code": "ERR_BAD_REQUEST",
-        "message": error,
+        "message": error.message,
       });
     }
   }

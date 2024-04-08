@@ -42,7 +42,6 @@ module.exports = (function () {
         );
       }
       const visit = await openmrsAxiosInstance.post(`/ws/rest/v1/visit/${visitUUID}/attribute`, attributes);
-      console.log("visit", JSON.stringify(visit?.data))
       return {
         success: true,
         data: visit?.data,
