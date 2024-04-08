@@ -84,5 +84,8 @@ exports.postLinkCareContextSchema = Joi.object({
   personDisplay: Joi.string().required(),
   encounterUUID: Joi.string().required(),
   visitUUID: Joi.string().required(),
-  startDateTime: Joi.string().required()
+  startDateTime: Joi.string().required(),
+  name: Joi.string().optional(),
+  gender: Joi.string().optional(),
+  yearOfBirth: Joi.number().optional(),
 });
