@@ -789,7 +789,7 @@ module.exports = (function () {
           "careContexts": [
             {
               "referenceNumber": encounterUUID,
-              "display": `OpConsult-1:${personDisplay}:${new Date(startDatetime ?? new Date()).toLocaleString()}`
+              "display": `OpConsult-1:${personDisplay}:${startDatetime}`
             }
           ],
           "hiType": "OPConsultation",
