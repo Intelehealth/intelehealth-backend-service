@@ -18,7 +18,6 @@ app.set("view engine", "html");
 app.use(cors({
 	origin: '*',
 	methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-	credentials: true,
 	optionsSuccessStatus: 200
 }));
 app.use(logger("dev"));
