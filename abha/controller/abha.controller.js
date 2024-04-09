@@ -776,9 +776,9 @@ module.exports = (function () {
       } = req.body
 
       logStream("debug", 'Calling Post API to Post Link Care Context to Abha', 'postLinkCareContext');
-
+      const uniquId = uuid();
       const requestParam = {
-        'requestId': visitUUID,
+        'requestId': uniquId,
         'requesterId': 'IN2710001275',
         "abhaNumber": abhaNumber,
         "abhaAddress": abhaAddress,
@@ -813,7 +813,7 @@ module.exports = (function () {
 
       logStream("debug", 'Calling Get API to check link status of care context', 'axiosInstance.get');
       const careContexts = await axiosInstance.get(
-        process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + visitUUID, {
+        process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + uniquId, {
         headers: {
           ...this.getInitialHeaderrs(),
         },

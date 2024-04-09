@@ -18,7 +18,7 @@ app.set("view engine", "html");
 app.use(cors(
 	{
 		origin: (origin, callback) => {
-			if (['https://dev.intelehealth.org'].indexOf(origin) !== -1) {
+			if (['https://dev.intelehealth.org'].indexOf(origin) !== -1 || !origin) {
 				callback(null, true)
 			} else {
 				callback(new Error('origin not allowed by Cors'))
