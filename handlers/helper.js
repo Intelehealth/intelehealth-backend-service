@@ -11,12 +11,20 @@ admin.initializeApp({
 });
 
 module.exports = (function () {
+  // For production server
   const vapidKeys = {
-    publicKey:
-      "BJJvSw6ltFPN5GDxIOwbRtJUBBJp2CxftaRNGbntvE0kvzpe05D9zKr-SknKvNBihXDoyd09KuHrWwC3lFlTe54",
-    privateKey: "7A59IAQ78P3qbnLL0uICspWr2BJ8II1FnxTatMNelkI",
+    publicKey: "BMGYasq0YzQ4B9RmKuaMJY3hWcOmN-3BMZfy4e9jXXUp8w7tcoNikwXAkS86Eb9nWANm_gU7CyOaVD9zMZ0QU2w",
+    privateKey: "_wx2SO9yaLDGVBVZDeY0v85CaxwiKZGWzpa0CugUIss",
     mailTo: "mailto:support@intelehealth.org",
   };
+
+  // // For testing server
+  // const vapidKeys = {
+  //   publicKey:
+  //     "BJJvSw6ltFPN5GDxIOwbRtJUBBJp2CxftaRNGbntvE0kvzpe05D9zKr-SknKvNBihXDoyd09KuHrWwC3lFlTe54",
+  //   privateKey: "7A59IAQ78P3qbnLL0uICspWr2BJ8II1FnxTatMNelkI",
+  //   mailTo: "mailto:support@intelehealth.org",
+  // };
   webpush.setVapidDetails(
     vapidKeys.mailTo,
     vapidKeys.publicKey,
