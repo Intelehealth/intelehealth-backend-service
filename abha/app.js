@@ -15,11 +15,19 @@ const cors = require("cors");
 const app = express();
 app.set("view engine", "html");
 
-app.use(cors({
-	origin: '*',
-	methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-	optionsSuccessStatus: 200
-}));
+app.use(cors(
+	{
+		origin: (origin, callback) => {
+			if (['https://dev.intelehealth.org'].indexOf(origin) !== -1) {
+				callback(null, true)
+			} else {
+				callback(new Error('origin not allowed by Cors'))
+			}
+		},
+		optionsSuccessStatus: 200,
+		credentials: true
+	}
+));
 app.use(logger("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
