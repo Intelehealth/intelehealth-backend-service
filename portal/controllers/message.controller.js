@@ -9,7 +9,7 @@ const {
   log,
   sendCloudNotification,
   // getFirebaseAdmin,
-  sendWebPushNotificaion,
+  sendWebPushNotification,
 } = require("../handlers/helper");
 const { user_settings, pushnotification } = require("../models");
 // const env = process.env.NODE_ENV || "development";
@@ -107,7 +107,7 @@ module.exports = (function () {
           where: { user_uuid: toUser },
         });
         devices.forEach(async (device) => {
-          sendWebPushNotificaion({
+          sendWebPushNotification({
             webpush_obj: device.notification_object,
             data: {
               ...req.body,
