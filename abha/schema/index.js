@@ -56,6 +56,9 @@ exports.getProfileSchema = Joi.object()
     .required()
 });
 
+/**************************************************************************************************
+   TODO: Need to remove this once abdm functionality is done. Start
+**************************************************************************************************/
 exports.generateLinkTokenSchema = Joi.object({
   abhaAddress: Joi.string(),
   abhaNumber: Joi.string(),  
@@ -77,6 +80,9 @@ exports.shareCareContextSchema = Joi.object({
 exports.updateVisitAttributeSchema = Joi.object({
   visitUUID: Joi.string().required()
 })
+/**************************************************************************************************
+   End to remove the code
+**************************************************************************************************/
 
 exports.postLinkCareContextSchema = Joi.object({
   abhaAddress: Joi.string().optional(),
