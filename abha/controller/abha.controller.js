@@ -1,5 +1,5 @@
 const { token } = require("morgan");
-const { axiosInstance } = require("../handlers/helper");
+const { axiosInstance } = require("../handlers/axiosHelper");
 
 const EncryptRsa = require('encrypt-rsa').default;
 
@@ -578,6 +578,9 @@ module.exports = (function () {
     }
   };
 
+  /**************************************************************************************************
+    TODO: Need to remove this once abdm functionality is done. Start
+  **************************************************************************************************/
   /**
    * Generate Linking Token
    * @param {req} object
@@ -757,6 +760,9 @@ module.exports = (function () {
       });
     }
   }
+  /**************************************************************************************************
+    END of Code to remove 
+  **************************************************************************************************/
 
   /**
   * Linking Care Context to ABDM portal
@@ -830,6 +836,44 @@ module.exports = (function () {
       logStream("debug", 'Got API Response', 'postLinkCareContext');
 
       res.json({ success: true, data: null, message: "Care context shared successfully!" });
+      return;
+    } catch (error) {
+      logStream("error", error);
+      return res.status(500).json({
+        "success": false,
+        "code": "ERR_BAD_REQUEST",
+        "message": error?.message,
+      });
+    }
+  }
+
+  /**
+   * Patient Discover from ABDM Portal
+   * @param {req} object
+   * @param {res} object
+   * @param {next} function
+   */
+  this.patientDiscover = async (req, res, next) => {
+    try {
+      logStream("debug", 'Got Post Request', 'patientDiscover');
+
+      if (!req.body?.patient) {
+        return res.status(422).json({
+          "success": false,
+          "code": "ERR_UNPROCESSABLE_ENTITY",
+          "message": "Requested parameter is missing!",
+        });
+      }
+
+      const patientInfo = await openmrsService.getVisitBySearch(req.body.patient)
+      if (!patientInfo) {
+        return res.status(404).json({
+          "success": false,
+          "code": "ERR_DATA_NOT_FOUND",
+          "message": 'Care context information is not found with provided details!.',
+        });
+      }
+      res.json({ success: true, data: patientInfo, message: "Care context shared successfully!" });
       return;
     } catch (error) {
       logStream("error", error);
