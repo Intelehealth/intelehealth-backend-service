@@ -1,5 +1,5 @@
 const { token } = require("morgan");
-const { axiosInstance } = require("../handlers/helper");
+const { axiosInstance } = require("../handlers/axiosHelper");
 
 const EncryptRsa = require('encrypt-rsa').default;
 
@@ -860,13 +860,19 @@ module.exports = (function () {
       if (!req.body?.patient) {
         return res.status(422).json({
           "success": false,
-          "code": "ERR_BAD_REQUEST",
+          "code": "ERR_UNPROCESSABLE_ENTITY",
           "message": "Requested parameter is missing!",
         });
       }
 
       const patientInfo = await openmrsService.getVisitBySearch(req.body.patient)
-      console.log("patientInfo", patientInfo)
+      if (!patientInfo) {
+        return res.status(404).json({
+          "success": false,
+          "code": "ERR_DATA_NOT_FOUND",
+          "message": 'Care context information is not found with provided details!.',
+        });
+      }
       res.json({ success: true, data: patientInfo, message: "Care context shared successfully!" });
       return;
     } catch (error) {
