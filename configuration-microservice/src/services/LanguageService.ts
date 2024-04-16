@@ -71,7 +71,7 @@ async function updateIsEnabled(id: string, is_enabled: boolean): Promise<void> {
     });
 
     // Update dic_config language key
-    await Config.update({ value: JSON.stringify(enabledLanguages) }, { where: { key: 'language' } });
+    await Config.update({ value: JSON.stringify(enabledLanguages), published: false }, { where: { key: 'language' } });
 }
 
 /**

@@ -28,6 +28,13 @@ export default {
     Default: '/default/:id',
     UpdateIsEnabled: '/updateIsEnabled/:id',
   },
+  PatientResgistration: {
+    Base: '/pr',
+    Get: '/all',
+    updateIsMandatory: '/updateIsMandatory/:id',
+    updateIsEditable: '/updateIsEditable/:id',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+  },
   Config: {
     Base: '/config',
     Get: '/getApplicationConfig',

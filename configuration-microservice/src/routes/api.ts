@@ -9,6 +9,7 @@ import UserRoutes from './UserRoutes';
 import SpecializationRoutes from './SpecializationRoutes';
 import ConfigRoutes from './ConfigRoutes';
 import LanguageRoutes from './LanguageRoutes';
+import PatientRegistrationRoutes from './PatientRegistrationRoutes';
 import authMw from './middleware/authMw';
 
 
@@ -146,6 +147,42 @@ languageRouter.put(
 
 // Add LanguageRouter
 apiRouter.use(Paths.Languages.Base, authMw, languageRouter);
+
+
+// **** Setup PatientRegistrationRouter **** //
+
+const patientRegistrationRouter = Router();
+
+// Get all patient registration fields
+patientRegistrationRouter.get(
+  Paths.PatientResgistration.Get,
+  PatientRegistrationRoutes.getAll,
+);
+
+// Update patient registration field enabled status
+patientRegistrationRouter.put(
+  Paths.PatientResgistration.UpdateIsEnabled,
+  validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body']),
+  PatientRegistrationRoutes.updateIsEnabled,
+);
+
+// Update patient registration field mandatory status
+patientRegistrationRouter.put(
+  Paths.PatientResgistration.updateIsMandatory,
+  validate(['id', 'number', 'params'],['is_mandatory', 'boolean', 'body']),
+  PatientRegistrationRoutes.updateIsMandatory,
+);
+
+// Update patient registration field editable status
+patientRegistrationRouter.put(
+  Paths.PatientResgistration.updateIsEditable,
+  validate(['id', 'number', 'params'],['is_editable', 'boolean', 'body']),
+  PatientRegistrationRoutes.updateIsEditable,
+);
+
+
+// Add LanguageRouter
+apiRouter.use(Paths.PatientResgistration.Base, authMw, patientRegistrationRouter);
 
 // **** Export default **** //
 
