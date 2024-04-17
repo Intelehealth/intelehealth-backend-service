@@ -15,6 +15,7 @@ const {
   _getCompletedVisits,
   setLocationTree,
 } = require("../services/openmrs.service");
+const { validateParams } = require("../handlers/helper");
 
 /**
  * To return the visit counts from the openmrs db using custom query

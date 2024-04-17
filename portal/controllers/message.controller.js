@@ -309,7 +309,6 @@ module.exports = (function () {
         });
       }
     } catch (error) {
-      log("error: ", error);
       res.json({
         status: false,
         message: error,
