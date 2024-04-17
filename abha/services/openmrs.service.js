@@ -7,7 +7,7 @@ const { Op } = Sequelize;
  * @returns visits with formated response
  */
 function getFormatedResponse(visits) {
-  if (!visits) return [];
+  if (!visits?.length) return [];
   const patient_identifier = visits[0].patient_identifier;
   const person = visits[0].person;
   const patient_name = visits[0].patient_name;
