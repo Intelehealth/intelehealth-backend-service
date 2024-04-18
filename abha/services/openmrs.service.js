@@ -22,11 +22,11 @@ function getFormatedResponse(visits) {
 
   return {
     "abhaAddress": abhaAddress,
-    "name": `${patient_name?.given_name} ${patient_name?.family_name}`,
+    "name": `${patient_name?.given_name ?? ''} ${patient_name?.family_name ?? ''}`,
     "gender": person?.gender,
     "dateOfBirth": person?.birthdate,
     "patientReference": openMRSId,
-    "patientDisplay": patient_name?.given_name,
+    "patientDisplay": `${patient_name?.given_name ?? ''} ${patient_name?.family_name ?? ''}`,
     "patientMobile": person?.attributes?.[0]?.value,
     "careContexts": careContexts,
   }
@@ -41,10 +41,10 @@ async function getVisitByAbhaDetails(whereParams) {
     attributes: ['patient_id'],
     where: whereParams
   });
-  if (patientIdentifier) {
-    const visits = await this.getVisitsByPatientId(patientIdentifier.patient_id);
-    return getFormatedResponse(visits);
-  }
+  if (!patientIdentifier) return null;
+  const visits = await this.getVisitsByPatientId(patientIdentifier.patient_id);
+  return getFormatedResponse(visits);
+
 }
 
 /**
@@ -81,7 +81,8 @@ async function getVisitByMobile({ mobileNumber, yearOfBirth, gender, name }) {
           }
         ]
       }
-    ]
+    ],
+    order: [["person_id", "DESC"]]
   });
 
   if (!personAttribute || !name.includes(personAttribute?.person?.person_name?.family_name) || !name.includes(personAttribute?.person?.person_name?.given_name)) return null;
@@ -202,7 +203,21 @@ module.exports = (function () {
           as: "attributes",
           attributes: ["attribute_type_id"],
           where: {
-            "attribute_type_id": { [Op.ne]: 10 }
+            [Op.or]: [
+              {
+                "attribute_type_id": { [Op.ne]: 10 }
+              },
+              {
+                [Op.and]: [
+                  {
+                    "attribute_type_id": { [Op.eq]: 10 }
+                  },
+                  {
+                    "value_reference": { [Op.eq]: false }
+                  }
+                ]
+              }
+            ]
           }
         },
         {
@@ -234,7 +249,7 @@ module.exports = (function () {
       ],
       order: [["visit_id", "DESC"]]
     });
-    if (visits) return visits;
+    if (visits?.length) return visits;
     return null;
   };
   return this;
