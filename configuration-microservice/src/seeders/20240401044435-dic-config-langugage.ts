@@ -11,15 +11,15 @@ module.exports = {
         {
           key: 'language',
           value: JSON.stringify([
-            { name: 'English', code: 'en', is_default: true },
-            { name: 'हिंदी', code: 'hi', is_default: false },
-            { name: 'русский', code: 'ru', is_default: false }
+            { name: 'English', code: 'en', en_name: 'English', is_default: true },
+            { name: 'हिंदी', code: 'hi', en_name: 'Hindi', is_default: false },
+            { name: 'русский', code: 'ru', en_name: 'Russian', is_default: false }
           ]),
           type: 'array',
           default_value: JSON.stringify([
-            { name: 'English', code: 'en', is_default: true },
-            { name: 'हिंदी', code: 'hi', is_default: false },
-            { name: 'русский', code: 'ru', is_default: false }
+            { name: 'English', code: 'en', en_name: 'English', is_default: true },
+            { name: 'हिंदी', code: 'hi', en_name: 'Hindi', is_default: false },
+            { name: 'русский', code: 'ru', en_name: 'Russian', is_default: false }
           ])
         }
       ]);

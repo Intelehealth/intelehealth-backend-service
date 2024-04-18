@@ -22,6 +22,10 @@ module.exports = {
               allowNull: false,
               unique: true
             },
+            en_name: {
+              type: DataTypes.STRING,
+              allowNull: false
+            },
             is_default: {
               type: DataTypes.BOOLEAN,
               defaultValue: false,

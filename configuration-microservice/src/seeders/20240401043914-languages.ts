@@ -14,9 +14,9 @@ module.exports = {
        * }], {});
       */
       await queryInterface.bulkInsert('mst_language', [
-        { name: 'English', code: 'en', is_default: true, is_enabled: true },
-        { name: 'हिंदी', code: 'hi', is_default: false, is_enabled: true },
-        { name: 'русский', code: 'ru', is_default: false, is_enabled: true }
+        { name: 'English', code: 'en', en_name: 'English', is_default: true, is_enabled: true },
+        { name: 'हिंदी', code: 'hi', en_name: 'Hindi', is_default: false, is_enabled: true },
+        { name: 'русский', code: 'ru', en_name: 'Russian', is_default: false, is_enabled: true }
       ]);
     }),
 

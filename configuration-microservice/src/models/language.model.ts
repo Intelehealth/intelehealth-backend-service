@@ -5,6 +5,7 @@ export interface LanguageAttributes {
   id: number;
   name: string;
   code: string;
+  en_name: string;
   is_default: boolean;
   is_enabled: boolean;
   createdAt?: Date;
@@ -41,6 +42,12 @@ export class Language extends Model<LanguageAttributes, LanguageCreationAttribut
         unique: true
     })
     code!: string;
+
+    @Column({
+        type: DataTypes.STRING,
+        allowNull: false
+    })
+    en_name!: string;
 
     @Column({
         type: DataTypes.BOOLEAN,

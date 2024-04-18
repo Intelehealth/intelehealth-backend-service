@@ -37,10 +37,19 @@ async function publish(name: string, path: string): Promise<void> {
   await Config.update({ published: true }, { where: { published: false } });
 }
 
+/**
+ * Get max id config.
+ */
+async function getMaxIdPublish(): Promise<number> {
+  const id = await Publish.max<number, Publish>('id');
+  return id
+}
+
 // **** Export default **** //
 
 export default {
     getAll,
     getPublishedConfig,
-    publish
+    publish,
+    getMaxIdPublish
   } as const;
