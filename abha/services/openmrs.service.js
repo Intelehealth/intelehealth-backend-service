@@ -6,7 +6,7 @@ const { Op } = Sequelize;
  * @param {Array} visits 
  * @returns visits with formated response
  */
-function getFormatedResponse({visits, patientInfo}) {
+function getFormatedResponse({ visits, patientInfo }) {
   if (!visits?.length) return [];
   const patient_identifier = patientInfo?.patient_identifier;
   const person = patientInfo?.person;
@@ -22,6 +22,7 @@ function getFormatedResponse({visits, patientInfo}) {
 
   return {
     "abhaAddress": abhaAddress,
+    "name": `${patient_name?.given_name ?? ''} ${patient_name?.family_name ?? ''}`,
     "name": `${patient_name?.given_name ?? ''} ${patient_name?.family_name ?? ''}`,
     "gender": person?.gender,
     "dateOfBirth": person?.birthdate,
@@ -97,7 +98,7 @@ async function getVisitByMobile({ mobileNumber, yearOfBirth, gender, name }) {
  */
 async function getPatientInfo(patientId) {
   const patientInfo = await patient.findOne({
-    where: { "patient_id": patientId},
+    where: { "patient_id": patientId },
     include: [
       {
         model: patient_identifier,
@@ -226,18 +227,18 @@ module.exports = (function () {
           model: encounter,
           as: "encounters",
           attributes: ["encounter_type", "encounter_datetime", 'uuid'],
-          // where: {
-          //   [Op.or]: [{
-          //     encounter_type: {
-          //       [Op.eq]: 14
-          //     }
-          //   },
-          //   {
-          //     encounter_type: {
-          //       [Op.eq]: 12
-          //     }
-          //   }]
-          // },
+          where: {
+            [Op.or]: [{
+              encounter_type: {
+                [Op.eq]: 14
+              }
+            },
+            {
+              encounter_type: {
+                [Op.eq]: 12
+              }
+            }]
+          },
         },
         {
           model: visit_attribute,
@@ -264,7 +265,7 @@ module.exports = (function () {
       ],
       order: [["visit_id", "DESC"]]
     });
-    return {visits: visits?.length ? visits: null, patientInfo: patientInfo};
+    return { visits: visits?.length ? visits : null, patientInfo: patientInfo };
   };
   return this;
 })();
