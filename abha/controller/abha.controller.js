@@ -9,6 +9,7 @@ const encryptRsa = new EncryptRsa();
 
 const { uuid } = require('uuidv4');
 const openmrsService = require("../services/openmrs.service");
+const { convertDateToDDMMYYYY } = require("../handlers/utilityHelper");
 
 
 module.exports = (function () {
@@ -795,7 +796,7 @@ module.exports = (function () {
           "careContexts": [
             {
               "referenceNumber": encounterUUID,
-              "display": `OpConsult-1:${personDisplay}:${startDatetime}`
+              "display": `OpConsult-1:${personDisplay}:${convertDateToDDMMYYYY(startDatetime)}`
             }
           ],
           "hiType": "OPConsultation",
