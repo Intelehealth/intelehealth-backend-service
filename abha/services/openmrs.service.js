@@ -7,7 +7,7 @@ const { Op } = Sequelize;
  * @returns visits with formated response
  */
 function getFormatedResponse({ visits, patientInfo }) {
-  if (!visits?.length) return [];
+  if (!visits?.length) return null;
   const patient_identifier = patientInfo?.patient_identifier;
   const person = patientInfo?.person;
   const patient_name = patientInfo?.person?.person_name;
@@ -16,7 +16,7 @@ function getFormatedResponse({ visits, patientInfo }) {
   const careContexts = visits?.map((visit) => {
     return {
       "referenceNumber": visit?.encounters?.[0]?.uuid,
-      "display": `OpConsult-1:${patient_name?.given_name} ${patient_name?.family_name}:${convertDateToDDMMYYYY(visit?.date_started)}`
+      "display": `${patient_name?.given_name} ${patient_name?.family_name} OpConsult-1 on ${convertDateToDDMMYYYY(visit?.date_started)}`
     }
   });
 

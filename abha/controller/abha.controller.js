@@ -796,7 +796,7 @@ module.exports = (function () {
           "careContexts": [
             {
               "referenceNumber": encounterUUID,
-              "display": `OpConsult-1:${personDisplay}:${convertDateToDDMMYYYY(startDatetime)}`
+              "display": `${personDisplay} OpConsult-1 on ${convertDateToDDMMYYYY(startDatetime)}`
             }
           ],
           "hiType": "OPConsultation",
