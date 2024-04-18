@@ -1,16 +1,16 @@
 const { convertDateToDDMMYYYY } = require('../handlers/utilityHelper');
-const { patient_identifier, visit, Sequelize, encounter, person_name, person, person_attribute, visit_attribute } = require('../openmrs_models');
+const { patient_identifier, visit, Sequelize, encounter, person_name, person, person_attribute, visit_attribute, patient } = require('../openmrs_models');
 const { Op } = Sequelize;
 /**
  * Function to get the visits with formated response.
  * @param {Array} visits 
  * @returns visits with formated response
  */
-function getFormatedResponse(visits) {
+function getFormatedResponse({ visits, patientInfo }) {
   if (!visits?.length) return [];
-  const patient_identifier = visits[0].patient_identifier;
-  const person = visits[0].person;
-  const patient_name = visits[0].patient_name;
+  const patient_identifier = patientInfo?.patient_identifier;
+  const person = patientInfo?.person;
+  const patient_name = patientInfo?.person?.person_name;
   const abhaAddress = patient_identifier?.find((identifier) => identifier?.identifier_type === 7)?.identifier ?? '';
   const openMRSId = patient_identifier?.find((identifier) => identifier?.identifier_type === 3)?.identifier ?? '';
   const careContexts = visits?.map((visit) => {
@@ -22,6 +22,7 @@ function getFormatedResponse(visits) {
 
   return {
     "abhaAddress": abhaAddress,
+    "name": `${patient_name?.given_name ?? ''} ${patient_name?.family_name ?? ''}`,
     "name": `${patient_name?.given_name ?? ''} ${patient_name?.family_name ?? ''}`,
     "gender": person?.gender,
     "dateOfBirth": person?.birthdate,
@@ -42,8 +43,8 @@ async function getVisitByAbhaDetails(whereParams) {
     where: whereParams
   });
   if (!patientIdentifier) return null;
-  const visits = await this.getVisitsByPatientId(patientIdentifier.patient_id);
-  return getFormatedResponse(visits);
+  const data = await this.getVisitsByPatientId(patientIdentifier.patient_id);
+  return getFormatedResponse(data);
 
 }
 
@@ -86,8 +87,48 @@ async function getVisitByMobile({ mobileNumber, yearOfBirth, gender, name }) {
   });
 
   if (!personAttribute || !name.includes(personAttribute?.person?.person_name?.family_name) || !name.includes(personAttribute?.person?.person_name?.given_name)) return null;
-  const visits = await this.getVisitsByPatientId(personAttribute.person_id);
-  return getFormatedResponse(visits);
+  const data = await this.getVisitsByPatientId(personAttribute.person_id);
+  return getFormatedResponse(data);
+}
+
+/**
+ * get patient information by patientId
+ * @param {number} patientId
+ * @returns patient
+ */
+async function getPatientInfo(patientId) {
+  const patientInfo = await patient.findOne({
+    where: { "patient_id": patientId },
+    include: [
+      {
+        model: patient_identifier,
+        as: "patient_identifier",
+        attributes: ["identifier", "identifier_type"],
+      },
+      {
+        model: person,
+        as: "person",
+        attributes: ["uuid", "gender", "birthdate"],
+        include: [
+          {
+            model: person_name,
+            as: "person_name",
+            attributes: ["given_name", "family_name"],
+          },
+          {
+            model: person_attribute,
+            as: "attributes",
+            attributes: ["value", "person_attribute_type_id"],
+            where: {
+              "person_attribute_type_id": { [Op.eq]: 8 }
+            },
+            required: false,
+          },
+        ]
+      }
+    ]
+  });
+  return patientInfo;
 }
 
 module.exports = (function () {
@@ -175,6 +216,7 @@ module.exports = (function () {
     }
   };
   this.getVisitsByPatientId = async (patientId) => {
+    const patientInfo = await getPatientInfo(patientId);
     const visits = await visit.findAll({
       where: {
         patient_id: { [Op.eq]: patientId },
@@ -219,38 +261,11 @@ module.exports = (function () {
               }
             ]
           }
-        },
-        {
-          model: patient_identifier,
-          as: "patient_identifier",
-          attributes: ["identifier", "identifier_type"],
-        },
-        {
-          model: person_name,
-          as: "patient_name",
-          attributes: ["given_name", "family_name"],
-        },
-        {
-          model: person,
-          as: "person",
-          attributes: ["uuid", "gender", "birthdate"],
-          include: [
-            {
-              model: person_attribute,
-              as: "attributes",
-              attributes: ["value", "person_attribute_type_id"],
-              where: {
-                "person_attribute_type_id": { [Op.eq]: 8 }
-              },
-              required: false,
-            },
-          ]
-        },
+        }
       ],
       order: [["visit_id", "DESC"]]
     });
-    if (visits?.length) return visits;
-    return null;
+    return { visits: visits?.length ? visits : null, patientInfo: patientInfo };
   };
   return this;
 })();
