@@ -56,34 +56,6 @@ exports.getProfileSchema = Joi.object()
     .required()
 });
 
-/**************************************************************************************************
-   TODO: Need to remove this once abdm functionality is done. Start
-**************************************************************************************************/
-exports.generateLinkTokenSchema = Joi.object({
-  abhaAddress: Joi.string(),
-  abhaNumber: Joi.string(),  
-  name: Joi.string()
-    .required(),
-  gender: Joi.string().valid(null, 'M', 'F').required(),
-  yearOfBirth: Joi.number().required(),
-  visitUUID: Joi.string().required()
-});
-
-exports.shareCareContextSchema = Joi.object({
-  abhaAddress: Joi.string().optional(),
-  abhaNumber: Joi.string().optional(),
-  msgFromAbha: Joi.string().optional(),
-  linkToken: Joi.string().required(),
-  visitUUID: Joi.string().required()
-});
-
-exports.updateVisitAttributeSchema = Joi.object({
-  visitUUID: Joi.string().required()
-})
-/**************************************************************************************************
-   End to remove the code
-**************************************************************************************************/
-
 exports.postLinkCareContextSchema = Joi.object({
   abhaAddress: Joi.string().optional(),
   abhaNumber: Joi.string().optional(),
@@ -94,4 +66,6 @@ exports.postLinkCareContextSchema = Joi.object({
   name: Joi.string().optional(),
   gender: Joi.string().optional(),
   yearOfBirth: Joi.number().optional(),
+  mobileNumber: Joi.string().optional(),
+  openMRSID: Joi.string().optional() 
 });

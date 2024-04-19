@@ -579,199 +579,12 @@ module.exports = (function () {
     }
   };
 
-  /**************************************************************************************************
-    TODO: Need to remove this once abdm functionality is done. Start
-  **************************************************************************************************/
   /**
-   * Generate Linking Token
-   * @param {req} object
-   * @param {res} object
-   * @param {next} function
+   * Post care context to abdm which patient having abha details
+   * @param {Object} reqParams 
+   * @returns 
    */
-  this.generateLinkToken = async (req, res, next) => {
-    try {
-      const {
-        abhaAddress,
-        name,
-        gender,
-        yearOfBirth,
-        visitUUID,
-        abhaNumber
-      } = req.body
-      logStream("debug", 'Calling Post API to GenerateLinkToken', 'GenerateLinkToken');
-
-      const { accessToken } = await this.getAccessToken();
-      if (!accessToken) {
-        throw new Error('Fail to generate access token');
-      }
-
-      const requestObj = {
-        name,
-        gender,
-        yearOfBirth,
-      };
-
-      if (abhaAddress) {
-        requestObj.abhaAddress = abhaAddress;
-      }
-
-      if (abhaNumber) {
-        requestObj.abhaNumber = abhaNumber;
-      }
-
-      await axiosInstance.post(
-        process.env.POST_GENERATE_TOKEN_URL,
-        requestObj,
-        {
-          headers: {
-            ...this.getInitialHeaderrs(accessToken),
-            "X-CM-ID": "SBX",
-            'REQUEST-ID': visitUUID,
-            'TIMESTAMP': this.getTimestamp(),
-            'X-HIP-ID': 'INTL-001'
-          },
-        }
-      );
-      logStream("debug", 'Got API Response', 'GenerateLinkToken');
-
-      res.json({ success: true });
-      return;
-    } catch (error) {
-      logStream("error", error);
-      return res.status(500).json({
-        "success": false,
-        "code": "ERR_BAD_REQUEST",
-        "message": error.message,
-      });
-    }
-  }
-
-  /**
-  * Linking Care Context to ABDM portal
-  * @param {req} object
-  * @param {res} object
-  * @param {next} function
-  */
-  this.shareCareContext = async (req, res, next) => {
-    try {
-      const {
-        linkToken,
-        visitUUID,
-        msgFromAbha
-      } = req.body
-
-      logStream("debug", 'Calling Post API to Share Care Context to Abha', 'shareCareContext');
-
-      if (msgFromAbha !== "Ok") {
-        logStream("debug", 'msgFromAbha Response recevied from abha is not okay!', 'shareCareContext');
-        res.json({ success: true, data: null, message: "Message from abha is not okay!" });
-        return;
-      }
-
-      const response = await openmrsService.getVisitByUUID(visitUUID);
-      if (!response.success) {
-        throw new Error(response.message);
-      }
-      const visit = response.data;
-      const abhaNumber = visit?.patient?.identifiers.find((v) => v.identifierType?.display?.toLowerCase() === 'abha number')?.identifier
-      const abhaAddress = visit?.patient?.identifiers.find((v) => v.identifierType?.display?.toLowerCase() === 'abha address')?.identifier
-      const encounter = visit?.encounters?.find((v) => v.encounterType?.display === 'Visit Complete');
-      const requestParam = {
-        "abhaNumber": abhaNumber,
-        "abhaAddress": abhaAddress,
-        "patient": [
-          {
-            "referenceNumber": visit?.uuid,
-            "display": `OpConsult:${visit?.patient?.person?.display}:${new Date(visit?.startDatetime ?? new Date()).toLocaleString()}`,
-            "careContexts": [
-              {
-                "referenceNumber": encounter?.uuid,
-                "display": "OpConsult-1"
-              }
-            ],
-            "hiType": "OPConsultation",
-            "count": 1
-          }
-        ]
-      }
-      const { accessToken } = await this.getAccessToken();
-      if (!accessToken) {
-        throw new Error('Fail to generate access token');
-      }
-
-      const abdmResponse = await axiosInstance.post(
-        process.env.POST_CARE_CONTEXT_URL,
-        requestParam,
-        {
-          headers: {
-            ...this.getInitialHeaderrs(accessToken),
-            "X-CM-ID": "SBX",
-            'REQUEST-ID': visitUUID,
-            'TIMESTAMP': this.getTimestamp(),
-            'X-HIP-ID': 'INTL-001',
-            'X-LINK-TOKEN': linkToken
-          },
-        }
-      );
-      logStream("debug", 'Got API Response', 'shareCareContext');
-
-      res.json({ success: true, data: abdmResponse?.data, message: "Care context shared successfully!" });
-      return;
-    } catch (error) {
-      logStream("error", error.message);
-      return res.status(500).json({
-        "success": false,
-        "code": "ERR_BAD_REQUEST",
-        "message": error.message,
-      });
-    }
-  }
-
-  /**
-   * Update the isABDMLinked attribute by visitUUID
-   * @param {req} object
-   * @param {res} object
-   * @param {next} function
-   */
-  this.updateVisitAttribute = async (req, res, next) => {
-    try {
-      const { visitUUID } = req.body
-      logStream("debug", 'Calling Post API to update the visit attributes isABDMLinked', 'updateVisitAttribute');
-
-      const response = await openmrsService.postAttribute(visitUUID,
-        {
-          attributeType: '8ac6b1c7-c781-494a-b4ef-fb7d7632874f', /** Visit Attribute Type for isABDMLinked */
-          value: true
-        }
-      );
-
-      if (!response.success) {
-        throw new Error(response.message);
-      }
-      logStream("debug", 'Got API Response', 'updateVisitAttribute');
-
-      res.json(response);
-      return;
-    } catch (error) {
-      logStream("error", error.message);
-      return res.status(500).json({
-        "success": false,
-        "code": "ERR_BAD_REQUEST",
-        "message": error.message,
-      });
-    }
-  }
-  /**************************************************************************************************
-    END of Code to remove 
-  **************************************************************************************************/
-
-  /**
-  * Linking Care Context to ABDM portal
-  * @param {req} object
-  * @param {res} object
-  * @param {next} function
-  */
-  this.postLinkCareContext = async (req, res, next) => {
+  this.linkCareContextByAbhaDetail = async (reqParams) => {
     try {
       const {
         visitUUID,
@@ -779,19 +592,19 @@ module.exports = (function () {
         abhaNumber,
         personDisplay,
         startDatetime,
-        encounterUUID
-      } = req.body
+        encounterUUID,
+        openMRSID,
+      } = reqParams;
 
-      logStream("debug", 'Calling Post API to Post Link Care Context to Abha', 'postLinkCareContext');
       const uniquId = uuid();
-      const requestParam = {
+      const requestObj = {
         'requestId': uniquId,
-        'requesterId': 'IN2710001275',
+        'requesterId': process.env.ABDM_INTELEHEALTH_ID,
         "abhaNumber": abhaNumber,
         "abhaAddress": abhaAddress,
         'authMode': 'DEMOGRAPHICS',
         "patient": {
-          "referenceNumber": visitUUID,
+          "referenceNumber": openMRSID ?? visitUUID,
           "display": `OpConsult:${personDisplay}`,
           "careContexts": [
             {
@@ -803,29 +616,31 @@ module.exports = (function () {
           "count": 1
         }
       }
+
       const abdmResponse = await axiosInstance.post(
         process.env.POST_LINK_CARE_CONTEXT_URL,
-        requestParam,
+        requestObj,
         {
           headers: {
             ...this.getInitialHeaderrs(),
           },
         }
       );
-      logStream("debug", 'Got API Response From Link care context', 'axiosInstance.post');
 
+      logStream("debug", 'Got API Response From Link care context', 'axiosInstance.post');
       if (abdmResponse?.data?.code !== 202) {
-        throw abdmResponse?.data?.error ?? abdmResponse?.data ?? 'Something went wrong!';
+        throw abdmResponse?.data?.error ?? abdmResponse?.data ?? new Error('Something went wrong!');
       }
 
       logStream("debug", 'Calling Get API to check link status of care context', 'axiosInstance.get');
+
       const careContexts = await axiosInstance.get(
         process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + uniquId, {
         headers: {
           ...this.getInitialHeaderrs(),
         },
-      }
-      );
+      }).catch((err) => { });
+
       if (careContexts?.data?.error == null) {
         await openmrsService.postAttribute(visitUUID,
           {
@@ -834,13 +649,84 @@ module.exports = (function () {
           }
         );
       }
-      logStream("debug", 'Got API Response', 'postLinkCareContext');
 
-      res.json({ success: true, data: null, message: "Care context shared successfully!" });
-      return;
+      return { success: true, data: null, message: "Care context shared successfully!" };
+    } catch (error) {
+      logStream("error", error, "linkCareContextByAbhaDetail");
+      return { success: false, status: error.status ?? 500, data: null, message: error?.message ?? error }
+    }
+  }
+
+  /**
+   * Post SMS Notify to abdm which patient does not having abha details
+   * @param {Object} reqParams 
+   * @returns 
+   */
+  this.smsNotifyCareContext = async (reqParams) => {
+    try {
+      const uniquId = uuid();
+      const requestParam = {
+        'requestId': uniquId,
+        "timestamp": this.getTimestamp(),
+        "notification": {
+          "phoneNo": reqParams?.mobileNumber,
+          "hip": {
+            "name": "Intelehealth Telemedicine",
+            "id": process.env.ABDM_INTELEHEALTH_ID
+          }
+        }
+      }
+      logStream("debug", 'Calling /v1/sms/verify request to abdm', 'axiosInstance.post');
+
+      const abdmResponse = await axiosInstance.post(
+        process.env.POST_SMS_NOTIFY_URL,
+        requestParam,
+        {
+          headers: {
+            ...this.getInitialHeaderrs(),
+          },
+        }
+      );
+
+      logStream("debug", 'Got API Response From SMS verify', 'axiosInstance.post');
+      if (abdmResponse?.data?.httpStatusCode !== 'ACCEPTED') {
+        throw abdmResponse?.data?.error ?? abdmResponse?.data ?? new Error('Something went wrong!');
+      }
+      return { success: true, data: abdmResponse?.data, message: "Care context sms notified successfully." }
+    } catch (error) {
+      logStream("error", error, "smsNotifyCareContext");
+      return { success: false, status: error.status ?? 500, data: null, message: error?.data?.message ?? error?.message ?? error }
+    }
+  }
+
+  /**
+  * Linking Care Context to ABDM portal
+  * @param {req} object
+  * @param {res} object
+  * @param {next} function
+  */
+  this.postLinkCareContext = async (req, res, next) => {
+    try {
+      const {
+        abhaAddress,
+        abhaNumber,
+        mobileNumber
+      } = req.body
+      logStream("debug", 'Calling Post API to Post Link Care Context to Abha', 'postLinkCareContext');
+      let response = { success: false, status: 500, message: "Something went wrong!" };
+      if (Boolean(abhaAddress) || Boolean(abhaNumber)) {
+        response = await this.linkCareContextByAbhaDetail(req.body);
+      } else if (Boolean(mobileNumber)) {
+        response = await this.smsNotifyCareContext(req.body);
+      }
+      if (!response?.success) {
+        throw response;
+      }
+      logStream("debug", 'Got API Response', 'postLinkCareContext');
+      return res.json(response);
     } catch (error) {
       logStream("error", error);
-      return res.status(500).json({
+      return res.status(200).json({
         "success": false,
         "code": "ERR_BAD_REQUEST",
         "message": error?.message,
