@@ -58,18 +58,6 @@ router.post("/profile", [authMiddleware, xTokenMiddleware, validate(getProfileSc
 
 router.get("/getCard", [authMiddleware, xTokenMiddleware, getCard]);
 
-/**************************************************************************************************
-   TODO: Need to remove this once abdm functionality is done. Start
-**************************************************************************************************/
-router.post("/generate-link-token", [validate(generateLinkTokenSchema), generateLinkToken]);
-
-router.post("/share-care-context", [validate(shareCareContextSchema), shareCareContext]);
-
-router.post("/update-visit-attribute", [validate(updateVisitAttributeSchema), updateVisitAttribute])
-
-/**************************************************************************************************
-   End to remove the code
-**************************************************************************************************/
 router.post("/post-care-context", [validate(postLinkCareContextSchema), postLinkCareContext])
 
 router.post("/patient-discover", patientDiscover)
