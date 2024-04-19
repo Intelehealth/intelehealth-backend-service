@@ -52,7 +52,6 @@ module.exports = function (server) {
   }
 
   async function sendCallNotification(data) {
-    console.log("data: ", data);
     const title = `${data.nurseName} is calling...`;
 
     const subscriptions = await pushnotifications.findAll({
