@@ -677,7 +677,7 @@ module.exports = (function () {
         }
       }
       logStream("debug", 'Calling /v1/sms/verify request to abdm', 'axiosInstance.post');
-      console.log("requestParam", requestParam)
+
       const abdmResponse = await axiosInstance.post(
         process.env.POST_SMS_NOTIFY_URL,
         requestParam,
@@ -687,6 +687,7 @@ module.exports = (function () {
           },
         }
       );
+
       logStream("debug", 'Got API Response From SMS verify', 'axiosInstance.post');
       if (abdmResponse?.data?.httpStatusCode !== 'ACCEPTED') {
         throw abdmResponse?.data?.error ?? abdmResponse?.data ?? new Error('Something went wrong!');
@@ -694,7 +695,7 @@ module.exports = (function () {
       return { success: true, data: abdmResponse?.data, message: "Care context sms notified successfully." }
     } catch (error) {
       logStream("error", error, "smsNotifyCareContext");
-      return { success: false, status: error.status ?? 500, data: null, message: error?.message ?? error }
+      return { success: false, status: error.status ?? 500, data: null, message: error?.data?.message ?? error?.message ?? error }
     }
   }
 
