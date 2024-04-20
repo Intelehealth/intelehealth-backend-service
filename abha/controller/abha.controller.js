@@ -641,13 +641,13 @@ module.exports = (function () {
         },
       }).catch((err) => { });
 
-      if (careContexts?.data?.error == null) {
+      if (!careContexts?.data?.error) {
         await openmrsService.postAttribute(visitUUID,
           {
             attributeType: '8ac6b1c7-c781-494a-b4ef-fb7d7632874f', /** Visit Attribute Type for isABDMLinked */
             value: true
           }
-        );
+        ).catch((err) => { });
       }
 
       return { success: true, data: null, message: "Care context shared successfully!" };
@@ -692,6 +692,14 @@ module.exports = (function () {
       if (abdmResponse?.data?.httpStatusCode !== 'ACCEPTED') {
         throw abdmResponse?.data?.error ?? abdmResponse?.data ?? new Error('Something went wrong!');
       }
+
+      await openmrsService.postAttribute(reqParams?.visitUUID,
+        {
+          attributeType: '8ac6b1c7-c781-494a-b4ef-fb7d7632874f', /** Visit Attribute Type for isABDMLinked */
+          value: true
+        }
+      ).catch((err) => { });
+
       return { success: true, data: abdmResponse?.data, message: "Care context sms notified successfully." }
     } catch (error) {
       logStream("error", error, "smsNotifyCareContext");
