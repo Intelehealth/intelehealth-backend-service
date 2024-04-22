@@ -592,7 +592,6 @@ module.exports = (function () {
         abhaNumber,
         personDisplay,
         startDatetime,
-        encounterUUID,
         openMRSID,
       } = reqParams;
 
@@ -604,11 +603,11 @@ module.exports = (function () {
         "abhaAddress": abhaAddress,
         'authMode': 'DEMOGRAPHICS',
         "patient": {
-          "referenceNumber": openMRSID ?? visitUUID,
+          "referenceNumber": openMRSID,
           "display": `OpConsult:${personDisplay}`,
           "careContexts": [
             {
-              "referenceNumber": encounterUUID,
+              "referenceNumber": visitUUID,
               "display": `${personDisplay} OpConsult-1 on ${convertDateToDDMMYYYY(startDatetime)}`
             }
           ],
@@ -693,13 +692,6 @@ module.exports = (function () {
         throw abdmResponse?.data?.error ?? abdmResponse?.data ?? new Error('Something went wrong!');
       }
 
-      await openmrsService.postAttribute(reqParams?.visitUUID,
-        {
-          attributeType: '8ac6b1c7-c781-494a-b4ef-fb7d7632874f', /** Visit Attribute Type for isABDMLinked */
-          value: true
-        }
-      ).catch((err) => { });
-
       return { success: true, data: abdmResponse?.data, message: "Care context sms notified successfully." }
     } catch (error) {
       logStream("error", error, "smsNotifyCareContext");
@@ -734,7 +726,7 @@ module.exports = (function () {
       return res.json(response);
     } catch (error) {
       logStream("error", error);
-      return res.status(200).json({
+      return res.status(500).json({
         "success": false,
         "code": "ERR_BAD_REQUEST",
         "message": error?.message,

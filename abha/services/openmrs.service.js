@@ -15,7 +15,7 @@ function getFormatedResponse({ visits, patientInfo }) {
   const openMRSId = patient_identifier?.find((identifier) => identifier?.identifier_type === 3)?.identifier ?? '';
   const careContexts = visits?.map((visit) => {
     return {
-      "referenceNumber": visit?.encounters?.[0]?.uuid,
+      "referenceNumber": visit?.uuid,
       "display": `${patient_name?.given_name} ${patient_name?.family_name} OpConsult-1 on ${convertDateToDDMMYYYY(visit?.date_started)}`
     }
   });
