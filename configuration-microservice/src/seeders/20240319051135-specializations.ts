@@ -59,11 +59,11 @@ module.exports = {
         { name: 'Pediatric Surgeon', key: 'pediatric_surgeon', is_enabled: false },
         { name: 'Plastic Surgeon', key: 'plastic_surgeon', is_enabled: false },
         { name: 'Hematologist or Clinical Hematologist', key: 'hematologist_or_clinical_hematologist', is_enabled: false },
-        { name: 'Child & Adolescent Psychiatrist', key: 'child_&_adolescent_psychiatrist', is_enabled: false },
+        { name: 'Child & Adolescent Psychiatrist', key: 'child_and_adolescent_psychiatrist', is_enabled: false },
         { name: 'Pediatric Gastroenterologist', key: 'pediatric_gastroenterologist', is_enabled: false },
         { name: 'Emergency Physician or Emergency Medicine Specialist', key: 'emergency_physician_or_emergency_medicine_specialist', is_enabled: false },
         { name: 'Hepatologist', key: 'hepatologist', is_enabled: false },
-        { name: 'Head & Neck Surgeon', key: 'head_&_neck_surgeon', is_enabled: false },
+        { name: 'Head & Neck Surgeon', key: 'head_and_neck_surgeon', is_enabled: false },
         { name: 'Pediatric Orthopedician', key: 'pediatric_orthopedician', is_enabled: false }
       ]);
     }),
