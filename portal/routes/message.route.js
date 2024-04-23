@@ -8,7 +8,7 @@ const {
   getPatientMessageList,
   readMessagesById,
   getVisits,
-  // upload,
+  sendSMS,
 } = require("../controllers/message.controller");
 // const { fileParser } = require("../handlers/file.handler");
 

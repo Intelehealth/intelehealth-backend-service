@@ -389,10 +389,10 @@ module.exports = (function () {
       await axiosKaleyra
         .post("/v1/HXIN1739030324IN/messages", payload, axiosOptions)
         .catch(function (error) {
-          log(error);
+          console.log(error);
         });
     } catch (error) {
-      log("error: ", error);
+      console.log("error: ", error);
     }
   };
 
