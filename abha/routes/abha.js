@@ -10,9 +10,6 @@ const {
     getEnrollOTPReq,
     getProfile,
     getCard,
-    generateLinkToken,
-    shareCareContext,
-    updateVisitAttribute,
     postLinkCareContext,
     patientDiscover
 } = require("../controller/abha.controller");
@@ -25,9 +22,6 @@ const {
     preferAddressSchema,
     getAbhaNumberSchema,
     getProfileSchema,
-    generateLinkTokenSchema,
-    shareCareContextSchema,
-    updateVisitAttributeSchema,
     postLinkCareContextSchema
 } = require("../schema/index");
 
@@ -58,8 +52,10 @@ router.post("/profile", [authMiddleware, xTokenMiddleware, validate(getProfileSc
 
 router.get("/getCard", [authMiddleware, xTokenMiddleware, getCard]);
 
-router.post("/post-care-context", [validate(postLinkCareContextSchema), postLinkCareContext])
+router.post("/post-care-context", [validate(postLinkCareContextSchema), postLinkCareContext]);
 
-router.post("/patient-discover", patientDiscover)
+router.post("/patient-discover", patientDiscover);
+
+router.get("/visit/carecontext/:visitUUID", getVisitCareContext)
 
 module.exports = router;
