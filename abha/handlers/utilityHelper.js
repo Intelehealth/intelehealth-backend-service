@@ -82,7 +82,6 @@ function getEncounters(encounters) {
         if (enc.encounterType.display === visitTypes.ADULTINITIAL) {
             enc.obs.forEach((obs) => {
                 if (obs.concept.display === visitTypes.CURRENT_COMPLAINT) {
-                    console.log(obs.value)
                     const currentComplaint = getData(obs)?.value.split('<b>');
                     for (let i = 0; i < currentComplaint.length; i++) {
                         if (currentComplaint[i] && currentComplaint[i].length > 1) {
@@ -201,7 +200,6 @@ function getEncounters(encounters) {
     let Procedure = diagnosis ?? procedures ?? undefined;
     if (diagnosis && procedures) Procedure = `${diagnosis}\n${procedures}`;
     const ChiefComplaints = [...cheifComplaints, ...checkUpReasonData];
-
     return {
         ChiefComplaints: ChiefComplaints.length ? ChiefComplaints?.join('\n') : undefined,
         PhysicalExamination: physicalExaminationData?.length ? physicalExaminationData.join('\n') : undefined,
