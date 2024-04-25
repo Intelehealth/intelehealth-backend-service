@@ -787,6 +787,7 @@ module.exports = (function () {
       return;
     } catch (error) {
       logStream("error", error);
+      if(!error.code) error.code = 500
       return next(error);
     }
   }
