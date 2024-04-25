@@ -142,12 +142,16 @@ module.exports = (function () {
       const visit = await openmrsAxiosInstance.get(url);
       return {
         success: true,
+        code: 200,
+        status: 200,
         data: visit?.data,
         message: "Visit retrived successfully!",
       };
     } catch (error) {
       return {
         success: false,
+        status: error?.status ?? 500,
+        code: error?.code,
         message: error.message,
       };
     }

@@ -56,6 +56,8 @@ router.post("/post-care-context", [validate(postLinkCareContextSchema), postLink
 
 router.post("/patient-discover", patientDiscover);
 
+router.post("/visit/carecontext", getVisitCareContext)
+
 router.get("/visit/carecontext/:visitUUID", getVisitCareContext)
 
 module.exports = router;
