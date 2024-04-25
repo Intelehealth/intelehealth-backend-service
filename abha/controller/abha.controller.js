@@ -9,7 +9,7 @@ const encryptRsa = new EncryptRsa();
 
 const { uuid } = require('uuidv4');
 const openmrsService = require("../services/openmrs.service");
-const { convertDateToDDMMYYYY } = require("../handlers/utilityHelper");
+const { convertDateToDDMMYYYY, formatCareContextResponse } = require("../handlers/utilityHelper");
 
 
 module.exports = (function () {
@@ -753,6 +753,7 @@ module.exports = (function () {
       }
 
       const patientInfo = await openmrsService.getVisitBySearch(req.body.patient)
+      logStream("debug", 'Got Response of patient info', 'openmrsService.getVisitBySearch');
       if (!patientInfo) {
         return res.status(404).json({
           "success": false,
@@ -760,7 +761,8 @@ module.exports = (function () {
           "message": 'Care context information is not found with provided details!.',
         });
       }
-      res.json({ success: true, data: patientInfo, message: "Care context shared successfully!" });
+      logStream("debug", 'Got Response of patient info', 'patientDiscover');
+      res.json(patientInfo);
       return;
     } catch (error) {
       logStream("error", error);
@@ -771,5 +773,24 @@ module.exports = (function () {
       });
     }
   }
+
+  /**
+   * Return Visit care context to ABDM portal
+   */
+  this.getVisitCareContext = async (req, res, next) => {
+    try {
+      logStream("debug", 'Got Get Request to fetch visit detail by visit Id', 'getVisitCareContext');
+      const visitUUID = req.params.visitUUID;
+      const response = await openmrsService.getVisitByUUID(visitUUID);
+      if(!response.success) throw new Error(response.message);
+      res.json(formatCareContextResponse(response?.data));
+      return;
+    } catch (error) {
+      logStream("error", error);
+      if(!error.code) error.code = 500
+      return next(error);
+    }
+  }
+
   return this;
 })();

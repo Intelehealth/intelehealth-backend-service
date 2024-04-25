@@ -43,7 +43,7 @@ async function getVisitByAbhaDetails(whereParams) {
     where: whereParams
   });
   if (!patientIdentifier) return null;
-  const data = await this.getVisitsByPatientId(patientIdentifier.patient_id);
+  const data = await this.getVisitsByPatientId(patientIdentifier.patient_id, true);
   return getFormatedResponse(data);
 
 }
@@ -138,15 +138,8 @@ module.exports = (function () {
   */
   this.getVisitByUUID = async (visitUUID) => {
     try {
-      if (!visitUUID) {
-        throw new Error(
-          "visitUUID is required."
-        );
-      }
-
-      const url = `/ws/rest/v1/visit/${visitUUID}?v=custom:(location:(display),uuid,display,startDatetime,dateCreated,stopDatetime,encounters:(display,uuid,encounterDatetime,encounterType:(display),obs:(display,uuid,value,concept:(uuid,display)),encounterProviders:(display,provider:(uuid,attributes,person:(uuid,display,gender,age)))),patient:(uuid,identifiers:(identifier,identifierType:(name,uuid,display)),attributes,person:(display,gender,age)),attributes)`;
+      const url = `/ws/rest/v1/visit/${visitUUID}?v=custom:(location:(display),uuid,display,startDatetime,dateCreated,stopDatetime,encounters:(display,uuid,encounterDatetime,encounterType:(display),obs:(display,uuid,value,concept:(uuid,display)),encounterProviders:(display,provider:(uuid,providerId,attributes,person:(uuid,display,gender,age)))),patient:(uuid,identifiers:(identifier,identifierType:(name,uuid,display)),attributes,person:(display,gender,age)),attributes)`;
       const visit = await openmrsAxiosInstance.get(url);
-
       return {
         success: true,
         data: visit?.data,
@@ -188,6 +181,7 @@ module.exports = (function () {
 
   /**
    * Get visits by abhaAddress and mobile numbers
+   * @param { object } params
    */
   this.getVisitBySearch = async (params) => {
     try {
@@ -215,9 +209,15 @@ module.exports = (function () {
       return null;
     }
   };
-  this.getVisitsByPatientId = async (patientId) => {
+
+  /**
+   * @param {number} patientId 
+   * @param {boolean} hasAbhaDetail
+   * @returns - patient visits
+   */
+  this.getVisitsByPatientId = async (patientId, hasAbhaDetail = false) => {
     const patientInfo = await getPatientInfo(patientId);
-    const visits = await visit.findAll({
+    const query = {
       where: {
         patient_id: { [Op.eq]: patientId },
       },
@@ -239,32 +239,24 @@ module.exports = (function () {
               }
             }]
           },
-        },
-        {
-          model: visit_attribute,
-          as: "attributes",
-          attributes: ["attribute_type_id"],
-          where: {
-            [Op.or]: [
-              {
-                "attribute_type_id": { [Op.ne]: 10 }
-              },
-              {
-                [Op.and]: [
-                  {
-                    "attribute_type_id": { [Op.eq]: 10 }
-                  },
-                  {
-                    "value_reference": { [Op.eq]: false }
-                  }
-                ]
-              }
-            ]
-          }
         }
       ],
       order: [["visit_id", "DESC"]]
-    });
+    };
+
+    if (hasAbhaDetail) {
+      query.include.push({
+        model: visit_attribute,
+        as: "attributes",
+        attributes: ["attribute_type_id", "value_reference"],
+        where: {
+          "attribute_type_id": { [Op.eq]: 10 },
+          "value_reference": { [Op.eq]: false }
+        }
+      })
+    }
+
+    const visits = await visit.findAll(query);
     return { visits: visits?.length ? visits : null, patientInfo: patientInfo };
   };
   return this;
