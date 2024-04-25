@@ -783,7 +783,7 @@ module.exports = (function () {
       const visitUUID = req.params.visitUUID;
       const response = await openmrsService.getVisitByUUID(visitUUID);
       if(!response.success) throw new Error(response.message);
-      res.json({ success: true, data: formatCareContextResponse(response?.data), message: "Care context retrived successfully!" });
+      res.json(formatCareContextResponse(response?.data));
       return;
     } catch (error) {
       logStream("error", error);

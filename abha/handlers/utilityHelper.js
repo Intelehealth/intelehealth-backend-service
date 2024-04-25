@@ -1,12 +1,12 @@
 function convertDateToDDMMYYYY(inputFormat) {
-    if(!inputFormat) return undefined
+    if (!inputFormat) return undefined
     function pad(s) { return (s < 10) ? '0' + s : s; }
     var d = new Date(inputFormat)
     return [pad(d.getDate()), pad(d.getMonth() + 1), d.getFullYear()].join('/')
 }
 
 function convertDateToYYYYMMDD(inputFormat) {
-    if(!inputFormat) return undefined
+    if (!inputFormat) return undefined
     function pad(s) { return (s < 10) ? '0' + s : s; }
     var d = new Date(inputFormat)
     return [d.getFullYear(), pad(d.getMonth() + 1), pad(d.getDate())].join('-')
@@ -39,9 +39,14 @@ function getGender(gender) {
     return ''
 }
 
+function appendStr(existStr, newStr) {
+    if (!existStr) return newStr;
+    return existStr += `\n${newStr}`;
+}
+
 function getEncounters(encounters) {
     const visitTypes = {
-        ASSOCIATED_SYMPTOMS:'Associated symptoms',
+        ASSOCIATED_SYMPTOMS: 'Associated symptoms',
         ADULTINITIAL: 'ADULTINITIAL',
         CURRENT_COMPLAINT: 'CURRENT COMPLAINT',
         FLAGGED: 'Flagged',
@@ -87,7 +92,7 @@ function getEncounters(encounters) {
                             }
                             const splitByBr = currentComplaint[i].split('<br/>');
                             if (splitByBr[0].includes(visitTypes.ASSOCIATED_SYMPTOMS)) {
-                                 for (let j = 1; j < splitByBr.length; j = j + 2) {
+                                for (let j = 1; j < splitByBr.length; j = j + 2) {
                                     if (splitByBr[j].trim() && splitByBr[j].trim().length > 1) {
                                         const key = splitByBr[j].replace('• ', '').replace(' -', '');
                                         const value = splitByBr[j + 1];
@@ -126,7 +131,7 @@ function getEncounters(encounters) {
                                     if (splitByBr[k].trim()) {
                                         const splitByDash = splitByBr[k].split('-');
                                         const key = splitByDash[0].replace('• ', '');
-                                        const value = splitByDash.slice(1, splitByDash.length).join('-'); 
+                                        const value = splitByDash.slice(1, splitByDash.length).join('-');
                                         physicalExaminationData.push(`${title}:${key}:${value}`);
                                     }
                                 }
@@ -153,7 +158,7 @@ function getEncounters(encounters) {
                                 splitByDot.forEach(element => {
                                     if (element.trim()) {
                                         const splitByComma = element.split(',');
-                                        const key =  splitByComma.shift().trim();
+                                        const key = splitByComma.shift().trim();
                                         const value = splitByComma.length ? splitByComma.toString().trim() : " ";
                                         medicalHistoryData.push(`${key}:${value}`);
                                     }
@@ -167,45 +172,49 @@ function getEncounters(encounters) {
                 }
             });
         } else if (enc.encounterType.display === visitTypes.VITALS) {
-             enc.obs.forEach((obs) => {
-                otherObservations += otherObservations ? `\n ${obs.display}`: obs.display;
+            enc.obs.forEach((obs) => {
+                otherObservations = appendStr(otherObservations, obs.display);
             });
         } else if (enc.encounterType.display === visitTypes.VISIT_NOTE) {
             enc.obs.forEach((obs) => {
                 if (obs.concept.display === visitTypes.FOLLOW_UP_VISIT) {
                     folloupVisit = obs.value;
                 } else if (obs.concept.display === visitTypes.JSV_MEDICATIONS) {
-                    medications += medications ? ` \n ${obs.value}` : obs.value;
+                    medications = appendStr(medications, obs.value);
                 } else if (obs.concept.display === visitTypes.REFERRAL) {
-                    referrals += referrals ? ` \n ${obs.value}`: obs.value;
+                    referrals = appendStr(referrals, obs.value);
                 } else if (obs.concept.display === visitTypes.TELEMEDICINE_DIAGNOSIS) {
-                    diagnosis += diagnosis? ` \n ${obs.value}`: obs.value
+                    diagnosis = appendStr(diagnosis, obs.value);
                 } else if (obs.concept.display === visitTypes.MEDICAL_ADVICE) {
-                    investigationAdvice += investigationAdvice ? ` \n ${obs.value}`: obs.value;
+                    investigationAdvice = appendStr(investigationAdvice, obs.value);
                 } else if (obs.concept.display === visitTypes.REQUESTED_TESTS) {
-                    procedures += procedures ? ` \n ${obs.value}` : obs.value;
-                } 
+                    procedures = appendStr(procedures, obs.value);
+                }
             })
         } else if (enc.encounterType.display === visitTypes.ATTACHMENT_UPLOAD) {
             enc.obs.forEach((obs) => {
-                documentReferences += ` \nhttps://dev.intelehealth.org/openmrs/ws/rest/v1/obs/${obs.uuid}/value`
+                documentReferences = appendStr(documentReferences, `\nhttps://dev.intelehealth.org/openmrs/ws/rest/v1/obs/${obs.uuid}/value`)
             })
         }
     });
+
+    let Procedure = diagnosis ?? procedures ?? undefined;
+    if (diagnosis && procedures) Procedure = `${diagnosis}\n${procedures}`;
+    const ChiefComplaints = [...cheifComplaints, ...checkUpReasonData];
+
     return {
-        cheifComplaints : cheifComplaints?.length ? cheifComplaints.join('\n') : undefined,
-        checkUpReasonData: checkUpReasonData?.length ? checkUpReasonData.join('\n') : undefined,
-        physicalExaminationData: physicalExaminationData?.length ? physicalExaminationData.join('\n') : undefined,
-        medicalHistoryData: medicalHistoryData?.length ? medicalHistoryData.join('\n') : undefined,
-        familyHistoryData: familyHistoryData?.length ? familyHistoryData.join('\n') : undefined,
-        medications: medications?? undefined,
-        diagnosis: diagnosis ?? undefined,
-        investigationAdvice: investigationAdvice?? undefined,
-        referrals: referrals ?? undefined,
-        procedures: procedures ?? undefined,
-        otherObservations: otherObservations ?? undefined,
-        documentReferences: documentReferences ?? undefined,
-        folloupVisit
+        ChiefComplaints: ChiefComplaints.length ? ChiefComplaints?.join('\n') : undefined,
+        PhysicalExamination: physicalExaminationData?.length ? physicalExaminationData.join('\n') : undefined,
+        MedicalHistory: medicalHistoryData?.length ? medicalHistoryData.join('\n') : undefined,
+        FamilyHistory: familyHistoryData?.length ? familyHistoryData.join('\n') : undefined,
+        Medications: medications ?? undefined,
+        InvestigationAdvice: investigationAdvice ?? undefined,
+        Referral: referrals ?? undefined,
+        Procedure: Procedure,
+        OtherObservations: otherObservations ?? undefined,
+        DocumentReference: documentReferences ?? undefined,
+        FollowUp: folloupVisit,
+        Allergies: undefined,
     }
 }
 
@@ -213,10 +222,10 @@ function getDoctorDetail(encounters) {
     const encounter = encounters?.find((encounter) => ["Visit Complete", "Visit Note"].includes(encounter?.encounterType?.display));
     const doctor = encounter?.encounterProviders?.[0]?.provider;
     return {
-        "name": doctor?.person?.display,
+        "name": doctor?.person?.display ?? '',
         "gender": getGender(doctor?.person?.gender),
-        "practitioner_id": doctor?.providerId,
-        "telecom": getAttributeByName(doctor?.attributes, 'phoneNumber')?.value,
+        "practitioner_id": doctor?.providerId ?? '',
+        "telecom": getAttributeByName(doctor?.attributes, 'phoneNumber')?.value ?? '',
     }
 }
 
@@ -231,21 +240,10 @@ function formatCareContextResponse(response) {
         },
         "practitioner": getDoctorDetail(response?.encounters),
         "date": convertDateToYYYYMMDD(response?.startDatetime),
-        "ChiefComplaints": "sample text",
-        "PhysicalExamination": "sample text",
-        "Allergies": "sample text",
-        "MedicalHistory": "sample text",
-        "FamilyHistory": "sample text",
-        "InvestigationAdvice": "sample text",
-        "Medications": "sample text",
-        "FollowUp": "sample text",
-        "Procedure": "sample text",
-        "Referral": "sample text",
-        "OtherObservations": "sample text",
-        "DocumentReference": "sample text",
+        ...getEncounters(response?.encounters)
     };
-    
-    return {...formattedResponse, ...getEncounters(response?.encounters) };
+
+    return formattedResponse;
 }
 
 module.exports = {
