@@ -6,4 +6,6 @@
 /config/serviceAccountKey.json
 /livekit-token-microservice/node_modules*
 .env
-portal/node_modules
+.pem/
+logs/
+*.log
