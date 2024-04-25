@@ -780,7 +780,7 @@ module.exports = (function () {
   this.getVisitCareContext = async (req, res, next) => {
     try {
       logStream("debug", 'Got Get Request to fetch visit detail by visit Id', 'getVisitCareContext');
-      const visitUUID = req.params.visitUUID;
+      const visitUUID = req.body.visitUUID ?? req.params.visitUUID;
       const response = await openmrsService.getVisitByUUID(visitUUID);
       if(!response.success) throw new Error(response.message);
       res.json(formatCareContextResponse(response?.data));
