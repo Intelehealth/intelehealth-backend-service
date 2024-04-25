@@ -762,7 +762,7 @@ module.exports = (function () {
         });
       }
       logStream("debug", 'Got Response of patient info', 'patientDiscover');
-      res.json({ success: true, data: patientInfo, message: "Care context shared successfully!" });
+      res.json(patientInfo);
       return;
     } catch (error) {
       logStream("error", error);
