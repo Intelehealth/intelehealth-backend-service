@@ -36,6 +36,12 @@ module.exports = {
         { name: 'Social Category', section: 'Other', is_mandatory: false, is_editable: true, is_enabled: true, is_locked: false },
         { name: 'Education', section: 'Other', is_mandatory: true, is_editable: true, is_enabled: true, is_locked: true },
         { name: 'Economic Category', section: 'Other', is_mandatory: false, is_editable: false, is_enabled: true, is_locked: false },
+		
+		{ name: 'Guardian Type', section: 'Other', is_mandatory: false, is_editable: true, is_enabled: false, is_locked: false },
+        { name: 'Guardian Name', section: 'Other', is_mandatory: false, is_editable: true, is_enabled: false, is_locked: false },
+        { name: 'Emergency Contact Name', section: 'Other', is_mandatory: false, is_editable: true, is_enabled: false, is_locked: false },
+        { name: 'Emergency Contact Number', section: 'Other', is_mandatory: true, is_editable: true, is_enabled: false, is_locked: false },
+        { name: 'Emergency Contact Type', section: 'Other', is_mandatory: false, is_editable: true, is_enabled: false, is_locked: false },
       ]);
     }),
 

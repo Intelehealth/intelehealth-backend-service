@@ -62,7 +62,7 @@ async function publish(_: IReq, res: IRes) {
         );
     }
     const version = await ConfigService.getMaxIdPublish() ?? 0;
-    data.version = version + 1;
+    data['version'] = version + 1;
     // const tmpObj = tmp.dirSync({
     //     dir: path.join(__dirname, `publish-config`)
     // });

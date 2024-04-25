@@ -35,7 +35,12 @@ module.exports = {
               { name: 'Occupation', is_mandatory: false, is_editable: true, is_enabled: true },
               { name: 'Social Category', is_mandatory: false, is_editable: true, is_enabled: true },
               { name: 'Education', is_mandatory: true, is_editable: true, is_enabled: true },
-              { name: 'Economic Category', is_mandatory: false, is_editable: false, is_enabled: true }
+              { name: 'Economic Category', is_mandatory: false, is_editable: false, is_enabled: true },
+              { name: 'Guardian Type', is_mandatory: false, is_editable: true, is_enabled: false },
+              { name: 'Guardian Name', is_mandatory: false, is_editable: true, is_enabled: false },
+              { name: 'Emergency Contact Name', is_mandatory: false, is_editable: true, is_enabled: false },
+              { name: 'Emergency Contact Number', is_mandatory: true, is_editable: true, is_enabled: false },
+              { name: 'Emergency Contact Type', is_mandatory: false, is_editable: true, is_enabled: false }
             ]
           }),
           type: 'array',
@@ -64,7 +69,12 @@ module.exports = {
               { name: 'Occupation', is_mandatory: false, is_editable: true, is_enabled: true },
               { name: 'Social Category', is_mandatory: false, is_editable: true, is_enabled: true },
               { name: 'Education', is_mandatory: true, is_editable: true, is_enabled: true },
-              { name: 'Economic Category', is_mandatory: false, is_editable: false, is_enabled: true }
+              { name: 'Economic Category', is_mandatory: false, is_editable: false, is_enabled: true },
+              { name: 'Guardian Type', is_mandatory: false, is_editable: true, is_enabled: false },
+              { name: 'Guardian Name', is_mandatory: false, is_editable: true, is_enabled: false },
+              { name: 'Emergency Contact Name', is_mandatory: false, is_editable: true, is_enabled: false },
+              { name: 'Emergency Contact Number', is_mandatory: true, is_editable: true, is_enabled: false },
+              { name: 'Emergency Contact Type', is_mandatory: false, is_editable: true, is_enabled: false }
             ]
           })
         }

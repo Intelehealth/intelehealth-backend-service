@@ -26,7 +26,7 @@ module.exports = {
         { name: 'ENT Specialist', key: 'ent_specialist', is_enabled: false },
         { name: 'Ophthalmologist or Eye Specialist', key: 'ophthalmologist_or_eye_specialist', is_enabled: false },
         { name: 'Orthopedician', key: 'orthopedician', is_enabled: false },
-        { name: 'Pulmonologist or Chest Physician/Specialist ', key: 'pulmonologist_or_chest_physician/specialist_', is_enabled: false },
+        { name: 'Pulmonologist or Chest Physician/Specialist', key: 'pulmonologist_or_chest_physician_specialist', is_enabled: false },
         { name: 'Clinical Immunologist', key: 'clinical_immunologist', is_enabled: false },
         { name: 'Family Physician or Family Medicine Specialist', key: 'family_physician_or_family_medicine_specialist', is_enabled: false },
         { name: 'Geriatrician or Geriatrist', key: 'geriatrician_or_geriatrist', is_enabled: false },
