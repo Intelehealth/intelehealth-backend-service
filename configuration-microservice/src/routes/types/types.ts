@@ -15,6 +15,10 @@ export interface IReqQuery<T extends Query, U = void> extends e.Request {
   body: U;
 }
 
+export interface IReqUser<T = void> extends e.ExtendedRequest {
+  body: T;
+}
+
 export interface IRes extends e.Response {
   locals: {
     sessionUser: ISessionUser;

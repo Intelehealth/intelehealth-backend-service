@@ -2,6 +2,7 @@ import HttpStatusCodes from '@src/constants/HttpStatusCodes';
 
 import LanguageService from '@src/services/LanguageService';
 import { IReq, IRes } from './types/express/misc';
+import { IReqUser } from './types/types';
 
 // **** Functions **** //
 
@@ -16,19 +17,21 @@ async function getAll(_: IReq, res: IRes) {
 /**
  * Update language enabled status.
  */
-async function updateIsEnabled(req: IReq<{ is_enabled: boolean }>, res: IRes) {
+async function updateIsEnabled(req: IReqUser<{ is_enabled: boolean }>, res: IRes) {
     const { id } = req.params;
     const { is_enabled } = req.body;
-    await LanguageService.updateIsEnabled(id, is_enabled);
+    const { userId, name } = req.user.data;
+    await LanguageService.updateIsEnabled(id, is_enabled, userId, name);
     return res.status(HttpStatusCodes.OK).json({ success: true });
 }
 
 /**
  * Set language as default language.
  */
-async function setDefault(req: IReq, res: IRes) {
+async function setDefault(req: IReqUser, res: IRes) {
     const { id } = req.params;
-    await LanguageService.setDefault(id);
+    const { userId, name } = req.user.data;
+    await LanguageService.setDefault(id, userId, name);
     return res.status(HttpStatusCodes.OK).json({ success: true });
 }
 

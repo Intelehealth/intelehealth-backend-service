@@ -4,6 +4,7 @@ import { Table, Model, Column, CreatedAt, UpdatedAt, DeletedAt } from 'sequelize
 export interface PatientRegistrationAttributes {
   id: number;
   name: string;
+  key: string;
   section: string;
   is_mandatory: boolean;
   is_editable: boolean;
@@ -36,6 +37,13 @@ export class PatientRegistration extends Model<PatientRegistrationAttributes, Pa
         unique: true
     })
     name!: string;
+
+    @Column({
+        type: DataTypes.STRING,
+        allowNull: false,
+        unique: true
+    })
+    key!: string;
 
     @Column({
         type: DataTypes.ENUM,

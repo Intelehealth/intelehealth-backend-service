@@ -17,6 +17,11 @@ module.exports = {
               allowNull: false,
               unique: true
             },
+            key: {
+              type: DataTypes.STRING,
+              allowNull: false,
+              unique: true
+            },
             section: {
               type: DataTypes.ENUM,
               values: ['Personal','Address','Other'],

@@ -3,10 +3,10 @@ import { Table, Model, Column, CreatedAt, UpdatedAt, DeletedAt } from 'sequelize
 
 export interface AuditTrailAttributes {
   id: number;
-  user_id: number;
+  user_id: string;
+  user_name: string;
   activity_type: string;
   description?: string;
-  default_value: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -27,13 +27,19 @@ export class AuditTrail extends Model<AuditTrailAttributes, AuditTrailCreationAt
     id!: number;
 
     @Column({
-        type: DataTypes.INTEGER,
+        type: DataTypes.STRING,
         allowNull: false
     })
-    user_id!: number;
+    user_id!: string;
 
     @Column({
-        type: DataTypes.STRING,
+        type: DataTypes.STRING
+    })
+    user_name!: string;
+
+    @Column({
+        type: DataTypes.ENUM,
+        values: ['CONFIG PUBLISHED', 'SPECIALIZATION STATUS UPDATED', 'LANGUAGE STATUS UPDATED', 'LANGUAGE SET AS DEFAULT', 'PATIENT REGISTRATION FIELD STATUS UPDATED', 'PATIENT REGISTRATION FIELD MANDATORY STATUS UPDATED', 'PATIENT REGISTRATION FIELD EDITABLE STATUS UPDATED'],
         allowNull: false
     })
     activity_type!: string;

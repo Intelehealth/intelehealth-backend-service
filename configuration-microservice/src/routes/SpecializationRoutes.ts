@@ -2,6 +2,7 @@ import HttpStatusCodes from '@src/constants/HttpStatusCodes';
 
 import SpecializationService from '@src/services/SpecializationService';
 import { IReq, IRes } from './types/express/misc';
+import { IReqUser } from './types/types';
 
 // **** Functions **** //
 
@@ -22,10 +23,11 @@ async function getAll(_: IReq, res: IRes) {
 /**
  * Update specialization enabled status.
  */
-async function updateIsEnabled(req: IReq<{ is_enabled: boolean }>, res: IRes) {
+async function updateIsEnabled(req: IReqUser<{ is_enabled: boolean }>, res: IRes) {
     const { id } = req.params;
     const { is_enabled } = req.body;
-    await SpecializationService.updateIsEnabled(id, is_enabled);
+    const { userId, name } = req.user.data;
+    await SpecializationService.updateIsEnabled(id, is_enabled, userId, name);
     return res.status(HttpStatusCodes.OK).json({ success: true, data: null });
 }
 

@@ -4,6 +4,7 @@ import { Specialization } from '@src/models/specialization.model';
 import { Config } from '@src/models/dic_config.model';
 import { ProviderAttribute } from '@src/models/provider_attribute.model';
 import { Sequelize } from 'sequelize';
+import { AuditTrail } from '@src/models/audit_trail.model';
 
 
 // **** Variables **** //
@@ -28,7 +29,7 @@ function getAll(): Promise<Specialization[]> {
 /**
  * Update specialization enabled status..
  */
-async function updateIsEnabled(id: string, is_enabled: boolean): Promise<void> {
+async function updateIsEnabled(id: string, is_enabled: boolean, user_id: string, user_name: string): Promise<void> {
   const speciality = await Specialization.findOne({ where: { id } });
   if (!speciality) {
     throw new RouteError(
@@ -85,6 +86,9 @@ async function updateIsEnabled(id: string, is_enabled: boolean): Promise<void> {
 
   // Update dic_config specialization
   await Config.update({ value: JSON.stringify(enabledSpecializations), published: false }, { where: { key: 'specialization' } });
+
+  // Insert audit trail entry
+  await AuditTrail.create({ user_id, user_name, activity_type: 'SPECIALIZATION STATUS UPDATED', description: `${is_enabled ? 'Enabled':'Disabled'} "${speciality.name}" speciality.` });
 }
 
 /**

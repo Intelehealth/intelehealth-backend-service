@@ -2,6 +2,7 @@ import { RouteError } from '@src/other/classes';
 import HttpStatusCodes from '@src/constants/HttpStatusCodes';
 import { Config } from '@src/models/dic_config.model';
 import { Publish } from '@src/models/dic_publish.model';
+import { AuditTrail } from '@src/models/audit_trail.model';
 
 // **** Functions **** //
 
@@ -26,7 +27,7 @@ async function getPublishedConfig(): Promise<Publish|null> {
 /**
  * Publish config.
  */
-async function publish(name: string, path: string): Promise<void> {
+async function publish(name: string, path: string, user_id: string, user_name: string, version: number): Promise<void> {
   // Create publish record
   await Publish.create({
     name,
@@ -35,6 +36,9 @@ async function publish(name: string, path: string): Promise<void> {
 
   // Update dic_config
   await Config.update({ published: true }, { where: { published: false } });
+
+  // Insert audit trail entry
+  await AuditTrail.create({ user_id, user_name, activity_type: 'CONFIG PUBLISHED', description: `Config version ${version} published.` });
 }
 
 /**

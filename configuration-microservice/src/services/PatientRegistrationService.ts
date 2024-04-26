@@ -2,6 +2,7 @@ import { RouteError } from '@src/other/classes';
 import HttpStatusCodes from '@src/constants/HttpStatusCodes';
 import { Config } from '@src/models/dic_config.model';
 import { PatientRegistration } from '@src/models/patient_registration.model';
+import { AuditTrail } from '@src/models/audit_trail.model';
 
 
 // **** Variables **** //
@@ -17,7 +18,7 @@ export const CANT_UPDATE_ENABLED_STATUS_IF_LOCKED = 'Can not update enable statu
  */
 async function getAll(): Promise<any> {
     const prf = await PatientRegistration.findAll({
-        attributes: ['id', 'name', 'section', 'is_mandatory', 'is_editable', 'is_enabled', 'is_locked', 'createdAt', 'updatedAt'],
+        attributes: ['id', 'name', 'key', 'section', 'is_mandatory', 'is_editable', 'is_enabled', 'is_locked', 'createdAt', 'updatedAt'],
         raw: true
     });
     const grouped: any = {};
@@ -37,7 +38,7 @@ async function getAll(): Promise<any> {
 /**
  * Update patient registration mandatory status.
  */
-async function updateIsMandatory(id: string, is_mandatory: boolean): Promise<void> {
+async function updateIsMandatory(id: string, is_mandatory: boolean, user_id: string, user_name: string): Promise<void> {
     const prf = await PatientRegistration.findOne({ where: { id } });
     if (!prf) {
         throw new RouteError(
@@ -64,7 +65,7 @@ async function updateIsMandatory(id: string, is_mandatory: boolean): Promise<voi
 
     // Get all patient registration fields
     const prfs = await PatientRegistration.findAll({
-        attributes: ['name', 'is_mandatory', 'is_editable', 'is_enabled', 'section'],
+        attributes: ['name', 'key', 'is_mandatory', 'is_editable', 'is_enabled', 'section'],
         raw: true
     });
 
@@ -81,12 +82,15 @@ async function updateIsMandatory(id: string, is_mandatory: boolean): Promise<voi
 
     // Update dic_config patient_registration key
     await Config.update({ value: JSON.stringify(grouped), published: false }, { where: { key: 'patient_registration' } });
+
+    // Insert audit trail entry
+    await AuditTrail.create({ user_id, user_name, activity_type: 'PATIENT REGISTRATION FIELD MANDATORY STATUS UPDATED', description: `"${prf.name}" patient registration field marked as ${is_mandatory ? 'mandatory':'not mandatory'}.` });
 }
 
 /**
  * Update patient registration editable status.
  */
-async function updateIsEditable(id: string, is_editable: boolean): Promise<void> {
+async function updateIsEditable(id: string, is_editable: boolean, user_id: string, user_name: string): Promise<void> {
     const prf = await PatientRegistration.findOne({ where: { id } });
     if (!prf) {
         throw new RouteError(
@@ -105,7 +109,7 @@ async function updateIsEditable(id: string, is_editable: boolean): Promise<void>
 
     // Get all patient registration fields
     const prfs = await PatientRegistration.findAll({
-        attributes: ['name', 'is_mandatory', 'is_editable', 'is_enabled', 'section'],
+        attributes: ['name', 'key', 'is_mandatory', 'is_editable', 'is_enabled', 'section'],
         raw: true
     });
 
@@ -122,12 +126,15 @@ async function updateIsEditable(id: string, is_editable: boolean): Promise<void>
 
     // Update dic_config patient_registration key
     await Config.update({ value: JSON.stringify(grouped), published: false }, { where: { key: 'patient_registration' } });
+
+    // Insert audit trail entry
+    await AuditTrail.create({ user_id, user_name, activity_type: 'PATIENT REGISTRATION FIELD EDITABLE STATUS UPDATED', description: `"${prf.name}" patient registration field marked as ${is_editable ? 'editable':'not editable'}.` });
 }
 
 /**
  * Update patient registration enabled status.
  */
-async function updateIsEnabled(id: string, is_enabled: boolean): Promise<void> {
+async function updateIsEnabled(id: string, is_enabled: boolean, user_id: string, user_name: string): Promise<void> {
     const prf = await PatientRegistration.findOne({ where: { id } });
     if (!prf) {
         throw new RouteError(
@@ -154,7 +161,7 @@ async function updateIsEnabled(id: string, is_enabled: boolean): Promise<void> {
 
     // Get all patient registration fields
     const prfs = await PatientRegistration.findAll({
-        attributes: ['name', 'is_mandatory', 'is_editable', 'is_enabled', 'section'],
+        attributes: ['name', 'key', 'is_mandatory', 'is_editable', 'is_enabled', 'section'],
         raw: true
     });
 
@@ -171,6 +178,9 @@ async function updateIsEnabled(id: string, is_enabled: boolean): Promise<void> {
 
     // Update dic_config patient_registration key
     await Config.update({ value: JSON.stringify(grouped), published: false }, { where: { key: 'patient_registration' } });
+
+    // Insert audit trail entry
+    await AuditTrail.create({ user_id, user_name, activity_type: 'PATIENT REGISTRATION FIELD STATUS UPDATED', description: `${is_enabled ? 'Enabled':'Disabled'} "${prf.name}" patient registration field.` });
 }
 
 // **** Export default **** //

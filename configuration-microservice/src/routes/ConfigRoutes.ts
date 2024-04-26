@@ -6,6 +6,7 @@ import { IReq, IRes } from './types/express/misc';
 import fs from 'fs';
 import path from 'path';
 import { RouteError } from '@src/other/classes';
+import { IReqUser } from './types/types';
 
 // **** Variables **** //
 
@@ -45,7 +46,8 @@ async function getPublishedConfig(_: IReq, res: IRes) {
 /**
  * Publish config.
  */
-async function publish(_: IReq, res: IRes) {
+async function publish(req: IReqUser, res: IRes) {
+    const { userId, name } = req.user.data;
     const config = await ConfigService.getAll();
     const data: any = {};
     let flag = 0;
@@ -72,7 +74,7 @@ async function publish(_: IReq, res: IRes) {
     const outputFileExtension = `json`;
     const outputFileDir = `${tmpDir}/${outputFilename}.${outputFileExtension}`;
     await fs.writeFileSync(outputFileDir, JSON.stringify(data));
-    await ConfigService.publish(`${outputFilename}.${outputFileExtension}`, outputFileDir);
+    await ConfigService.publish(`${outputFilename}.${outputFileExtension}`, outputFileDir, userId, name, version + 1);
     return res.status(HttpStatusCodes.OK).json({success: true});
 }
 

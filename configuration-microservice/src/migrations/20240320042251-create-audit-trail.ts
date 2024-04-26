@@ -13,12 +13,15 @@ module.exports = {
               type: DataTypes.INTEGER,
             },
             user_id: {
-              type: DataTypes.INTEGER,
+              type: DataTypes.STRING,
               allowNull: false
+            },
+            user_name: {
+              type: DataTypes.STRING
             },
             activity_type: {
               type: DataTypes.ENUM,
-              values:['SPECIALIZATION STATUS UPDATED', 'LANGUAGE STATUS UPDATED']
+              values:['CONFIG PUBLISHED', 'SPECIALIZATION STATUS UPDATED', 'LANGUAGE STATUS UPDATED', 'LANGUAGE SET AS DEFAULT', 'PATIENT REGISTRATION FIELD STATUS UPDATED', 'PATIENT REGISTRATION FIELD MANDATORY STATUS UPDATED', 'PATIENT REGISTRATION FIELD EDITABLE STATUS UPDATED']
             },
             description: {
               type: DataTypes.TEXT,
