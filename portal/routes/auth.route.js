@@ -5,15 +5,14 @@ const {
   resetPassword,
   checkSession,
   rememberme,
-  checkProviderAttribute
+  checkProviderAttribute,
 } = require("../controllers/auth.controller");
-const authMiddleware = require("../middleware/auth");
 
-router.post("/requestOtp", [authMiddleware, requestOtp]);
-router.post("/verifyOtp", [authMiddleware, verifyOtp]);
-router.post("/resetPassword/:userUuid", [authMiddleware, resetPassword]);
-router.get("/check", [authMiddleware, checkSession]);
-router.post("/rememberme", [authMiddleware, rememberme]);
-router.post("/validateProviderAttribute", [authMiddleware, checkProviderAttribute]);
+router.post("/requestOtp", [requestOtp]);
+router.post("/verifyOtp", [verifyOtp]);
+router.post("/resetPassword/:userUuid", [resetPassword]);
+router.get("/check", [checkSession]);
+router.post("/rememberme", [rememberme]);
+router.post("/validateProviderAttribute", [checkProviderAttribute]);
 
 module.exports = router;
