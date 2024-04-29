@@ -222,7 +222,7 @@ function getDoctorDetail(encounters) {
     return {
         "name": doctor?.person?.display ?? '',
         "gender": getGender(doctor?.person?.gender),
-        "practitioner_id": doctor?.providerId ?? '',
+        "practitioner_id": doctor?.uuid ?? '',
         "telecom": getAttributeByName(doctor?.attributes, 'phoneNumber')?.value ?? '',
     }
 }
