@@ -65,6 +65,7 @@ module.exports = function (server) {
         webpush_obj: sub.notification_object,
         data: {
           url: `/intelehealth/index.html#/dashboard/elcg/${data.visitId}`,
+          focusOnly: true,
         },
         title: `${data.nurseName} is calling...`,
         body: "Incoming Video Call",
