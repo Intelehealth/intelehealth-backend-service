@@ -1,6 +1,10 @@
 const { user_settings, pushnotifications, sequelize } = require("../models");
 const { QueryTypes } = require("sequelize");
-const { getFirebaseAdmin, sendCloudNotification, sendWebPushNotification } = require("./helper");
+const {
+  getFirebaseAdmin,
+  sendCloudNotification,
+  sendWebPushNotification,
+} = require("./helper");
 const { deliveredById } = require("../services/message.service");
 
 const admin = getFirebaseAdmin();
@@ -52,17 +56,17 @@ module.exports = function (server) {
   }
 
   async function sendCallNotification(data) {
-    const title = `${data.nurseName} is calling...`;
-
     const subscriptions = await pushnotifications.findAll({
       where: { user_uuid: data.connectToDrId },
     });
 
     subscriptions.forEach(async (sub) => {
-      sendWebPushNotification({
+      await sendWebPushNotification({
         webpush_obj: sub.notification_object,
-        data: {},
-        title,
+        data: {
+          url: `/intelehealth/index.html#/dashboard/elcg/${data.visitId}`,
+        },
+        title: `${data.nurseName} is calling...`,
         body: "Incoming Video Call",
         options: {
           TTL: "36000",
