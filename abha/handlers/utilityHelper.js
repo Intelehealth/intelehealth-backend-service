@@ -160,12 +160,12 @@ function getEncounters(encounters) {
                                         const splitByComma = element.split(',');
                                         const key = splitByComma.shift().trim();
                                         const value = splitByComma.length ? splitByComma.toString().trim() : " ";
-                                        medicalHistoryData.push(`${key}:${value}`);
+                                        familyHistoryData.push(`${key}:${value}`);
                                     }
                                 });
                             } else {
                                 const key = familyHistory[i].replace('•', '').trim();
-                                medicalHistoryData.push(`${key}`);
+                                familyHistoryData.push(`${key}`);
                             }
                         }
                     }
