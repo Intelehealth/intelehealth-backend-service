@@ -62,7 +62,8 @@ function getEncounters(encounters) {
         REQUESTED_TESTS: 'REQUESTED TESTS',
         ADDITIONAL_COMMENTS: 'Additional Comments',
         FOLLOW_UP_VISIT: 'Follow up visit',
-        ATTACHMENT_UPLOAD: 'Attachment Upload'
+        ATTACHMENT_UPLOAD: 'Attachment Upload',
+        COMPLEX_IMAGE: "Complex Image"
     }
     let cheifComplaints = [],
         checkUpReasonData = [],
@@ -168,6 +169,8 @@ function getEncounters(encounters) {
                             }
                         }
                     }
+                } else if (obs.concept.display === visitTypes.COMPLEX_IMAGE) {
+                    documentReferences = appendStr(documentReferences, `https://${process.env.DOMAIN}/openmrs/ws/rest/v1/obs/${obs.uuid}/value`)
                 }
             });
         } else if (enc.encounterType.display === visitTypes.VITALS) {
@@ -192,7 +195,7 @@ function getEncounters(encounters) {
             })
         } else if (enc.encounterType.display === visitTypes.ATTACHMENT_UPLOAD) {
             enc.obs.forEach((obs) => {
-                documentReferences = appendStr(documentReferences, `\nhttps://dev.intelehealth.org/openmrs/ws/rest/v1/obs/${obs.uuid}/value`)
+                documentReferences = appendStr(documentReferences, `https://${process.env.DOMAIN}/openmrs/ws/rest/v1/obs/${obs.uuid}/value`)
             })
         }
     });
