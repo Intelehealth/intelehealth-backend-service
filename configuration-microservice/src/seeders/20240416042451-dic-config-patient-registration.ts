@@ -19,7 +19,12 @@ module.exports = {
               { name: 'Gender', key: 'p_gender', is_mandatory: true, is_editable: false, is_enabled: true },
               { name: 'Date of Birth', key: 'p_date_of_birth', is_mandatory: true, is_editable: false, is_enabled: true },
               { name: 'Age', key: 'p_age', is_mandatory: true, is_editable: false, is_enabled: true },
-              { name: 'Phone Number', key: 'p_phone_number', is_mandatory: true, is_editable: true, is_enabled: true }
+              { name: 'Phone Number', key: 'p_phone_number', is_mandatory: true, is_editable: true, is_enabled: true },
+              { name: 'Guardian Type', key: 'p_guardian_type', is_mandatory: false, is_editable: true, is_enabled: false },
+              { name: 'Guardian Name', key: 'p_guardian_name', is_mandatory: false, is_editable: true, is_enabled: false },
+              { name: 'Emergency Contact Name', key: 'p_emergency_contact_name', is_mandatory: false, is_editable: true, is_enabled: false },
+              { name: 'Emergency Contact Number', key: 'p_emergency_contact_number', is_mandatory: true, is_editable: true, is_enabled: false },
+              { name: 'Emergency Contact Type', key: 'p_emergency_contact_type', is_mandatory: false, is_editable: true, is_enabled: false }
             ],
             address: [
               { name: 'Postal Code', key: 'a_postal_address', is_mandatory: false, is_editable: false, is_enabled: true },
@@ -35,12 +40,7 @@ module.exports = {
               { name: 'Occupation', key: 'o_occupation', is_mandatory: false, is_editable: true, is_enabled: true },
               { name: 'Social Category', key: 'o_social_category', is_mandatory: false, is_editable: true, is_enabled: true },
               { name: 'Education', key: 'o_education', is_mandatory: true, is_editable: true, is_enabled: true },
-              { name: 'Economic Category', key: 'o_economic_category', is_mandatory: false, is_editable: false, is_enabled: true },
-              { name: 'Guardian Type', key: 'o_guardian_type', is_mandatory: false, is_editable: true, is_enabled: false },
-              { name: 'Guardian Name', key: 'o_guardian_name', is_mandatory: false, is_editable: true, is_enabled: false },
-              { name: 'Emergency Contact Name', key: 'o_emergency_contact_name', is_mandatory: false, is_editable: true, is_enabled: false },
-              { name: 'Emergency Contact Number', key: 'o_emergency_contact_number', is_mandatory: true, is_editable: true, is_enabled: false },
-              { name: 'Emergency Contact Type', key: 'o_emergency_contact_type', is_mandatory: false, is_editable: true, is_enabled: false }
+              { name: 'Economic Category', key: 'o_economic_category', is_mandatory: false, is_editable: false, is_enabled: true }
             ]
           }),
           type: 'array',
@@ -53,7 +53,12 @@ module.exports = {
               { name: 'Gender', key: 'p_gender', is_mandatory: true, is_editable: false, is_enabled: true },
               { name: 'Date of Birth', key: 'p_date_of_birth', is_mandatory: true, is_editable: false, is_enabled: true },
               { name: 'Age', key: 'p_age', is_mandatory: true, is_editable: false, is_enabled: true },
-              { name: 'Phone Number', key: 'p_phone_number', is_mandatory: true, is_editable: true, is_enabled: true }
+              { name: 'Phone Number', key: 'p_phone_number', is_mandatory: true, is_editable: true, is_enabled: true },
+              { name: 'Guardian Type', key: 'p_guardian_type', is_mandatory: false, is_editable: true, is_enabled: false },
+              { name: 'Guardian Name', key: 'p_guardian_name', is_mandatory: false, is_editable: true, is_enabled: false },
+              { name: 'Emergency Contact Name', key: 'p_emergency_contact_name', is_mandatory: false, is_editable: true, is_enabled: false },
+              { name: 'Emergency Contact Number', key: 'p_emergency_contact_number', is_mandatory: true, is_editable: true, is_enabled: false },
+              { name: 'Emergency Contact Type', key: 'p_emergency_contact_type', is_mandatory: false, is_editable: true, is_enabled: false }
             ],
             address: [
               { name: 'Postal Code', key: 'a_postal_address', is_mandatory: false, is_editable: false, is_enabled: true },
@@ -69,12 +74,7 @@ module.exports = {
               { name: 'Occupation', key: 'o_occupation', is_mandatory: false, is_editable: true, is_enabled: true },
               { name: 'Social Category', key: 'o_social_category', is_mandatory: false, is_editable: true, is_enabled: true },
               { name: 'Education', key: 'o_education', is_mandatory: true, is_editable: true, is_enabled: true },
-              { name: 'Economic Category', key: 'o_economic_category', is_mandatory: false, is_editable: false, is_enabled: true },
-              { name: 'Guardian Type', key: 'o_guardian_type', is_mandatory: false, is_editable: true, is_enabled: false },
-              { name: 'Guardian Name', key: 'o_guardian_name', is_mandatory: false, is_editable: true, is_enabled: false },
-              { name: 'Emergency Contact Name', key: 'o_emergency_contact_name', is_mandatory: false, is_editable: true, is_enabled: false },
-              { name: 'Emergency Contact Number', key: 'o_emergency_contact_number', is_mandatory: true, is_editable: true, is_enabled: false },
-              { name: 'Emergency Contact Type', key: 'o_emergency_contact_type', is_mandatory: false, is_editable: true, is_enabled: false }
+              { name: 'Economic Category', key: 'o_economic_category', is_mandatory: false, is_editable: false, is_enabled: true }
             ]
           })
         }

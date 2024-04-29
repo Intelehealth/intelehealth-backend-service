@@ -37,11 +37,11 @@ module.exports = {
         { name: 'Education', key: 'o_education', section: 'Other', is_mandatory: true, is_editable: true, is_enabled: true, is_locked: true },
         { name: 'Economic Category', key: 'o_economic_category', section: 'Other', is_mandatory: false, is_editable: false, is_enabled: true, is_locked: false },
 		
-		    { name: 'Guardian Type', key: 'o_guardian_type', section: 'Other', is_mandatory: false, is_editable: true, is_enabled: false, is_locked: false },
-        { name: 'Guardian Name', key: 'o_guardian_name', section: 'Other', is_mandatory: false, is_editable: true, is_enabled: false, is_locked: false },
-        { name: 'Emergency Contact Name', key: 'o_emergency_contact_name', section: 'Other', is_mandatory: false, is_editable: true, is_enabled: false, is_locked: false },
-        { name: 'Emergency Contact Number', key: 'o_emergency_contact_number', section: 'Other', is_mandatory: true, is_editable: true, is_enabled: false, is_locked: false },
-        { name: 'Emergency Contact Type', key: 'o_emergency_contact_type', section: 'Other', is_mandatory: false, is_editable: true, is_enabled: false, is_locked: false },
+		    { name: 'Guardian Type', key: 'p_guardian_type', section: 'Personal', is_mandatory: false, is_editable: true, is_enabled: false, is_locked: false },
+        { name: 'Guardian Name', key: 'p_guardian_name', section: 'Personal', is_mandatory: false, is_editable: true, is_enabled: false, is_locked: false },
+        { name: 'Emergency Contact Name', key: 'p_emergency_contact_name', section: 'Personal', is_mandatory: false, is_editable: true, is_enabled: false, is_locked: false },
+        { name: 'Emergency Contact Number', key: 'p_emergency_contact_number', section: 'Personal', is_mandatory: true, is_editable: true, is_enabled: false, is_locked: false },
+        { name: 'Emergency Contact Type', key: 'p_emergency_contact_type', section: 'Personal', is_mandatory: false, is_editable: true, is_enabled: false, is_locked: false },
       ]);
     }),
 
