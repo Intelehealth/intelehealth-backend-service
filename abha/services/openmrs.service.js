@@ -1,4 +1,5 @@
 const { convertDateToDDMMYYYY } = require('../handlers/utilityHelper');
+const { logStream } = require('../logger');
 const { patient_identifier, visit, Sequelize, encounter, person_name, person, person_attribute, visit_attribute, patient } = require('../openmrs_models');
 const { Op } = Sequelize;
 /**
@@ -56,7 +57,7 @@ async function getVisitByAbhaDetails(whereParams) {
 async function getVisitByMobile({ mobileNumber, yearOfBirth, gender, name }) {
   const currentDate = new Date();
   const startDate = currentDate.setFullYear(yearOfBirth - 5)
-  const endDate = currentDate.setFullYear(yearOfBirth + 5)
+  const endDate = yearOfBirth ? currentDate.setFullYear(Number(yearOfBirth) + 5) : currentDate.setFullYear((new Date()).getFullYear() + 5)
   const personAttribute = await person_attribute.findOne({
     attributes: ["person_id"],
     where: {
@@ -189,13 +190,15 @@ module.exports = (function () {
    */
   this.getVisitBySearch = async (params) => {
     try {
-      const mobileNumber = params?.verifiedIdentifiers.find((v) => v.type === 'Mobile')?.value
+      let mobileNumber = params?.verifiedIdentifiers.find((v) => v.type?.toUpperCase() === 'MOBILE')?.value
+      const abhaNumber = params?.verifiedIdentifiers.find((v) => v.type === 'NDHM_HEALTH_NUMBER')?.value
+      const abhaAddress = params?.id ?? params?.verifiedIdentifiers.find((v) => v.type === 'HEALTH_ID')?.value ?? (abhaNumber ? `${abhaNumber.replace(/-/g, '')}@sbx`: undefined);
       const or = []
-      if (params.abhaNumber) {
-        or.push(params.abhaNumber);
+      if (abhaNumber) {
+        or.push(abhaNumber);
       }
-      if (params.abhaAddress) {
-        or.push(params.abhaAddress);
+      if (abhaAddress) {
+        or.push(abhaAddress);
       }
       let patientInfo = null;
       if (or.length) {
@@ -205,10 +208,14 @@ module.exports = (function () {
           }
         })
       } else if (mobileNumber) {
-        patientInfo = await getVisitByMobile({ mobileNumber, ...params })
+        if(!mobileNumber.includes('+91')) {
+          mobileNumber = `+91${mobileNumber}`;
+        }
+        patientInfo = await getVisitByMobile({  ...params, mobileNumber})
       }
       return patientInfo;
     } catch (err) {
+      logStream("error", err);
       console.log(err)
       return null;
     }
