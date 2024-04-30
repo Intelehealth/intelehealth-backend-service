@@ -742,7 +742,7 @@ module.exports = (function () {
    */
   this.patientDiscover = async (req, res, next) => {
     try {
-      logStream("debug", 'Got Post Request', 'patientDiscover');
+      logStream("debug", `Got Post Request - ${JSON.stringify(req.body)}`, 'patientDiscover');
 
       if (!req.body?.patient) {
         return res.status(422).json({
