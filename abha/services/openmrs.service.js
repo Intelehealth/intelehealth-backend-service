@@ -55,8 +55,8 @@ async function getVisitByAbhaDetails(whereParams) {
  */
 async function getVisitByMobile({ mobileNumber, yearOfBirth, gender, name }) {
   const currentDate = new Date();
-  const startDate = currentDate.setFullYear(yearOfBirth - 10)
-  const endDate = currentDate.setFullYear(yearOfBirth + 10)
+  const startDate = currentDate.setFullYear(yearOfBirth - 5)
+  const endDate = currentDate.setFullYear(yearOfBirth + 5)
   const personAttribute = await person_attribute.findOne({
     attributes: ["person_id"],
     where: {
