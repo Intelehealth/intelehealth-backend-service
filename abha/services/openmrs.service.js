@@ -58,37 +58,87 @@ async function getVisitByMobile({ mobileNumber, yearOfBirth, gender, name }) {
   const currentDate = new Date();
   const startDate = currentDate.setFullYear(yearOfBirth - 5)
   const endDate = yearOfBirth ? currentDate.setFullYear(Number(yearOfBirth) + 5) : currentDate.setFullYear((new Date()).getFullYear() + 5)
-  const personAttribute = await person_attribute.findOne({
+  const personAttributes = await person_attribute.findAll({
     attributes: ["person_id"],
     where: {
       person_attribute_type_id: { [Op.eq]: 8 },
       value: { [Op.eq]: mobileNumber }
     },
-    include: [
-      {
-        model: person,
-        as: "person",
-        attributes: ["person_id", "gender", "birthdate"],
-        where: {
-          birthdate: {
-            [Op.between]: [startDate, endDate]
-          },
-          gender: { [Op.eq]: gender }
-        },
-        include: [
-          {
-            model: person_name,
-            as: "person_name",
-            attributes: ["given_name", "middle_name", "family_name"],
-          }
-        ]
-      }
-    ],
-    order: [["person_id", "DESC"]]
+    // include: [
+    //   {
+    //     model: person,
+    //     as: "person",
+    //     attributes: ["person_id", "gender", "birthdate"],
+    //     where: {
+    //       birthdate: {
+    //         [Op.between]: [startDate, endDate]
+    //       },
+    //       gender: { [Op.eq]: gender }
+    //     },
+    //     include: [
+    //       {
+    //         model: person_name,
+    //         as: "person_name",
+    //         attributes: ["given_name", "middle_name", "family_name"],
+    //       }
+    //     ]
+    //   }
+    // ],
+    // order: [["person_id", "DESC"]],
   });
 
-  if (!personAttribute || !name.includes(personAttribute?.person?.person_name?.family_name) || !name.includes(personAttribute?.person?.person_name?.given_name)) return null;
-  const data = await this.getVisitsByPatientId(personAttribute.person_id);
+  if (!personAttributes?.length) {
+    logStream('debug', 'person_attribute.findAll no data not found based on mobile number', 'getVisitByMobile')
+    return null;
+  }
+
+  const where = {
+    person_id: {
+      [Op.in]: personAttributes?.map((p) => p.person_id)
+    },
+    gender: { [Op.eq]: gender }
+  };
+
+  if (yearOfBirth) {
+    where.birthdate = {
+      [Op.between]: [startDate, endDate]
+    }
+  }
+  const persons = await person.findAll({
+    attributes: ['person_id'],
+    where: where,
+    include: [
+      {
+        model: person_name,
+        as: "person_name",
+        attributes: ["given_name", "middle_name", "family_name"],
+        where: {
+          preferred: { [Op.eq]: 1 }
+        }
+      }
+    ],
+  })
+
+  if (!persons?.length) {
+    logStream('debug', 'person.findAll no data not found based on mobile number', 'getVisitByMobile')
+    return null;
+  }
+
+  const patientIds = [];
+  for (let i = 0; i < persons?.length; i++) {
+    const person = persons[i];
+    if (name.includes(person?.person_name?.given_name) && name.includes(person?.person_name?.family_name)) {
+      patientIds.push(person.person_id);
+    }
+  }
+
+  if(!patientIds.length) return null;
+  if (patientIds.length > 1) return {
+    success: false,
+    message: 'Mobile number having multiple patient after matched with all date of birth, gender, family_name and given_name'
+  };
+
+  const data = await this.getVisitsByPatientId(patientIds[0]);
   return getFormatedResponse(data);
 }
 
@@ -115,6 +165,9 @@ async function getPatientInfo(patientId) {
             model: person_name,
             as: "person_name",
             attributes: ["given_name", "family_name"],
+            where: {
+              preferred: { [Op.eq] : 1 } 
+            }
           },
           {
             model: person_attribute,
@@ -190,9 +243,9 @@ module.exports = (function () {
    */
   this.getVisitBySearch = async (params) => {
     try {
-      let mobileNumber = params?.verifiedIdentifiers.find((v) => v.type?.toUpperCase() === 'MOBILE')?.value
-      const abhaNumber = params?.verifiedIdentifiers.find((v) => v.type === 'NDHM_HEALTH_NUMBER')?.value
-      const abhaAddress = params?.id ?? params?.verifiedIdentifiers.find((v) => v.type === 'HEALTH_ID')?.value ?? (abhaNumber ? `${abhaNumber.replace(/-/g, '')}@sbx`: undefined);
+      let mobileNumber = params?.verifiedIdentifiers.find((v) => v.type?.toUpperCase() === 'MOBILE')?.value;
+      const abhaNumber = params?.verifiedIdentifiers.find((v) => v.type === 'NDHM_HEALTH_NUMBER')?.value;
+      const abhaAddress = params?.id ?? params?.verifiedIdentifiers.find((v) => v.type === 'HEALTH_ID')?.value ?? (abhaNumber ? `${abhaNumber.replace(/-/g, '')}@sbx` : undefined);
       const or = []
       if (abhaNumber) {
         or.push(abhaNumber);
@@ -208,16 +261,18 @@ module.exports = (function () {
           }
         })
       } else if (mobileNumber) {
-        if(!mobileNumber.includes('+91')) {
+        if (!mobileNumber.includes('+91')) {
           mobileNumber = `+91${mobileNumber}`;
         }
-        patientInfo = await getVisitByMobile({  ...params, mobileNumber})
+        patientInfo = await getVisitByMobile({ ...params, mobileNumber });
+        if(patientInfo?.success === false) return {
+          ...patientInfo,
+          hasMultiplePatient: true
+        };
       }
       return patientInfo;
     } catch (err) {
-      logStream("error", err);
-      console.log(err)
-      return null;
+      throw err;
     }
   };
 

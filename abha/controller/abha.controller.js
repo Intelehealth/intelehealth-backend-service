@@ -754,6 +754,13 @@ module.exports = (function () {
 
       const patientInfo = await openmrsService.getVisitBySearch(req.body.patient)
       logStream("debug", 'Got Response of patient info', 'openmrsService.getVisitBySearch');
+      if (patientInfo?.hasMultiplePatient) {
+        throw {
+          "code": "ERR_MULTIPLE_PATIENT_FOUND",
+          "message": patientInfo?.message,
+        }
+      }
+
       if (!patientInfo) {
         return res.status(404).json({
           "success": false,
@@ -761,6 +768,7 @@ module.exports = (function () {
           "message": 'Care context information is not found with provided details!.',
         });
       }
+
       logStream("debug", 'Got Response of patient info', 'patientDiscover');
       res.json(patientInfo);
       return;
@@ -768,7 +776,7 @@ module.exports = (function () {
       logStream("error", error);
       return res.status(500).json({
         "success": false,
-        "code": "ERR_BAD_REQUEST",
+        "code": error?.code ?? "ERR_BAD_REQUEST",
         "message": error?.message,
       });
     }
