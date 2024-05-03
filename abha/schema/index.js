@@ -57,15 +57,13 @@ exports.getProfileSchema = Joi.object()
 });
 
 exports.postLinkCareContextSchema = Joi.object({
-  abhaAddress: Joi.string().optional(),
-  abhaNumber: Joi.string().optional(),
-  personDisplay: Joi.string().required(),
-  encounterUUID: Joi.string().required(),
+  abhaAddress: Joi.optional(),
+  abhaNumber: Joi.optional(),
   visitUUID: Joi.string().required(),
   startDateTime: Joi.string().required(),
-  name: Joi.string().optional(),
+  name: Joi.optional(),
   gender: Joi.string().optional(),
   yearOfBirth: Joi.number().optional(),
-  mobileNumber: Joi.string().optional(),
+  mobileNumber: Joi.optional(),
   openMRSID: Joi.string().optional() 
 });
