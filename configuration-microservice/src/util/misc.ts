@@ -20,3 +20,10 @@ export function tick(milliseconds: number): Promise<void> {
     }, milliseconds);
   });
 }
+
+/**
+ * get asset path
+ */
+export function getAssetPath(fullPath: any): string {
+  return fullPath.replace("src\\public\\",'').replaceAll("\\","/");
+}

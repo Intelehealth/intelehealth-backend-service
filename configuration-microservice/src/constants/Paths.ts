@@ -40,5 +40,12 @@ export default {
     Get: '/getApplicationConfig',
     GetPublished: '/getPublishedConfig',
     Publish: '/publish',
+  },
+  ThemeConfig: {
+    Base: '/theme_config',
+    Get: '/all',
+    uploadImage: '/uploadImage',
+    updateThemeConfig: '/updateThemeConfig',
+    updateImagesText: '/updateImagesText',
   }
 } as const;

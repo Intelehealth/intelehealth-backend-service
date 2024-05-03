@@ -5,28 +5,25 @@ module.exports = {
     up: (queryInterface: QueryInterface): Promise<void> => queryInterface.sequelize.transaction(
         async (transaction) => {
           // here go all migration changes
-          await queryInterface.createTable('audit_trail', {
+          await queryInterface.createTable('theme_config', {
             id: {
               allowNull: false,
               autoIncrement: true,
               primaryKey: true,
               type: DataTypes.INTEGER,
             },
-            user_id: {
+            key: {
               type: DataTypes.STRING,
-              allowNull: false
+              allowNull: false,
+              unique: true
             },
-            user_name: {
-              type: DataTypes.STRING
-            },
-            activity_type: {
-              type: DataTypes.ENUM,
-              values:['CONFIG PUBLISHED', 'SPECIALIZATION STATUS UPDATED', 'LANGUAGE STATUS UPDATED', 'LANGUAGE SET AS DEFAULT', 'PATIENT REGISTRATION FIELD STATUS UPDATED', 'PATIENT REGISTRATION FIELD MANDATORY STATUS UPDATED', 'PATIENT REGISTRATION FIELD EDITABLE STATUS UPDATED', 'THEME CONFIG UPDATED']
-            },
-            description: {
+            value: {
               type: DataTypes.TEXT,
-              allowNull: true,
-              defaultValue: null
+              allowNull: true
+            },
+            default_value: {
+              type: DataTypes.TEXT,
+              allowNull: false
             },
             createdAt: {
               allowNull: false,
@@ -45,7 +42,7 @@ module.exports = {
     down: (queryInterface: QueryInterface): Promise<void> => queryInterface.sequelize.transaction(
         async (transaction) => {
           // here go all migration undo changes
-          await queryInterface.dropTable('audit_trail');
+          await queryInterface.dropTable('theme_config');
         }
     )
 };
