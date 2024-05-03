@@ -615,7 +615,9 @@ module.exports = (function () {
           "count": 1
         }
       }
-      logStream("debug", `Calling the Link care context API -> ${JSON.stringify(requestObj)}`, `URL: ${process.env.POST_LINK_CARE_CONTEXT_URL}`);
+      
+      logStream("debug", JSON.stringify(requestObj), `URL: ${process.env.POST_LINK_CARE_CONTEXT_URL} -> Calling the Link care context API -> linkCareContextByAbhaDetail`);
+      
       const abdmResponse = await axiosInstance.post(
         process.env.POST_LINK_CARE_CONTEXT_URL,
         requestObj,
@@ -626,7 +628,6 @@ module.exports = (function () {
         }
       );
 
-      logStream("debug", 'Got API Response From Link care context', 'axiosInstance.post');
       if (abdmResponse?.data?.code !== 202) {
         throw abdmResponse?.data?.error ?? abdmResponse?.data ?? new Error('Something went wrong!');
       }
@@ -639,9 +640,11 @@ module.exports = (function () {
           ...this.getInitialHeaderrs(),
         },
       }).catch((err) => { 
-        logStream("debug", err, `URL: ${process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + visitUUID} linkCareContextByAbhaDetail`);
+        logStream("debug", err, `URL: ${process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + visitUUID} linkCareContextByAbhaDetail -> axiosInstance.get -> error`);
       });
-
+    
+      logStream("debug", careContexts?.data, `URL: ${process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + visitUUID} Response from linkCareContextByAbhaDetail -> axiosInstance.get`);
+    
       if (careContexts?.data?.error == null) {
         await openmrsService.postAttribute(visitUUID,
           {
