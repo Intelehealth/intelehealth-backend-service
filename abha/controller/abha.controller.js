@@ -615,7 +615,7 @@ module.exports = (function () {
           "count": 1
         }
       }
-
+      logStream("debug", `Calling the Link care context API -> ${JSON.stringify(requestObj)}`, `URL: ${process.env.POST_LINK_CARE_CONTEXT_URL}`);
       const abdmResponse = await axiosInstance.post(
         process.env.POST_LINK_CARE_CONTEXT_URL,
         requestObj,
@@ -631,16 +631,18 @@ module.exports = (function () {
         throw abdmResponse?.data?.error ?? abdmResponse?.data ?? new Error('Something went wrong!');
       }
 
-      logStream("debug", 'Calling Get API to check link status of care context', 'axiosInstance.get');
+      logStream("debug", `Calling Get API to check link status of care context URL- ${process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + visitUUID}`, 'axiosInstance.get');
 
       const careContexts = await axiosInstance.get(
         process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + uniquId, {
         headers: {
           ...this.getInitialHeaderrs(),
         },
-      }).catch((err) => { });
+      }).catch((err) => { 
+        logStream("debug", err, `URL: ${process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + visitUUID} linkCareContextByAbhaDetail`);
+      });
 
-      if (!careContexts?.data?.error) {
+      if (careContexts?.data?.error == null) {
         await openmrsService.postAttribute(visitUUID,
           {
             attributeType: '8ac6b1c7-c781-494a-b4ef-fb7d7632874f', /** Visit Attribute Type for isABDMLinked */
