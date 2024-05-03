@@ -59,11 +59,13 @@ exports.getProfileSchema = Joi.object()
 exports.postLinkCareContextSchema = Joi.object({
   abhaAddress: Joi.optional(),
   abhaNumber: Joi.optional(),
+  personDisplay: Joi.optional(),
+  encounterUUID: Joi.optional(),
   visitUUID: Joi.string().required(),
   startDateTime: Joi.string().required(),
   name: Joi.optional(),
-  gender: Joi.string().optional(),
-  yearOfBirth: Joi.number().optional(),
+  gender: Joi.optional(),
+  yearOfBirth: Joi.optional(),
   mobileNumber: Joi.optional(),
-  openMRSID: Joi.string().optional() 
+  openMRSID: Joi.optional() 
 });
