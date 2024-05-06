@@ -632,8 +632,6 @@ module.exports = (function () {
         throw abdmResponse?.data?.error ?? abdmResponse?.data ?? new Error('Something went wrong!');
       }
 
-      logStream("debug", `Calling Get API to check link status of care context URL- ${process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + visitUUID}`, 'axiosInstance.get');
-
       const careContexts = await axiosInstance.get(
         process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + uniquId, {
         headers: {
@@ -779,7 +777,7 @@ module.exports = (function () {
       return;
     } catch (error) {
       logStream("error", error);
-      return res.status(500).json({
+      return res.status(error?.status ?? error?.response?.status ?? 500).json({
         "success": false,
         "code": error?.code ?? "ERR_BAD_REQUEST",
         "message": error?.message,

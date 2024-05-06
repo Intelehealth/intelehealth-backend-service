@@ -204,7 +204,7 @@ module.exports = (function () {
     } catch (error) {
       return {
         success: false,
-        status: error?.status ?? 500,
+        status: error?.status ?? error?.response?.status ?? 500,
         code: error?.code,
         message: error.message,
       };
