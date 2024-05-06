@@ -591,7 +591,7 @@ module.exports = (function () {
         abhaAddress,
         abhaNumber,
         personDisplay,
-        startDatetime,
+        startDateTime,
         openMRSID,
       } = reqParams;
 
@@ -608,7 +608,7 @@ module.exports = (function () {
           "careContexts": [
             {
               "referenceNumber": visitUUID,
-              "display": `${personDisplay} OpConsult-1 on ${convertDateToDDMMYYYY(startDatetime)}`
+              "display": `${personDisplay} OpConsult-1 on ${convertDateToDDMMYYYY(startDateTime)}`
             }
           ],
           "hiType": "OPConsultation",
