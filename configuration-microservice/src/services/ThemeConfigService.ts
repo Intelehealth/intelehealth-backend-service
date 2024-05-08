@@ -24,7 +24,16 @@ export const PUBLIC_DIR = 'src/public/';
  * Get all data of theme config.
  */
 async function getAll(): Promise<ThemeConfig[]> {
-    return await getThemeConfigData();
+    let themeConfigData = await ThemeConfig.findAll({attributes:['key','value']});
+    themeConfigData.forEach((obj:any)=>{
+        if(obj.key === IMAGES_WITH_TEXT){
+            if(obj.value)
+                obj.value = JSON.parse(obj.value);
+            else 
+                obj.value = [];
+        }       
+    });
+    return themeConfigData;
 }
 
 /**
@@ -101,7 +110,7 @@ async function updateImagesText(data : { text: string, image: string}[], user_id
 
 async function getThemeConfigData() {
     let themeConfigData = await ThemeConfig.findAll({
-        attributes: ['key', [Sequelize.fn('IFNULL', Sequelize.col('value'), Sequelize.col('default_value')),'value']]
+        attributes: ['key', [Sequelize.fn('IF', Sequelize.col('value'), Sequelize.col('value'), Sequelize.col('default_value')),'value']]
     });
     themeConfigData.forEach(obj=>{
         if(obj.key === IMAGES_WITH_TEXT && obj.value){
