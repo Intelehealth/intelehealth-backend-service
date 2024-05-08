@@ -110,9 +110,10 @@ async function updateImagesText(data : { text: string, image: string}[], user_id
 
 async function getThemeConfigData() {
     let themeConfigData = await ThemeConfig.findAll({
-        attributes: ['key', [Sequelize.fn('IF', Sequelize.col('value'), Sequelize.col('value'), Sequelize.col('default_value')),'value']]
+        attributes: ['key','value','default_value']
     });
     themeConfigData.forEach(obj=>{
+        if(obj.value === '') obj.value = obj.default_value;
         if(obj.key === IMAGES_WITH_TEXT && obj.value){
             obj.value = JSON.parse(obj.value);
         }
