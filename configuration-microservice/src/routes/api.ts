@@ -19,8 +19,8 @@ import multer from 'multer';
 
 const apiRouter = Router(),
   validate = jetValidator();
-const imageUploadPath = 'src/public/assets/images';
-const slideImageUploadPath = 'src/public/assets/images/slides';
+const imageUploadPath = 'dist/public/assets/images';
+const slideImageUploadPath = 'dist/public/assets/images/slides';
 
 // **** Setup AuthRouter **** //
 

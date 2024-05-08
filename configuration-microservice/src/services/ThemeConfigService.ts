@@ -14,9 +14,9 @@ import { getAssetPath } from '@src/util/misc';
 
 export const CONFIG_NOT_FOUND_ERR = 'Config not Found';
 export const FILE_UPLOAD_ERR = 'Unable to upload file';
-export const IMAGES_LOCAL_PATH = 'src/public/assets/images';
+export const IMAGES_LOCAL_PATH = 'dist/public/assets/images';
 export const IMAGES_WITH_TEXT = 'images_with_text';
-export const PUBLIC_DIR = 'src/public/';
+export const PUBLIC_DIR = 'dist/public/';
 
 // **** Functions **** //
 
