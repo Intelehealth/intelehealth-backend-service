@@ -241,6 +241,12 @@ themeConfigRouter.put(
   ThemeConfigRoutes.updateImagesText
 );
 
+// Delete Image 
+themeConfigRouter.delete(
+  Paths.ThemeConfig.deleteImage,
+  ThemeConfigRoutes.deleteFile
+);
+
 // Add LanguageRouter
 apiRouter.use(Paths.ThemeConfig.Base, authMw, themeConfigRouter);
 

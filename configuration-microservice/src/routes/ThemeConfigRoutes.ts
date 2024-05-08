@@ -26,7 +26,7 @@ async function updateThemeConfig(req: IReqUser<{ key: string, value: any}>, res:
 }
 
 /**
- * Upload Images
+ * Upload Image
  */
 async function uploadImage(req: IReqUser, res: IRes) {
     const fileDetails:any = {...req.file};
@@ -44,11 +44,23 @@ async function updateImagesText(req: IReqUser<{ data: { text: string, image: str
     return res.status(HttpStatusCodes.OK).json({ success: true });
 }
 
+
+/**
+ * Delete image
+ */
+async function deleteFile(req: IReqUser<{ filePath: string }>, res: IRes) {
+    const { filePath } = req.body;
+    const { userId, name } = req.user.data;
+    await ThemeConfigService.deleteFile(filePath);
+    return res.status(HttpStatusCodes.OK).json({ success: true });
+}
+
 // **** Export default **** //
 
 export default {
     getAll,
     updateThemeConfig,
     updateImagesText,
-    uploadImage
+    uploadImage,
+    deleteFile
 } as const;

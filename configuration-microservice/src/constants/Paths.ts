@@ -47,5 +47,6 @@ export default {
     uploadImage: '/uploadImage',
     updateThemeConfig: '/updateThemeConfig',
     updateImagesText: '/updateImagesText',
+    deleteImage: '/deleteImage'
   }
 } as const;

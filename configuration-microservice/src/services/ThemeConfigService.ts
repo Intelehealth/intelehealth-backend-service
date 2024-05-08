@@ -16,6 +16,7 @@ export const CONFIG_NOT_FOUND_ERR = 'Config not Found';
 export const FILE_UPLOAD_ERR = 'Unable to upload file';
 export const IMAGES_LOCAL_PATH = 'src/public/assets/images';
 export const IMAGES_WITH_TEXT = 'images_with_text';
+export const PUBLIC_DIR = 'src/public/';
 
 // **** Functions **** //
 
@@ -54,7 +55,7 @@ async function updateThemeConfig(key: string, value: string, user_id: string, us
     await Config.update({ value: JSON.stringify(allThemeConfig), published: false }, { where: { key: 'theme_config' } });
 
     // Delete existing file
-    if(oldFilePath) fs.unlinkSync('src/public/'+oldFilePath);
+    if(oldFilePath && fs.existsSync(PUBLIC_DIR+oldFilePath)) fs.unlinkSync(PUBLIC_DIR+oldFilePath);
 
     // Insert audit trail entry
     await AuditTrail.create({ user_id, user_name, activity_type: 'THEME CONFIG UPDATED', description: `Updated "${key}" in theme config.` });
@@ -122,10 +123,18 @@ async function removeAllFilesSync(directory:string, excludeFiles:string[]) {
     }
 }
 
+async function deleteFile(filePath: string){
+    const fullFilePath = PUBLIC_DIR + filePath;
+    if(fs.existsSync(fullFilePath)){
+        fs.unlinkSync(fullFilePath);
+    }
+}
+
 // **** Export default **** //
 
 export default {
     getAll,
     updateThemeConfig,
-    updateImagesText
+    updateImagesText,
+    deleteFile
 } as const;
