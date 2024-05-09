@@ -182,6 +182,9 @@ module.exports = (function () {
                 ],
               },
             ],
+            where: {
+              voided: { [Op.eq]: 0 },
+            },
           },
           {
             model: visit_attribute,
