@@ -9,7 +9,8 @@ const encryptRsa = new EncryptRsa();
 
 const { uuid } = require('uuidv4');
 const openmrsService = require("../services/openmrs.service");
-const { convertDateToDDMMYYYY, formatCareContextResponse } = require("../handlers/utilityHelper");
+const { convertDateToDDMMYYYY, formatCareContextResponse, handleError } = require("../handlers/utilityHelper");
+const { abdm_visit_status } = require("../models");
 
 
 module.exports = (function () {
@@ -615,9 +616,21 @@ module.exports = (function () {
           "count": 1
         }
       }
-      
+      const isRecordExist = await abdm_visit_status.findOne({ where: { visitUuid: visitUUID } });
+      if (isRecordExist) {
+        return { success: true, data: null, message: `Care context already requested for ${visitUUID}!` };
+      }
+
       logStream("debug", JSON.stringify(requestObj), `URL: ${process.env.POST_LINK_CARE_CONTEXT_URL} -> Calling the Link care context API -> linkCareContextByAbhaDetail`);
-      
+
+      // Create the table entry to store from ABDM post care context
+      const abdmVisitStatus = await abdm_visit_status.create({
+        requestData: requestObj,
+        requestId: uniquId,
+        visitUuid: visitUUID
+      });
+
+      // Call the post request to link carecontext to abdm
       const abdmResponse = await axiosInstance.post(
         process.env.POST_LINK_CARE_CONTEXT_URL,
         requestObj,
@@ -626,36 +639,70 @@ module.exports = (function () {
             ...this.getInitialHeaderrs(),
           },
         }
-      );
+      ).catch((err) => {
+        return err;
+      });
 
+      // Store the error of getting from link care context API call to abdmVisitStatus table
       if (abdmResponse?.data?.code !== 202) {
-        throw abdmResponse?.data?.error ?? abdmResponse?.data ?? new Error('Something went wrong!');
+        const error = handleError(abdmResponse)
+        abdmVisitStatus.error = error;
+        abdmVisitStatus.isInvalid = true;
+        await abdmVisitStatus.save();
+        throw {
+          status: abdmResponse?.response?.status,
+          message: abdmResponse?.message ?? error?.message ?? error
+        };
       }
 
+      // Store the response getting from link care context API call to abdmVisitStatus table
+      abdmVisitStatus.response = abdmResponse?.response?.data ?? abdmResponse?.data;
+
+      // Call get request to verify the care context link status
       const careContexts = await axiosInstance.get(
         process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + uniquId, {
         headers: {
           ...this.getInitialHeaderrs(),
         },
-      }).catch((err) => { 
-        logStream("debug", err, `URL: ${process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + visitUUID} linkCareContextByAbhaDetail -> axiosInstance.get -> error`);
+      }).catch((err) => {
+        logStream("debug", err, `URL: ${process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + uniquId} linkCareContextByAbhaDetail -> axiosInstance.get -> error`);
+        return err;
       });
-    
-      logStream("debug", careContexts?.data, `URL: ${process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + visitUUID} Response from linkCareContextByAbhaDetail -> axiosInstance.get`);
-    
-      if (careContexts?.data?.error == null) {
+
+      // Update the abdmVisitStatus table after getting response/error from link care context status
+      if (careContexts?.data?.error === null && careContexts?.data?.status) {
+        abdmVisitStatus.isLinked = true;
+        abdmVisitStatus.link_status_response = careContexts?.data;
+
+        logStream("debug", careContexts?.data, `URL: ${process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + uniquId} Response from linkCareContextByAbhaDetail -> axiosInstance.get`);
+
+        // Call the post request to update the isABDMLinked attribute to true.
         await openmrsService.postAttribute(visitUUID,
           {
             attributeType: '8ac6b1c7-c781-494a-b4ef-fb7d7632874f', /** Visit Attribute Type for isABDMLinked */
             value: true
           }
-        ).catch((err) => { });
+        ).catch((err) => {
+          abdmVisitStatus.isLinked = false;
+          abdmVisitStatus.link_status_error = err;
+        });
+
+      } else {
+        const error = handleError(careContexts)
+        abdmVisitStatus.link_status_error = error;
+        abdmVisitStatus.isLinked = error?.message?.includes('Duplicate HIP link request') ?? false;
+        abdmVisitStatus.isInvalid = abdmVisitStatus.isLinked;
       }
 
+      await abdmVisitStatus.save()
+
       return { success: true, data: null, message: "Care context shared successfully!" };
+
     } catch (error) {
+
       logStream("error", error, "linkCareContextByAbhaDetail");
       return { success: false, status: error.status ?? 500, data: null, message: error?.message ?? error }
+
     }
   }
 
@@ -714,7 +761,8 @@ module.exports = (function () {
         abhaAddress,
         abhaNumber,
         mobileNumber
-      } = req.body
+      } = req.body;
+
       logStream("debug", 'Calling Post API to Post Link Care Context to Abha', 'postLinkCareContext');
       let response = { success: false, status: 500, message: "Something went wrong!" };
       if (Boolean(abhaAddress) || Boolean(abhaNumber)) {
@@ -729,7 +777,7 @@ module.exports = (function () {
       return res.json(response);
     } catch (error) {
       logStream("error", error);
-      return res.status(500).json({
+      return res.status(error?.status ?? 500).json({
         "success": false,
         "code": "ERR_BAD_REQUEST",
         "message": error?.message,
@@ -793,12 +841,12 @@ module.exports = (function () {
       logStream("debug", 'Got Get Request to fetch visit detail by visit Id', 'getVisitCareContext');
       const visitUUID = req.body.visitUUID ?? req.params.visitUUID;
       const response = await openmrsService.getVisitByUUID(visitUUID);
-      if(!response.success) throw response;
+      if (!response.success) throw response;
       res.json(formatCareContextResponse(response?.data));
       return;
     } catch (error) {
       logStream("error", error);
-      if(!error.code) error.code = 500
+      if (!error.code) error.code = 500
       return next(error);
     }
   }

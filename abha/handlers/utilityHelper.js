@@ -247,7 +247,23 @@ function formatCareContextResponse(response) {
     return formattedResponse;
 }
 
+function handleError(error) {
+    if ((error?.data?.error && typeof error?.data?.error === 'string') || error?.data?.message) {
+        return error?.data;
+    } else if (error?.data?.error && typeof error?.data?.error !== 'string') {
+        return error?.data.error;
+    } else if (error?.response?.data?.error && typeof error?.response?.data?.error != 'string') {
+        return error?.response?.data?.error;
+    } else if (error?.response?.data) {
+        return (typeof error?.response?.data == 'string') ? { message: error?.response?.data } : error?.response?.data;
+    } else if (error?.message) {
+        return { message: error?.message }
+    }
+    return new Error('Something went wrong!');
+}
+
 module.exports = {
     convertDateToDDMMYYYY,
-    formatCareContextResponse
+    formatCareContextResponse,
+    handleError
 }
