@@ -358,6 +358,18 @@ module.exports = (function () {
         }
       }
 
+      if (scope === 'abha-number' || scope === 'abha-address') {
+        payload = {
+          "scope": [
+            "abha-login",
+            "aadhaar-verify"
+          ],
+          "loginHint": scope === "abha-number" ? "abha-number" : 'abha-address',
+          "loginId": encryptedText,
+          "otpSystem": "aadhaar"
+        }
+      }
+
       logStream("debug", JSON.stringify(payload), 'GET Login OTP Req');
 
       logStream("debug", 'Calling API to get otp', 'GET Login OTP Req');
@@ -427,7 +439,7 @@ module.exports = (function () {
         }
       }
 
-      if (scope === 'aadhar') {
+      if (scope === 'aadhar' || scope === 'abha-number' || scope === 'abha-address') {
         payload = {
           "scope": [
             "abha-login",
