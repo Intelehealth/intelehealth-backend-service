@@ -3,6 +3,7 @@
 **/license
 *.zip
 
+config/config.json
 /portal/config/config.json
 /portal/config/serviceAccountKey.json
 /portal/public/translate/uploads/*
