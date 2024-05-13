@@ -486,31 +486,33 @@ module.exports = (function () {
   this.getProfile = async (req, res, next) => {
     try {
 
-      const xToken = req.xtoken
+      let xToken = req.xtoken
 
-      const { txnId, abhaNumber } = req.body;
+      const { txnId, abhaNumber, scope = '' } = req.body;
 
       const accessToken = req.token;
 
-      logStream("debug", 'Calling API to Login Verify User', 'Get Profile');
+      if(!['abha-address', 'abha-number'].includes(scope)) {
+        logStream("debug", 'Calling API to Login Verify User', 'Get Profile');
 
-      const loginVerifyRes = await axiosInstance.post(
-        process.env.LOGIN_VERIFY_USER_URL,
-        {
-          "ABHANumber": abhaNumber,
-          "txnId": txnId
-        },
-        {
-          headers: {
-            ...this.getInitialHeaderrs(accessToken),
-            'REQUEST-ID': uuid(),
-            'TIMESTAMP': this.getTimestamp(),
-            'T-Token': `Bearer ${xToken}`
+        const loginVerifyRes = await axiosInstance.post(
+          process.env.LOGIN_VERIFY_USER_URL,
+          {
+            "ABHANumber": abhaNumber,
+            "txnId": txnId
+          },
+          {
+            headers: {
+              ...this.getInitialHeaderrs(accessToken),
+              'REQUEST-ID': uuid(),
+              'TIMESTAMP': this.getTimestamp(),
+              'T-Token': `Bearer ${xToken}`
+            }
           }
-        }
-      );
-
-      logStream("debug", 'Calling API to Login Verify User - Token Received', 'Get Profile');
+        );
+        xToken = loginVerifyRes.data.token;
+        logStream("debug", 'Calling API to Login Verify User - Token Received', 'Get Profile');
+      }
 
       logStream("debug", 'Calling API to Get Profile', 'Get Profile');
 
@@ -521,13 +523,12 @@ module.exports = (function () {
             ...this.getInitialHeaderrs(accessToken),
             'REQUEST-ID': uuid(),
             'TIMESTAMP': this.getTimestamp(),
-            'X-Token': `Bearer ${loginVerifyRes.data.token}`
+            'X-Token': `Bearer ${xToken}`
           }
         }
       );
 
       logStream("debug", 'Calling API to Get Profile', 'Get Profile');
-
 
       return res.json(apiResponse.data)
 

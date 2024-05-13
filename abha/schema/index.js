@@ -50,6 +50,7 @@ exports.getAbhaNumberSchema = Joi.object()
 
 exports.getProfileSchema = Joi.object()
   .keys({
+    scope: Joi.optional(),
     txnId: Joi.string()
       .required(),
     abhaNumber: Joi.string()
