@@ -6,13 +6,13 @@ exports.otpSchema = Joi.object()
       .min(12)
       .max(12)
       .required(),
-});
+  });
 
 exports.loginOTPSchema = Joi.object()
   .keys({
     value: Joi.string().required(),
-    scope: Joi.string().valid('aadhar','mobile', 'abha-number', 'abha-address').required()
-});
+    scope: Joi.string().valid('aadhar', 'mobile', 'abha-number', 'abha-address').required()
+  });
 
 
 exports.profileSchema = Joi.object()
@@ -20,42 +20,40 @@ exports.profileSchema = Joi.object()
     otp: Joi.string()
       .required(),
     mobileNo: Joi.string()
-    .required(),
+      .required(),
     txnId: Joi.string()
-    .required(),
-});
+      .required(),
+  });
 
 exports.addressSchema = Joi.object()
   .keys({
     txnId: Joi.string()
-    .required(),
-});
+      .required(),
+  });
 
 exports.preferAddressSchema = Joi.object()
   .keys({
     abhaAddress: Joi.string()
-    .required(),
+      .required(),
     txnId: Joi.string()
-    .required(),
-});
+      .required(),
+  });
 
 exports.getAbhaNumberSchema = Joi.object()
   .keys({
     otp: Joi.string()
       .required(),
     txnId: Joi.string()
-    .required(),
-    scope: Joi.string().valid('aadhar','mobile', 'abha-number', 'abha-address').required()
-});
+      .required(),
+    scope: Joi.string().valid('aadhar', 'mobile', 'abha-number', 'abha-address').required()
+  });
 
 exports.getProfileSchema = Joi.object()
   .keys({
     scope: Joi.optional(),
-    txnId: Joi.string()
-      .required(),
-    abhaNumber: Joi.string()
-    .required()
-});
+    txnId: Joi.any().when('scope', { is: 'abha-address', then: Joi.optional(), otherwise: Joi.string().required() }),
+    abhaNumber: Joi.any().when('scope', { is: 'abha-address', then: Joi.optional(), otherwise: Joi.string().required() })
+  });
 
 exports.postLinkCareContextSchema = Joi.object({
   abhaAddress: Joi.optional(),
@@ -68,5 +66,5 @@ exports.postLinkCareContextSchema = Joi.object({
   gender: Joi.optional(),
   yearOfBirth: Joi.optional(),
   mobileNumber: Joi.optional(),
-  openMRSID: Joi.optional() 
+  openMRSID: Joi.optional()
 });
