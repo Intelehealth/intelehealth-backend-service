@@ -11,7 +11,8 @@ const {
     getProfile,
     getCard,
     postLinkCareContext,
-    patientDiscover
+    patientDiscover,
+    getVisitCareContext
 } = require("../controller/abha.controller");
 
 const {
@@ -57,7 +58,5 @@ router.post("/post-care-context", [validate(postLinkCareContextSchema), postLink
 router.post("/patient-discover", patientDiscover);
 
 router.post("/visit/carecontext", getVisitCareContext)
-
-router.get("/visit/carecontext/:visitUUID", getVisitCareContext)
 
 module.exports = router;
