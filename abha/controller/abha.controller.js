@@ -381,6 +381,7 @@ module.exports = (function () {
       logStream("debug", 'OTP Response Recieved', 'Get OTP');
 
       return res.json({
+        message: "OTP successfully sent to the registered mobile number.",
         ...apiResponse.data,
       })
 
