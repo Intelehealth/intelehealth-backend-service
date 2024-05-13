@@ -385,7 +385,7 @@ module.exports = (function () {
       })
 
     } catch (error) {
-      logStream("error", error.message);
+      logStream("error", error);
       next(error);
     }
   };
