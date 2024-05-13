@@ -5,12 +5,12 @@ const errorHandler = (err, req, res, next) => {
     console.log(err);
   }
 
-  res.status(err.status || 500);
+  res.status(err?.response?.status ?? err.status ?? 500);
 
   return res.json({
     success: false,
     code: err.code || 422,
-    message: err.message,
+    message: err?.response?.data?.message ?? err.message,
   });
 };
 

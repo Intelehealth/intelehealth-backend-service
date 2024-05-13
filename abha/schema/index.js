@@ -11,7 +11,7 @@ exports.otpSchema = Joi.object()
 exports.loginOTPSchema = Joi.object()
   .keys({
     value: Joi.string().required(),
-    scope: Joi.string().valid('aadhar','mobile').required()
+    scope: Joi.string().valid('aadhar','mobile', 'abha-number', 'abha-address').required()
 });
 
 
@@ -45,7 +45,7 @@ exports.getAbhaNumberSchema = Joi.object()
       .required(),
     txnId: Joi.string()
     .required(),
-    scope: Joi.string().valid('aadhar','mobile').required()
+    scope: Joi.string().valid('aadhar','mobile', 'abha-number', 'abha-address').required()
 });
 
 exports.getProfileSchema = Joi.object()
