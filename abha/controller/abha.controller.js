@@ -323,18 +323,15 @@ module.exports = (function () {
 
       const accessToken = req.token
 
-
       logStream("debug", 'Calling API to Get Public Key', 'GET Login OTP Req');
 
       const publicKey = await this.getPublicKey(accessToken);
 
       logStream("debug", 'Got Public Key', 'GET Login OTP Req');
 
-
       const encryptedText = this.getRSAText(publicKey, value);
 
       logStream("debug", 'Aadhar Encrypted', 'GET Login OTP Req');
-
 
       let payload = {
         "scope": [
@@ -344,29 +341,25 @@ module.exports = (function () {
         "loginHint": "mobile",
         "loginId": encryptedText,
         "otpSystem": "abdm"
-      }
+      }, url = process.env.MOBILE_OTP_URL
 
-      if (scope === 'aadhar') {
+      if (scope === 'aadhar' || scope === 'abha-number') {
         payload = {
           "scope": [
             "abha-login",
             "aadhaar-verify"
           ],
-          "loginHint": "aadhaar",
+          "loginHint": scope === "abha-number" ? "abha-number" : "aadhaar",
           "loginId": encryptedText,
           "otpSystem": "aadhaar"
         }
       }
 
-      if (scope === 'abha-number' || scope === 'abha-address') {
+      if(scope === 'abha-address') {
+        url = process.env.ABHA_ADDRESS_OTP_URL;
         payload = {
-          "scope": [
-            "abha-login",
-            "aadhaar-verify"
-          ],
-          "loginHint": scope === "abha-number" ? "abha-number" : 'abha-address',
-          "loginId": encryptedText,
-          "otpSystem": "aadhaar"
+          authMethod: 'AADHAAR_OTP',
+          healthid: value
         }
       }
 
@@ -374,8 +367,7 @@ module.exports = (function () {
 
       logStream("debug", 'Calling API to get otp', 'GET Login OTP Req');
 
-      const apiResponse = await axiosInstance.post(
-        process.env.MOBILE_OTP_URL,
+      const apiResponse = await axiosInstance.post(url,
         payload,
         {
           headers: {
@@ -387,7 +379,6 @@ module.exports = (function () {
       );
 
       logStream("debug", 'OTP Response Recieved', 'Get OTP');
-
 
       return res.json({
         ...apiResponse.data,
@@ -418,7 +409,6 @@ module.exports = (function () {
 
       logStream("debug", 'Got Public Key', 'Get Login OTP Verify');
 
-
       const encryptedText = this.getRSAText(publicKey, otp);
 
       logStream("debug", 'Encrypted Text', 'Get Login OTP Verify');
@@ -427,7 +417,20 @@ module.exports = (function () {
         "scope": [
           "abha-login",
           "mobile-verify"
-        ],
+        ]
+      }, url = process.env.LOGIN_VERIFY_URL
+
+      if (scope === 'aadhar' || scope === 'abha-number') {
+        payload = {
+          "scope": [
+            "abha-login",
+            "aadhaar-verify"
+          ]
+        }
+      }
+
+      payload = {
+        ...payload,
         "authData": {
           "authMethods": [
             "otp"
@@ -439,21 +442,11 @@ module.exports = (function () {
         }
       }
 
-      if (scope === 'aadhar' || scope === 'abha-number' || scope === 'abha-address') {
+      if (scope === 'abha-address') {
+        url = process.env.ABHA_ADDRESS_OTP_VERIFY;
         payload = {
-          "scope": [
-            "abha-login",
-            "aadhaar-verify"
-          ],
-          "authData": {
-            "authMethods": [
-              "otp"
-            ],
-            "otp": {
-              "txnId": txnId,
-              "otpValue": encryptedText
-            }
-          }
+          "txnId": txnId,
+          "otp": otp
         }
       }
 
@@ -463,8 +456,7 @@ module.exports = (function () {
 
       logStream("debug", 'Calling API to Get Login OTP Verify', 'Get Login OTP Verify');
 
-      const apiResponse = await axiosInstance.post(
-        process.env.LOGIN_VERIFY_URL,
+      const apiResponse = await axiosInstance.post(url,
         payload,
         {
           headers: {
