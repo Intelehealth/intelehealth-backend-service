@@ -518,7 +518,7 @@ module.exports = (function () {
       logStream("debug", 'Calling API to Get Profile', 'Get Profile');
 
       const apiResponse = await axiosInstance.get(
-        process.env.ACCOUNT_VERIFY_USER_URL,
+        scope == 'abha-address' ? process.env.ACCOUNT_VERIFY_ABHA_USER_URL : process.env.ACCOUNT_VERIFY_USER_URL,
         {
           headers: {
             ...this.getInitialHeaderrs(accessToken),
