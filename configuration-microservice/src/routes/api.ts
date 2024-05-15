@@ -11,13 +11,16 @@ import ConfigRoutes from './ConfigRoutes';
 import LanguageRoutes from './LanguageRoutes';
 import PatientRegistrationRoutes from './PatientRegistrationRoutes';
 import authMw from './middleware/authMw';
+import ThemeConfigRoutes from './ThemeConfigRoutes';
+import multer from 'multer';
 
 
 // **** Variables **** //
 
 const apiRouter = Router(),
   validate = jetValidator();
-
+const imageUploadPath = 'dist/public/assets/images';
+const slideImageUploadPath = 'dist/public/assets/images/slides';
 
 // **** Setup AuthRouter **** //
 
@@ -180,9 +183,72 @@ patientRegistrationRouter.put(
   PatientRegistrationRoutes.updateIsEditable,
 );
 
-
 // Add LanguageRouter
 apiRouter.use(Paths.PatientResgistration.Base, authMw, patientRegistrationRouter);
+
+
+// **** Setup Theme config **** //
+
+const themeConfigRouter = Router();
+
+const uploadConfigImage = multer({ storage: multer.diskStorage({
+    destination: function (req, file, cb) {
+      cb(null, imageUploadPath)
+    },
+    filename: function (req, file, cb) {
+      const filePrefix = req.body.key ? req.body.key : 'image';
+      const filename = `${filePrefix}-${new Date().valueOf()}.${file.originalname.split('.').pop()}`;
+      cb(null, filename);
+    }
+  }) 
+});
+
+const uploadSlideImage = multer({ storage: multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, slideImageUploadPath)
+  },
+  filename: function (req, file, cb) {
+    const filePrefix = 'slide';
+    const filename = `${filePrefix}-${new Date().valueOf()}.${file.originalname.split('.').pop()}`;
+    cb(null, filename);
+  }
+}) 
+});
+
+// Get all theme config
+themeConfigRouter.get(
+  Paths.ThemeConfig.Get,
+  ThemeConfigRoutes.getAll,
+);
+
+// Update theme config
+themeConfigRouter.put(
+  Paths.ThemeConfig.updateThemeConfig,
+  uploadConfigImage.single('file'),
+  ThemeConfigRoutes.updateThemeConfig,
+);
+
+// Upload Image for Slider
+themeConfigRouter.put(
+  Paths.ThemeConfig.uploadImage,
+  uploadSlideImage.single('file'),
+  ThemeConfigRoutes.uploadImage,
+);
+
+// Update theme config
+themeConfigRouter.put(
+  Paths.ThemeConfig.updateImagesText,
+  ThemeConfigRoutes.updateImagesText
+);
+
+// Delete Image 
+themeConfigRouter.delete(
+  Paths.ThemeConfig.deleteImage,
+  ThemeConfigRoutes.deleteFile
+);
+
+// Add LanguageRouter
+apiRouter.use(Paths.ThemeConfig.Base, authMw, themeConfigRouter);
 
 // **** Export default **** //
 

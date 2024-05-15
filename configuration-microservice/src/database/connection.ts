@@ -9,6 +9,7 @@ import { AuditTrail } from '@src/models/audit_trail.model';
 import { Language } from '@src/models/language.model';
 import { Publish } from '@src/models/dic_publish.model';
 import { PatientRegistration } from '@src/models/patient_registration.model';
+import { ThemeConfig } from '@src/models/theme_config.model';
 
 // Create a new Sequelize instance with the connection configuration
 const connection = new Sequelize({
@@ -19,7 +20,7 @@ const connection = new Sequelize({
   password: EnvVars.DbPassword, // Specifies the database password
   database: EnvVars.DbName, // Specifies the database name
   logging: false, // Disables logging of SQL queries
-  models: [Specialization, Config, AuditTrail, Language, Publish, PatientRegistration], // Associates the models with this Sequelize instance,
+  models: [Specialization, Config, AuditTrail, Language, Publish, PatientRegistration, ThemeConfig], // Associates the models with this Sequelize instance,
 });
 
 // Export the connection object as the default module
