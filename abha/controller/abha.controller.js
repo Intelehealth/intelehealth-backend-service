@@ -493,7 +493,7 @@ module.exports = (function () {
 
       const accessToken = req.token;
 
-      if(!['abha-address', 'abha-number'].includes(scope)) {
+      if(!['abha-address', 'abha-number', 'aadhar'].includes(scope)) {
         logStream("debug", 'Calling API to Login Verify User', 'Get Profile');
 
         const loginVerifyRes = await axiosInstance.post(
@@ -516,7 +516,7 @@ module.exports = (function () {
       }
 
       logStream("debug", 'Calling API to Get Profile', 'Get Profile');
-
+      
       const apiResponse = await axiosInstance.get(
         scope == 'abha-address' ? process.env.ACCOUNT_VERIFY_ABHA_USER_URL : process.env.ACCOUNT_VERIFY_USER_URL,
         {
