@@ -35,6 +35,12 @@ export default {
     updateIsEditable: '/updateIsEditable/:id',
     UpdateIsEnabled: '/updateIsEnabled/:id',
   },
+  PatientVital: {
+    Base: '/vitals',
+    Get: '/all',
+    updateIsMandatory: '/updateIsMandatory/:id',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+  },
   Config: {
     Base: '/config',
     Get: '/getApplicationConfig',

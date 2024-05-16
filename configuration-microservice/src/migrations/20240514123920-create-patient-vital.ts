@@ -5,28 +5,30 @@ module.exports = {
     up: (queryInterface: QueryInterface): Promise<void> => queryInterface.sequelize.transaction(
         async (transaction) => {
           // here go all migration changes
-          await queryInterface.createTable('audit_trail', {
+          await queryInterface.createTable('mst_patient_vital', {
             id: {
               allowNull: false,
               autoIncrement: true,
               primaryKey: true,
               type: DataTypes.INTEGER,
             },
-            user_id: {
+            name: {
               type: DataTypes.STRING,
-              allowNull: false
+              allowNull: false,
+              unique: true
             },
-            user_name: {
-              type: DataTypes.STRING
+            key: {
+              type: DataTypes.STRING,
+              allowNull: false,
+              unique: true
             },
-            activity_type: {
-              type: DataTypes.ENUM,
-              values:['CONFIG PUBLISHED', 'SPECIALIZATION STATUS UPDATED', 'LANGUAGE STATUS UPDATED', 'LANGUAGE SET AS DEFAULT', 'PATIENT REGISTRATION FIELD STATUS UPDATED', 'PATIENT REGISTRATION FIELD MANDATORY STATUS UPDATED', 'PATIENT REGISTRATION FIELD EDITABLE STATUS UPDATED', 'THEME CONFIG UPDATED', 'VITAL ENABLED STATUS UPDATED', 'VITAL MANDATORY STATUS UPDATED']
+            is_enabled: {
+              type: DataTypes.BOOLEAN,
+              defaultValue: false,
             },
-            description: {
-              type: DataTypes.TEXT,
-              allowNull: true,
-              defaultValue: null
+            is_mandatory: {
+              type: DataTypes.BOOLEAN,
+              defaultValue: false,
             },
             createdAt: {
               allowNull: false,
@@ -37,7 +39,10 @@ module.exports = {
               allowNull: false,
               type: DataTypes.DATE,
               defaultValue: Sequelize.literal('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'),
-            }
+            },
+            deletedAt: {
+              type: DataTypes.DATE,
+            },
           });
         }
     ),
@@ -45,7 +50,7 @@ module.exports = {
     down: (queryInterface: QueryInterface): Promise<void> => queryInterface.sequelize.transaction(
         async (transaction) => {
           // here go all migration undo changes
-          await queryInterface.dropTable('audit_trail');
+          await queryInterface.dropTable('mst_patient_vital');
         }
     )
 };

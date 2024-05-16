@@ -7,13 +7,13 @@ import User from '@src/models/User';
 import AuthRoutes from './AuthRoutes';
 import UserRoutes from './UserRoutes';
 import SpecializationRoutes from './SpecializationRoutes';
+import VitalRoutes from './PatientVitalRoutes';
 import ConfigRoutes from './ConfigRoutes';
 import LanguageRoutes from './LanguageRoutes';
 import PatientRegistrationRoutes from './PatientRegistrationRoutes';
 import authMw from './middleware/authMw';
 import ThemeConfigRoutes from './ThemeConfigRoutes';
 import multer from 'multer';
-
 
 // **** Variables **** //
 
@@ -183,7 +183,7 @@ patientRegistrationRouter.put(
   PatientRegistrationRoutes.updateIsEditable,
 );
 
-// Add LanguageRouter
+// Add PatientRegistrationRouter
 apiRouter.use(Paths.PatientResgistration.Base, authMw, patientRegistrationRouter);
 
 
@@ -247,8 +247,35 @@ themeConfigRouter.delete(
   ThemeConfigRoutes.deleteFile
 );
 
-// Add LanguageRouter
+// Add ThemeConfigRouter
 apiRouter.use(Paths.ThemeConfig.Base, authMw, themeConfigRouter);
+
+// **** Setup VitalRouter **** //
+
+const vitalRouter = Router();
+
+// Get all patient vitals
+vitalRouter.get(
+  Paths.PatientVital.Get,
+  VitalRoutes.getAll,
+);
+
+// Update one patient vital enabled status
+vitalRouter.put(
+  Paths.PatientVital.UpdateIsEnabled,
+  validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body']),
+  VitalRoutes.updateIsEnabled,
+);
+
+// Update one patient vital mandatory status
+vitalRouter.put(
+  Paths.PatientVital.updateIsMandatory,
+  validate(['id', 'number', 'params'],['is_mandatory', 'boolean', 'body']),
+  VitalRoutes.updateIsMandatory,
+);
+
+// Add SpecializationRouter
+apiRouter.use(Paths.PatientVital.Base, authMw, vitalRouter);
 
 // **** Export default **** //
 

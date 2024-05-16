@@ -9,7 +9,7 @@ module.exports = {
       */
       await queryInterface.bulkInsert('theme_config', [
         { key: 'logo', default_value: 'assets/images/default-logo.png'},
-        { key: 'thumbnail_logo', default_value: 'aseets/images/default-thumbnail.png'},
+        { key: 'thumbnail_logo', default_value: 'assets/images/default-thumbnail.png'},
         { key: 'primary_color', default_value:'#2E1E91'},
         { key: 'secondory_color', default_value:'#2E1E91'},
         { key: 'images_with_text', default_value: JSON.stringify([
