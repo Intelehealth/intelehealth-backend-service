@@ -107,7 +107,7 @@ module.exports = (function () {
   this.getEnrollOTPReq = async (req, res, next) => {
     try {
 
-      const { value, scope, txnId } = req.body;
+      const { value , txnId = "", scope = "aadhar" } = req.body;
 
       const accessToken = req.token
 
@@ -119,8 +119,7 @@ module.exports = (function () {
 
       const encryptedText = this.getRSAText(publicKey, value);
 
-      logStream("debug", 'Aadhar Encrypted', 'Enroll OTP Req');
-
+      logStream("debug", scope + ' Encrypted', 'Enroll OTP Req');
 
       let payload = {
         "txnId": "",
@@ -233,6 +232,73 @@ module.exports = (function () {
       );
 
       logStream("debug", 'Got Profile Response', 'Enroll By Aadhar');
+
+      return res.json(apiResponse.data)
+
+    } catch (error) {
+      logStream("error", error.message);
+      next(error);
+    }
+  };
+
+  /**
+   * Get ABHA Profile
+   * @param {req} object
+   * @param {res} object
+   * @param {next} function
+   */
+  this.enrollByAbdm = async (req, res, next) => {
+    try {
+
+      const { otp, txnId } = req.body
+
+      const accessToken = req.token
+
+      logStream("debug", 'Calling API to Get Public Key', 'Enroll By Abdm');
+
+      const publicKey = await this.getPublicKey(accessToken);
+
+      logStream("debug", 'Got Public Key', 'Get OTP');
+
+      const encryptedText = this.getRSAText(publicKey, otp);
+
+      logStream("debug", 'Encrypted Text', 'Enroll By Abdm');
+
+      const payload = {
+        "scope": [
+          "abha-enrol",
+          "mobile-verify"
+        ],
+        "authData": {
+          "authMethods": [
+            "otp"
+          ],
+          "otp": {
+            "txnId": txnId,
+            "otpValue": encryptedText,
+            "timeStamp": this.getTimestamp()
+          }
+        }
+      }
+
+      logStream("debug", JSON.stringify(payload), 'Enroll By Abdm');
+
+      logStream("debug", 'Calling API to Enroll By Abdm Response', 'Enroll By Abdm');
+
+      const apiResponse = await axiosInstance.post(
+        process.env.ENROLL_BY_ABDM_URL,
+        payload,
+        {
+          headers: {
+            ...this.getInitialHeaderrs(accessToken),
+            'REQUEST-ID': uuid(),
+            'TIMESTAMP': this.getTimestamp(),
+            'TRANSACTION_ID': uuid(),
+          }
+        }
+      );
+
+      logStream("debug", 'Got Profile Response', 'Enroll By ABDM');
 
       return res.json(apiResponse.data)
 
@@ -368,7 +434,7 @@ module.exports = (function () {
         }
       }
 
-      if(scope === 'abha-address') {
+      if (scope === 'abha-address') {
         url = process.env.ABHA_ADDRESS_OTP_URL;
         payload = {
           authMethod: 'AADHAAR_OTP',
@@ -506,7 +572,7 @@ module.exports = (function () {
 
       const accessToken = req.token;
 
-      if(!['abha-address', 'abha-number', 'aadhar'].includes(scope)) {
+      if (!['abha-address', 'abha-number', 'aadhar'].includes(scope)) {
         logStream("debug", 'Calling API to Login Verify User', 'Get Profile');
 
         const loginVerifyRes = await axiosInstance.post(
@@ -529,7 +595,7 @@ module.exports = (function () {
       }
 
       logStream("debug", 'Calling API to Get Profile', 'Get Profile');
-      
+
       const apiResponse = await axiosInstance.get(
         scope == 'abha-address' ? process.env.ACCOUNT_VERIFY_ABHA_USER_URL : process.env.ACCOUNT_VERIFY_USER_URL,
         {
