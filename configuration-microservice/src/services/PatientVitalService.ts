@@ -128,7 +128,7 @@ async function updateIsMandatory(id: string, is_mandatory: boolean, user_id: str
     }
 
     // Check if new status and current status are same or not, if same don't do anything
-    if (vital.is_enabled === is_mandatory) {
+    if (vital.is_mandatory === is_mandatory) {
         return;
     }
 
