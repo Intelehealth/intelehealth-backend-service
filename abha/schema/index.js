@@ -2,9 +2,15 @@ const Joi = require("joi");
 
 exports.otpSchema = Joi.object()
   .keys({
-    value: Joi.string().required(),
-    scope: Joi.string().valid('aadhar', 'mobile' ).required(),
-    txnId: Joi.optional()
+    scope: Joi.optional().valid('aadhar', 'mobile'),
+    txnId: Joi.optional(),
+    value: Joi.when("scope", {
+      is: 'mobile', then: Joi.string().min(10)
+        .max(10)
+        .required(), otherwise: Joi.string().min(12)
+          .max(12)
+          .required()
+    })
   });
 
 exports.loginOTPSchema = Joi.object()
@@ -20,6 +26,15 @@ exports.profileSchema = Joi.object()
       .required(),
     mobileNo: Joi.string()
       .required(),
+    txnId: Joi.string()
+      .required(),
+  });
+
+exports.enrollByAbdmSchema = Joi.object()
+  .keys({
+    otp: Joi.string()
+      .required(),
+    mobileNo: Joi.optional(),
     txnId: Joi.string()
       .required(),
   });
