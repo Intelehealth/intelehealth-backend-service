@@ -107,7 +107,7 @@ module.exports = (function () {
   this.getEnrollOTPReq = async (req, res, next) => {
     try {
 
-      const { aadhar } = req.body;
+      const { value, scope, txnId } = req.body;
 
       const accessToken = req.token
 
@@ -117,17 +117,30 @@ module.exports = (function () {
 
       logStream("debug", 'Got Public Key', 'Enroll OTP Req');
 
-      const encryptedText = this.getRSAText(publicKey, aadhar);
+      const encryptedText = this.getRSAText(publicKey, value);
 
       logStream("debug", 'Aadhar Encrypted', 'Enroll OTP Req');
 
 
-      const payload = {
+      let payload = {
         "txnId": "",
         "scope": ["abha-enrol"],
         "loginHint": "aadhaar",
         "otpSystem": "aadhaar",
         "loginId": encryptedText
+      }
+
+      if (scope === 'mobile') {
+        payload = {
+          "txnId": txnId,
+          "scope": [
+            "abha-enrol",
+            "mobile-verify"
+          ],
+          "loginHint": "mobile",
+          "otpSystem": "abdm",
+          "loginId": encryptedText
+        }
       }
 
       logStream("debug", JSON.stringify(payload), 'Enroll OTP Req');

@@ -2,10 +2,9 @@ const Joi = require("joi");
 
 exports.otpSchema = Joi.object()
   .keys({
-    aadhar: Joi.string()
-      .min(12)
-      .max(12)
-      .required(),
+    value: Joi.string().required(),
+    scope: Joi.string().valid('aadhar', 'mobile' ).required(),
+    txnId: Joi.optional()
   });
 
 exports.loginOTPSchema = Joi.object()
