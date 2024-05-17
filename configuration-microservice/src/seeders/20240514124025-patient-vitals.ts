@@ -14,13 +14,13 @@ module.exports = {
        * }], {});
       */
       await queryInterface.bulkInsert('mst_patient_vital', [
-        { name: 'Height', key: 'height', is_enabled: true, is_mandatory: true },
-        { name: 'Weight', key: 'weight', is_enabled: true, is_mandatory: true },
+        { name: 'Height (cm)', key: 'height_cm', is_enabled: true, is_mandatory: true },
+        { name: 'Weight (kg)', key: 'weight_kg', is_enabled: true, is_mandatory: true },
         { name: 'BMI', key: 'bmi', is_enabled: true, is_mandatory: true },
         { name: 'BP Systolic', key: 'bp_systolic', is_enabled: true, is_mandatory: true },
         { name: 'BP Diastolic', key: 'bp_diastolic', is_enabled: true, is_mandatory: true },
         { name: 'Pulse (bpm)', key: 'pulse_bpm', is_enabled: true, is_mandatory: true },
-        { name: 'Temprature', key: 'temprature', is_enabled: true, is_mandatory: true },
+        { name: 'Temprature (F)', key: 'temprature_f', is_enabled: true, is_mandatory: true },
         { name: 'SpO2 (%)', key: 'spo2', is_enabled: true, is_mandatory: true },
         { name: 'Respiratory Rate', key: 'respiratory_rate', is_enabled: true, is_mandatory: true },
         { name: 'FBS & PPBS (mg/dl)', key: 'fbs_and_ppbs_mg_per_dl', is_enabled: false, is_mandatory: false },
