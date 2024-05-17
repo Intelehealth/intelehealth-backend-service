@@ -57,7 +57,7 @@ async function updateIsEnabled(id: string, is_enabled: boolean, user_id: string,
         }
     }
 
-    if ((vital.name === 'Height' || vital.name === 'Weight') && !is_enabled) {
+    if ((vital.name === 'Height (cm)' || vital.name === 'Weight (kg)') && !is_enabled) {
         const bmi = await Vital.findOne({ where: { name: 'BMI' } });
         if (bmi?.is_enabled) {
             throw new RouteError(
@@ -68,8 +68,8 @@ async function updateIsEnabled(id: string, is_enabled: boolean, user_id: string,
     }
 
     if (vital.name === 'BMI' && is_enabled) {
-        const height = await Vital.findOne({ where: { name: 'Height' } });
-        const weight = await Vital.findOne({ where: { name: 'Weight' } });
+        const height = await Vital.findOne({ where: { name: 'Height (cm)' } });
+        const weight = await Vital.findOne({ where: { name: 'Weight (kg)' } });
         if (!(height?.is_enabled && weight?.is_enabled && height?.is_mandatory && weight?.is_mandatory)) {
             throw new RouteError(
                 HttpStatusCodes.BAD_REQUEST,
@@ -132,7 +132,7 @@ async function updateIsMandatory(id: string, is_mandatory: boolean, user_id: str
         return;
     }
 
-    if ((vital.name === 'Height' || vital.name === 'Weight') && !is_mandatory) {
+    if ((vital.name === 'Height (cm)' || vital.name === 'Weight (kg)') && !is_mandatory) {
         const bmi = await Vital.findOne({ where: { name: 'BMI' } });
         if (bmi?.is_enabled) {
             throw new RouteError(
