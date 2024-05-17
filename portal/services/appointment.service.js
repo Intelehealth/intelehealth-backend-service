@@ -158,8 +158,8 @@ WHERE
     type,
     month,
     year,
-    startDate,
-    endDate,
+    // startDate,
+    // endDate,
   }) => {
     try {
       logStream('debug','Appointment Service', 'Upsert Appointment Schedule');
@@ -172,8 +172,8 @@ WHERE
       if (type) update.type = type;
       if (year) update.year = year;
       if (month) update.month = month;
-      if (startDate) update.startDate = startDate;
-      if (endDate) update.endDate = endDate;
+      // if (startDate) update.startDate = startDate;
+      // if (endDate) update.endDate = endDate;
       if (schedule) {
         const resp = {
           message: MESSAGE.APPOINTMENT.APPOINTMENT_UPDATED_SUCCESSFULLY,
@@ -195,8 +195,8 @@ WHERE
             type,
             month,
             year,
-            startDate,
-            endDate,
+            // startDate,
+            // endDate,
           }),
         };
       }

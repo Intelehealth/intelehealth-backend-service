@@ -42,8 +42,8 @@ module.exports = (function () {
       { key: Constant.TYPE, type: "string" },
       { key: Constant.MONTH, type: "string" },
       { key: Constant.YEAR, type: "string" },
-      { key: Constant.START_DATE, type: "string" },
-      { key: Constant.END_DATE, type: "string" },
+      // { key: Constant.START_DATE, type: "string" },
+      // { key: Constant.END_DATE, type: "string" },
     ];
     try {
       logStream('debug','API calling', 'Upsert Schedule');
