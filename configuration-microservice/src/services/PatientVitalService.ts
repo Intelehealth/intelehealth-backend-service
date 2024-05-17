@@ -24,7 +24,7 @@ export const CANT_CHANGE_MANDATORY_STATUS = "Can't update, vital must be always 
  */
 function getAll(): Promise<Vital[]> {
     return Vital.findAll({
-        attributes: ['id', 'name', 'key', 'is_enabled', 'is_mandatory', 'createdAt', 'updatedAt'],
+        attributes: ['id', 'name', 'key', 'uuid', 'is_enabled', 'is_mandatory', 'createdAt', 'updatedAt'],
         raw: true
     });
 }
@@ -104,7 +104,7 @@ async function updateIsEnabled(id: string, is_enabled: boolean, user_id: string,
 
     // Get enabled specializations
     const enabledVitals = await Vital.findAll({
-        attributes: ['name', 'key', 'is_mandatory'],
+        attributes: ['name', 'key', 'uuid', 'is_mandatory'],
         where: { is_enabled: true }
     });
 
@@ -164,7 +164,7 @@ async function updateIsMandatory(id: string, is_mandatory: boolean, user_id: str
 
     // Get enabled specializations
     const enabledVitals = await Vital.findAll({
-        attributes: ['name', 'key', 'is_mandatory'],
+        attributes: ['name', 'key', 'uuid', 'is_mandatory'],
         where: { is_mandatory: true }
     });
 

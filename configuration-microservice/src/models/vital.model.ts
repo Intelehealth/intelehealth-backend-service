@@ -5,6 +5,7 @@ export interface VitalAttributes {
   id: number;
   name: string;
   key: string;
+  uuid: string;
   is_enabled: boolean;
   is_mandatory: boolean;
   createdAt?: Date;
@@ -41,6 +42,13 @@ export class Vital extends Model<VitalAttributes, VitalCreationAttributes> {
         unique: true
     })
     key!: string;
+
+    @Column({
+        type: DataTypes.STRING,
+        allowNull: false,
+        unique: true
+    })
+    uuid!: string;
 
     @Column({
         type: DataTypes.BOOLEAN,

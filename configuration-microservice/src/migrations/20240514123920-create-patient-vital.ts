@@ -22,6 +22,11 @@ module.exports = {
               allowNull: false,
               unique: true
             },
+            uuid: {
+              type: DataTypes.STRING,
+              allowNull: false,
+              unique: true
+            },
             is_enabled: {
               type: DataTypes.BOOLEAN,
               defaultValue: false,
