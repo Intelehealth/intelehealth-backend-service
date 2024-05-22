@@ -489,6 +489,9 @@ function medicalFamilyHistoryStructure(obs, familyHistoryData, practitioner, pat
             }
         }
     }
+    familyHistoryData.section.entry.push({
+        "reference": `Condition/${obs.uuid}`
+    })
     familyHistoryData.conditions.push({
         "resource": {
             "code": {
@@ -939,7 +942,17 @@ function formatCareContextFHIBundle(response) {
     const abhaNumber = getIdentifierByName(response?.patient?.identifiers, 'Abha Number')?.identifier;
     const practitioner = getDoctorDetail(response?.encounters);
     const patient = response?.patient;
-    const { medications, cheifComplaints, medicalHistory, physicalExamination, serviceRequest, followUp, referrals } = getEncountersFHIBundle(response?.encounters, practitioner, patient, response?.startDatetime);
+    const { medications, cheifComplaints, medicalHistory, familyHistory, physicalExamination, serviceRequest, followUp, referrals } = getEncountersFHIBundle(response?.encounters, practitioner, patient, response?.startDatetime);
+
+    const sections = [];
+    if(medications?.section) sections.push(medications?.section)
+    if(cheifComplaints?.section) sections.push(cheifComplaints?.section)
+    if(medicalHistory?.section) sections.push(medicalHistory?.section)
+    if(familyHistory?.section) sections.push(familyHistory?.section)
+    if(physicalExamination?.section) sections.push(physicalExamination?.section)
+    if(serviceRequest?.section) sections.push(serviceRequest?.section)
+    if(followUp?.section) sections.push(followUp?.section)
+    if(referrals?.section) sections.push(followUp?.section)
 
     return {
         "identifier": {
@@ -971,14 +984,7 @@ function formatCareContextFHIBundle(response) {
                             "display": practitioner?.name
                         }
                     ],
-                    "section": [
-                        medications?.section,
-                        cheifComplaints?.section,
-                        medicalHistory?.section,
-                        physicalExamination?.section,
-                        serviceRequest?.section,
-                        followUp?.section
-                    ],
+                    "section": sections,
                     "id": response?.uuid,
                     "encounter": {
                         "reference": `Encounter/${response?.encounters[0]?.uuid}`
@@ -1127,6 +1133,7 @@ function formatCareContextFHIBundle(response) {
             ...(medications?.medicationRequest ?? []),
             ...(cheifComplaints?.conditions ?? []),
             ...(medicalHistory?.conditions ?? []),
+            ...(familyHistory?.conditions ?? []),
             ...(physicalExamination?.observations ?? []),
             ...(serviceRequest?.requests ?? []),
             ...(followUp?.followUp ?? []),
