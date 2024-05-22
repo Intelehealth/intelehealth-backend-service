@@ -219,6 +219,7 @@ function getDoctorDetail(encounters) {
         "gender": getGender(doctor?.person?.gender),
         "practitioner_id": doctor?.uuid ?? '',
         "telecom": getAttributeByName(doctor?.attributes, 'phoneNumber')?.value ?? '',
+        "dateUpdated": doctor?.person?.dateUpdated ?? doctor?.person?.dateCreated,
     }
 }
 
@@ -1016,7 +1017,7 @@ function formatCareContextFHIBundle(response) {
                     //     }
                     // ],
                     "meta": {
-                        "lastUpdated": "2024-01-04T15:36:45+05:30",
+                        "lastUpdated": convertDataToISO(practitioner?.dateUpdated),
                         "versionId": "1",
                         "profile": [
                             "https://nrces.in/ndhm/fhir/r4/StructureDefinition/Practitioner"
@@ -1098,7 +1099,7 @@ function formatCareContextFHIBundle(response) {
                     ],
                     "gender": patient?.person?.gender,
                     "meta": {
-                        "lastUpdated": "2024-01-04T15:36:45+05:30",
+                        "lastUpdated": convertDataToISO(patient?.dateUpdated ?? patient?.dateCreated),
                         "versionId": "1",
                         "profile": [
                             "https://nrces.in/ndhm/fhir/r4/StructureDefinition/Patient"
