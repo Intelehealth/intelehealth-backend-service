@@ -9,7 +9,7 @@ const encryptRsa = new EncryptRsa();
 
 const { uuid } = require('uuidv4');
 const openmrsService = require("../services/openmrs.service");
-const { convertDateToDDMMYYYY, formatCareContextResponse, handleError } = require("../handlers/utilityHelper");
+const { convertDateToDDMMYYYY, handleError, formatCareContextFHIBundle } = require("../handlers/utilityHelper");
 const { abdm_visit_status } = require("../models");
 
 
@@ -927,7 +927,7 @@ module.exports = (function () {
       const visitUUID = req.body.visitUUID ?? req.params.visitUUID;
       const response = await openmrsService.getVisitByUUID(visitUUID);
       if (!response.success) throw response;
-      res.json(formatCareContextResponse(response?.data));
+      res.json(formatCareContextFHIBundle(response?.data));
       return;
     } catch (error) {
       logStream("error", error);

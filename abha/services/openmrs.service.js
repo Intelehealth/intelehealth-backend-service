@@ -192,7 +192,7 @@ module.exports = (function () {
   */
   this.getVisitByUUID = async (visitUUID) => {
     try {
-      const url = `/ws/rest/v1/visit/${visitUUID}?v=custom:(location:(display),uuid,display,startDatetime,dateCreated,stopDatetime,encounters:(display,uuid,encounterDatetime,encounterType:(display),obs:(display,uuid,value,concept:(uuid,display)),encounterProviders:(display,provider:(uuid,providerId,attributes,person:(uuid,display,gender,age)))),patient:(uuid,identifiers:(identifier,identifierType:(name,uuid,display)),attributes,person:(display,gender,age)),attributes)`;
+      const url = `/ws/rest/v1/visit/${visitUUID}?v=custom:(location:(display,address1,address2),uuid,display,startDatetime,dateCreated,stopDatetime,encounters:(display,uuid,encounterDatetime,encounterType:(display),obs:(display,uuid,value,obsDatetime,concept:(uuid,display,id)),encounterProviders:(display,provider:(uuid,providerId,attributes,person:(uuid,display,gender,age)))),patient:(uuid,identifiers:(identifier,identifierType:(name,uuid,display)),attributes,person:(display,gender,age)),attributes)`;
       const visit = await openmrsAxiosInstance.get(url);
       return {
         success: true,
