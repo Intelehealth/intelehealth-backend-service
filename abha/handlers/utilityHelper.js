@@ -63,7 +63,7 @@ function handleError(error) {
 function getDoctorDetail(encounters) {
     const encounter = encounters?.find((encounter) => ["Visit Complete", "Visit Note"].includes(encounter?.encounterType?.display));
     const doctor = encounter?.encounterProviders?.[0]?.provider;
-    if(!doctor) return;
+    if (!doctor) return;
     return {
         "name": doctor?.person?.display ?? '',
         "gender": getGender(doctor?.person?.gender),
@@ -300,8 +300,8 @@ function medicalFamilyHistoryStructure(obs, familyHistoryData, practitioner, pat
                     if (splitByComma?.length) {
                         for (const value of splitByComma) {
                             const relation = value?.replace(/[^a-zA-Z]/g, '')?.trim()?.toLowerCase();
-                         
-                            if(!RELATIONS[relation]) continue;
+
+                            if (!RELATIONS[relation]) continue;
 
                             if (!relationMap[relation]) {
                                 relationMap[relation] = key
@@ -312,16 +312,16 @@ function medicalFamilyHistoryStructure(obs, familyHistoryData, practitioner, pat
                     }
                 }
             });
-        } else if(familyHistory[i]) {
+        } else if (familyHistory[i]) {
             // console.log("er", familyHistory)
             // const key = familyHistory[i].replace('•', '').trim();
         }
     }
 
     const relations = Object.keys(relationMap);
-    
+
     if (!relations?.length) return;
-    
+
     for (const key of relations) {
         const uniquId = uuid()
         familyHistoryData.section.entry.push({
@@ -329,15 +329,15 @@ function medicalFamilyHistoryStructure(obs, familyHistoryData, practitioner, pat
         })
         familyHistoryData.conditions.push({
             "resource": {
-                "text" : {
-                    "status" : "generated",
-                    "div" : `<div xmlns=\"http://www.w3.org/1999/xhtml\">${RELATIONS[key].name} is having ${relationMap[key]}.</div>`
+                "text": {
+                    "status": "generated",
+                    "div": `<div xmlns=\"http://www.w3.org/1999/xhtml\">${RELATIONS[key].name} is having ${relationMap[key]}.</div>`
                 },
                 "patient": {
                     "reference": `Patient/${patient?.uuid}`,
                     "display": patient?.person?.display
                 },
-                "status" : "completed",
+                "status": "completed",
                 "id": uniquId,
                 "relationship": {
                     "coding": [
@@ -369,9 +369,9 @@ function medicalFamilyHistoryStructure(obs, familyHistoryData, practitioner, pat
                         // }
                     }
                 ],
-                "meta" : {
-                    "profile" : [
-                       "https://nrces.in/ndhm/fhir/r4/StructureDefinition/FamilyMemberHistory"
+                "meta": {
+                    "profile": [
+                        "https://nrces.in/ndhm/fhir/r4/StructureDefinition/FamilyMemberHistory"
                     ]
                 },
                 "resourceType": "FamilyMemberHistory"
@@ -391,72 +391,70 @@ function followUPStructure(obs, folloupVisit, practitioner, patient) {
             "reference": `Appointment/${obs.uuid}`
         });
         folloupVisit.followUp.push({
-            "resourceType": "Appointment",
-            "id": obs.uuid,
-            "meta": {
-                "profile": [
-                    "https://nrces.in/ndhm/fhir/r4/StructureDefinition/Appointment"
-                ]
-            },
-            "text": {
-                "status": "generated",
-                "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">Follow up for further consultation</div>"
-            },
-            "status": "booked",
-            "serviceCategory": [
-                {
-                    "coding": [
-                        {
-                            "system": "http://snomed.info/sct",
-                            "code": "408443003",
-                            "display": "General medical practice"
-                        }
+            "resource": {
+                "resourceType": "Appointment",
+                "id": obs.uuid,
+                "meta": {
+                    "profile": [
+                        "https://nrces.in/ndhm/fhir/r4/StructureDefinition/Appointment"
                     ]
-                }
-            ],
-            "serviceType": [
-                {
-                    "coding": [
-                        {
-                            "system": "http://snomed.info/sct",
-                            "code": "11429006",
-                            "display": "Consultation"
-                        }
-                    ]
-                }
-            ],
-            "appointmentType": {
-                "coding": [
+                },
+                "text": {
+                    "status": "generated",
+                    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">Follow up for further consultation</div>"
+                },
+                "status": "booked",
+                "serviceCategory": [
                     {
-                        "system": "http://snomed.info/sct",
-                        "code": "185389009",
-                        "display": "Follow-up visit"
+                        "coding": [
+                            {
+                                "system": "http://snomed.info/sct",
+                                "code": "408443003",
+                                "display": "General medical practice"
+                            }
+                        ]
+                    }
+                ],
+                "serviceType": [
+                    {
+                        "coding": [
+                            {
+                                "system": "http://snomed.info/sct",
+                                "code": "11429006",
+                                "display": "Consultation"
+                            }
+                        ]
+                    }
+                ],
+                "appointmentType": {
+                    "coding": [
+                        {
+                            "system": "http://snomed.info/sct",
+                            "code": "185389009",
+                            "display": "Follow-up visit"
+                        }
+                    ]
+                },
+                "description": Remark,
+                "start": startDate,
+                "end": startDate,
+                "created": convertDataToISO(obs.obsDatetime),
+                "participant": [
+                    {
+                        "actor": {
+                            "reference": `Patient/${patient.uuid}`
+                        },
+                        "status": "accepted"
+                    },
+                    {
+                        "actor": {
+                            "reference": `Practitioner/${practitioner.practitioner_id}`
+                        },
+                        "status": "accepted"
                     }
                 ]
             },
-            "reasonReference": [
-                {
-                    "reference": `Condition/${obs.uuid}`
-                }
-            ],
-            "description": Remark,
-            "start": startDate,
-            "end": startDate,
-            "created": convertDataToISO(obs.obsDatetime),
-            "participant": [
-                {
-                    "actor": {
-                        "reference": `Patient/${patient.uuid}`
-                    },
-                    "status": "accepted"
-                },
-                {
-                    "actor": {
-                        "reference": `Practitioner/${practitioner.practitioner_id}`
-                    },
-                    "status": "accepted"
-                }
-            ]
+            "fullUrl": `Appointment/${uniquId}`
         });
     } catch (err) { }
 }
@@ -797,7 +795,7 @@ function formatCareContextFHIBundle(response) {
     const abhaNumber = getIdentifierByName(response?.patient?.identifiers, 'Abha Number')?.identifier;
     const abhaAddress = getIdentifierByName(response?.patient?.identifiers, 'Abha Address')?.identifier;
     const practitioner = getDoctorDetail(response?.encounters);
-    if(!practitioner) return;
+    if (!practitioner) return;
     const patient = response?.patient;
     const { medications, cheifComplaints, medicalHistory, familyHistory, physicalExamination, serviceRequest, followUp, referrals } = getEncountersFHIBundle(response?.encounters, practitioner, patient, response?.startDatetime);
 
@@ -957,7 +955,7 @@ function formatCareContextFHIBundle(response) {
                                     }
                                 ]
                             },
-                            "value": abhaNumber ?? abhaAddress ?? openMRSID 
+                            "value": abhaNumber ?? abhaAddress ?? openMRSID
                         }
                     ],
                     "gender": getGender(patient?.person?.gender)?.toLowerCase(),
