@@ -467,20 +467,9 @@ function medicationStructure(obs, medications, practitioner, patient) {
     if (obsValue?.[3]) dosageInstruction += ` (${obsValue?.[3]}) Aa Day`;
     if (obsValue?.[2]) dosageInstruction += ` (Duration:${obsValue?.[2]})`;
     if (obsValue?.[4]) dosageInstruction += ` Remark: ${obsValue?.[4]}`;
-    const medicationUUID = uuid()
+    
     medications.section.entry.push({
         "reference": `MedicationRequest/${obs.uuid}`
-    })
-
-    medications.medications.push({
-        "resource": {
-            "code": {
-                "text": obsValue?.[0]
-            },
-            "id": medicationUUID,
-            "resourceType": "Medication"
-        },
-        "fullUrl": `Medication/${medicationUUID}`
     })
 
     medications.medicationRequest.push({
@@ -488,8 +477,8 @@ function medicationStructure(obs, medications, practitioner, patient) {
             "requester": {
                 "reference": `Practitioner/${practitioner?.practitioner_id}`
             },
-            "medicationReference": {
-                "reference": `Medication/${medicationUUID}`
+            "medicationCodeableConcept": {
+                "text": obsValue?.[0]
             },
             "authoredOn": convertDataToISO(obs.obsDatetime),
             "dosageInstruction": [
@@ -664,7 +653,6 @@ function getEncountersFHIBundle(encounters, practitioner, patient) {
                 },
                 "title": "Medications"
             },
-            medications: [],
             medicationRequest: []
         }, // JSV MEDICATIONS
         serviceRequest = {
@@ -741,6 +729,7 @@ function getEncountersFHIBundle(encounters, practitioner, patient) {
             enc.obs.forEach((obs) => physicalExaminationVitalStructure(obs, physicalExaminationData));
         } else if (enc.encounterType.display === VISIT_TYPES.VISIT_NOTE) {
             enc.obs.forEach((obs) => {
+                console.log("obs.concept.display", obs.concept.display)
                 if (obs.concept.display === VISIT_TYPES.FOLLOW_UP_VISIT) {
                     followUPStructure(obs, folloupVisit, practitioner, patient)
                 } else if (obs.concept.display === VISIT_TYPES.JSV_MEDICATIONS || obs.concept.display === VISIT_TYPES.MEDICATIONS) {
@@ -782,7 +771,7 @@ function getEncountersFHIBundle(encounters, practitioner, patient) {
         physicalExamination: physicalExaminationData?.observations.length ? physicalExaminationData : {},
         medicalHistory: medicalHistoryData?.conditions?.length ? medicalHistoryData : {},
         familyHistory: familyHistoryData?.conditions?.length ? familyHistoryData : {},
-        medications: medications?.medications.length ? medications : {},
+        medications: medications?.medicationRequest.length ? medications : {},
         serviceRequest: serviceRequest?.requests.length ? serviceRequest : {},
         followUp: folloupVisit?.followUp?.length ? folloupVisit : {},
         referrals: referrals?.requests?.length ? referrals : {}
