@@ -1,4 +1,4 @@
-const { OBSERVATION_TYPE, VISIT_TYPES } = require("../constants/abha.constants");
+const { OBSERVATION_TYPE, VISIT_TYPES, RELATIONS } = require("../constants/abha.constants");
 const { uuid } = require('uuidv4');
 
 function convertDateToDDMMYYYY(inputFormat) {
@@ -6,13 +6,6 @@ function convertDateToDDMMYYYY(inputFormat) {
     function pad(s) { return (s < 10) ? '0' + s : s; }
     var d = new Date(inputFormat)
     return [pad(d.getDate()), pad(d.getMonth() + 1), d.getFullYear()].join('/')
-}
-
-function convertDateToYYYYMMDD(inputFormat) {
-    if (!inputFormat) return undefined
-    function pad(s) { return (s < 10) ? '0' + s : s; }
-    var d = new Date(inputFormat)
-    return [d.getFullYear(), pad(d.getMonth() + 1), pad(d.getDate())].join('-')
 }
 
 function convertDataToISO(input) {
@@ -51,195 +44,6 @@ function getGender(gender) {
     return ''
 }
 
-function appendStr(existStr, newStr) {
-    if (!existStr) return newStr;
-    return existStr += `\n${newStr}`;
-}
-
-function getEncounters(encounters) {
-    let cheifComplaints = [],
-        checkUpReasonData = [],
-        physicalExaminationData = [],
-        medicalHistoryData = [],
-        familyHistoryData = [],
-        medications, // JSV MEDICATIONS
-        diagnosis, // TELEMEDICINE DIAGNOSIS
-        investigationAdvice, // MEDICAL ADVICE
-        referrals, // Referrals
-        procedures, // REQUESTED TESTS
-        otherObservations, // vitals
-        documentReferences, // ATTACHMENT_UPLOAD
-        folloupVisit;
-
-    encounters?.forEach((enc) => {
-        if (enc.encounterType.display === VISIT_TYPES.ADULTINITIAL) {
-            enc.obs.forEach((obs) => {
-                if (obs.concept.display === VISIT_TYPES.CURRENT_COMPLAINT) {
-                    const currentComplaint = getData(obs)?.value.split('<b>');
-                    for (let i = 0; i < currentComplaint.length; i++) {
-                        if (currentComplaint[i] && currentComplaint[i].length > 1) {
-                            const obs1 = currentComplaint[i].split('<');
-                            if (!obs1[0].match(VISIT_TYPES.ASSOCIATED_SYMPTOMS)) {
-                                cheifComplaints.push(obs1[0]);
-                            }
-                            const splitByBr = currentComplaint[i].split('<br/>');
-                            if (splitByBr[0].includes(VISIT_TYPES.ASSOCIATED_SYMPTOMS)) {
-                                for (let j = 1; j < splitByBr.length; j = j + 2) {
-                                    if (splitByBr[j].trim() && splitByBr[j].trim().length > 1) {
-                                        const key = splitByBr[j].replace('• ', '').replace(' -', '');
-                                        const value = splitByBr[j + 1];
-                                        const title = VISIT_TYPES.ASSOCIATED_SYMPTOMS;
-                                        checkUpReasonData.push(`${title}:${key}:${value}`);
-                                    }
-                                }
-                            } else {
-                                for (let k = 1; k < splitByBr.length; k++) {
-                                    if (splitByBr[k].trim() && splitByBr[k].trim().length > 1) {
-                                        const splitByDash = splitByBr[k].split('-');
-                                        const key = splitByDash[0].replace('• ', '');
-                                        const value = splitByDash.slice(1, splitByDash.length).join('-');
-                                        const title = splitByBr[0].replace('</b>:', '');
-                                        checkUpReasonData.push(`${title}:${key}:${value}`);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } else if (obs.concept.display === VISIT_TYPES.PHYSICAL_EXAMINATION) {
-                    const physicalExam = getData(obs)?.value.replace(new RegExp('<br/>►', 'g'), '').split('<b>');
-                    for (let i = 0; i < physicalExam.length; i++) {
-                        if (physicalExam[i]) {
-                            const splitByBr = physicalExam[i].split('<br/>');
-                            const title = splitByBr[0].replace('</b>', '').replace(':', '').trim();
-                            if (splitByBr[0].includes('Abdomen')) {
-                                for (let k = 1; k < splitByBr.length; k++) {
-                                    if (splitByBr[k].trim()) {
-                                        const key = splitByBr[k].replace('• ', '');
-                                        physicalExaminationData.push(`${title}:${key}`);
-                                    }
-                                }
-                            } else {
-                                for (let k = 1; k < splitByBr.length; k++) {
-                                    if (splitByBr[k].trim()) {
-                                        const splitByDash = splitByBr[k].split('-');
-                                        const key = splitByDash[0].replace('• ', '');
-                                        const value = splitByDash.slice(1, splitByDash.length).join('-');
-                                        physicalExaminationData.push(`${title}:${key}:${value}`);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } else if (obs.concept.display === VISIT_TYPES.MEDICAL_HISTORY) {
-                    const medicalHistory = getData(obs)?.value.split('<br/>');
-                    for (let i = 0; i < medicalHistory.length; i++) {
-                        if (medicalHistory[i]) {
-                            const splitByDash = medicalHistory[i].split('-');
-                            const key = splitByDash[0].replace('• ', '').trim();
-                            const value = splitByDash.slice(1, splitByDash.length).join('-').trim();
-                            medicalHistoryData.push(`${key}:${value}`);
-                        }
-                    }
-                } else if (obs.concept.display === VISIT_TYPES.FAMILY_HISTORY) {
-                    const familyHistory = getData(obs)?.value.split('<br/>');
-                    for (let i = 0; i < familyHistory.length; i++) {
-                        if (familyHistory[i]) {
-                            if (familyHistory[i].includes(':')) {
-                                const splitByColon = familyHistory[i].split(':');
-                                const splitByDot = splitByColon[1].trim().split("•");
-                                splitByDot.forEach(element => {
-                                    if (element.trim()) {
-                                        const splitByComma = element.split(',');
-                                        const key = splitByComma.shift().trim();
-                                        const value = splitByComma.length ? splitByComma.toString().trim() : " ";
-                                        familyHistoryData.push(`${key}:${value}`);
-                                    }
-                                });
-                            } else {
-                                const key = familyHistory[i].replace('•', '').trim();
-                                familyHistoryData.push(`${key}`);
-                            }
-                        }
-                    }
-                } else if (obs.concept.display === VISIT_TYPES.COMPLEX_IMAGE) {
-                    documentReferences = appendStr(documentReferences, `https://${process.env.DOMAIN}/openmrs/ws/rest/v1/obs/${obs.uuid}/value`)
-                }
-            });
-        } else if (enc.encounterType.display === VISIT_TYPES.VITALS) {
-            enc.obs.forEach((obs) => {
-                otherObservations = appendStr(otherObservations, obs.display);
-            });
-        } else if (enc.encounterType.display === VISIT_TYPES.VISIT_NOTE) {
-            enc.obs.forEach((obs) => {
-                if (obs.concept.display === VISIT_TYPES.FOLLOW_UP_VISIT) {
-                    folloupVisit = obs.value;
-                } else if (obs.concept.display === VISIT_TYPES.JSV_MEDICATIONS) {
-                    medications = appendStr(medications, obs.value);
-                } else if (obs.concept.display === VISIT_TYPES.REFERRAL) {
-                    referrals = appendStr(referrals, obs.value);
-                } else if (obs.concept.display === VISIT_TYPES.TELEMEDICINE_DIAGNOSIS) {
-                    diagnosis = appendStr(diagnosis, obs.value);
-                } else if (obs.concept.display === VISIT_TYPES.MEDICAL_ADVICE) {
-                    investigationAdvice = appendStr(investigationAdvice, obs.value);
-                } else if (obs.concept.display === VISIT_TYPES.REQUESTED_TESTS) {
-                    procedures = appendStr(procedures, obs.value);
-                }
-            })
-        } else if (enc.encounterType.display === VISIT_TYPES.ATTACHMENT_UPLOAD) {
-            enc.obs.forEach((obs) => {
-                documentReferences = appendStr(documentReferences, `https://${process.env.DOMAIN}/openmrs/ws/rest/v1/obs/${obs.uuid}/value`)
-            })
-        }
-    });
-
-    let Procedure = diagnosis ?? procedures ?? undefined;
-    if (diagnosis && procedures) Procedure = `${diagnosis}\n${procedures}`;
-    const ChiefComplaints = [...cheifComplaints, ...checkUpReasonData];
-    return {
-        ChiefComplaints: ChiefComplaints.length ? ChiefComplaints?.join('\n') : undefined,
-        PhysicalExamination: physicalExaminationData?.length ? physicalExaminationData.join('\n') : undefined,
-        MedicalHistory: medicalHistoryData?.length ? medicalHistoryData.join('\n') : undefined,
-        FamilyHistory: familyHistoryData?.length ? familyHistoryData.join('\n') : undefined,
-        Medications: medications ?? undefined,
-        InvestigationAdvice: investigationAdvice ?? undefined,
-        Referral: referrals ?? undefined,
-        Procedure: Procedure,
-        OtherObservations: otherObservations ?? undefined,
-        DocumentReference: documentReferences ?? undefined,
-        FollowUp: folloupVisit,
-        Allergies: undefined,
-    }
-}
-
-function getDoctorDetail(encounters) {
-    const encounter = encounters?.find((encounter) => ["Visit Complete", "Visit Note"].includes(encounter?.encounterType?.display));
-    const doctor = encounter?.encounterProviders?.[0]?.provider;
-    return {
-        "name": doctor?.person?.display ?? '',
-        "gender": getGender(doctor?.person?.gender),
-        "practitioner_id": doctor?.uuid ?? '',
-        "telecom": getAttributeByName(doctor?.attributes, 'phoneNumber')?.value ?? '',
-        "dateUpdated": doctor?.person?.dateUpdated ?? doctor?.person?.dateCreated,
-    }
-}
-
-function formatCareContextResponse(response) {
-    const patientTelecom = getAttributeByName(response?.patient?.attributes, 'Telephone Number');
-    const formattedResponse = {
-        "patient": {
-            "name": response?.patient?.person?.display,
-            "gender": getGender(response?.patient?.person?.gender),
-            "patient_id": getIdentifierByName(response?.patient?.identifiers, 'OpenMRS ID')?.identifier,
-            "telecom": patientTelecom?.value === 'NA' ? null : patientTelecom?.value,
-        },
-        "practitioner": getDoctorDetail(response?.encounters),
-        "date": convertDateToYYYYMMDD(response?.startDatetime),
-        ...getEncounters(response?.encounters)
-    };
-
-    return formattedResponse;
-}
-
 function handleError(error) {
     if ((error?.data?.error && typeof error?.data?.error === 'string') || error?.data?.message) {
         return error?.data;
@@ -253,6 +57,21 @@ function handleError(error) {
         return { message: error?.message }
     }
     return new Error('Something went wrong!');
+}
+
+// Get the doctor details
+function getDoctorDetail(encounters) {
+    const encounter = encounters?.find((encounter) => ["Visit Complete", "Visit Note"].includes(encounter?.encounterType?.display));
+    const doctor = encounter?.encounterProviders?.[0]?.provider;
+    if(!doctor) return;
+    return {
+        "name": doctor?.person?.display ?? '',
+        "gender": getGender(doctor?.person?.gender),
+        "practitioner_id": doctor?.uuid ?? '',
+        "telecom": getAttributeByName(doctor?.attributes, 'phoneNumber')?.value ?? '',
+        "dateUpdated": doctor?.person?.dateUpdated ?? doctor?.person?.dateCreated,
+        "registrationNumber": getAttributeByName(doctor?.attributes, 'registrationNumber')?.value ?? ''
+    }
 }
 
 // Cheif Complaints
@@ -427,10 +246,10 @@ function medicalHistoryStructure(obs, medicalHistoryData, practitioner, patient)
     medicalHistoryData.conditions.push({
         "resource": {
             "code": {
-                "text": history.join('\n')
+                "text": history.join(', ')
             },
             "onsetPeriod": {
-                "start": "2024-01-04T15:35:28+05:30"
+                "start": convertDataToISO(obs.obsDatetime)
             },
             "subject": {
                 "reference": `Patient/${patient?.uuid}`
@@ -469,68 +288,97 @@ function medicalHistoryStructure(obs, medicalHistoryData, practitioner, patient)
 function medicalFamilyHistoryStructure(obs, familyHistoryData, practitioner, patient) {
     const familyHistory = getData(obs)?.value.split('<br/>');
     if (!familyHistory.length) return;
-    const history = []
+    const relationMap = {};
     for (let i = 0; i < familyHistory.length; i++) {
-        if (familyHistory[i]) {
-            if (familyHistory[i].includes(':')) {
-                const splitByColon = familyHistory[i].split(':');
-                const splitByDot = splitByColon[1].trim().split("•");
-                splitByDot.forEach(element => {
-                    if (element.trim()) {
-                        const splitByComma = element.split(',');
-                        const key = splitByComma.shift().trim();
-                        const value = splitByComma.length ? splitByComma.toString().trim() : " ";
-                        history.push(`${key}:${value}`);
+        if (familyHistory[i] && familyHistory[i].includes(':')) {
+            const splitByColon = familyHistory[i].split(':');
+            const splitByDot = splitByColon[1].trim().split("•");
+            splitByDot.forEach(element => {
+                if (element.trim() && !element.includes('None.')) {
+                    const splitByComma = element.split(',');
+                    const key = splitByComma.shift().trim();
+                    if (splitByComma?.length) {
+                        for (const value of splitByComma) {
+                            const relation = value?.replace(/[^a-zA-Z]/g, '')?.trim()?.toLowerCase();
+                         
+                            if(!RELATIONS[relation]) continue;
+
+                            if (!relationMap[relation]) {
+                                relationMap[relation] = key
+                            } else {
+                                relationMap[relation] += `, ${key}`;
+                            }
+                        }
                     }
-                });
-            } else {
-                const key = familyHistory[i].replace('•', '').trim();
-                history.push(`${key}`);
-            }
+                }
+            });
+        } else if(familyHistory[i]) {
+            // console.log("er", familyHistory)
+            // const key = familyHistory[i].replace('•', '').trim();
         }
     }
-    familyHistoryData.section.entry.push({
-        "reference": `Condition/${obs.uuid}`
-    })
-    familyHistoryData.conditions.push({
-        "resource": {
-            "code": {
-                "text": history.join('\n')
-            },
-            "onsetPeriod": {
-                "start": convertDataToISO(obs.obsDatetime)
-            },
-            "subject": {
-                "reference": `Patient/${patient?.uuid}`
-            },
-            "recordedDate": convertDataToISO(obs.obsDatetime),
-            "id": obs.uuid,
-            "clinicalStatus": {
-                "coding": [
-                    {
-                        "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
-                        "code": "active",
-                        "display": "active"
-                    }
-                ],
-                "text": "HISTORY"
-            },
-            "category": [
-                {
+
+    const relations = Object.keys(relationMap);
+    
+    if (!relations?.length) return;
+    
+    for (const key of relations) {
+        const uniquId = uuid()
+        familyHistoryData.section.entry.push({
+            "reference": `FamilyMemberHistory/${uniquId}`
+        })
+        familyHistoryData.conditions.push({
+            "resource": {
+                "text" : {
+                    "status" : "generated",
+                    "div" : `<div xmlns=\"http://www.w3.org/1999/xhtml\">${RELATIONS[key].name} is having ${relationMap[key]}.</div>`
+                },
+                "patient": {
+                    "reference": `Patient/${patient?.uuid}`,
+                    "display": patient?.person?.display
+                },
+                "status" : "completed",
+                "id": uniquId,
+                "relationship": {
                     "coding": [
                         {
-                            "system": "http://terminology.hl7.org/CodeSystem/condition-category",
-                            "code": "problem-list-item",
-                            "display": "Problem List Item"
+                            "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode",
+                            "code": RELATIONS[key].code,
+                            "display": key
                         }
-                    ],
-                    "text": "problem list"
-                }
-            ],
-            "resourceType": "Condition"
-        },
-        "fullUrl": `Condition/${obs.uuid}`
-    })
+                    ]
+                },
+                "condition": [
+                    {
+                        "code": {
+                            "coding": [
+                                {
+                                    "system": "http://snomed.info/sct",
+                                    "code": "261665006",
+                                    "display": "Unknown"
+                                }
+                            ],
+                            "text": relationMap[key]
+                        },
+                        // "contributedToDeath": true,
+                        // "onsetAge": {
+                        //     "value": 84,
+                        //     "unit": "yr",
+                        //     "system": "http://unitsofmeasure.org",
+                        //     "code": "a"
+                        // }
+                    }
+                ],
+                "meta" : {
+                    "profile" : [
+                       "https://nrces.in/ndhm/fhir/r4/StructureDefinition/FamilyMemberHistory"
+                    ]
+                },
+                "resourceType": "FamilyMemberHistory"
+            },
+            "fullUrl": `FamilyMemberHistory/${uniquId}`
+        })
+    }
 }
 
 // Followup Structure
@@ -616,6 +464,11 @@ function followUPStructure(obs, folloupVisit, practitioner, patient) {
 // Medications
 function medicationStructure(obs, medications, practitioner, patient) {
     const obsValue = obs.value?.split(':');
+    let dosageInstruction = '';
+    if (obsValue?.[1]) dosageInstruction += obsValue?.[1];
+    if (obsValue?.[3]) dosageInstruction += ` (${obsValue?.[3]}) Aa Day`;
+    if (obsValue?.[2]) dosageInstruction += ` (Duration:${obsValue?.[2]})`;
+    if (obsValue?.[4]) dosageInstruction += ` Remark: ${obsValue?.[4]}`;
     const medicationUUID = uuid()
     medications.section.entry.push({
         "reference": `MedicationRequest/${obs.uuid}`
@@ -643,7 +496,7 @@ function medicationStructure(obs, medications, practitioner, patient) {
             "authoredOn": convertDataToISO(obs.obsDatetime),
             "dosageInstruction": [
                 {
-                    "text": `${obsValue?.[1]} - (${obsValue?.[3]}) - Aa Day (Duration:${obsValue?.[2]}) ${obsValue?.[4] ? 'Remark:' + obsValue?.[4] : ''}`
+                    "text": dosageInstruction != '' ? dosageInstruction : 'N/A'
                 }
             ],
             "subject": {
@@ -681,7 +534,7 @@ function investigationAdviceStructure(obs, serviceRequest, practitioner, patient
                     "coding": [
                         {
                             "system": "http://snomed.info/sct",
-                            "code": "721964003",
+                            "code": "721963009",
                             "display": "Order document"
                         }
                     ]
@@ -732,6 +585,7 @@ function referalStructure(obs, serviceRequest, practitioner, patient) {
         "fullUrl": `ServiceRequest/${obs.uuid}`
     })
 }
+
 function getEncountersFHIBundle(encounters, practitioner, patient) {
 
     let cheifComplaints = {
@@ -773,8 +627,8 @@ function getEncountersFHIBundle(encounters, practitioner, patient) {
                     "coding": [
                         {
                             "system": "http://snomed.info/sct",
-                            "code": "371529009",
-                            "display": "History and physical report"
+                            "code": "417662000",
+                            "display": "Past medical history"
                         }
                     ]
                 },
@@ -789,7 +643,7 @@ function getEncountersFHIBundle(encounters, practitioner, patient) {
                     "coding": [
                         {
                             "system": "http://snomed.info/sct",
-                            "code": "371529009",
+                            "code": "422432008",
                             "display": "Family history section"
                         }
                     ]
@@ -824,7 +678,7 @@ function getEncountersFHIBundle(encounters, practitioner, patient) {
                         {
                             "system": "http://snomed.info/sct",
                             "code": "261665006",
-                            "display": "Investigation Advice"
+                            "display": "Unknown"
                         },
                     ]
                 },
@@ -848,82 +702,82 @@ function getEncountersFHIBundle(encounters, practitioner, patient) {
                 "title": "Follow Up"
             },
             followUp: [] // REQUESTED TESTS, MEDICAL ADVICE
-        };
-    referrals = {
-        section: {
-            "entry": [
-            ],
-            "code": {
-                "coding": [
-                    {
-                        "system": "http://snomed.info/sct",
-                        "code": "306206005",
-                        "display": "Referral to service"
-                    },
-                ]
-            },
-            "title": "Referral"
         },
-        requests: []
-    },
+        referrals = {
+            section: {
+                "entry": [
+                ],
+                "code": {
+                    "coding": [
+                        {
+                            "system": "http://snomed.info/sct",
+                            "code": "306206005",
+                            "display": "Referral to service"
+                        },
+                    ]
+                },
+                "title": "Referral"
+            },
+            requests: []
+        };
 
 
 
-        encounters?.forEach((enc) => {
-            if (enc.encounterType.display === VISIT_TYPES.ADULTINITIAL) {
-                enc.obs.forEach((obs) => {
-                    if (obs.concept.display === VISIT_TYPES.CURRENT_COMPLAINT) {
-                        cheifComplaintStructure(obs, cheifComplaints, practitioner, patient)
-                    } else if (obs.concept.display === VISIT_TYPES.PHYSICAL_EXAMINATION) {
-                        physicalExaminationStructure(obs, physicalExaminationData)
-                    } else if (obs.concept.display === VISIT_TYPES.MEDICAL_HISTORY) {
-                        medicalHistoryStructure(obs, medicalHistoryData, practitioner, patient)
-                    } else if (obs.concept.display === VISIT_TYPES.FAMILY_HISTORY) {
-                        medicalFamilyHistoryStructure(obs, familyHistoryData, practitioner, patient)
-                    }
-                    // else if (obs.concept.display === VISIT_TYPES.COMPLEX_IMAGE) {
-                    //     documentReferences = appendStr(documentReferences, `https://${process.env.DOMAIN}/openmrs/ws/rest/v1/obs/${obs.uuid}/value`)
-                    // }
-                });
-            } else if (enc.encounterType.display === VISIT_TYPES.VITALS) {
-                enc.obs.forEach((obs) => physicalExaminationVitalStructure(obs, physicalExaminationData));
-            } else if (enc.encounterType.display === VISIT_TYPES.VISIT_NOTE) {
-                enc.obs.forEach((obs) => {
-                    if (obs.concept.display === VISIT_TYPES.FOLLOW_UP_VISIT) {
-                        followUPStructure(obs, folloupVisit, practitioner, patient)
-                    } else if (obs.concept.display === VISIT_TYPES.JSV_MEDICATIONS || obs.concept.display === VISIT_TYPES.MEDICATIONS) {
-                        medicationStructure(obs, medications, practitioner, patient)
-                    } else if (obs.concept.display === VISIT_TYPES.TELEMEDICINE_DIAGNOSIS) {
-                        physicalExaminationData?.section.entry.push({
-                            "reference": `Observation/${obs.uuid}`
-                        });
-                        physicalExaminationData?.observations.push(
-                            {
-                                "resource": {
-                                    "code": {
-                                        "text": "DIAGNOSIS"
-                                    },
-                                    "valueString": obs.value,
-                                    "effectiveDateTime": convertDataToISO(obs.obsDatetime),
-                                    "id": obs.uuid,
-                                    "resourceType": "Observation",
-                                    "status": "final"
+    encounters?.forEach((enc) => {
+        if (enc.encounterType.display === VISIT_TYPES.ADULTINITIAL) {
+            enc.obs.forEach((obs) => {
+                if (obs.concept.display === VISIT_TYPES.CURRENT_COMPLAINT) {
+                    cheifComplaintStructure(obs, cheifComplaints, practitioner, patient)
+                } else if (obs.concept.display === VISIT_TYPES.PHYSICAL_EXAMINATION) {
+                    physicalExaminationStructure(obs, physicalExaminationData)
+                } else if (obs.concept.display === VISIT_TYPES.MEDICAL_HISTORY) {
+                    medicalHistoryStructure(obs, medicalHistoryData, practitioner, patient)
+                } else if (obs.concept.display === VISIT_TYPES.FAMILY_HISTORY) {
+                    medicalFamilyHistoryStructure(obs, familyHistoryData, practitioner, patient)
+                }
+                // else if (obs.concept.display === VISIT_TYPES.COMPLEX_IMAGE) {
+                //     documentReferences = appendStr(documentReferences, `https://${process.env.DOMAIN}/openmrs/ws/rest/v1/obs/${obs.uuid}/value`)
+                // }
+            });
+        } else if (enc.encounterType.display === VISIT_TYPES.VITALS) {
+            enc.obs.forEach((obs) => physicalExaminationVitalStructure(obs, physicalExaminationData));
+        } else if (enc.encounterType.display === VISIT_TYPES.VISIT_NOTE) {
+            enc.obs.forEach((obs) => {
+                if (obs.concept.display === VISIT_TYPES.FOLLOW_UP_VISIT) {
+                    followUPStructure(obs, folloupVisit, practitioner, patient)
+                } else if (obs.concept.display === VISIT_TYPES.JSV_MEDICATIONS || obs.concept.display === VISIT_TYPES.MEDICATIONS) {
+                    medicationStructure(obs, medications, practitioner, patient)
+                } else if (obs.concept.display === VISIT_TYPES.TELEMEDICINE_DIAGNOSIS) {
+                    physicalExaminationData?.section.entry.push({
+                        "reference": `Observation/${obs.uuid}`
+                    });
+                    physicalExaminationData?.observations.push(
+                        {
+                            "resource": {
+                                "code": {
+                                    "text": "DIAGNOSIS"
                                 },
-                                "fullUrl": `Observation/${obs.uuid}`
-                            })
-                    } else if (obs.concept.display === VISIT_TYPES.MEDICAL_ADVICE || obs.concept.display === VISIT_TYPES.REQUESTED_TESTS) {
-                        investigationAdviceStructure(obs, serviceRequest, practitioner, patient)
-                    } else if (obs.concept.display === VISIT_TYPES.REFERRAL) {
-                        referalStructure(obs, serviceRequest, practitioner, patient)
-                    }
-                })
-            }
-            // else if (enc.encounterType.display === VISIT_TYPES.ATTACHMENT_UPLOAD) {
-            //     enc.obs.forEach((obs) => {
-            //         documentReferences = appendStr(documentReferences, `https://${process.env.DOMAIN}/openmrs/ws/rest/v1/obs/${obs.uuid}/value`)
-            //     })
-            // }
-        });
+                                "valueString": obs.value,
+                                "effectiveDateTime": convertDataToISO(obs.obsDatetime),
+                                "id": obs.uuid,
+                                "resourceType": "Observation",
+                                "status": "final"
+                            },
+                            "fullUrl": `Observation/${obs.uuid}`
+                        })
+                } else if (obs.concept.display === VISIT_TYPES.MEDICAL_ADVICE || obs.concept.display === VISIT_TYPES.REQUESTED_TESTS) {
+                    investigationAdviceStructure(obs, serviceRequest, practitioner, patient)
+                } else if (obs.concept.display === VISIT_TYPES.REFERRAL) {
+                    referalStructure(obs, serviceRequest, practitioner, patient)
+                }
+            })
+        }
+        // else if (enc.encounterType.display === VISIT_TYPES.ATTACHMENT_UPLOAD) {
+        //     enc.obs.forEach((obs) => {
+        //         documentReferences = appendStr(documentReferences, `https://${process.env.DOMAIN}/openmrs/ws/rest/v1/obs/${obs.uuid}/value`)
+        //     })
+        // }
+    });
 
     return {
         cheifComplaints: cheifComplaints?.conditions?.length ? cheifComplaints : {},
@@ -939,20 +793,23 @@ function getEncountersFHIBundle(encounters, practitioner, patient) {
 
 function formatCareContextFHIBundle(response) {
     const patientTelecom = getAttributeByName(response?.patient?.attributes, 'Telephone Number');
+    const openMRSID = getIdentifierByName(response?.patient?.identifiers, 'OpenMRS ID')?.identifier;
     const abhaNumber = getIdentifierByName(response?.patient?.identifiers, 'Abha Number')?.identifier;
+    const abhaAddress = getIdentifierByName(response?.patient?.identifiers, 'Abha Address')?.identifier;
     const practitioner = getDoctorDetail(response?.encounters);
+    if(!practitioner) return;
     const patient = response?.patient;
     const { medications, cheifComplaints, medicalHistory, familyHistory, physicalExamination, serviceRequest, followUp, referrals } = getEncountersFHIBundle(response?.encounters, practitioner, patient, response?.startDatetime);
 
     const sections = [];
-    if(medications?.section) sections.push(medications?.section)
-    if(cheifComplaints?.section) sections.push(cheifComplaints?.section)
-    if(medicalHistory?.section) sections.push(medicalHistory?.section)
-    if(familyHistory?.section) sections.push(familyHistory?.section)
-    if(physicalExamination?.section) sections.push(physicalExamination?.section)
-    if(serviceRequest?.section) sections.push(serviceRequest?.section)
-    if(followUp?.section) sections.push(followUp?.section)
-    if(referrals?.section) sections.push(followUp?.section)
+    if (medications?.section) sections.push(medications?.section)
+    if (cheifComplaints?.section) sections.push(cheifComplaints?.section)
+    if (medicalHistory?.section) sections.push(medicalHistory?.section)
+    if (familyHistory?.section) sections.push(familyHistory?.section)
+    if (physicalExamination?.section) sections.push(physicalExamination?.section)
+    if (serviceRequest?.section) sections.push(serviceRequest?.section)
+    if (followUp?.section) sections.push(followUp?.section)
+    if (referrals?.section) sections.push(followUp?.section)
 
     return {
         "identifier": {
@@ -1007,21 +864,21 @@ function formatCareContextFHIBundle(response) {
             },
             {
                 "resource": {
-                    // "identifier": [
-                    //     {
-                    //         "system": "https://doctor.ndhm.gov.in",
-                    //         "type": {
-                    //             "coding": [
-                    //                 {
-                    //                     "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
-                    //                     "code": "MD",
-                    //                     "display": "Medical License number"
-                    //                 }
-                    //             ]
-                    //         },
-                    //         "value": "21-1521-3828-3227"
-                    //     }
-                    // ],
+                    "identifier": [
+                        {
+                            "system": "https://doctor.ndhm.gov.in",
+                            "type": {
+                                "coding": [
+                                    {
+                                        "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                        "code": "MD",
+                                        "display": "Medical License number"
+                                    }
+                                ]
+                            },
+                            "value": practitioner?.registrationNumber
+                        }
+                    ],
                     "meta": {
                         "lastUpdated": convertDataToISO(practitioner?.dateUpdated),
                         "versionId": "1",
@@ -1100,10 +957,10 @@ function formatCareContextFHIBundle(response) {
                                     }
                                 ]
                             },
-                            "value": abhaNumber
+                            "value": abhaNumber ?? abhaAddress ?? openMRSID 
                         }
                     ],
-                    "gender": patient?.person?.gender,
+                    "gender": getGender(patient?.person?.gender)?.toLowerCase(),
                     "meta": {
                         "lastUpdated": convertDataToISO(patient?.dateUpdated ?? patient?.dateCreated),
                         "versionId": "1",
@@ -1147,7 +1004,7 @@ function formatCareContextFHIBundle(response) {
                         }
                     ],
                     "meta": {
-                        "lastUpdated": response?.encounters[0]?.encounterDatetime,
+                        "lastUpdated": convertDataToISO(response?.encounters[0]?.encounterDatetime),
                         "profile": [
                             "https://nrces.in/ndhm/fhir/r4/StructureDefinition/Encounter"
                         ]
@@ -1190,7 +1047,6 @@ function formatCareContextFHIBundle(response) {
 
 module.exports = {
     convertDateToDDMMYYYY,
-    formatCareContextResponse,
     handleError,
     formatCareContextFHIBundle
 }
