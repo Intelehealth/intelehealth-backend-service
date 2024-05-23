@@ -70,7 +70,60 @@ const VISIT_TYPES = {
     COMPLEX_IMAGE: "Complex Image"
 };
 
+
+const RELATIONS = {
+    'father': {
+        name: 'Father',
+        code: 'FTH'
+    },
+    'mother': {
+        name: 'Mother',
+        code: 'MTH'
+    },
+    'sister': {
+        name: 'Sister',
+        code: 'SIS'
+    },
+    'brother':{
+        name: 'Brother',
+        code: 'BRO'
+    },
+    'son': {
+        name: 'Son',
+        code: 'SON'
+    },
+    'daughter': {
+        name: 'Daughter',
+        code: 'DAU'
+    },
+    'stepdaughter': {
+        name: 'Step Daughter',
+        code: 'STPDAU'
+    },
+    'stepson': {
+        name: 'Step Son',
+        code: 'STPSON'
+    },
+    'stepsister': {
+        name: 'Step Sister',
+        code: 'STPSIS'
+    },
+    'stepbrother': {
+        name: 'Step Brother',
+        code: 'STPBRO'
+    },
+    'wife': {
+        name: 'Wife',
+        code: 'WIFE'
+    },
+    'husband': {
+        name: 'Husband',
+        code: 'HUSB'
+    } 
+}
+
 module.exports = {
     VISIT_TYPES,
-    OBSERVATION_TYPE
+    OBSERVATION_TYPE,
+    RELATIONS
 }

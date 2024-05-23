@@ -927,7 +927,9 @@ module.exports = (function () {
       const visitUUID = req.body.visitUUID ?? req.params.visitUUID;
       const response = await openmrsService.getVisitByUUID(visitUUID);
       if (!response.success) throw response;
-      res.json(formatCareContextFHIBundle(response?.data));
+      const formattedResponse = formatCareContextFHIBundle(response?.data);
+      if(!formattedResponse) throw new Error('Visit is not shared the prescription yet!')
+      res.json(formattedResponse);
       return;
     } catch (error) {
       logStream("error", error);
