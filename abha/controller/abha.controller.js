@@ -683,7 +683,7 @@ module.exports = (function () {
 
       const uniquId = uuid();
       const requestObj = {
-        'requestId': uniquId,
+        'requestId': visitUUID,
         'requesterId': process.env.ABDM_INTELEHEALTH_ID,
         "abhaNumber": abhaNumber,
         "abhaAddress": abhaAddress,
@@ -745,12 +745,12 @@ module.exports = (function () {
 
       // Call get request to verify the care context link status
       const careContexts = await axiosInstance.get(
-        process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + uniquId, {
+        process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + visitUUID, {
         headers: {
           ...this.getInitialHeaderrs(),
         },
       }).catch((err) => {
-        logStream("debug", err, `URL: ${process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + uniquId} linkCareContextByAbhaDetail -> axiosInstance.get -> error`);
+        logStream("debug", err, `URL: ${process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + visitUUID} linkCareContextByAbhaDetail -> axiosInstance.get -> error`);
         return err;
       });
 
@@ -759,7 +759,7 @@ module.exports = (function () {
         abdmVisitStatus.isLinked = true;
         abdmVisitStatus.link_status_response = careContexts?.data;
 
-        logStream("debug", careContexts?.data, `URL: ${process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + uniquId} Response from linkCareContextByAbhaDetail -> axiosInstance.get`);
+        logStream("debug", careContexts?.data, `URL: ${process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + visitUUID} Response from linkCareContextByAbhaDetail -> axiosInstance.get`);
 
         // Call the post request to update the isABDMLinked attribute to true.
         await openmrsService.postAttribute(visitUUID,
