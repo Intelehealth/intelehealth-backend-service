@@ -1,5 +1,6 @@
 const { OBSERVATION_TYPE, VISIT_TYPES, RELATIONS } = require("../constants/abha.constants");
 const { uuid } = require('uuidv4');
+const { logStream } = require("../logger");
 
 function convertDateToDDMMYYYY(inputFormat) {
     if (!inputFormat) return undefined
@@ -385,7 +386,7 @@ function medicalFamilyHistoryStructure(obs, familyHistoryData, practitioner, pat
 function followUPStructure(obs, folloupVisit, practitioner, patient) {
     if (!obs.value || obs.value?.toLowerCase() === 'no') return;
     try {
-        const [date, time, Remark] = obs.value.split(',');
+        const [date, time, remark = 'N/A'] = obs.value.split(',');
         const startDate = new Date(date + " " + time.replace('Time:', '').trim());
         folloupVisit.section.entry.push({
             "reference": `Appointment/${obs.uuid}`
@@ -401,7 +402,7 @@ function followUPStructure(obs, folloupVisit, practitioner, patient) {
                 },
                 "text": {
                     "status": "generated",
-                    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\">Follow up for further consultation</div>"
+                    "div": `<div xmlns=\"http://www.w3.org/1999/xhtml\">Follow up for further consultation</div>`
                 },
                 "status": "booked",
                 "serviceCategory": [
@@ -435,7 +436,7 @@ function followUPStructure(obs, folloupVisit, practitioner, patient) {
                         }
                     ]
                 },
-                "description": Remark,
+                "description": remark?.trim(),
                 "start": startDate,
                 "end": startDate,
                 "created": convertDataToISO(obs.obsDatetime),
@@ -454,9 +455,11 @@ function followUPStructure(obs, folloupVisit, practitioner, patient) {
                     }
                 ]
             },
-            "fullUrl": `Appointment/${uniquId}`
+            "fullUrl": `Appointment/${obs.uuid}`
         });
-    } catch (err) { }
+    } catch (err) {
+        logStream("error", err?.message);
+    }
 }
 
 // Medications
@@ -729,7 +732,6 @@ function getEncountersFHIBundle(encounters, practitioner, patient) {
             enc.obs.forEach((obs) => physicalExaminationVitalStructure(obs, physicalExaminationData));
         } else if (enc.encounterType.display === VISIT_TYPES.VISIT_NOTE) {
             enc.obs.forEach((obs) => {
-                console.log("obs.concept.display", obs.concept.display)
                 if (obs.concept.display === VISIT_TYPES.FOLLOW_UP_VISIT) {
                     followUPStructure(obs, folloupVisit, practitioner, patient)
                 } else if (obs.concept.display === VISIT_TYPES.JSV_MEDICATIONS || obs.concept.display === VISIT_TYPES.MEDICATIONS) {
