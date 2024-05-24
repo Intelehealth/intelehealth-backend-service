@@ -96,7 +96,7 @@ function cheifComplaintStructure(obs, cheifComplaints, practitioner, patient) {
                         const key = splitByBr[j].replace('• ', '').replace(' -', '');
                         const value = splitByBr[j + 1];
                         const title = VISIT_TYPES.ASSOCIATED_SYMPTOMS;
-                        complaints.push(`${title}:${key}:${value}`);
+                        complaints.push(`${title} ${key} ${value}`);
                     }
                 }
             } else {
@@ -106,7 +106,7 @@ function cheifComplaintStructure(obs, cheifComplaints, practitioner, patient) {
                         const key = splitByDash[0].replace('• ', '');
                         const value = splitByDash.slice(1, splitByDash.length).join('-');
                         const title = splitByBr[0].replace('</b>:', '');
-                        complaints.push(`${title}:${key}:${value}`);
+                        complaints.push(`${title} ${key} ${value}`);
                     }
                 }
             }
@@ -192,7 +192,7 @@ function physicalExaminationStructure(obs, physicalExaminationData) {
                 for (let k = 1; k < splitByBr.length; k++) {
                     if (splitByBr[k].trim()) {
                         const key = splitByBr[k].replace('• ', '');
-                        pyshicalExaminate.push(`${title}:${key}`);
+                        pyshicalExaminate.push(`${title} ${key}`);
                     }
                 }
             } else {
@@ -201,7 +201,7 @@ function physicalExaminationStructure(obs, physicalExaminationData) {
                         const splitByDash = splitByBr[k].split('-');
                         const key = splitByDash[0].replace('• ', '');
                         const value = splitByDash.slice(1, splitByDash.length).join('-');
-                        pyshicalExaminate.push(`${title}:${key}:${value}`);
+                        pyshicalExaminate.push(`${title} ${key} ${value}`);
                     }
                 }
             }
@@ -470,7 +470,7 @@ function medicationStructure(obs, medications, practitioner, patient) {
     if (obsValue?.[3]) dosageInstruction += ` (${obsValue?.[3]}) Aa Day`;
     if (obsValue?.[2]) dosageInstruction += ` (Duration:${obsValue?.[2]})`;
     if (obsValue?.[4]) dosageInstruction += ` Remark: ${obsValue?.[4]}`;
-    
+
     medications.section.entry.push({
         "reference": `MedicationRequest/${obs.uuid}`
     })
@@ -710,11 +710,9 @@ function getEncountersFHIBundle(encounters, practitioner, patient) {
             requests: []
         };
 
-
-
-    encounters?.forEach((enc) => {
+    for (const enc of encounters) {
         if (enc.encounterType.display === VISIT_TYPES.ADULTINITIAL) {
-            enc.obs.forEach((obs) => {
+            for (const obs of enc.obs) {
                 if (obs.concept.display === VISIT_TYPES.CURRENT_COMPLAINT) {
                     cheifComplaintStructure(obs, cheifComplaints, practitioner, patient)
                 } else if (obs.concept.display === VISIT_TYPES.PHYSICAL_EXAMINATION) {
@@ -727,11 +725,13 @@ function getEncountersFHIBundle(encounters, practitioner, patient) {
                 // else if (obs.concept.display === VISIT_TYPES.COMPLEX_IMAGE) {
                 //     documentReferences = appendStr(documentReferences, `https://${process.env.DOMAIN}/openmrs/ws/rest/v1/obs/${obs.uuid}/value`)
                 // }
-            });
+            };
         } else if (enc.encounterType.display === VISIT_TYPES.VITALS) {
-            enc.obs.forEach((obs) => physicalExaminationVitalStructure(obs, physicalExaminationData));
+            for (const obs of enc.obs) {
+                physicalExaminationVitalStructure(obs, physicalExaminationData)
+            }
         } else if (enc.encounterType.display === VISIT_TYPES.VISIT_NOTE) {
-            enc.obs.forEach((obs) => {
+            for (const obs of enc.obs) {
                 if (obs.concept.display === VISIT_TYPES.FOLLOW_UP_VISIT) {
                     followUPStructure(obs, folloupVisit, practitioner, patient)
                 } else if (obs.concept.display === VISIT_TYPES.JSV_MEDICATIONS || obs.concept.display === VISIT_TYPES.MEDICATIONS) {
@@ -740,33 +740,32 @@ function getEncountersFHIBundle(encounters, practitioner, patient) {
                     physicalExaminationData?.section.entry.push({
                         "reference": `Observation/${obs.uuid}`
                     });
-                    physicalExaminationData?.observations.push(
-                        {
-                            "resource": {
-                                "code": {
-                                    "text": "DIAGNOSIS"
-                                },
-                                "valueString": obs.value,
-                                "effectiveDateTime": convertDataToISO(obs.obsDatetime),
-                                "id": obs.uuid,
-                                "resourceType": "Observation",
-                                "status": "final"
+                    physicalExaminationData?.observations.push({
+                        "resource": {
+                            "code": {
+                                "text": "DIAGNOSIS"
                             },
-                            "fullUrl": `Observation/${obs.uuid}`
-                        })
+                            "valueString": obs.value,
+                            "effectiveDateTime": convertDataToISO(obs.obsDatetime),
+                            "id": obs.uuid,
+                            "resourceType": "Observation",
+                            "status": "final"
+                        },
+                        "fullUrl": `Observation/${obs.uuid}`
+                    })
                 } else if (obs.concept.display === VISIT_TYPES.MEDICAL_ADVICE || obs.concept.display === VISIT_TYPES.REQUESTED_TESTS) {
                     investigationAdviceStructure(obs, serviceRequest, practitioner, patient)
                 } else if (obs.concept.display === VISIT_TYPES.REFERRAL) {
                     referalStructure(obs, serviceRequest, practitioner, patient)
                 }
-            })
+            }
         }
         // else if (enc.encounterType.display === VISIT_TYPES.ATTACHMENT_UPLOAD) {
         //     enc.obs.forEach((obs) => {
         //         documentReferences = appendStr(documentReferences, `https://${process.env.DOMAIN}/openmrs/ws/rest/v1/obs/${obs.uuid}/value`)
         //     })
         // }
-    });
+    };
 
     return {
         cheifComplaints: cheifComplaints?.conditions?.length ? cheifComplaints : {},
