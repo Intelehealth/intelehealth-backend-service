@@ -66,4 +66,9 @@ export default {
     UpdateIsEnabled: '/updateIsEnabled/:id',
     GetByName: '/getByName/:name'
   },
+  PatientVisitSummary: {
+    Base: '/pvs',
+    Get: '/all',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+  },
 } as const;

@@ -5,28 +5,21 @@ module.exports = {
     up: (queryInterface: QueryInterface): Promise<void> => queryInterface.sequelize.transaction(
         async (transaction) => {
           // here go all migration changes
-          await queryInterface.createTable('audit_trail', {
+          await queryInterface.createTable('mst_patient_visit_summary', {
             id: {
               allowNull: false,
               autoIncrement: true,
               primaryKey: true,
               type: DataTypes.INTEGER,
             },
-            user_id: {
+            name: {
               type: DataTypes.STRING,
-              allowNull: false
+              allowNull: false,
+              unique: true
             },
-            user_name: {
-              type: DataTypes.STRING
-            },
-            activity_type: {
-              type: DataTypes.ENUM,
-              values:['CONFIG PUBLISHED', 'SPECIALIZATION STATUS UPDATED', 'LANGUAGE STATUS UPDATED', 'LANGUAGE SET AS DEFAULT', 'PATIENT REGISTRATION FIELD STATUS UPDATED', 'PATIENT REGISTRATION FIELD MANDATORY STATUS UPDATED', 'PATIENT REGISTRATION FIELD EDITABLE STATUS UPDATED', 'THEME CONFIG UPDATED', 'VITAL ENABLED STATUS UPDATED', 'VITAL MANDATORY STATUS UPDATED', 'WEBRTC CONFIG UPDATED', 'FEATURE CONFIG UPDATED', 'PATIENT VISIT SUMMARY SECTION STATUS UPDATED']
-            },
-            description: {
-              type: DataTypes.TEXT,
-              allowNull: true,
-              defaultValue: null
+            is_enabled: {
+              type: DataTypes.BOOLEAN,
+              defaultValue: false,
             },
             createdAt: {
               allowNull: false,
@@ -45,7 +38,7 @@ module.exports = {
     down: (queryInterface: QueryInterface): Promise<void> => queryInterface.sequelize.transaction(
         async (transaction) => {
           // here go all migration undo changes
-          await queryInterface.dropTable('audit_trail');
+          await queryInterface.dropTable('mst_patient_visit_summary');
         }
     )
 };

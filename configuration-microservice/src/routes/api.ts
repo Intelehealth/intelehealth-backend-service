@@ -16,6 +16,7 @@ import ThemeConfigRoutes from './ThemeConfigRoutes';
 import multer from 'multer';
 import WebrtcRoutes from './WebrtcRoutes';
 import FeaturesRoutes from './FeaturesRoutes';
+import PatientVisitSummaryRoutes from './PatientVisitSummaryRoutes';
 
 // **** Variables **** //
 
@@ -276,7 +277,7 @@ vitalRouter.put(
   VitalRoutes.updateIsMandatory,
 );
 
-// Add SpecializationRouter
+// Add PatientVitalRouter
 apiRouter.use(Paths.PatientVital.Base, authMw, vitalRouter);
 
 // **** Setup WebrtcRouter **** //
@@ -326,6 +327,26 @@ featureRouter.put(
 
 // Add FeatureRouter
 apiRouter.use(Paths.Features.Base, authMw, featureRouter);
+
+// **** Setup PatientVisitSummaryRouter **** //
+
+const pvsRouter = Router();
+
+// Get all patient visit summary sections
+pvsRouter.get(
+  Paths.PatientVisitSummary.Get,
+  PatientVisitSummaryRoutes.getAll,
+);
+
+// Update one specialization status
+pvsRouter.put(
+  Paths.PatientVisitSummary.UpdateIsEnabled,
+  validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body']),
+  PatientVisitSummaryRoutes.updateIsEnabled,
+);
+
+// Add PatientVisitSummaryRouter
+apiRouter.use(Paths.PatientVisitSummary.Base, authMw, pvsRouter);
 
 // **** Export default **** //
 
