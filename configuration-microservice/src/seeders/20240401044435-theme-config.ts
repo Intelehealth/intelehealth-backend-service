@@ -13,9 +13,9 @@ module.exports = {
         { key: 'primary_color', default_value:'#2E1E91'},
         { key: 'secondory_color', default_value:'#2E1E91'},
         { key: 'images_with_text', default_value: JSON.stringify([
-          {image: 'assets/images/slide-1.svg', text:'Deliver quality health care where there is no doctor'},
-          {image: 'assets/images/slide-2.svg', text:'2,75,000 population covered from 215 villages in 2 countries'},
-          {image: 'assets/images/slide-3.svg', text:'Take online consultations and send prescriptions to the patients virtually'}
+          {image: 'assets/images/slides/default-slide-1.svg', text:'Deliver quality health care where there is no doctor'},
+          {image: 'assets/images/slides/default-slide-2.svg', text:'2,75,000 population covered from 215 villages in 2 countries'},
+          {image: 'assets/images/slides/default-slide-3.svg', text:'Take online consultations and send prescriptions to the patients virtually'}
         ])},
       ]);
     }),
