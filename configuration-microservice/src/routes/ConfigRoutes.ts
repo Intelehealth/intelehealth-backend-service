@@ -73,7 +73,7 @@ async function publish(req: IReqUser, res: IRes) {
     const outputFilename = `config-${new Date().valueOf()}`;
     const outputFileExtension = `json`;
     const outputFileDir = `${tmpDir}/${outputFilename}.${outputFileExtension}`;
-    await fs.writeFileSync(outputFileDir, JSON.stringify(data));
+    fs.writeFileSync(outputFileDir, JSON.stringify(data));
     await ConfigService.publish(`${outputFilename}.${outputFileExtension}`, outputFileDir, userId, name, version + 1);
     return res.status(HttpStatusCodes.OK).json({success: true});
 }

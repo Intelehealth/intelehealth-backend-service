@@ -14,6 +14,8 @@ import PatientRegistrationRoutes from './PatientRegistrationRoutes';
 import authMw from './middleware/authMw';
 import ThemeConfigRoutes from './ThemeConfigRoutes';
 import multer from 'multer';
+import WebrtcRoutes from './WebrtcRoutes';
+import FeaturesRoutes from './FeaturesRoutes';
 import PatientVisitSummaryRoutes from './PatientVisitSummaryRoutes';
 
 // **** Variables **** //
@@ -277,6 +279,54 @@ vitalRouter.put(
 
 // Add PatientVitalRouter
 apiRouter.use(Paths.PatientVital.Base, authMw, vitalRouter);
+
+// **** Setup WebrtcRouter **** //
+
+const webrtcRouter = Router();
+
+// Get all webrtcs
+webrtcRouter.get(
+  Paths.Webrtc.Get,
+  WebrtcRoutes.getAll,
+);
+
+// Update webrtc config status
+webrtcRouter.put(
+  Paths.Webrtc.UpdateIsEnabled,
+  validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body']),
+  WebrtcRoutes.updateIsEnabled,
+);
+
+// Add WebrtcRouter
+apiRouter.use(Paths.Webrtc.Base, authMw, webrtcRouter);
+
+
+// **** Setup FeatureRouter **** //
+
+const featureRouter = Router();
+
+// Get all features
+featureRouter.get(
+  Paths.Features.Get,
+  FeaturesRoutes.getAll,
+);
+
+// Get features by name
+featureRouter.get(
+  Paths.Features.GetByName,
+  validate(['name', 'string', 'params']),
+  FeaturesRoutes.getByName,
+);
+
+// Update feature config status
+featureRouter.put(
+  Paths.Features.UpdateIsEnabled,
+  validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body']),
+  FeaturesRoutes.updateIsEnabled,
+);
+
+// Add FeatureRouter
+apiRouter.use(Paths.Features.Base, authMw, featureRouter);
 
 // **** Setup PatientVisitSummaryRouter **** //
 

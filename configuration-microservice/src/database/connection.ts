@@ -11,6 +11,8 @@ import { Language } from '@src/models/language.model';
 import { Publish } from '@src/models/dic_publish.model';
 import { PatientRegistration } from '@src/models/patient_registration.model';
 import { ThemeConfig } from '@src/models/theme_config.model';
+import { Webrtc } from '@src/models/mst_webrtc.model';
+import { Features } from '@src/models/mst_features.model';
 import { PatientVisitSummary } from '@src/models/patient_visit_summary.model';
 
 // Create a new Sequelize instance with the connection configuration
@@ -22,7 +24,7 @@ const connection = new Sequelize({
   password: EnvVars.DbPassword, // Specifies the database password
   database: EnvVars.DbName, // Specifies the database name
   logging: false, // Disables logging of SQL queries
-  models: [Specialization, Config, AuditTrail, Language, Publish, PatientRegistration, ThemeConfig, Vital, PatientVisitSummary], // Associates the models with this Sequelize instance,
+  models: [Specialization, Config, AuditTrail, Language, Publish, PatientRegistration, ThemeConfig, Vital, Webrtc, Features, PatientVisitSummary], // Associates the models with this Sequelize instance,
 });
 
 // Export the connection object as the default module
