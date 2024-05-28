@@ -54,5 +54,10 @@ export default {
     updateThemeConfig: '/updateThemeConfig',
     updateImagesText: '/updateImagesText',
     deleteImage: '/deleteImage'
-  }
+  },
+  PatientVisitSummary: {
+    Base: '/pvs',
+    Get: '/all',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+  },
 } as const;
