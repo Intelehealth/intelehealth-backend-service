@@ -55,6 +55,17 @@ export default {
     updateImagesText: '/updateImagesText',
     deleteImage: '/deleteImage'
   },
+  Webrtc: {
+    Base: '/webrtc',
+    Get: '/all',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+  },
+  Features: {
+    Base: '/feature',
+    Get: '/all',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+    GetByName: '/getByName/:name'
+  },
   PatientVisitSummary: {
     Base: '/pvs',
     Get: '/all',
