@@ -1,4 +1,4 @@
-import { QueryInterface, DataTypes, QueryTypes } from 'sequelize';
+import { QueryInterface } from 'sequelize';
 
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
