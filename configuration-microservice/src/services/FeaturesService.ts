@@ -53,7 +53,7 @@ async function updateIsEnabled(id: string, is_enabled: boolean, user_id: string,
     const newFeature = await Features.findOne({ where: { id }});
 
     // Update dic_config feature configs key
-    await Config.update({ value: String(newFeature?.is_enabled), published: false }, { where: { key: feature.name } });
+    await Config.update({ value: String(newFeature?.is_enabled ? 1 : 0), published: false }, { where: { key: feature.name } });
 
     // Insert audit trail entry
     await AuditTrail.create({ user_id, user_name, activity_type: 'FEATURE CONFIG UPDATED', description: `${is_enabled ? 'Enabled' : 'Disabled'} "${feature.name}" config.` });

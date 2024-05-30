@@ -94,7 +94,11 @@ function parseValue(type:string, value: string) {
             val = value;
             break;
         case 'boolean':
-            val = !!Number(value);
+            if(!Number.isNaN(Number(value))) {
+                val = !!Number(value)
+            } else {
+                val = value === 'true'
+            }
             break;
         default:
             break;

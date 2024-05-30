@@ -1,6 +1,7 @@
 import HttpStatusCodes from '@src/constants/HttpStatusCodes';
 
 import VitalService from '@src/services/PatientVitalService';
+import FeaturesService from '@src/services/FeaturesService';
 import { IReq, IRes } from './types/express/misc';
 import { IReqUser } from './types/types';
 
@@ -11,7 +12,8 @@ import { IReqUser } from './types/types';
  */
 async function getAll(_: IReq, res: IRes) {
     const vitals = await VitalService.getAll();
-    return res.status(HttpStatusCodes.OK).json({ patient_vitals: vitals });
+    const vital_section = await FeaturesService.getByName("patient_vitals_section");
+    return res.status(HttpStatusCodes.OK).json({ patient_vitals: vitals, patient_vitals_section: vital_section});
 }
 
 /**
