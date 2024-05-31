@@ -31,7 +31,7 @@ module.exports = (function () {
     const keysAndTypeToCheck = [
       { key: "userUuid", type: "string" },
       { key: "drName", type: "string" },
-      { key: "slotDays", type: "string" },
+      // { key: "slotDays", type: "string" },
       { key: "slotSchedule", type: "object" },
       { key: "speciality", type: "string" },
       { key: "type", type: "string" },
