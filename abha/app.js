@@ -14,10 +14,13 @@ const cors = require("cors");
 const app = express();
 app.set("view engine", "html");
 
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS && JSON.parse(process.env.ALLOWED_ORIGINS) || [];
+
 app.use(cors(
 	{
 		origin: (origin, callback) => {
-			if (['https://dev.intelehealth.org'].indexOf(origin) !== -1 || !origin) {
+			const theOrigin = ALLOWED_ORIGINS.indexOf(origin) >= 0 ? origin : ALLOWED_ORIGINS[0];
+			if (theOrigin || !origin) {
 				callback(null, true)
 			} else {
 				callback(new Error('origin not allowed by Cors'))
