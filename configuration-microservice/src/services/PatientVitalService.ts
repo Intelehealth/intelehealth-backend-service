@@ -3,6 +3,7 @@ import HttpStatusCodes from '@src/constants/HttpStatusCodes';
 import { Vital } from '@src/models/vital.model';
 import { Config } from '@src/models/dic_config.model';
 import { AuditTrail } from '@src/models/audit_trail.model';
+import FeaturesService from './FeaturesService';
 
 
 // **** Variables **** //
@@ -16,6 +17,7 @@ export const CANT_ENABLE_WHR_VITAL = "Can't update, Waist and Hip circumference 
 export const CANT_CHANGE_MANDATORY_STATUS_WHR = "Can't update, Waist and Hip circumference are mandatory for calculating WHR. Please disable WHR.";
 export const CANT_CHANGE_MANDATORY_STATUS_BMI = "Can't update, Height and Weight are mandatory for calculating BMI. Please disable BMI.";
 export const CANT_CHANGE_MANDATORY_STATUS = "Can't update, vital must be always mandatory.";
+export const CANT_CHANGE_SECTION_DISABLED = "Can't update, Vitals section is disabled.";
 
 // **** Functions **** //
 
@@ -33,6 +35,9 @@ function getAll(): Promise<Vital[]> {
  * Update patient vital enabled status..
  */
 async function updateIsEnabled(id: string, is_enabled: boolean, user_id: string, user_name: string): Promise<void> {
+
+    await check_section_status();
+
     const vital = await Vital.findOne({ where: { id } });
     if (!vital) {
         throw new RouteError(
@@ -119,6 +124,9 @@ async function updateIsEnabled(id: string, is_enabled: boolean, user_id: string,
  * Update patient vital enabled status..
  */
 async function updateIsMandatory(id: string, is_mandatory: boolean, user_id: string, user_name: string): Promise<void> {
+
+    await check_section_status();
+
     const vital = await Vital.findOne({ where: { id } });
     if (!vital) {
         throw new RouteError(
@@ -173,6 +181,20 @@ async function updateIsMandatory(id: string, is_mandatory: boolean, user_id: str
 
     // Insert audit trail entry
     await AuditTrail.create({ user_id, user_name, activity_type: 'VITAL MANDATORY STATUS UPDATED', description: `"${vital.name}" patient vital field marked as ${is_mandatory ? 'mandatory':'not mandatory'}.` });
+}
+
+/**
+ * Check if section in disabled or not
+ */
+async function check_section_status(){
+    //Check if section in disabled then don't allow to update the vitals status
+    const vital_section = await FeaturesService.getByName("patient_vitals_section");
+    if(vital_section && vital_section.is_enabled === false) {
+        throw new RouteError(
+            HttpStatusCodes.BAD_REQUEST,
+            CANT_CHANGE_SECTION_DISABLED,
+        );
+    }
 }
 
 // **** Export default **** //

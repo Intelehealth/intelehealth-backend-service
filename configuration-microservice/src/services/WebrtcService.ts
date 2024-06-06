@@ -4,10 +4,13 @@ import { Config } from '@src/models/dic_config.model';
 import { Webrtc } from '@src/models/mst_webrtc.model';
 import { AuditTrail } from '@src/models/audit_trail.model';
 import { Features } from '@src/models/mst_features.model';
+import FeaturesService from './FeaturesService';
 
 
 // **** Variables **** //
 export const WEBRTC_NOT_FOUND_ERR = 'Webrtc field not found';
+export const CANT_CHANGE_SECTION_DISABLED = "Can't update, Webrtc section is disabled.";
+
 
 // **** Functions **** //
 
@@ -35,6 +38,9 @@ async function getAll(): Promise<any> {
  * Update webrtc enabled status.
  */
 async function updateIsEnabled(id: string, is_enabled: boolean, user_id: string, user_name: string): Promise<void> {
+
+    await check_section_status();
+
     const webrtc = await Webrtc.findOne({ where: { id } });
     if (!webrtc) {
         throw new RouteError(
@@ -67,6 +73,20 @@ async function updateIsEnabled(id: string, is_enabled: boolean, user_id: string,
 
     // Insert audit trail entry
     await AuditTrail.create({ user_id, user_name, activity_type: 'WEBRTC CONFIG UPDATED', description: `${is_enabled ? 'Enabled' : 'Disabled'} "${webrtc.name}" webrtc config.` });
+}
+
+/**
+ * Check if section in disabled or not
+ */
+async function check_section_status(){
+    //Check if section in disabled then don't allow to update the vitals status
+    const vital_section = await FeaturesService.getByName("patient_vitals_section");
+    if(vital_section && vital_section.is_enabled === false) {
+        throw new RouteError(
+            HttpStatusCodes.BAD_REQUEST,
+            CANT_CHANGE_SECTION_DISABLED,
+        );
+    }
 }
 
 // **** Export default **** //
