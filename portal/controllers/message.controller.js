@@ -8,7 +8,8 @@ const {
 } = require("../services/message.service");
 const {
   validateParams,
-  sendWebPushNotification
+  sendWebPushNotification,
+  sendCloudNotification
 } = require("../handlers/helper");
 const { user_settings, pushnotification } = require("../models");
 const { uploadFile } = require("../handlers/file.handler");
@@ -110,6 +111,25 @@ module.exports = (function () {
             }
           }
         }
+
+        if (!isLiveMessageSent) {
+          const userSetting = await user_settings.findOne({
+            where: { user_uuid: toUser },
+          });
+          if (userSetting && userSetting.device_reg_token) {
+            notificationResponse = await sendCloudNotification({
+              title: "New chat message",
+              body: message,
+              data: {
+                actionType: "TEXT_CHAT",
+              },
+              regTokens: [userSetting.device_reg_token],
+            }).catch((err) => {
+              console.log("err: ", err);
+            });
+          }
+        }
+        
         let notificationResponse = "";
 
         // Send push notification
