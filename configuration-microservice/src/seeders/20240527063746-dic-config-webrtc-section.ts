@@ -28,6 +28,6 @@ module.exports = {
       /**
        * Add commands to revert seed here.
        */
-      await queryInterface.bulkDelete('dic_config', { key: 'webrtc_section' }, { transaction });
+      await queryInterface.bulkDelete('dic_config', { key: ['webrtc_section', 'patient_vitals_section']}, { transaction });
     })
 };

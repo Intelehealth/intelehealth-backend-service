@@ -14,8 +14,8 @@ module.exports = {
        * }], {});
       */
       await queryInterface.bulkInsert('mst_features', [
-        { name: 'webrtc_section', is_enabled: true },
-        { name: 'patient_vitals_section', is_enabled: true }
+        { key: 'webrtc_section', name: 'WebRTC', is_enabled: true },
+        { key: 'patient_vitals_section', name: 'Patient Vitals', is_enabled: true }
       ], { transaction });
     }),
 

@@ -12,7 +12,7 @@ import { IReqUser } from './types/types';
  */
 async function getAll(_: IReq, res: IRes) {
     const vitals = await VitalService.getAll();
-    const vital_section = await FeaturesService.getByName("patient_vitals_section");
+    const vital_section = await FeaturesService.getByKey("patient_vitals_section");
     return res.status(HttpStatusCodes.OK).json({ patient_vitals: vitals, patient_vitals_section: vital_section});
 }
 
