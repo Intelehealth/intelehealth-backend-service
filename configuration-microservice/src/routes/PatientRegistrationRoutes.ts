@@ -3,6 +3,7 @@ import HttpStatusCodes from '@src/constants/HttpStatusCodes';
 import PatientRegistrationService from '@src/services/PatientRegistrationService';
 import { IReq, IRes } from './types/express/misc';
 import { IReqUser } from './types/types';
+import FeaturesService from '@src/services/FeaturesService';
 
 // **** Functions **** //
 
@@ -11,7 +12,9 @@ import { IReqUser } from './types/types';
  */
 async function getAll(_: IReq, res: IRes) {
     const pr = await PatientRegistrationService.getAll();
-    return res.status(HttpStatusCodes.OK).json({ patient_registration: pr });
+    const pr_address_section = await FeaturesService.getByName("patient_reg_address");
+    const pr_other_section = await FeaturesService.getByName("patient_reg_other");
+    return res.status(HttpStatusCodes.OK).json({ patient_registration: pr , patient_registration_address: pr_address_section, patient_registration_other: pr_other_section});
 }
 
 /**

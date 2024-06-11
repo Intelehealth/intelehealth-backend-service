@@ -19,6 +19,18 @@ module.exports = {
           value: true,
           type: 'boolean',
           default_value: true
+        },
+        {
+          key: 'patient_reg_address',
+          value: true,
+          type: 'boolean',
+          default_value: true
+        },
+        {
+          key: 'patient_reg_other',
+          value: true,
+          type: 'boolean',
+          default_value: true
         }
       ], { transaction });
     }),
