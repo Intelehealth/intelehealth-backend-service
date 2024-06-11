@@ -17,8 +17,8 @@ async function getAll(_: IReq, res: IRes) {
 /**
  * Get all feature configs.
  */
-async function getByName(req: IReq, res: IRes) {
-    const feature = await FeaturesService.getByName(req.params.name);
+async function getByKey(req: IReq, res: IRes) {
+    const feature = await FeaturesService.getByKey(req.params.key);
     return res.status(HttpStatusCodes.OK).json({ feature });
 }
 
@@ -37,6 +37,6 @@ async function updateIsEnabled(req: IReqUser<{ is_enabled: boolean }>, res: IRes
 
 export default {
     getAll,
-    getByName,
+    getByKey,
     updateIsEnabled
 } as const;
