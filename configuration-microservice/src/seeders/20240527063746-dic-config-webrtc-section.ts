@@ -21,6 +21,12 @@ module.exports = {
           default_value: true
         },
         {
+          key: 'abha_section',
+          value: true,
+          type: 'boolean',
+          default_value: true
+        },
+        {
           key: 'patient_reg_address',
           value: true,
           type: 'boolean',
@@ -40,6 +46,6 @@ module.exports = {
       /**
        * Add commands to revert seed here.
        */
-      await queryInterface.bulkDelete('dic_config', { key: 'webrtc_section' }, { transaction });
+      await queryInterface.bulkDelete('dic_config', { key: ['webrtc_section', 'patient_vitals_section', 'abha_section', 'patient_reg_other', 'patient_reg_other']}, { transaction });
     })
 };

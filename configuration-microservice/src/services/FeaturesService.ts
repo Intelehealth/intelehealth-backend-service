@@ -15,7 +15,7 @@ export const FEATURE_FIELD_NOT_FOUND_ERR = 'Feature field not found';
  */
 async function getAll(): Promise<any> {
     const features = await Features.findAll({
-        attributes: ['id', 'name', 'is_enabled', 'createdAt', 'updatedAt'],
+        attributes: ['id', 'key', 'name', 'is_enabled', 'createdAt', 'updatedAt'],
         raw: true
     });
     return features;
@@ -24,9 +24,8 @@ async function getAll(): Promise<any> {
 /**
  * Get feature fields.
  */
-async function getByName(name: string): Promise<any> {
-    const feature = await Features.findOne({ where: { name: name } });
-    return feature;
+async function getByKey(key: string): Promise<any> {
+    return await Features.findOne({ where: { key: key } });
 }
 
 /**
@@ -53,7 +52,7 @@ async function updateIsEnabled(id: string, is_enabled: boolean, user_id: string,
     const newFeature = await Features.findOne({ where: { id }});
 
     // Update dic_config feature configs key
-    await Config.update({ value: String(newFeature?.is_enabled ? 1 : 0), published: false }, { where: { key: feature.name } });
+    await Config.update({ value: String(newFeature?.is_enabled ? 1 : 0), published: false }, { where: { key: feature.key } });
 
     // Insert audit trail entry
     await AuditTrail.create({ user_id, user_name, activity_type: 'FEATURE CONFIG UPDATED', description: `${is_enabled ? 'Enabled' : 'Disabled'} "${feature.name}" config.` });
@@ -63,6 +62,6 @@ async function updateIsEnabled(id: string, is_enabled: boolean, user_id: string,
 
 export default {
     getAll,
-    getByName,
+    getByKey,
     updateIsEnabled
 } as const;
