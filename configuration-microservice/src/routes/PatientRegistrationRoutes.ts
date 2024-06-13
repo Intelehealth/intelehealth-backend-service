@@ -12,8 +12,8 @@ import FeaturesService from '@src/services/FeaturesService';
  */
 async function getAll(_: IReq, res: IRes) {
     const pr = await PatientRegistrationService.getAll();
-    const pr_address_section = await FeaturesService.getByName("patient_reg_address");
-    const pr_other_section = await FeaturesService.getByName("patient_reg_other");
+    const pr_address_section = await FeaturesService.getByKey("patient_reg_address");
+    const pr_other_section = await FeaturesService.getByKey("patient_reg_other");
     return res.status(HttpStatusCodes.OK).json({ patient_registration: pr , patient_registration_address: pr_address_section, patient_registration_other: pr_other_section});
 }
 

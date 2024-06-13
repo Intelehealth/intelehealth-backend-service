@@ -313,9 +313,9 @@ featureRouter.get(
 
 // Get features by name
 featureRouter.get(
-  Paths.Features.GetByName,
-  validate(['name', 'string', 'params']),
-  FeaturesRoutes.getByName,
+  Paths.Features.GetByKey,
+  validate(['key', 'string', 'params']),
+  FeaturesRoutes.getByKey,
 );
 
 // Update feature config status

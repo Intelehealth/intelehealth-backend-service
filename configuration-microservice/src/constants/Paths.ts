@@ -64,7 +64,7 @@ export default {
     Base: '/feature',
     Get: '/all',
     UpdateIsEnabled: '/updateIsEnabled/:id',
-    GetByName: '/getByName/:name'
+    GetByKey: '/getByKey/:key'
   },
   PatientVisitSummary: {
     Base: '/pvs',
