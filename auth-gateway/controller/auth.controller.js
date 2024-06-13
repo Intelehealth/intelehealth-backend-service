@@ -1,7 +1,11 @@
 const moment = require("moment");
-const { getToken } = require("../handlers/checkAuth");
 const { axiosInstance } = require("../handlers/helper");
 const { logStream } = require("../logger/index");
+const {
+  _createPerson,
+  _createUser,
+  _createProvider,
+} = require("../services/openmrs.service");
 const buffer = require("buffer").Buffer;
 
 module.exports = (function () {
@@ -12,7 +16,7 @@ module.exports = (function () {
    */
   this.login = async (req, res, next) => {
     try {
-      logStream('debug','API calling', 'Login');
+      logStream("debug", "API calling", "Login");
       const { username, password, rememberme } = req.body;
       const base64 = buffer.from(`${username}:${password}`).toString("base64");
 
@@ -35,16 +39,92 @@ module.exports = (function () {
             name: data?.data?.user?.display,
           },
           moment()
-          // .add(expiresIn, "days")
-          .endOf("day").unix()
+            // .add(expiresIn, "days")
+            .endOf("day")
+            .unix()
         );
         resp.status = true;
       }
-      logStream('debug',`Login Success for ${username}`, 'Login');
+      logStream("debug", `Login Success for ${username}`, "Login");
       res.json(resp);
     } catch (error) {
       logStream("error", error.message);
       next(error);
+    }
+  };
+
+  this.createUser = async (req, res, next) => {
+    try {
+      logStream("debug", "API calling", "Create User");
+      const {
+        username,
+        password,
+        givenName,
+        familyName,
+        gender,
+        birthdate,
+        addresses,
+        role,
+        identifier,
+        email,
+      } = req.body;
+
+      const personPayload = {
+        givenName,
+        familyName,
+        gender,
+        birthdate,
+        addresses,
+      };
+
+      let roles;
+
+      switch (role) {
+        case "nurse":
+          roles = JSON.parse(process.env.NURSE_ROLES);
+          break;
+        case "doctor":
+          roles = JSON.parse(process.env.DOCTOR_ROLES);
+          break;
+
+        default:
+          throw new Error("role not found");
+      }
+
+      const person = await _createPerson(personPayload);
+      logStream("debug", "Person created successfully", "Create User");
+
+      const userPayload = {
+        username,
+        password,
+        personId: person.uuid,
+        roles,
+      };
+
+      await _createUser(userPayload);
+      logStream("debug", "User created successfully", "Create User");
+
+      const providerPayload = {
+        personId: person.uuid,
+        identifier,
+        attributes: [
+          {
+            attributeType: process.env.EMAIL_PROVIDER_ATTRIBUTE_TYPE,
+            value: email,
+          },
+        ],
+        retired: false,
+      };
+
+      await _createProvider(providerPayload);
+
+      res.json({
+        status: true,
+        message: "User created successfully",
+      });
+    } catch (error) {
+      const msg = error?.response?.data?.error?.message;
+      next(msg ? new Error(msg) : error);
     }
   };
 
