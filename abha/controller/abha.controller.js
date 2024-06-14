@@ -438,11 +438,11 @@ module.exports = (function () {
         payload = {
           "scope": [
             "abha-login",
-            authMethod == 'AADHAR_OTP' ? "aadhaar-verify" : "mobile-verify"
+            authMethod == 'AADHAAR_OTP' ? "aadhaar-verify" : "mobile-verify"
           ],
           "loginHint": "abha-number",
           "loginId": encryptedText,
-          "otpSystem": authMethod == 'AADHAR_OTP' ? "aadhaar" : "abdm"
+          "otpSystem": authMethod == 'AADHAAR_OTP' ? "aadhaar" : "abdm"
         }
       }
 
@@ -491,7 +491,7 @@ module.exports = (function () {
   this.getLoginOTPVerify = async (req, res, next) => {
     try {
 
-      const { otp, txnId, scope } = req.body
+      const { otp, txnId, scope, authMethod = "AADHAAR_OTP" } = req.body
 
       const accessToken = req.token
 
@@ -512,7 +512,7 @@ module.exports = (function () {
         ]
       }, url = process.env.LOGIN_VERIFY_URL
 
-      if (scope === 'aadhar' || scope === 'abha-number') {
+      if ((scope === 'aadhar' || scope === 'abha-number') && authMethod == 'AADHAAR_OTP') {
         payload = {
           "scope": [
             "abha-login",
@@ -541,8 +541,6 @@ module.exports = (function () {
           "otp": otp
         }
       }
-
-      console.log(payload)
 
       logStream("debug", JSON.stringify(payload), 'Get Login OTP Verify');
 
