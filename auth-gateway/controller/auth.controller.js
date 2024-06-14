@@ -5,6 +5,7 @@ const {
   _createPerson,
   _createUser,
   _createProvider,
+  _getUser,
 } = require("../services/openmrs.service");
 const buffer = require("buffer").Buffer;
 
@@ -53,6 +54,12 @@ module.exports = (function () {
     }
   };
 
+  /**
+   * Create user API
+   * @param {*} req
+   * @param {*} res
+   * @param {*} next
+   */
   this.createUser = async (req, res, next) => {
     try {
       logStream("debug", "API calling", "Create User");
@@ -121,6 +128,28 @@ module.exports = (function () {
       res.json({
         status: true,
         message: "User created successfully",
+      });
+    } catch (error) {
+      const msg = error?.response?.data?.error?.message;
+      next(msg ? new Error(msg) : error);
+    }
+  };
+
+  /**
+   * Validate user if exist with username
+   * @param {*} req
+   * @param {*} res
+   * @param {*} next
+   */
+  this.validateUser = async (req, res, next) => {
+    try {
+      logStream("debug", "API calling", "Validate User");
+      const { username } = req.body;
+
+      const data = (await _getUser({ username })).data;
+
+      res.json({
+        userExist: !!data?.results?.length,
       });
     } catch (error) {
       const msg = error?.response?.data?.error?.message;
