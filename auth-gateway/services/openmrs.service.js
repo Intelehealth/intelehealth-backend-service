@@ -79,5 +79,16 @@ module.exports = (function () {
     }
   };
 
+  this._getUsers = async () => {
+    try {
+      logStream("debug", "Openmrs Service", "Get Users");
+     let response = await axiosInstance.get(`/openmrs/ws/rest/v1/user?q=&v=default`)
+     return(response.data);
+    } catch (error) {
+      logStream("error", error.message);
+      throw error;
+    }
+  };
+
   return this;
 })();

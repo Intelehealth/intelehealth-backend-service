@@ -5,6 +5,7 @@ const {
   _createPerson,
   _createUser,
   _createProvider,
+  _getUsers
 } = require("../services/openmrs.service");
 const buffer = require("buffer").Buffer;
 
@@ -52,6 +53,21 @@ module.exports = (function () {
       next(error);
     }
   };
+  
+  this.getUsers = async (req, res, next) => {
+    try {
+      logStream("debug", "API calling", "Get Users");
+      const users = await _getUsers();
+      logStream("debug", 'Got the user list', "Get Users");
+      res.json({
+        data: users.results,
+        status: true
+      });
+    } catch (error) {
+      logStream("error", error.message);
+      next(error);
+    }
+  }; 
 
   this.createUser = async (req, res, next) => {
     try {
