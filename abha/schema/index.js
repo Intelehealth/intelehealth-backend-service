@@ -60,7 +60,8 @@ exports.getAbhaNumberSchema = Joi.object()
       .required(),
     txnId: Joi.string()
       .required(),
-    scope: Joi.string().valid('aadhar', 'mobile', 'abha-number', 'abha-address').required()
+    scope: Joi.string().valid('aadhar', 'mobile', 'abha-number', 'abha-address').required(),
+    authMethod: Joi.optional()
   });
 
 exports.getProfileSchema = Joi.object()
