@@ -398,7 +398,7 @@ module.exports = (function () {
   this.getLoginOTPReq = async (req, res, next) => {
     try {
 
-      const { value, scope } = req.body;
+      const { value, scope, authMethod = 'AADHAAR_OTP' } = req.body;
 
       const accessToken = req.token
 
@@ -422,22 +422,34 @@ module.exports = (function () {
         "otpSystem": "abdm"
       }, url = process.env.MOBILE_OTP_URL
 
-      if (scope === 'aadhar' || scope === 'abha-number') {
+      if (scope === 'aadhar') {
         payload = {
           "scope": [
             "abha-login",
             "aadhaar-verify"
           ],
-          "loginHint": scope === "abha-number" ? "abha-number" : "aadhaar",
+          "loginHint": "aadhaar",
           "loginId": encryptedText,
           "otpSystem": "aadhaar"
+        }
+      }
+
+      if (scope === 'abha-number') {
+        payload = {
+          "scope": [
+            "abha-login",
+            authMethod == 'AADHAR_OTP' ? "aadhaar-verify" : "mobile-verify"
+          ],
+          "loginHint": "abha-number",
+          "loginId": encryptedText,
+          "otpSystem": authMethod == 'AADHAR_OTP' ? "aadhaar" : "abdm"
         }
       }
 
       if (scope === 'abha-address') {
         url = process.env.ABHA_ADDRESS_OTP_URL;
         payload = {
-          authMethod: 'AADHAAR_OTP',
+          authMethod: authMethod,
           healthid: value
         }
       }
@@ -465,7 +477,7 @@ module.exports = (function () {
       })
 
     } catch (error) {
-      logStream("error", error);
+      logStream("error", error?.response ?? error);
       next(error);
     }
   };
@@ -690,7 +702,7 @@ module.exports = (function () {
         'authMode': 'DEMOGRAPHICS',
         "patient": {
           "referenceNumber": openMRSID,
-          "display": `OpConsult:${personDisplay}`,
+          "display": `${personDisplay}`,
           "careContexts": [
             {
               "referenceNumber": visitUUID,

@@ -16,7 +16,8 @@ exports.otpSchema = Joi.object()
 exports.loginOTPSchema = Joi.object()
   .keys({
     value: Joi.string().required(),
-    scope: Joi.string().valid('aadhar', 'mobile', 'abha-number', 'abha-address').required()
+    scope: Joi.string().valid('aadhar', 'mobile', 'abha-number', 'abha-address').required(),
+    authMethod: Joi.optional()
   });
 
 
