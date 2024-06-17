@@ -82,8 +82,19 @@ module.exports = (function () {
   this._getUsers = async () => {
     try {
       logStream("debug", "Openmrs Service", "Get Users");
-     let response = await axiosInstance.get(`/openmrs/ws/rest/v1/user?q=&v=default`)
-     return(response.data);
+      let response = await axiosInstance.get(`/openmrs/ws/rest/v1/user?q=&v=default`)
+      return (response.data);
+    } catch (error) {
+      logStream("error", error.message);
+      throw error;
+    }
+  };
+
+  this._deleteUser = async (userId) => {
+    try {
+      logStream("debug", "Openmrs Service", "Delete User");
+      let response = await axiosInstance.delete(`/openmrs/ws/rest/v1/user/${userId}?purge=true`)
+      return (response.data);
     } catch (error) {
       logStream("error", error.message);
       throw error;

@@ -5,7 +5,8 @@ const {
   _createPerson,
   _createUser,
   _createProvider,
-  _getUsers
+  _getUsers,
+  _deleteUser
 } = require("../services/openmrs.service");
 const buffer = require("buffer").Buffer;
 
@@ -143,6 +144,22 @@ module.exports = (function () {
       next(msg ? new Error(msg) : error);
     }
   };
+
+  this.deleteUser = async (req, res, next) => {
+    try {
+      const { uuid } = req.params;
+      logStream("debug", "API calling", "Delete User");
+      const result = await _deleteUser(uuid);
+      logStream("debug", 'Deleted the user', "Delete User");
+      res.json({
+        data: result,
+        status: true
+      });
+    } catch (error) {
+      logStream("error", error.message);
+      next(error);
+    }
+  }; 
 
   return this;
 })();
