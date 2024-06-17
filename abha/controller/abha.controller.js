@@ -236,7 +236,7 @@ module.exports = (function () {
       return res.json(apiResponse.data)
 
     } catch (error) {
-      logStream("error", error.message);
+      logStream("error", error?.response?.data ?? error.message);
       next(error);
     }
   };
@@ -303,7 +303,7 @@ module.exports = (function () {
       return res.json(apiResponse.data)
 
     } catch (error) {
-      logStream("error", error.message);
+      logStream("error", error?.response?.data ?? error.message);
       next(error);
     }
   };
@@ -342,6 +342,7 @@ module.exports = (function () {
       return res.json(apiResponse.data)
 
     } catch (error) {
+      logStream("error", error?.response?.data ?? error.message);
       next(error);
     }
   };
