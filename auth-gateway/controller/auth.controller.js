@@ -6,7 +6,9 @@ const {
   _createUser,
   _createProvider,
   _getUsers,
-  _deleteUser
+  _deleteUser,
+  _updateUser,
+  _getUser
 } = require("../services/openmrs.service");
 const buffer = require("buffer").Buffer;
 
@@ -152,7 +154,7 @@ module.exports = (function () {
       const result = await _deleteUser(uuid);
       logStream("debug", 'Deleted the user', "Delete User");
       res.json({
-        data: result,
+        message: "User deleted successfully",
         status: true
       });
     } catch (error) {
@@ -161,5 +163,65 @@ module.exports = (function () {
     }
   }; 
 
+  this.updateUser = async (req, res, next)  => {
+    try {
+      logStream("debug", "API calling", "Update User");
+      const { uuid } = req.params;
+      const {
+        username,
+        password,
+        givenName,
+        familyName,
+        gender,
+        birthdate,
+        addresses,
+        role
+      } = req.body;
+
+        let roles;
+        switch (role) {
+          case "nurse":
+            roles = JSON.parse(process.env.NURSE_ROLES);
+            break;
+          case "doctor":
+            roles = JSON.parse(process.env.DOCTOR_ROLES);
+            break;
+  
+          default:
+            throw new Error("role not found");
+        }
+
+        const userPayload = {
+          username,
+          password,
+          roles
+        };
+      await _updateUser(uuid, userPayload);
+      logStream("debug", 'Updated the user', 'Update User');
+
+
+      const userData = await _getUser(uuid);
+      logStream("debug", 'Get the person', 'Update User');
+
+      const personPayload = {
+        givenName,
+        familyName,
+        gender,
+        birthdate,
+        addresses,
+      };
+      await _updatePerson(userData.person.uuid, personPayload);
+      logStream("debug", 'Updated the Person', 'Update Person');
+
+      res.json({
+        message: "User updated successfully",
+        status : true
+      })
+    } catch (error) {
+      logStream("error", error.message);
+      next(error);
+    }
+  };
+  
   return this;
 })();
