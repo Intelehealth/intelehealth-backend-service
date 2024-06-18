@@ -8,7 +8,8 @@ const {
   _getUsers,
   _deleteUser,
   _updateUser,
-  _getUser
+  _getUserByUuid,
+  _getUser,
 } = require("../services/openmrs.service");
 const buffer = require("buffer").Buffer;
 
@@ -72,6 +73,12 @@ module.exports = (function () {
     }
   }; 
 
+  /**
+   * Create user API
+   * @param {*} req
+   * @param {*} res
+   * @param {*} next
+   */
   this.createUser = async (req, res, next) => {
     try {
       logStream("debug", "API calling", "Create User");
@@ -200,7 +207,7 @@ module.exports = (function () {
       logStream("debug", 'Updated the user', 'Update User');
 
 
-      const userData = await _getUser(uuid);
+      const userData = await _getUserByUuid(uuid);
       logStream("debug", 'Get the person', 'Update User');
 
       const personPayload = {
@@ -223,5 +230,27 @@ module.exports = (function () {
     }
   };
   
+  /**
+   * Validate user if exist with username
+   * @param {*} req
+   * @param {*} res
+   * @param {*} next
+   */
+  this.validateUser = async (req, res, next) => {
+    try {
+      logStream("debug", "API calling", "Validate User");
+      const { username } = req.body;
+
+      const data = (await _getUser({ username })).data;
+
+      res.json({
+        userExist: !!data?.results?.length,
+      });
+    } catch (error) {
+      const msg = error?.response?.data?.error?.message;
+      next(msg ? new Error(msg) : error);
+    }
+  };
+
   return this;
 })();

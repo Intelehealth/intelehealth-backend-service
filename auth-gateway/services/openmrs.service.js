@@ -79,6 +79,24 @@ module.exports = (function () {
     }
   };
 
+    /**
+   * Create a provider
+   * @param { string } personId - Provider's Id
+   * @param { string } identifier - identifier
+   * @param { array } attributes - Array of attributes, keys - attributeType, value
+   */
+    this._getUser = async ({ username }) => {
+      try {
+        logStream("debug", "Openmrs Service", "Get User");
+        return axiosInstance.get(
+          `/openmrs/ws/rest/v1/user?q=${username}&v=default`
+        );
+      } catch (error) {
+        logStream("error", error.message);
+        throw error;
+      }
+    };
+    
   /**
   * Get users saved in database
   */
@@ -112,7 +130,7 @@ module.exports = (function () {
      * Get user saved in database
      * @param { number } uuid - user id
      */
-  this._getUser = async (uuid) => {
+  this._getUserByUuid = async (uuid) => {
     try {
       logStream("debug", "Openmrs Service", "Get Person By User");
       let response = await axiosInstance.get(`/openmrs/ws/rest/v1/user/${uuid}`)
