@@ -7,6 +7,7 @@ const {
   _createProvider,
   _getUsers,
   _deleteUser,
+  _deletePerson,
   _updateUser,
   _getUserByUuid,
   _getUser,
@@ -57,7 +58,7 @@ module.exports = (function () {
       next(error);
     }
   };
-  
+
   this.getUsers = async (req, res, next) => {
     try {
       logStream("debug", "API calling", "Get Users");
@@ -71,7 +72,7 @@ module.exports = (function () {
       logStream("error", error.message);
       next(error);
     }
-  }; 
+  };
 
   /**
    * Create user API
@@ -158,7 +159,12 @@ module.exports = (function () {
     try {
       const { uuid } = req.params;
       logStream("debug", "API calling", "Delete User");
-      const result = await _deleteUser(uuid);
+
+      const userData = await _getUserByUuid(uuid);
+      await _deletePerson(userData.person.uuid);
+      logStream("debug", 'Deleted the person', "Delete User");
+
+      await _deleteUser(uuid);
       logStream("debug", 'Deleted the user', "Delete User");
       res.json({
         message: "User deleted successfully",
@@ -168,9 +174,9 @@ module.exports = (function () {
       logStream("error", error.message);
       next(error);
     }
-  }; 
+  };
 
-  this.updateUser = async (req, res, next)  => {
+  this.updateUser = async (req, res, next) => {
     try {
       logStream("debug", "API calling", "Update User");
       const { uuid } = req.params;
@@ -185,24 +191,24 @@ module.exports = (function () {
         role
       } = req.body;
 
-        let roles;
-        switch (role) {
-          case "nurse":
-            roles = JSON.parse(process.env.NURSE_ROLES);
-            break;
-          case "doctor":
-            roles = JSON.parse(process.env.DOCTOR_ROLES);
-            break;
-  
-          default:
-            throw new Error("role not found");
-        }
+      let roles;
+      switch (role) {
+        case "nurse":
+          roles = JSON.parse(process.env.NURSE_ROLES);
+          break;
+        case "doctor":
+          roles = JSON.parse(process.env.DOCTOR_ROLES);
+          break;
 
-        const userPayload = {
-          username,
-          password,
-          roles
-        };
+        default:
+          throw new Error("role not found");
+      }
+
+      const userPayload = {
+        username,
+        password,
+        roles
+      };
       await _updateUser(uuid, userPayload);
       logStream("debug", 'Updated the user', 'Update User');
 
@@ -222,14 +228,14 @@ module.exports = (function () {
 
       res.json({
         message: "User updated successfully",
-        status : true
+        status: true
       })
     } catch (error) {
       logStream("error", error.message);
       next(error);
     }
   };
-  
+
   /**
    * Validate user if exist with username
    * @param {*} req

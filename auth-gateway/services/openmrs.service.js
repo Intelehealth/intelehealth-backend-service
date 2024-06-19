@@ -79,24 +79,24 @@ module.exports = (function () {
     }
   };
 
-    /**
-   * Create a provider
-   * @param { string } personId - Provider's Id
-   * @param { string } identifier - identifier
-   * @param { array } attributes - Array of attributes, keys - attributeType, value
-   */
-    this._getUser = async ({ username }) => {
-      try {
-        logStream("debug", "Openmrs Service", "Get User");
-        return axiosInstance.get(
-          `/openmrs/ws/rest/v1/user?q=${username}&v=default`
-        );
-      } catch (error) {
-        logStream("error", error.message);
-        throw error;
-      }
-    };
-    
+  /**
+ * Create a provider
+ * @param { string } personId - Provider's Id
+ * @param { string } identifier - identifier
+ * @param { array } attributes - Array of attributes, keys - attributeType, value
+ */
+  this._getUser = async ({ username }) => {
+    try {
+      logStream("debug", "Openmrs Service", "Get User");
+      return axiosInstance.get(
+        `/openmrs/ws/rest/v1/user?q=${username}&v=default`
+      );
+    } catch (error) {
+      logStream("error", error.message);
+      throw error;
+    }
+  };
+
   /**
   * Get users saved in database
   */
@@ -118,8 +118,8 @@ module.exports = (function () {
   this._deleteUser = async (userId) => {
     try {
       logStream("debug", "Openmrs Service", "Delete User");
-      let response = await axiosInstance.delete(`/openmrs/ws/rest/v1/user/${userId}?purge=true`)
-      return (response.data);
+      let response = await axiosInstance.delete(`/openmrs/ws/rest/v1/user/${userId}`)
+      return (response);
     } catch (error) {
       logStream("error", error.message);
       throw error;
@@ -127,9 +127,24 @@ module.exports = (function () {
   };
 
   /**
-     * Get user saved in database
-     * @param { number } uuid - user id
-     */
+* Delete person
+* @param { number } personId - person id
+*/
+  this._deletePerson = async (personId) => {
+    try {
+      logStream("debug", "Openmrs Service", "Delete person");
+      let response = await axiosInstance.delete(`/openmrs/ws/rest/v1/person/${personId}`)
+      return (response);
+    } catch (error) {
+      logStream("error", error.message);
+      throw error;
+    }
+  };
+
+  /**
+   * Get user saved in database
+   * @param { number } uuid - user id
+   */
   this._getUserByUuid = async (uuid) => {
     try {
       logStream("debug", "Openmrs Service", "Get Person By User");
