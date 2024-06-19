@@ -79,18 +79,118 @@ module.exports = (function () {
     }
   };
 
-  /**
+    /**
    * Create a provider
    * @param { string } personId - Provider's Id
    * @param { string } identifier - identifier
    * @param { array } attributes - Array of attributes, keys - attributeType, value
    */
-  this._getUser = async ({ username }) => {
+    this._getUser = async ({ username }) => {
+      try {
+        logStream("debug", "Openmrs Service", "Get User");
+        return axiosInstance.get(
+          `/openmrs/ws/rest/v1/user?q=${username}&v=default`
+        );
+      } catch (error) {
+        logStream("error", error.message);
+        throw error;
+      }
+    };
+    
+  /**
+  * Get users saved in database
+  */
+  this._getUsers = async () => {
     try {
-      logStream("debug", "Openmrs Service", "Get User");
-      return axiosInstance.get(
-        `/openmrs/ws/rest/v1/user?q=${username}&v=default`
-      );
+      logStream("debug", "Openmrs Service", "Get Users");
+      let response = await axiosInstance.get(`/openmrs/ws/rest/v1/user?q=&v=default`)
+      return (response.data);
+    } catch (error) {
+      logStream("error", error.message);
+      throw error;
+    }
+  };
+
+  /**
+ * Delete user
+ * @param { number } userId - user id
+ */
+  this._deleteUser = async (userId) => {
+    try {
+      logStream("debug", "Openmrs Service", "Delete User");
+      let response = await axiosInstance.delete(`/openmrs/ws/rest/v1/user/${userId}?purge=true`)
+      return (response.data);
+    } catch (error) {
+      logStream("error", error.message);
+      throw error;
+    }
+  };
+
+  /**
+     * Get user saved in database
+     * @param { number } uuid - user id
+     */
+  this._getUserByUuid = async (uuid) => {
+    try {
+      logStream("debug", "Openmrs Service", "Get Person By User");
+      let response = await axiosInstance.get(`/openmrs/ws/rest/v1/user/${uuid}`)
+      return (response.data);
+    } catch (error) {
+      logStream("error", error.message);
+      throw error;
+    }
+  };
+
+  /**
+   * Update user
+   * @param { number } uuid - user id
+   *  @param { string } username - userName
+   *  @param { string } password - password
+   *  @param { array } roles - roles
+   */
+  this._updateUser = async (userId, { username, password, roles }) => {
+    try {
+      logStream("debug", "Openmrs Service", "Update User");
+      let response = await axiosInstance.post(`/openmrs/ws/rest/v1/user/${userId}`,
+        { username, password, roles });
+      return (response.data);
+    } catch (error) {
+      logStream("error", error.message);
+      throw error;
+    }
+  };
+
+  /**
+  * Update user
+  * @param { number } personId - person id
+  *  @param { string } givenName - givenName
+  *  @param { string } familyName - familyName
+  *  @param { string } gender - gender
+  *  @param { string } birthdate - birthdate
+  *  @param { array } addresses - addresses
+  */
+  this._updatePerson = async (personId, {
+    givenName,
+    familyName,
+    gender,
+    birthdate,
+    addresses,
+  }) => {
+    try {
+      logStream("debug", "Openmrs Service", "Update person");
+      let response = await axiosInstance.post(`/openmrs/ws/rest/v1/person/${personId}`,
+        {
+          names: [
+            {
+              givenName,
+              familyName,
+            },
+          ],
+          gender,
+          birthdate,
+          addresses
+        });
+      return (response.data);
     } catch (error) {
       logStream("error", error.message);
       throw error;
