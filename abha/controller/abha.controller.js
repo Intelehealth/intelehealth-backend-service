@@ -93,7 +93,7 @@ module.exports = (function () {
         ...accessToken
       })
     } catch (error) {
-      logStream("error", error.message);
+      logStream("error", JSON.stringify(error));
       next(error);
     }
   };
@@ -142,7 +142,8 @@ module.exports = (function () {
         }
       }
 
-      logStream("debug", JSON.stringify(payload), 'Enroll OTP Req');
+      logStream("debug", process.env.REQ_OTP_URL, 'Enroll OTP Req - URL');
+      logStream("debug", payload, 'Enroll OTP Req - Payload');
 
       logStream("debug", 'Calling API to get otp', 'Enroll OTP Req');
 
@@ -158,15 +159,14 @@ module.exports = (function () {
         }
       );
 
-      logStream("debug", 'OTP Response Recieved', 'Get OTP');
-
+      logStream("debug", apiResponse.data, 'Enroll OTP Req - Response');
 
       return res.json({
         ...apiResponse.data,
       })
 
     } catch (error) {
-      logStream("error", error.message);
+      logStream("error", JSON.stringify(error));
       next(error);
     }
   };
@@ -190,7 +190,6 @@ module.exports = (function () {
 
       logStream("debug", 'Got Public Key', 'Get OTP');
 
-
       const encryptedText = this.getRSAText(publicKey, otp);
 
       logStream("debug", 'Encrypted Text', 'Enroll By Aadhar');
@@ -213,11 +212,9 @@ module.exports = (function () {
         }
       }
 
-      logStream("debug", JSON.stringify(payload), 'Enroll By Aadhar');
-
-      logStream("debug", 'Calling API to Enroll By Aadhar Response', 'Enroll By Aadhar');
-
-
+      logStream("debug", process.env.ENROLL_AADHAR_BY_URL, 'Enroll By Aadhar - URL');
+      logStream("debug", payload, 'Enroll By Aadhar - Payload');
+      
       const apiResponse = await axiosInstance.post(
         process.env.ENROLL_AADHAR_BY_URL,
         payload,
@@ -231,12 +228,12 @@ module.exports = (function () {
         }
       );
 
-      logStream("debug", 'Got Profile Response', 'Enroll By Aadhar');
+      logStream("debug", apiResponse.data, 'Enroll By Aadhar - Response');
 
       return res.json(apiResponse.data)
 
     } catch (error) {
-      logStream("error", error?.response?.data ?? error.message);
+      logStream("error", JSON.stringify(error));
       next(error);
     }
   };
@@ -281,8 +278,9 @@ module.exports = (function () {
         }
       }
 
-      logStream("debug", JSON.stringify(payload), 'Enroll By Abdm');
-
+      logStream("debug", process.env.ENROLL_BY_ABDM_URL, 'Enroll By Abdm - URL');
+      logStream("debug", payload, 'Enroll By Abdm - Payload');
+      
       logStream("debug", 'Calling API to Enroll By Abdm Response', 'Enroll By Abdm');
 
       const apiResponse = await axiosInstance.post(
@@ -298,12 +296,12 @@ module.exports = (function () {
         }
       );
 
-      logStream("debug", 'Got Profile Response', 'Enroll By ABDM');
+      logStream("debug", apiResponse.data, 'Enroll By ABDM - Response');
 
       return res.json(apiResponse.data)
 
     } catch (error) {
-      logStream("error", error?.response?.data ?? error.message);
+      logStream("error", JSON.stringify(error));
       next(error);
     }
   };
@@ -321,8 +319,9 @@ module.exports = (function () {
 
       const accessToken = req.token
 
-      logStream("debug", 'Calling API to Get Enroll Suggestions', 'Get Enroll Suggestions');
-
+      logStream("debug", process.env.ENROLL_SUGGESION_URL, 'Get Enroll Suggestions - URL');
+      logStream("debug", req.body, 'Get Enroll Suggestions - Payload');
+      
       const apiResponse = await axiosInstance.get(
         process.env.ENROLL_SUGGESION_URL,
         {
@@ -337,12 +336,12 @@ module.exports = (function () {
         }
       );
 
-      logStream("debug", 'Got Address Address', 'Get Enroll Suggestions');
+      logStream("debug", apiResponse.data, 'Get Enroll Suggestions - Response');
 
       return res.json(apiResponse.data)
 
     } catch (error) {
-      logStream("error", error?.response?.data ?? error.message);
+      logStream("error", JSON.stringify(error));
       next(error);
     }
   };
@@ -366,8 +365,9 @@ module.exports = (function () {
         "preferred": 1
       }
 
-      logStream("debug", 'Calling API to Set Prefer Address', 'Set Prefer Address');
-
+      logStream("debug", process.env.ENROLL_SUGGESION_URL, 'Set Prefer Address - URL');
+      logStream("debug", payload, 'Set Prefer Address - Payload');
+      
       const apiResponse = await axiosInstance.post(
         process.env.SET_PREFERED_ADDRESS_URL,
         payload,
@@ -380,12 +380,12 @@ module.exports = (function () {
         }
       );
 
-      logStream("debug", 'Set Prefer Address Response', 'Set Prefer Address');
+      logStream("debug", apiResponse.data, 'Set Prefer Address - Response ');
 
       return res.json(apiResponse.data)
 
     } catch (error) {
-      logStream("error", error.message);
+      logStream("error", JSON.stringify(error));
       next(error);
     }
   };
@@ -455,7 +455,8 @@ module.exports = (function () {
         }
       }
 
-      logStream("debug", JSON.stringify(payload), 'GET Login OTP Req');
+      logStream("debug", url, 'GET Login OTP Req - URL');
+      logStream("debug", payload, 'GET Login OTP Req - Payload');
 
       logStream("debug", 'Calling API to get otp', 'GET Login OTP Req');
 
@@ -470,7 +471,7 @@ module.exports = (function () {
         }
       );
 
-      logStream("debug", 'OTP Response Recieved', 'Get OTP');
+      logStream("debug", apiResponse.data, 'GET Login OTP - Response');
 
       return res.json({
         message: "OTP successfully sent to the registered mobile number.",
@@ -478,7 +479,7 @@ module.exports = (function () {
       })
 
     } catch (error) {
-      logStream("error", error?.response ?? error);
+      logStream("error", JSON.stringify(error));
       next(error);
     }
   };
@@ -543,7 +544,8 @@ module.exports = (function () {
         }
       }
 
-      logStream("debug", JSON.stringify(payload), 'Get Login OTP Verify');
+      logStream("debug", url, 'Get Login OTP Verify - URL');
+      logStream("debug", payload, 'Get Login OTP Verify - Payload');
 
       logStream("debug", 'Calling API to Get Login OTP Verify', 'Get Login OTP Verify');
 
@@ -558,12 +560,12 @@ module.exports = (function () {
         }
       );
 
-      logStream("debug", 'Got Profile Response', 'Enroll By Aadhar');
+      logStream("debug", apiResponse.data, 'Enroll By Aadhar - Response');
 
       return res.json(apiResponse.data)
 
     } catch (error) {
-      logStream("error", error.message);
+      logStream("error", JSON.stringify(error));
       next(error);
     }
   };
@@ -584,8 +586,9 @@ module.exports = (function () {
       const accessToken = req.token;
 
       if (!['abha-address', 'abha-number', 'aadhar'].includes(scope)) {
-        logStream("debug", 'Calling API to Login Verify User', 'Get Profile');
-
+        logStream("debug", process.env.LOGIN_VERIFY_USER_URL, 'Get Profile - Login Verify User - URL');
+        logStream("debug", req.body, 'Get Profile - Login Verify User - Payload');
+        
         const loginVerifyRes = await axiosInstance.post(
           process.env.LOGIN_VERIFY_USER_URL,
           {
@@ -602,13 +605,15 @@ module.exports = (function () {
           }
         );
         xToken = loginVerifyRes.data.token;
-        logStream("debug", 'Calling API to Login Verify User - Token Received', 'Get Profile');
+        logStream("debug", loginVerifyRes.data, 'Get Profile - Login Verify User - Response');
       }
 
+      const url = scope == 'abha-address' ? process.env.ACCOUNT_VERIFY_ABHA_USER_URL : process.env.ACCOUNT_VERIFY_USER_URL;
+      
       logStream("debug", 'Calling API to Get Profile', 'Get Profile');
-
-      const apiResponse = await axiosInstance.get(
-        scope == 'abha-address' ? process.env.ACCOUNT_VERIFY_ABHA_USER_URL : process.env.ACCOUNT_VERIFY_USER_URL,
+      logStream("debug", url, 'Get Profile - URL');
+      
+      const apiResponse = await axiosInstance.get(url,
         {
           headers: {
             ...this.getInitialHeaderrs(accessToken),
@@ -619,12 +624,12 @@ module.exports = (function () {
         }
       );
 
-      logStream("debug", 'Calling API to Get Profile', 'Get Profile');
+      logStream("debug", apiResponse.data, 'Get Profile - Response');
 
       return res.json(apiResponse.data)
 
     } catch (error) {
-      logStream("error", error.message);
+      logStream("error", JSON.stringify(error));
       next(error);
     }
   };
@@ -645,11 +650,38 @@ module.exports = (function () {
   this.getCard = async (req, res, next) => {
     try {
 
-      const xToken = req.xtoken
+      let xToken = req.xtoken
 
       const accessToken = req.token;
 
+      const { txnId, abhaNumber, scope = '' } = req.body;
+
+
+      if (scope === 'mobile') {
+        logStream("debug", process.env.LOGIN_VERIFY_USER_URL, 'Get Card - Login Verify User - URL');
+        logStream("debug", req.body, 'Get Card - Login Verify User - Payload');
+        
+        const loginVerifyRes = await axiosInstance.post(
+          process.env.LOGIN_VERIFY_USER_URL,
+          {
+            "ABHANumber": abhaNumber,
+            "txnId": txnId
+          },
+          {
+            headers: {
+              ...this.getInitialHeaderrs(accessToken),
+              'REQUEST-ID': uuid(),
+              'TIMESTAMP': this.getTimestamp(),
+              'T-Token': `Bearer ${xToken}`
+            }
+          }
+        );
+        xToken = loginVerifyRes.data.token;
+        logStream("debug", loginVerifyRes.data, 'Get Card - Login Verify User - Response');
+      }
+
       logStream("debug", 'Calling API to Get Card', 'Get Card');
+      logStream("debug", process.env.GET_CARD_URL, 'Get Card - URL');
 
       const apiResponse = await axiosInstance.get(
         process.env.GET_CARD_URL,
@@ -671,7 +703,7 @@ module.exports = (function () {
       });
 
     } catch (error) {
-      logStream("error", error.message);
+      logStream("error", JSON.stringify(error));
       next(error);
     }
   };
@@ -717,7 +749,8 @@ module.exports = (function () {
         return { success: true, data: null, message: `Care context already requested for ${visitUUID}!` };
       }
 
-      logStream("debug", JSON.stringify(requestObj), `URL: ${process.env.POST_LINK_CARE_CONTEXT_URL} -> Calling the Link care context API -> linkCareContextByAbhaDetail`);
+      logStream("debug", process.env.POST_LINK_CARE_CONTEXT_URL, 'Calling the Link care context API -> linkCareContextByAbhaDetail - URL');
+      logStream("debug", requestObj, `Calling the Link care context API -> linkCareContextByAbhaDetail - Payload`);
 
       // Create the table entry to store from ABDM post care context
       const abdmVisitStatus = await abdm_visit_status.create({
@@ -736,6 +769,7 @@ module.exports = (function () {
           },
         }
       ).catch((err) => {
+        logStream("error", JSON.stringify(err));
         return err;
       });
 
@@ -754,6 +788,8 @@ module.exports = (function () {
       // Store the response getting from link care context API call to abdmVisitStatus table
       abdmVisitStatus.response = abdmResponse?.response?.data ?? abdmResponse?.data;
 
+      logStream("debug", process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + visitUUID, 'Verify the link care context status - URL');
+      
       // Call get request to verify the care context link status
       const careContexts = await axiosInstance.get(
         process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + visitUUID, {
@@ -761,7 +797,7 @@ module.exports = (function () {
           ...this.getInitialHeaderrs(),
         },
       }).catch((err) => {
-        logStream("debug", err, `URL: ${process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + visitUUID} linkCareContextByAbhaDetail -> axiosInstance.get -> error`);
+        logStream("error", JSON.stringify(err));
         return err;
       });
 
@@ -770,7 +806,7 @@ module.exports = (function () {
         abdmVisitStatus.isLinked = true;
         abdmVisitStatus.link_status_response = careContexts?.data;
 
-        logStream("debug", careContexts?.data, `URL: ${process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + visitUUID} Response from linkCareContextByAbhaDetail -> axiosInstance.get`);
+        logStream("debug", careContexts?.data, `Verify the link care context status - Response`);
 
         // Call the post request to update the isABDMLinked attribute to true.
         await openmrsService.postAttribute(visitUUID,
@@ -795,8 +831,7 @@ module.exports = (function () {
       return { success: true, data: null, message: "Care context shared successfully!" };
 
     } catch (error) {
-
-      logStream("error", error, "linkCareContextByAbhaDetail");
+      logStream("error", JSON.stringify(error));
       return { success: false, status: error.status ?? 500, data: null, message: error?.message ?? error }
 
     }
@@ -821,7 +856,8 @@ module.exports = (function () {
           }
         }
       }
-      logStream("debug", 'Calling /v1/sms/verify request to abdm', 'axiosInstance.post');
+      logStream("debug", process.env.POST_SMS_NOTIFY_URL, 'smsNotifyCareContext - URL');
+      logStream("debug", requestParam, 'smsNotifyCareContext - Payload');
 
       const abdmResponse = await axiosInstance.post(
         process.env.POST_SMS_NOTIFY_URL,
@@ -833,14 +869,15 @@ module.exports = (function () {
         }
       );
 
-      logStream("debug", 'Got API Response From SMS verify', 'axiosInstance.post');
       if (abdmResponse?.data?.httpStatusCode !== 'ACCEPTED') {
         throw abdmResponse?.data?.error ?? abdmResponse?.data ?? new Error('Something went wrong!');
       }
 
+      logStream("debug", abdmResponse?.data, 'smsNotifyCareContext - Response');
+      
       return { success: true, data: abdmResponse?.data, message: "Care context sms notified successfully." }
     } catch (error) {
-      logStream("error", error, "smsNotifyCareContext");
+      logStream("error", JSON.stringify(error));
       return { success: false, status: error.status ?? 500, data: null, message: error?.data?.message ?? error?.message ?? error }
     }
   }
@@ -859,7 +896,6 @@ module.exports = (function () {
         mobileNumber
       } = req.body;
 
-      logStream("debug", 'Calling Post API to Post Link Care Context to Abha', 'postLinkCareContext');
       let response = { success: false, status: 500, message: "Something went wrong!" };
       if (Boolean(abhaAddress) || Boolean(abhaNumber)) {
         response = await this.linkCareContextByAbhaDetail(req.body);
@@ -869,10 +905,9 @@ module.exports = (function () {
       if (!response?.success) {
         throw response;
       }
-      logStream("debug", 'Got API Response', 'postLinkCareContext');
       return res.json(response);
     } catch (error) {
-      logStream("error", error);
+      logStream("error", JSON.stringify(error));
       return res.status(error?.status ?? 500).json({
         "success": false,
         "code": "ERR_BAD_REQUEST",
@@ -920,7 +955,7 @@ module.exports = (function () {
       res.json(patientInfo);
       return;
     } catch (error) {
-      logStream("error", error);
+      logStream("error", JSON.stringify(error));
       return res.status(error?.status ?? error?.response?.status ?? 500).json({
         "success": false,
         "code": error?.code ?? "ERR_BAD_REQUEST",
@@ -943,7 +978,7 @@ module.exports = (function () {
       res.json(formattedResponse);
       return;
     } catch (error) {
-      logStream("error", error);
+      logStream("error", JSON.stringify(error));
       if (!error.code) error.code = 500
       return next(error);
     }
