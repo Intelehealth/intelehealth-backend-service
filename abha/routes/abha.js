@@ -25,7 +25,8 @@ const {
     getAbhaNumberSchema,
     getProfileSchema,
     postLinkCareContextSchema,
-    enrollByAbdmSchema
+    enrollByAbdmSchema,
+    getCardSchema
 } = require("../schema/index");
 
 const { authMiddleware, xTokenMiddleware } = require("../middleware/auth");
@@ -56,6 +57,8 @@ router.post("/loginOTPVerify", [authMiddleware, validate(getAbhaNumberSchema), g
 router.post("/profile", [authMiddleware, xTokenMiddleware, validate(getProfileSchema), getProfile]);
 
 router.get("/getCard", [authMiddleware, xTokenMiddleware, getCard]);
+
+router.post("/getCard", [authMiddleware, xTokenMiddleware, validate(getCardSchema), getCard]);
 
 router.post("/post-care-context", [validate(postLinkCareContextSchema), postLinkCareContext]);
 

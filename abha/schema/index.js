@@ -84,3 +84,11 @@ exports.postLinkCareContextSchema = Joi.object({
   mobileNumber: Joi.optional(),
   openMRSID: Joi.optional()
 });
+
+
+exports.getCardSchema = Joi.object()
+  .keys({
+    scope: Joi.optional().valid('mobile'),
+    txnId: Joi.any().when('scope', { is: 'mobile', then: Joi.string().required(), otherwise: Joi.optional() }),
+    abhaNumber: Joi.any().when('scope', { is: 'mobile', then: Joi.string().required(), otherwise: Joi.optional() })
+  });

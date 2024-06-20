@@ -46,16 +46,18 @@ function getGender(gender) {
 }
 
 function handleError(error) {
-    if ((error?.data?.error && typeof error?.data?.error === 'string') || error?.data?.message) {
-        return error?.data;
+    if (error?.data?.message) {
+        return error.data;
+    } else if ((error?.data?.error && typeof error?.data?.error === 'string')) {
+        return { message: error.data.error }
     } else if (error?.data?.error && typeof error?.data?.error !== 'string') {
-        return error?.data.error;
+        return error.data.error;
     } else if (error?.response?.data?.error && typeof error?.response?.data?.error != 'string') {
-        return error?.response?.data?.error;
+        return error.response.data.error;
     } else if (error?.response?.data) {
-        return (typeof error?.response?.data == 'string') ? { message: error?.response?.data } : error?.response?.data;
+        return (typeof error?.response?.data == 'string') ? { message: error.response.data } : error.response.data;
     } else if (error?.message) {
-        return { message: error?.message }
+        return { message: error.message }
     }
     return new Error('Something went wrong!');
 }
