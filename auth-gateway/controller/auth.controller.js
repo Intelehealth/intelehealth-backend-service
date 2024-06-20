@@ -5,6 +5,11 @@ const {
   _createPerson,
   _createUser,
   _createProvider,
+  _getUsers,
+  _deleteUser,
+  _deletePerson,
+  _updateUser,
+  _getUserByUuid,
   _getUser,
 } = require("../services/openmrs.service");
 const buffer = require("buffer").Buffer;
@@ -48,6 +53,21 @@ module.exports = (function () {
       }
       logStream("debug", `Login Success for ${username}`, "Login");
       res.json(resp);
+    } catch (error) {
+      logStream("error", error.message);
+      next(error);
+    }
+  };
+
+  this.getUsers = async (req, res, next) => {
+    try {
+      logStream("debug", "API calling", "Get Users");
+      const users = await _getUsers();
+      logStream("debug", 'Got the user list', "Get Users");
+      res.json({
+        data: users.results,
+        status: true
+      });
     } catch (error) {
       logStream("error", error.message);
       next(error);
@@ -132,6 +152,87 @@ module.exports = (function () {
     } catch (error) {
       const msg = error?.response?.data?.error?.message;
       next(msg ? new Error(msg) : error);
+    }
+  };
+
+  this.deleteUser = async (req, res, next) => {
+    try {
+      const { uuid } = req.params;
+      logStream("debug", "API calling", "Delete User");
+
+      const userData = await _getUserByUuid(uuid);
+      await _deletePerson(userData.person.uuid);
+      logStream("debug", 'Deleted the person', "Delete User");
+
+      await _deleteUser(uuid);
+      logStream("debug", 'Deleted the user', "Delete User");
+      res.json({
+        message: "User deleted successfully",
+        status: true
+      });
+    } catch (error) {
+      logStream("error", error.message);
+      next(error);
+    }
+  };
+
+  this.updateUser = async (req, res, next) => {
+    try {
+      logStream("debug", "API calling", "Update User");
+      const { uuid } = req.params;
+      const {
+        username,
+        password,
+        givenName,
+        familyName,
+        gender,
+        birthdate,
+        addresses,
+        role
+      } = req.body;
+
+      let roles;
+      switch (role) {
+        case "nurse":
+          roles = JSON.parse(process.env.NURSE_ROLES);
+          break;
+        case "doctor":
+          roles = JSON.parse(process.env.DOCTOR_ROLES);
+          break;
+
+        default:
+          throw new Error("role not found");
+      }
+
+      const userPayload = {
+        username,
+        password,
+        roles
+      };
+      await _updateUser(uuid, userPayload);
+      logStream("debug", 'Updated the user', 'Update User');
+
+
+      const userData = await _getUserByUuid(uuid);
+      logStream("debug", 'Get the person', 'Update User');
+
+      const personPayload = {
+        givenName,
+        familyName,
+        gender,
+        birthdate,
+        addresses,
+      };
+      await _updatePerson(userData.person.uuid, personPayload);
+      logStream("debug", 'Updated the Person', 'Update Person');
+
+      res.json({
+        message: "User updated successfully",
+        status: true
+      })
+    } catch (error) {
+      logStream("error", error.message);
+      next(error);
     }
   };
 
