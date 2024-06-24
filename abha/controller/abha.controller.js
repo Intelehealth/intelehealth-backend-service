@@ -580,6 +580,7 @@ module.exports = (function () {
     try {
 
       let xToken = req.xtoken
+      let loginVerifyRes = {};
 
       const { txnId, abhaNumber, scope = '' } = req.body;
 
@@ -589,7 +590,7 @@ module.exports = (function () {
         logStream("debug", process.env.LOGIN_VERIFY_USER_URL, 'Get Profile - Login Verify User - URL');
         logStream("debug", req.body, 'Get Profile - Login Verify User - Payload');
         
-        const loginVerifyRes = await axiosInstance.post(
+        loginVerifyRes = await axiosInstance.post(
           process.env.LOGIN_VERIFY_USER_URL,
           {
             "ABHANumber": abhaNumber,
@@ -627,7 +628,7 @@ module.exports = (function () {
       logStream("debug", apiResponse.data, 'Get Profile - Response');
 
       return res.json({
-        token: xToken,
+        ...(loginVerifyRes?.data ?? {}),
         ...(apiResponse?.data ?? {})
       })
 
