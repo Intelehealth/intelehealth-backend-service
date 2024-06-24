@@ -626,7 +626,10 @@ module.exports = (function () {
 
       logStream("debug", apiResponse.data, 'Get Profile - Response');
 
-      return res.json(apiResponse.data)
+      return res.json({
+        token: xToken,
+        ...(apiResponse?.data ?? {})
+      })
 
     } catch (error) {
       logStream("error", JSON.stringify(error));
@@ -654,31 +657,30 @@ module.exports = (function () {
 
       const accessToken = req.token;
 
-      const { txnId, abhaNumber, scope = '' } = req.body;
+      // const { txnId, abhaNumber, scope = '' } = req.body;
 
-
-      if (scope === 'mobile') {
-        logStream("debug", process.env.LOGIN_VERIFY_USER_URL, 'Get Card - Login Verify User - URL');
-        logStream("debug", req.body, 'Get Card - Login Verify User - Payload');
+      // if (scope === 'mobile') {
+      //   logStream("debug", process.env.LOGIN_VERIFY_USER_URL, 'Get Card - Login Verify User - URL');
+      //   logStream("debug", req.body, 'Get Card - Login Verify User - Payload');
         
-        const loginVerifyRes = await axiosInstance.post(
-          process.env.LOGIN_VERIFY_USER_URL,
-          {
-            "ABHANumber": abhaNumber,
-            "txnId": txnId
-          },
-          {
-            headers: {
-              ...this.getInitialHeaderrs(accessToken),
-              'REQUEST-ID': uuid(),
-              'TIMESTAMP': this.getTimestamp(),
-              'T-Token': `Bearer ${xToken}`
-            }
-          }
-        );
-        xToken = loginVerifyRes.data.token;
-        logStream("debug", loginVerifyRes.data, 'Get Card - Login Verify User - Response');
-      }
+      //   const loginVerifyRes = await axiosInstance.post(
+      //     process.env.LOGIN_VERIFY_USER_URL,
+      //     {
+      //       "ABHANumber": abhaNumber,
+      //       "txnId": txnId
+      //     },
+      //     {
+      //       headers: {
+      //         ...this.getInitialHeaderrs(accessToken),
+      //         'REQUEST-ID': uuid(),
+      //         'TIMESTAMP': this.getTimestamp(),
+      //         'T-Token': `Bearer ${xToken}`
+      //       }
+      //     }
+      //   );
+      //   xToken = loginVerifyRes.data.token;
+      //   logStream("debug", loginVerifyRes.data, 'Get Card - Login Verify User - Response');
+      // }
 
       logStream("debug", 'Calling API to Get Card', 'Get Card');
       logStream("debug", process.env.GET_CARD_URL, 'Get Card - URL');
