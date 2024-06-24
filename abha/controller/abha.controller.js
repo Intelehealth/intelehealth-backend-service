@@ -606,7 +606,6 @@ module.exports = (function () {
           }
         );
         xToken = loginVerifyRes.data.token;
-        loginVerifyRes.data
         logStream("debug", loginVerifyRes.data, 'Get Profile - Login Verify User - Response');
       }
 
