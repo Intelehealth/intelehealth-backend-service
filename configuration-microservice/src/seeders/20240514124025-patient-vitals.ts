@@ -29,6 +29,9 @@ module.exports = {
         { name: 'Waist Circumference (cm)', key: 'waist_circumference_cm', uuid:'41e7d3ff-d24b-448f-a248-a4feb64ef700', is_enabled: false, is_mandatory: true },
         { name: 'Hip Circumference (cm)', key: 'hip_circumference_cm', uuid:'9f1b264f-2b9b-44f5-9d7a-c809e9f63c51', is_enabled: false, is_mandatory: true },
         { name: 'Waist to Hip Ratio (WHR)', key: 'waist_to_hip_ratio', uuid:'20d3e924-f379-443d-9033-c8d1cdfda2f0', is_enabled: false, is_mandatory: true },
+        { name: '2 Hour Post Load Glucose Test (OGTT) (mg/dl)', key: 'ogtt_mg_per_dl', uuid:'d7a564d7-f104-4186-8e36-68101c7c2952', is_enabled: false, is_mandatory: false },
+        { name: 'HbA1c', key: 'hba1c', uuid:'f0631271-e0b3-48ca-a4e5-70959a7b76d9', is_enabled: false, is_mandatory: false },
+        { name: 'BLOOD TYPING', key: 'blood_typing', uuid:'9d2df0c6-538f-11e6-9cfe-86f436325720', is_enabled: false, is_mandatory: false },
       ]);
     }),
 
