@@ -20,6 +20,10 @@ const errorHandler = (err, req, res, next) => {
     return;
   }
 
+  // if(err?.response?.data?.error?.message) {
+  //   err.message = err?.response?.data?.error?.message
+  // }
+
   res.status(err.status || 500);
 
   return res.json({

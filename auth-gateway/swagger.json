@@ -24,7 +24,9 @@
       "post": {
         "summary": "User login",
         "description": "This API allows users to log in with their username and password",
-        "tags": ["User"],
+        "tags": [
+          "User"
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -45,7 +47,10 @@
                     "example": false
                   }
                 },
-                "required": ["username", "password"]
+                "required": [
+                  "username",
+                  "password"
+                ]
               }
             }
           }
@@ -114,7 +119,9 @@
       "post": {
         "summary": "Create a new user",
         "description": "This API allows to create a new user with given details",
-        "tags": ["User"],
+        "tags": [
+          "User"
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -156,16 +163,31 @@
                           "type": "string",
                           "example": "123 Main St"
                         },
-                        "city": { "type": "string", "example": "Anytown" },
-                        "state": { "type": "string", "example": "Anystate" },
-                        "zip": { "type": "string", "example": "12345" },
-                        "country": { "type": "string", "example": "USA" }
+                        "city": {
+                          "type": "string",
+                          "example": "Anytown"
+                        },
+                        "state": {
+                          "type": "string",
+                          "example": "Anystate"
+                        },
+                        "zip": {
+                          "type": "string",
+                          "example": "12345"
+                        },
+                        "country": {
+                          "type": "string",
+                          "example": "USA"
+                        }
                       }
                     }
                   },
                   "role": {
                     "type": "string",
-                    "enum": ["nurse", "doctor"],
+                    "enum": [
+                      "nurse",
+                      "doctor"
+                    ],
                     "example": "doctor"
                   },
                   "identifier": {
@@ -259,7 +281,9 @@
       "post": {
         "summary": "Validate user existence",
         "description": "This API checks if a user exists with the given username",
-        "tags": ["User"],
+        "tags": [
+          "User"
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -272,7 +296,9 @@
                     "example": "john_doe"
                   }
                 },
-                "required": ["username"]
+                "required": [
+                  "username"
+                ]
               }
             }
           }
@@ -288,6 +314,122 @@
                     "userExist": {
                       "type": "boolean",
                       "example": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid input data"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Internal server error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/user/reset-password/:uuid": {
+      "post": {
+        "summary": "Reset User Password",
+        "description": "This API allows to reset the user password from admin",
+        "tags": [
+          "User",
+          "Reset Password"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "newPassword": {
+                    "type": "string",
+                    "example": "User@123"
+                  },
+                  "confirmNewPassword": {
+                    "type": "string",
+                    "example": "User@123"
+                  }
+                },
+                "required": [
+                  "newPassword",
+                  "confirmNewPassword"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User password updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "User password updated successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid input data"
                     }
                   }
                 }

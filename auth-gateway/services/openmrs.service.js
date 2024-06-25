@@ -212,5 +212,21 @@ module.exports = (function () {
     }
   };
 
+  /**
+  * Reset user password saved in database
+  * @param { number } uuid - user id
+  * @param { object } body - user id
+  */
+  this._resetPasswordByUuid = async (uuid, body) => {
+    try {
+      logStream("debug", "Openmrs Service", "User reset password by UUID ");
+      let response = await axiosInstance.post(`/openmrs/ws/rest/v1/password/${uuid}`, body)
+      return (response.data);
+    } catch (error) {
+      logStream("error", error.message);
+      throw error;
+    }
+  };
+
   return this;
 })();

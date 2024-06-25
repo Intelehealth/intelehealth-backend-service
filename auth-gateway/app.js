@@ -18,7 +18,7 @@ const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS && JSON.parse(process.env.AL
 
 app.use(cors({
   origin: (origin, callback) => {
-      if (ALLOWED_ORIGINS.indexOf(origin) !== -1) {
+     if (!origin || ALLOWED_ORIGINS.indexOf(origin) !== -1) {
           callback(null, true)
       } else {
           callback(new Error('origin not allowed by Cors'))

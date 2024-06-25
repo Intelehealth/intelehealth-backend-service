@@ -11,6 +11,7 @@ const {
   _updateUser,
   _getUserByUuid,
   _getUser,
+  _resetPasswordByUuid
 } = require("../services/openmrs.service");
 const buffer = require("buffer").Buffer;
 
@@ -258,5 +259,33 @@ module.exports = (function () {
     }
   };
 
+  /**
+   * Reset user password by uuid
+   * @param {*} req
+   * @param {*} res
+   * @param {*} next
+   */
+  this.resetPassword = async (req, res, next) => {
+    try {
+      logStream("debug", "API calling", "User Reset Password By UUID");
+      const { newPassword } = req.body;
+      const { uuid } = req.params
+
+      const payload = {
+        "newPassword" : newPassword
+      };
+
+      await _resetPasswordByUuid(uuid, payload)
+      
+      logStream("debug", 'Updated Password', 'User Reset Password By UUID');
+      res.json({
+        message: "User password updated successfully",
+        status: true
+      });
+    } catch (error) {
+      const msg = error?.response?.data?.error?.message;
+      next(msg ? new Error(msg) : error);
+    }
+  };
   return this;
 })();
