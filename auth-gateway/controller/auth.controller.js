@@ -13,6 +13,7 @@ const {
   _getUser,
   _resetPasswordByUuid
 } = require("../services/openmrs.service");
+const { createError } = require("../handlers/createError");
 const buffer = require("buffer").Buffer;
 
 module.exports = (function () {
@@ -116,7 +117,7 @@ module.exports = (function () {
           break;
 
         default:
-          throw new Error("role not found");
+          throw createError("Role not found", 404);
       }
 
       const person = await _createPerson(personPayload);
@@ -151,8 +152,7 @@ module.exports = (function () {
         message: "User created successfully",
       });
     } catch (error) {
-      const msg = error?.response?.data?.error?.message;
-      next(msg ? new Error(msg) : error);
+      next(error);
     }
   };
 
@@ -202,7 +202,7 @@ module.exports = (function () {
           break;
 
         default:
-          throw new Error("role not found");
+          throw createError("Role not found", 404);
       }
 
       const userPayload = {
@@ -254,8 +254,7 @@ module.exports = (function () {
         userExist: !!data?.results?.length,
       });
     } catch (error) {
-      const msg = error?.response?.data?.error?.message;
-      next(msg ? new Error(msg) : error);
+      next(error);
     }
   };
 
@@ -283,8 +282,7 @@ module.exports = (function () {
         status: true
       });
     } catch (error) {
-      const msg = error?.response?.data?.error?.message;
-      next(msg ? new Error(msg) : error);
+      next(error);
     }
   };
   return this;
