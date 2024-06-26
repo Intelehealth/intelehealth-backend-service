@@ -24,11 +24,11 @@ const errorHandler = (err, req, res, next) => {
   //   err.message = err?.response?.data?.error?.message
   // }
 
-  res.status(err.status || 500);
+  res.status(err?.response?.status ?? err?.status ?? 500);
 
   return res.json({
     success: false,
-    code: err.code || 422,
+    code: err?.code ?? err?.response?.status ?? 422,
     message: err.message,
   });
 };
