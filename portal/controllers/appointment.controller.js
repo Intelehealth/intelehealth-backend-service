@@ -354,7 +354,7 @@ module.exports = (function () {
         logStream('debug','Appointment Rescheduled', 'Reschedule Appointment');
         res.json({
           status: true,
-          ...data,
+          data,
         });
       }
     } catch (error) {
