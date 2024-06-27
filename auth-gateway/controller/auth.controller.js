@@ -11,7 +11,8 @@ const {
   _updateUser,
   _getUserByUuid,
   _getUser,
-  _resetPasswordByUuid
+  _resetPasswordByUuid,
+  _getProvider
 } = require("../services/openmrs.service");
 const buffer = require("buffer").Buffer;
 
@@ -287,5 +288,22 @@ module.exports = (function () {
       next(msg ? new Error(msg) : error);
     }
   };
+
+  this.getProvider = async (req, res, next) => {
+    try {
+      const { user_uuid } = req.params;
+      logStream("debug", "API calling", "Get Provider");
+      const users = await _getProvider(user_uuid);
+      logStream("debug", 'Got the Provider', "Get Provider");
+      res.json({
+        data: users.results,
+        status: true
+      });
+    } catch (error) {
+      logStream("error", error.message);
+      next(error);
+    }
+  };
+
   return this;
 })();

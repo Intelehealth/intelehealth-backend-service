@@ -228,5 +228,19 @@ module.exports = (function () {
     }
   };
 
+  /**
+  * Get provider saved in database
+  */
+  this._getProvider = async (user_uuid) => {
+    try {
+      logStream("debug", "Openmrs Service", "Get Provider");
+      let response = await axiosInstance.get(`/openmrs/ws/rest/v1/provider?user=${user_uuid}&v=custom:(uuid,person:(uuid,display,gender,age,birthdate,preferredName),attributes)`);
+      return (response.data);
+    } catch (error) {
+      logStream("error", error.message);
+      throw error;
+    }
+  };
+
   return this;
 })();
