@@ -3,10 +3,12 @@
 /**
  * Module dependencies.
  */
-
+require("dotenv").config();
 var app = require("../app");
 var debug = require("debug")("mindmapbackend:server");
 var http = require("http");
+var https = require("https");
+var fs = require('fs');
 
 /**
  * Get port from environment and store in Express.
@@ -19,7 +21,17 @@ app.set("port", port);
  * Create HTTP server.
  */
 
-var server = http.createServer(app,'0.0.0.0');
+var server;
+if (process.env.NODE_ENV === "production") {
+  const options = {
+    key: fs.readFileSync(process.env.SSL_PRIVATE_KEY),
+    cert: fs.readFileSync(process.env.SSL_CERT),
+  };
+  server = https.createServer(options, app);
+} else {
+  server = http.createServer(app,'0.0.0.0');
+}
+
 /**
  * Initializing socket
  */

@@ -1,7 +1,7 @@
 const cron = require("node-cron");
 const moment = require("moment");
 const mysql = require("./public/javascripts/mysql/mysql");
-const { sendWebPushNotificaion } = require("./handlers/helper");
+const { sendWebPushNotification } = require("./handlers/helper");
 
 const cronString = "*/1 * * * *";
 const SQL_DATE_FORMAT = "YYYY-MM-DD HH:mm:ss";
@@ -55,7 +55,7 @@ const queryAndSendNotification = async (query) => {
         const title = schedule.locale === "ru" ? ruTitle : engTitle;
         console.log("schedule.locale: ", schedule.locale);
         console.log("title: ", title);
-        sendWebPushNotificaion({
+        sendWebPushNotification({
           webpush_obj: schedule.webpush_obj,
           title,
           body: schedule.openMrsId,

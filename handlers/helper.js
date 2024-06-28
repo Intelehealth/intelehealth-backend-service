@@ -1,50 +1,51 @@
 const mysql = require("../public/javascripts/mysql/mysql");
 const webpush = require("web-push");
 const admin = require("firebase-admin");
-const env = process.env.NODE_ENV || "development";
-const config = require(__dirname + "/../config/config.json")[env];
 
-const serviceAccount = require(__dirname + "/../config/serviceAccountKey.json");
+const {
+  FIREBASE_SERVICE_ACCOUNT_KEY,
+  FIREBASE_DB_URL,
+  VAPID_MAILTO,
+  VAPID_PUBLIC_KEY,
+  VAPID_PRIVATE_KEY,
+  DEBUG
+} = process.env;
 
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  databaseURL:
-    "https://nashik-arogya-sampada-master-default-rtdb.asia-southeast1.firebasedatabase.app",
+  credential: admin.credential.cert(JSON.parse(FIREBASE_SERVICE_ACCOUNT_KEY)),
+  databaseURL: FIREBASE_DB_URL,
 });
 
-module.exports = (function () {
-  const vapidKeys = {
-    publicKey:
-      "BJPw_8oVG_SU7Tyfj-Od3zhgMmfC3ElvKLG37iYJhWtWElqz929WWLkZjR410YkA4cywJF7K0QwOGWWLWw03MPY",
-    privateKey: "d0oUbsVoSXowtzvit3VsMC_VKLvcMkdVVeyegdqxauU",
-    mailTo: "mailto:support@intelehealth.org",
-  };
-  webpush.setVapidDetails(
-    vapidKeys.mailTo,
-    vapidKeys.publicKey,
-    vapidKeys.privateKey
-  );
+webpush.setVapidDetails(VAPID_MAILTO, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
-  this.sendWebPushNotificaion = async ({
+module.exports = (function () {
+  this.sendWebPushNotification = async ({
     webpush_obj,
     title,
     body,
-    isObject,
+    data = {},
+    parse = false,
   }) => {
-    webpush
+    try {
+      webpush
       .sendNotification(
-        isObject ? webpush_obj : JSON.parse(webpush_obj),
+        parse ? JSON.parse(webpush_obj) : webpush_obj,
         JSON.stringify({
           notification: {
             title,
             body,
             vibrate: [100, 50, 100],
+            data
           },
         })
       )
       .catch((error) => {
         console.log("appointment notification error", error);
       });
+    } catch (e) {
+      console.error("Error when sending notification", error);
+    }
+    
   };
 
   this.validateParams = (params, keysAndTypeToCheck = []) => {
@@ -69,6 +70,11 @@ module.exports = (function () {
     }
   };
 
+  
+/**
+ * Send cloud notification using fcm
+ * @param {*} data - (title, body, icon, data(payload), regTokens, click_action)
+ */
   this.sendCloudNotification = async ({
     title,
     body,
@@ -77,33 +83,28 @@ module.exports = (function () {
     regTokens,
     click_action = "FCM_PLUGIN_HOME_ACTIVITY",
   }) => {
-    const admin = this.getFirebaseAdmin();
     const messaging = admin.messaging();
-
-    var payload = {
+    const payload = {
       data,
-      notification: {
-        title,
-        icon,
-        body,
-        click_action,
-      },
+      // notification: { //TODO: removed this as per comment IDA4-3303
+      //   title,
+      //   icon,
+      //   body,
+      //   click_action,
+      // },
     };
 
     const options = {
       priority: "high",
     };
 
-    return messaging
-      .sendToDevice(regTokens, payload, options)
-      .then((result) => {
-        console.log(result);
-      })
-      .catch((err) => {
-        console.log("err: ", err);
-      });
+    try {
+      const result = await messaging.sendToDevice(regTokens, payload, options);
+    } catch (err) {
+      console.error("Cloud notification error:", err);
+    }
   };
-
+  
   this.RES = (res, data, statusCode = 200) => {
     res.status(statusCode).json(data);
   };
@@ -127,7 +128,7 @@ module.exports = (function () {
   };
 
   this.log = (...params) => {
-    if (config && config.debug) {
+    if (DEBUG === 'true') {
       console.log(...params);
     }
   };
