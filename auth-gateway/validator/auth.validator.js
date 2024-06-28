@@ -11,7 +11,7 @@ exports.deleteUserParamSchema = Joi.object({
 })
 
 exports.validateUserSchema = Joi.object({
-    username: Joi.string().required().alphanum().min(3)
+    username: Joi.string().required().min(3)
 })
 
 // Create User Schema
@@ -20,7 +20,7 @@ exports.createUserSchema = Joi.object({
     familyName: Joi.string().required(),
     gender: Joi.optional().valid('M', 'F'),
     birthdate: Joi.optional(),
-    username: Joi.string().required().alphanum().min(3),
+    username: Joi.string().required().min(3),
     password: Joi.string().required(),
     role: Joi.required().valid('nurse', 'doctor'),
     addresses: Joi.array().items({
@@ -43,7 +43,7 @@ exports.updateUserSchema = Joi.object({
     familyName: Joi.string().required(),
     gender: Joi.optional().valid('M', 'F'),
     birthdate: Joi.optional(),
-    username: Joi.string().required().alphanum().min(3),
+    username: Joi.string().required().min(3),
     password: Joi.string().required(),
     role: Joi.required().valid('nurse', 'doctor'),
     addresses: Joi.array().items({
