@@ -48,6 +48,7 @@ module.exports = (function () {
    * @param {token} string
    */
   this.getPublicKey = async (token) => {
+    logStream("debug", process.env.PUBLIC_KEY_GEN_URL, 'Get Public Key - URL');
     const resposnse = await axiosInstance.get(
       process.env.PUBLIC_KEY_GEN_URL, {
     }, {
@@ -55,6 +56,7 @@ module.exports = (function () {
         ...this.getInitialHeaderrs(token)
       }
     });
+    logStream("debug", resposnse.data, 'Get Public Key - Response');
     return resposnse.data;
   }
 
