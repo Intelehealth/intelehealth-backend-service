@@ -260,6 +260,5 @@ module.exports = (function () {
       throw error;
     }
   };
-  
   return this;
 })();
