@@ -39,7 +39,7 @@ router.post("/createUser", [
 ]);
 router.get("/user/:user_uuid", [authMiddleware, getUser]);
 router.get("/provider/:user_uuid", [authMiddleware, getProvider]);
-router.post("/provider/:user_uuid", [authMiddleware, setProvider]);
+router.post("/provider/:uuid", [authMiddleware, setProvider]);
 router.post("/user/:uuid", [
   authMiddleware,
   validateParams(updateUserParamSchema),

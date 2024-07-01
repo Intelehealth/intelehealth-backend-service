@@ -34,8 +34,9 @@ module.exports = (function () {
     givenName,
     familyName,
     gender,
+    middleName,
     birthdate,
-    addresses = [],
+    addresses = []
   }) => {
     try {
       logStream("debug", "Openmrs Service", "Create Person");
@@ -246,16 +247,19 @@ module.exports = (function () {
   /**
   * Get provider saved in database
   */
-  this._setProvider = async (user_uuid, data) => {
+  this._setProvider = async (uuid, data) => {
     try {
-      logStream("debug", "Openmrs Service", "Get Provider");
-      let response = await axiosInstance.get(`/openmrs/ws/rest/v1/provider?user=${user_uuid}&v=custom:(uuid,person:(uuid,display,gender,age,birthdate,preferredName),attributes)`);
-      return (response.data);
+      logStream("debug", "Openmrs Service", "Set Provider");
+      let promiseArray = [];
+      data.forEach(async ele => {
+        let payload = { value : ele.value};
+        await axiosInstance.post(`/openmrs/ws/rest/v1/provider/${uuid}/attribute/${ele.uuid}`,payload);
+      });
     } catch (error) {
       logStream("error", error.message);
       throw error;
     }
   };
-
+  
   return this;
 })();
