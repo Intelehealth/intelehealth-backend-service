@@ -151,13 +151,19 @@ const sendCloudNotification = async ({
     click_action = "FCM_PLUGIN_HOME_ACTIVITY",
   }) => {
     const payload = {
-      data,
-      notification: {
+      data: {
+        ...data,
         title,
         icon,
         body,
         click_action,
       },
+      // notification: { // TODO: Removed due to mobile app facing the issue to handle the notification 
+      //   title,
+      //   icon,
+      //   body,
+      //   click_action,
+      // },
     };
 
     const options = {
