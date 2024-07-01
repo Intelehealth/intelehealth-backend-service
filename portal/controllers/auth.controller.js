@@ -220,7 +220,7 @@ module.exports = (function () {
     try {
       logStream('debug', 'API call', 'Check Provider Attribute');
       const { attributeType, attributeValue, providerUuid } = req.body;
-      if (attributeType && attributeValue && providerUuid) {
+      if (attributeType && attributeValue) {
         if (!["emailId", "phoneNumber"].includes(attributeType)) {
           logStream('debug', 'Bad Request', 'Check Provider Attribute');
           RES(

@@ -5,9 +5,12 @@ const {
   createUser,
   validateUser,
   getUsers,
+  getUser,
   updateUser,
   deleteUser,
-  resetPassword
+  resetPassword,
+  getProvider,
+  setProvider
 } = require("../controller/auth.controller");
 const authMiddleware = require("../handlers/auth");
 const {
@@ -34,6 +37,9 @@ router.post("/createUser", [
   validate(createUserSchema),
   createUser
 ]);
+router.get("/user/:user_uuid", [authMiddleware, getUser]);
+router.get("/provider/:user_uuid", [authMiddleware, getProvider]);
+router.post("/provider/:user_uuid", [authMiddleware, setProvider]);
 router.post("/user/:uuid", [
   authMiddleware,
   validateParams(updateUserParamSchema),

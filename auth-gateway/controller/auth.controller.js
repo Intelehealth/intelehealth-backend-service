@@ -11,7 +11,9 @@ const {
   _updateUser,
   _getUserByUuid,
   _getUser,
-  _resetPasswordByUuid
+  _resetPasswordByUuid,
+  _getProvider,
+  _setProvider
 } = require("../services/openmrs.service");
 const { createError } = require("../handlers/createError");
 const buffer = require("buffer").Buffer;
@@ -76,6 +78,22 @@ module.exports = (function () {
     }
   };
 
+  this.getUser = async (req, res, next) => {
+    try {
+      const { user_uuid } = req.params;
+      logStream("debug", "API calling", "Get User");
+      const userData = await _getUserByUuid(user_uuid);
+      logStream("debug", 'Got the user', "Get User");
+      res.json({
+        data: userData,
+        status: true
+      });
+    } catch (error) {
+      logStream("error", error.message);
+      next(error);
+    }
+  };
+
   /**
    * Create user API
    * @param {*} req
@@ -85,22 +103,29 @@ module.exports = (function () {
   this.createUser = async (req, res, next) => {
     try {
       logStream("debug", "API calling", "Create User");
-      const {
+      let {
         username,
         password,
         givenName,
+        middleName,
         familyName,
         gender,
         birthdate,
         addresses,
         role,
         identifier,
-        email,
+        emailId,
+        phoneNumber,
+        countryCode
       } = req.body;
+
+      if(!addresses) addresses = [{country:"india"}];
+      if(!identifier) identifier = username;
 
       const personPayload = {
         givenName,
         familyName,
+        middleName,
         gender,
         birthdate,
         addresses,
@@ -139,8 +164,16 @@ module.exports = (function () {
         attributes: [
           {
             attributeType: process.env.EMAIL_PROVIDER_ATTRIBUTE_TYPE,
-            value: email,
+            value: emailId,
           },
+          {
+            attributeType: process.env.PHONE_NUMBER_PROVIDER_ATTRIBUTE_TYPE,
+            value: phoneNumber,
+          },
+          {
+            attributeType: process.env.COUNTRY_CODE_PROVIDER_ATTRIBUTE_TYPE,
+            value: countryCode,
+          }
         ],
         retired: false,
       };
@@ -152,6 +185,7 @@ module.exports = (function () {
         message: "User created successfully",
       });
     } catch (error) {
+      console.log("Create user error=============>",error.toString());
       next(error);
     }
   };
@@ -282,6 +316,39 @@ module.exports = (function () {
         status: true
       });
     } catch (error) {
+      next(error);
+    }
+  };
+
+  this.getProvider = async (req, res, next) => {
+    try {
+      const { user_uuid } = req.params;
+      logStream("debug", "API calling", "Get Provider");
+      const provider = await _getProvider(user_uuid);
+      logStream("debug", 'Got the Provider', "Get Provider");
+      res.json({
+        results: provider.results,
+        status: true
+      });
+    } catch (error) {
+      logStream("error", error.message);
+      next(error);
+    }
+  };
+
+  this.setProvider = async (req, res, next) => {
+    try {
+      const { user_uuid } = req.params;
+      const data = req.body;
+      logStream("debug", "API calling", "Set Provider");
+      const provider = await _setProvider(user_uuid, data);
+      logStream("debug", 'Set the Provider', "Set Provider");
+      res.json({
+        data: provider.results,
+        status: true
+      });
+    } catch (error) {
+      logStream("error", error.message);
       next(error);
     }
   };

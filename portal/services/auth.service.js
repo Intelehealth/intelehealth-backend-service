@@ -584,7 +584,9 @@ module.exports = (function () {
     providerUuid
   ) {
     try {
-      let query = `SELECT pa.value_reference AS attributeValue, pat.name AS attributeTypeName, p.provider_id, p.person_id FROM provider_attribute pa LEFT JOIN provider_attribute_type pat ON pa.attribute_type_id = pat.provider_attribute_type_id LEFT JOIN provider p ON p.provider_id = pa.provider_id WHERE pat.name = '${attributeType}' AND pa.value_reference = '${attributeValue}' AND p.retired = 0 AND pa.voided = false AND p.uuid != '${providerUuid}'`;
+      let provider_condition = "";
+      if(providerUuid) provider_condition = `AND p.uuid != '${providerUuid}'`;
+      let query = `SELECT pa.value_reference AS attributeValue, pat.name AS attributeTypeName, p.provider_id, p.person_id FROM provider_attribute pa LEFT JOIN provider_attribute_type pat ON pa.attribute_type_id = pat.provider_attribute_type_id LEFT JOIN provider p ON p.provider_id = pa.provider_id WHERE pat.name = '${attributeType}' AND pa.value_reference = '${attributeValue}' AND p.retired = 0 AND pa.voided = false ${provider_condition}`;      
       let data = await new Promise((resolve, reject) => {
         openMrsDB.query(query, (err, results, fields) => {
           if (err) reject(err);

@@ -18,6 +18,7 @@ exports.validateUserSchema = Joi.object({
 exports.createUserSchema = Joi.object({
     givenName: Joi.string().required(),
     familyName: Joi.string().required(),
+    middleName: Joi.string().optional(),
     gender: Joi.optional().valid('M', 'F'),
     birthdate: Joi.optional(),
     username: Joi.string().required().min(3),
@@ -28,9 +29,11 @@ exports.createUserSchema = Joi.object({
         cityVillage: Joi.string().optional(),
         country: Joi.string().optional(),
         postalCode: Joi.string().optional()
-    }).required().min(1),
+    }).optional(),
     identifier: Joi.string().optional(),
-    email: Joi.string().email().optional(),
+    emailId: Joi.string().email().required(),
+    phoneNumber: Joi.number().required(),
+    countryCode: Joi.string().required()
 })
 
 // Update User Schema
