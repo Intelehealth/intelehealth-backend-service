@@ -45,6 +45,7 @@ module.exports = (function () {
             {
               givenName,
               familyName,
+              middleName
             },
           ],
           gender,
@@ -103,7 +104,7 @@ module.exports = (function () {
   this._getUsers = async () => {
     try {
       logStream("debug", "Openmrs Service", "Get Users");
-      let response = await axiosInstance.get(`/openmrs/ws/rest/v1/user?q=&v=default`)
+      let response = await axiosInstance.get(`/openmrs/ws/rest/v1/user?q=&v=custom:(uuid,person:(uuid,display,gender,age,birthdate,preferredName),roles,username,dateCreated)`)
       return (response.data);
     } catch (error) {
       logStream("error", error.message);
@@ -148,7 +149,7 @@ module.exports = (function () {
   this._getUserByUuid = async (uuid) => {
     try {
       logStream("debug", "Openmrs Service", "Get Person By User");
-      let response = await axiosInstance.get(`/openmrs/ws/rest/v1/user/${uuid}`)
+      let response = await axiosInstance.get(`/openmrs/ws/rest/v1/user/${uuid}?v=custom:(uuid,person:(uuid,display,gender,age,birthdate,preferredName),roles,username)`)
       return (response.data);
     } catch (error) {
       logStream("error", error.message);
@@ -232,6 +233,20 @@ module.exports = (function () {
   * Get provider saved in database
   */
   this._getProvider = async (user_uuid) => {
+    try {
+      logStream("debug", "Openmrs Service", "Get Provider");
+      let response = await axiosInstance.get(`/openmrs/ws/rest/v1/provider?user=${user_uuid}&v=custom:(uuid,person:(uuid,display,gender,age,birthdate,preferredName),attributes)`);
+      return (response.data);
+    } catch (error) {
+      logStream("error", error.message);
+      throw error;
+    }
+  };
+
+  /**
+  * Get provider saved in database
+  */
+  this._setProvider = async (user_uuid, data) => {
     try {
       logStream("debug", "Openmrs Service", "Get Provider");
       let response = await axiosInstance.get(`/openmrs/ws/rest/v1/provider?user=${user_uuid}&v=custom:(uuid,person:(uuid,display,gender,age,birthdate,preferredName),attributes)`);
