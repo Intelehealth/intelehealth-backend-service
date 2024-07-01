@@ -4,6 +4,7 @@ import { Table, Model, Column, CreatedAt, UpdatedAt, DeletedAt } from 'sequelize
 export interface FeaturesAttributes {
   id: number;
   name: string;
+  key: string;
   is_enabled: boolean;
   createdAt?: Date;
   updatedAt?: Date;
@@ -30,6 +31,12 @@ export class Features extends Model<FeaturesAttributes, FeaturesCreationAttribut
         type: DataTypes.STRING,
         allowNull: false,
         unique: true
+    })
+    key!: string;
+
+    @Column({
+        type: DataTypes.STRING,
+        allowNull: false
     })
     name!: string;
 

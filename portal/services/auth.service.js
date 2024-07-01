@@ -71,6 +71,18 @@ module.exports = (function () {
     ).catch((error) => { throw error });
   };
 
+  const sendEmailSuccess = async function (email, subject) {
+    const emailTemplate = fs
+      .readFileSync("./common/emailtemplates/emailTemplate.html", "utf8")
+      .toString();
+
+    return await functions.sendEmail(
+      email,
+      subject,
+      emailTemplate
+    ).catch((error) => { throw error });
+  };
+
   /**
      * Send Email containing provider username
      * @param { string } email - Email of the provider
@@ -468,6 +480,18 @@ module.exports = (function () {
         },
       });
 
+      let person = await new Promise((resolve, reject) => {
+        openMrsDB.query(
+          `SELECT u.username, u.system_id, u.uuid AS userUuid, p.uuid AS providerUuid, u.person_id, p.provider_id FROM users u LEFT JOIN provider p ON p.person_id = u.person_id WHERE u.uuid = '${userUuid}' OR u.system_id = '${userUuid}' AND p.retired = 0 AND u.retired = 0;`,        
+          (err, results, fields) => {
+            if (err) reject(err);
+            resolve(results);
+          }
+        );
+      }).catch((err) => {
+        throw err;
+      });
+
       if (user) {
         const payload = {
           newPassword,
@@ -476,6 +500,50 @@ module.exports = (function () {
         await axiosInstance.post(url, payload).catch((err) => {
           throw err;
         });
+
+        // Get phoneNumber and email of the user
+        let attributes = await new Promise((resolve, reject) => {
+          openMrsDB.query(
+            `SELECT pa.value_reference AS attributeValue, pat.name AS attributeTypeName FROM provider_attribute pa LEFT JOIN provider_attribute_type pat ON pat.provider_attribute_type_id = pa.attribute_type_id WHERE pa.provider_id = ${person[0].provider_id} AND (pat.name = 'emailId' OR pat.name = 'phoneNumber' OR pat.name = 'countryCode') AND pa.voided = false`,          
+            (err, results, fields) => {
+              if (err) reject(err);
+              resolve(results);
+            }
+          );
+        }).catch((err) => {
+          throw err;
+        });
+
+        if (attributes.length) {
+          for (const element of attributes) {
+            if (element.attributeTypeName == Constant.PHONE_NUMBER) {
+              phoneNumber = element.attributeValue
+            }
+            // if (element.attributeTypeName == Constant.COUNTRY_CODE) {
+            //   countryCode = element.attributeValue
+            // }
+            if (element.attributeTypeName == Constant.EMAIL_ID) {
+              email = element.attributeValue
+            }
+          }
+
+          // If phoneNumber exists
+          if (phoneNumber) {
+
+          }
+          // Send email here
+          if (email) {
+            await sendEmailSuccess(email, MESSAGE.AUTH.PASSWORD_RESET_SUCCESSFUL);
+          }
+        } else {
+          return {
+            code: 200,
+            success: false,
+            message: MESSAGE.AUTH.NO_PHONENUMBER_EMAIL_UPDATED_FOR_THIS_USERNAME,
+            data: null
+          }
+        }
+
 
         return {
           code: 200,

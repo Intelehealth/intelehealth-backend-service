@@ -14,8 +14,11 @@ module.exports = {
        * }], {});
       */
       await queryInterface.bulkInsert('mst_features', [
-        { name: 'webrtc_section', is_enabled: true },
-        { name: 'patient_vitals_section', is_enabled: true }
+        { key: 'webrtc_section', name: 'WebRTC', is_enabled: true },
+        { key: 'patient_vitals_section', name: 'Patient Vitals',  is_enabled: true },
+        { key: 'abha_section', name: 'ABHA ID', is_enabled: true },
+        { key: 'patient_reg_address', name: 'Patient Reg Address', is_enabled: true },
+        { key: 'patient_reg_other', name: 'Patient Reg Other', is_enabled: true }
       ], { transaction });
     }),
 

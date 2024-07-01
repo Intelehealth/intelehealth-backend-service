@@ -24,8 +24,8 @@ async function getAll(): Promise<any> {
             raw: true
         }),
         Features.findOne({
-            attributes: ['id', 'name', 'is_enabled'],
-            where: { name: 'webrtc_section' }
+            attributes: ['id', 'key', 'name', 'is_enabled'],
+            where: { key: 'webrtc_section' }
         })
     ]);
     return {

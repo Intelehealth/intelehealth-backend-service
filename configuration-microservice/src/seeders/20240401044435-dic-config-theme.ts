@@ -14,7 +14,7 @@ module.exports = {
             { key: 'logo', value: 'assets/images/default-logo.png'},
             { key: 'thumbnail_logo', value: 'assets/images/default-thumbnail.png'},
             { key: 'primary_color', value:'#2E1E91'},
-            { key: 'secondory_color', value:'#2E1E91'},
+            { key: 'secondary_color', value:'#4B39B7'},
             { key: 'images_with_text', value: [
               {image: 'assets/images/slides/default-slide-1.svg', text:'Deliver quality health care where there is no doctor'},
               {image: 'assets/images/slides/default-slide-2.svg', text:'2,75,000 population covered from 215 villages in 2 countries'},
@@ -26,7 +26,7 @@ module.exports = {
             { key: 'logo', value: 'assets/images/default-logo.png'},
             { key: 'thumbnail_logo', value: 'assets/images/default-thumbnail.png'},
             { key: 'primary_color', value:'#2E1E91'},
-            { key: 'secondory_color', value:'#2E1E91'},
+            { key: 'secondary_color', value:'#4B39B7'},
             { key: 'images_with_text', value: [
               {image: 'assets/images/slides/default-slide-1.svg', text:'Deliver quality health care where there is no doctor'},
               {image: 'assets/images/slides/default-slide-2.svg', text:'2,75,000 population covered from 215 villages in 2 countries'},

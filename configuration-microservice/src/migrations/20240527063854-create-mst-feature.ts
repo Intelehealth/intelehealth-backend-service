@@ -12,10 +12,14 @@ module.exports = {
               primaryKey: true,
               type: DataTypes.INTEGER,
             },
-            name: {
+            key: {
               type: DataTypes.STRING,
               allowNull: false,
               unique: true
+            },
+            name: {
+              type: DataTypes.STRING,
+              allowNull: false
             },
             is_enabled: {
               type: DataTypes.BOOLEAN,
