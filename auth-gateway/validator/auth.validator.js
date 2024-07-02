@@ -44,7 +44,7 @@ exports.updateUserParamSchema = Joi.object({
 exports.updateUserSchema = Joi.object({
     givenName: Joi.string().required(),
     familyName: Joi.string().required(),
-    gender: Joi.optional().valid('M', 'F'),
+    gender: Joi.optional().valid('M', 'F', 'U'),
     birthdate: Joi.optional(),
     username: Joi.string().required().min(3),
     password: Joi.string().required(),
