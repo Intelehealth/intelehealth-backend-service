@@ -115,6 +115,289 @@
         }
       }
     },
+    "/auth/users": {
+      "get": {
+        "summary": "Get All Users",
+        "description": "This API allows to retrive the users",
+        "tags": [
+          "User"
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrive all the users",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "example": [
+                        {
+                          "uuid": "c7bf6ce2-75e1-482b-8bee-17e142cdbb28",
+                          "person": {
+                            "uuid": "ce36386e-c687-4179-a1cf-c2e7ae8733a7",
+                            "display": "test",
+                            "gender": "M",
+                            "age": null,
+                            "birthdate": null,
+                            "preferredName": {
+                              "display": "test",
+                              "uuid": "775c738e-a0eb-42f0-b54a-bf34bbd36878",
+                              "givenName": "test",
+                              "middleName": null,
+                              "familyName": "test",
+                              "familyName2": null,
+                              "voided": false,
+                              "links": [
+                                {
+                                  "rel": "self",
+                                  "uri": "http://127.0.0.1:8080/openmrs/ws/rest/v1/person/ce36386e-c687-4179-a1cf-c2e7ae8733a7/name/775c738e-a0eb-42f0-b54a-bf34bbd36878"
+                                },
+                                {
+                                  "rel": "full",
+                                  "uri": "http://127.0.0.1:8080/openmrs/ws/rest/v1/person/ce36386e-c687-4179-a1cf-c2e7ae8733a7/name/775c738e-a0eb-42f0-b54a-bf34bbd36878?v=full"
+                                }
+                              ]
+                            }
+                          },
+                          "roles": [
+                            {
+                              "uuid": "7ca52394-49ba-4026-a087-1c6f2028a745",
+                              "display": "Application: Writes Clinical Notes",
+                              "name": "Application: Writes Clinical Notes",
+                              "description": "Writes clinical notes",
+                              "retired": false,
+                              "privileges": [
+                                {
+                                  "uuid": "3351328d-3627-4229-98bd-890c1d93aff0",
+                                  "display": "App: coreapps.activeVisits",
+                                  "links": [
+                                    {
+                                      "rel": "self",
+                                      "uri": "http://127.0.0.1:8080/openmrs/ws/rest/v1/privilege/3351328d-3627-4229-98bd-890c1d93aff0"
+                                    }
+                                  ]
+                                }
+                              ],
+                              "inheritedRoles": [
+                                {
+                                  "uuid": "f089471c-e00b-468e-96e8-46aea1b339af",
+                                  "display": "Privilege Level: High",
+                                  "links": [
+                                    {
+                                      "rel": "self",
+                                      "uri": "http://127.0.0.1:8080/openmrs/ws/rest/v1/role/f089471c-e00b-468e-96e8-46aea1b339af"
+                                    }
+                                  ]
+                                }
+                              ],
+                              "links": [
+                                {
+                                  "rel": "self",
+                                  "uri": "http://127.0.0.1:8080/openmrs/ws/rest/v1/role/7ca52394-49ba-4026-a087-1c6f2028a745"
+                                },
+                                {
+                                  "rel": "full",
+                                  "uri": "http://127.0.0.1:8080/openmrs/ws/rest/v1/role/7ca52394-49ba-4026-a087-1c6f2028a745?v=full"
+                                }
+                              ],
+                              "resourceVersion": "1.8"
+                            },
+                            {
+                              "uuid": "a5df6aa5-d6e5-4b56-b0e7-315ee0899f97",
+                              "display": "Organizational: Doctor",
+                              "name": "Organizational: Doctor",
+                              "description": "Doctor",
+                              "retired": false,
+                              "privileges": [],
+                              "inheritedRoles": [
+                                {
+                                  "uuid": "9c8ebc83-67ae-49da-8271-59be92da9ff9",
+                                  "display": "Application: Records Allergies",
+                                  "links": [
+                                    {
+                                      "rel": "self",
+                                      "uri": "http://127.0.0.1:8080/openmrs/ws/rest/v1/role/9c8ebc83-67ae-49da-8271-59be92da9ff9"
+                                    }
+                                  ]
+                                }
+                              ],
+                              "links": [
+                                {
+                                  "rel": "self",
+                                  "uri": "http://127.0.0.1:8080/openmrs/ws/rest/v1/role/a5df6aa5-d6e5-4b56-b0e7-315ee0899f97"
+                                },
+                                {
+                                  "rel": "full",
+                                  "uri": "http://127.0.0.1:8080/openmrs/ws/rest/v1/role/a5df6aa5-d6e5-4b56-b0e7-315ee0899f97?v=full"
+                                }
+                              ],
+                              "resourceVersion": "1.8"
+                            },
+                            {
+                              "uuid": "dd5e899c-0f6a-4021-abec-a2465d1c1e50",
+                              "display": "Application: Uses Patient Summary",
+                              "name": "Application: Uses Patient Summary",
+                              "description": "Uses patient summary",
+                              "retired": false,
+                              "privileges": [
+                                {
+                                  "uuid": "07dd82be-89db-45e6-84dd-211c617c2d79",
+                                  "display": "App: coreapps.patientDashboard",
+                                  "links": [
+                                    {
+                                      "rel": "self",
+                                      "uri": "http://127.0.0.1:8080/openmrs/ws/rest/v1/privilege/07dd82be-89db-45e6-84dd-211c617c2d79"
+                                    }
+                                  ]
+                                }
+                              ],
+                              "inheritedRoles": [
+                                {
+                                  "uuid": "f089471c-e00b-468e-96e8-46aea1b339af",
+                                  "display": "Privilege Level: High",
+                                  "links": [
+                                    {
+                                      "rel": "self",
+                                      "uri": "http://127.0.0.1:8080/openmrs/ws/rest/v1/role/f089471c-e00b-468e-96e8-46aea1b339af"
+                                    }
+                                  ]
+                                }
+                              ],
+                              "links": [
+                                {
+                                  "rel": "self",
+                                  "uri": "http://127.0.0.1:8080/openmrs/ws/rest/v1/role/dd5e899c-0f6a-4021-abec-a2465d1c1e50"
+                                },
+                                {
+                                  "rel": "full",
+                                  "uri": "http://127.0.0.1:8080/openmrs/ws/rest/v1/role/dd5e899c-0f6a-4021-abec-a2465d1c1e50?v=full"
+                                }
+                              ],
+                              "resourceVersion": "1.8"
+                            },
+                            {
+                              "uuid": "8d94f280-c2cc-11de-8d13-0010c6dffd0f",
+                              "display": "Provider",
+                              "name": "Provider",
+                              "description": "All users with the 'Provider' role will appear as options in the default Infopath",
+                              "retired": false,
+                              "privileges": [
+                                {
+                                  "uuid": "d05118c6-2490-4d78-a41a-390e3596a248",
+                                  "display": "Get Encounters",
+                                  "links": [
+                                    {
+                                      "rel": "self",
+                                      "uri": "http://127.0.0.1:8080/openmrs/ws/rest/v1/privilege/d05118c6-2490-4d78-a41a-390e3596a248"
+                                    }
+                                  ]
+                                }
+                              ],
+                              "inheritedRoles": [],
+                              "links": [
+                                {
+                                  "rel": "self",
+                                  "uri": "http://127.0.0.1:8080/openmrs/ws/rest/v1/role/8d94f280-c2cc-11de-8d13-0010c6dffd0f"
+                                },
+                                {
+                                  "rel": "full",
+                                  "uri": "http://127.0.0.1:8080/openmrs/ws/rest/v1/role/8d94f280-c2cc-11de-8d13-0010c6dffd0f?v=full"
+                                }
+                              ],
+                              "resourceVersion": "1.8"
+                            }
+                          ],
+                          "username": "test@123",
+                          "dateCreated": "2022-11-14T14:56:28.000+0530"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "code": {
+                      "type": "string",
+                      "example": "422"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid input data"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "code": {
+                      "type": "string",
+                      "example": "ERR_BAD_REQUEST"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "User not found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "code": {
+                      "type": "string",
+                      "example": "ERR_BAD_REQUEST"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Internal server error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/createUser": {
       "post": {
         "summary": "Create a new user",
@@ -194,7 +477,7 @@
                     "type": "string",
                     "example": "unique-identifier"
                   },
-                  "email": {
+                  "emailId": {
                     "type": "string",
                     "format": "email",
                     "example": "john.doe@example.com"
@@ -207,7 +490,7 @@
                   "familyName",
                   "role",
                   "identifier",
-                  "email"
+                  "emailId"
                 ]
               }
             }
@@ -234,6 +517,30 @@
               }
             }
           },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "code": {
+                      "type": "string",
+                      "example": "422"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid input data"
+                    }
+                  }
+                }
+              }
+            }
+          },
           "400": {
             "description": "Invalid input",
             "content": {
@@ -244,6 +551,10 @@
                     "status": {
                       "type": "boolean",
                       "example": false
+                    },
+                    "code": {
+                      "type": "string",
+                      "example": "ERR_BAD_REQUEST"
                     },
                     "message": {
                       "type": "string",
@@ -264,6 +575,512 @@
                     "status": {
                       "type": "boolean",
                       "example": false
+                    },
+                    "code": {
+                      "type": "string",
+                      "example": "ERR_BAD_REQUEST"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Internal server error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/user/:uuid": {
+      "get": {
+        "summary": "Get Single User",
+        "description": "This API allows to retrive the user detail",
+        "tags": [
+          "User"
+        ],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "description": "Unique ID of the user to fetch the details",
+            "schema": {
+              "type": "string",
+              "example": "12345"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrive the single user by Uuid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "example": {
+                        "display": "Test User",
+                        "gender": "M",
+                        "age": 25,
+                        "birthdate": "1998-09-02",
+                        "preferredName": {
+                          "display": "Test User",
+                          "uuid": "7fbc2209-f069-4638-914b-4dd1d78f5488",
+                          "givenName": "Test User",
+                          "middleName": null,
+                          "familyName": "Test User",
+                          "familyName2": null,
+                          "voided": true,
+                          "links": [
+                            {
+                              "rel": "self",
+                              "uri": "http://127.0.0.1:8080/openmrs/ws/rest/v1/person/f22fa4d3-28ba-4939-af1d-973bca4c5805/name/7fbc2209-f069-4638-914b-4dd1d78f5488"
+                            }
+                          ],
+                          "resourceVersion": "1.8"
+                        },
+                        "addresses": [
+                          {
+                            "address1": "30, Vivekananda Layout, Munnekolal,Marathahalli",
+                            "cityVillage": "Bengaluru",
+                            "country": "India",
+                            "postalCode": "560037"
+                          }
+                        ],
+                        "username": "john_die",
+                        "identifier": "john_die_api_17",
+                        "email": "john@example.com",
+                        "roles": [
+                          {
+                            "uuid": "f4c6152c-50cf-4055-b842-557baa0c5e30",
+                            "display": "Organizational: Nurse",
+                            "name": "Organizational: Nurse",
+                            "description": "Nurse",
+                            "retired": false,
+                            "privileges": [],
+                            "inheritedRoles": [
+                              {
+                                "uuid": "9c8ebc83-67ae-49da-8271-59be92da9ff9",
+                                "display": "Application: Records Allergies",
+                                "links": [
+                                  {
+                                    "rel": "self",
+                                    "uri": "http://127.0.0.1:8080/openmrs/ws/rest/v1/role/9c8ebc83-67ae-49da-8271-59be92da9ff9"
+                                  }
+                                ]
+                              }
+                            ],
+                            "links": [
+                              {
+                                "rel": "self",
+                                "uri": "http://127.0.0.1:8080/openmrs/ws/rest/v1/role/f4c6152c-50cf-4055-b842-557baa0c5e30"
+                              }
+                            ],
+                            "resourceVersion": "1.8"
+                          },
+                          {
+                            "uuid": "8d94f280-c2cc-11de-8d13-0010c6dffd0f",
+                            "display": "Provider",
+                            "name": "Provider",
+                            "description": "All users with the 'Provider' role will appear as options in the default Infopath",
+                            "retired": false,
+                            "privileges": [
+                              {
+                                "uuid": "d05118c6-2490-4d78-a41a-390e3596a248",
+                                "display": "Get Encounters",
+                                "links": [
+                                  {
+                                    "rel": "self",
+                                    "uri": "http://127.0.0.1:8080/openmrs/ws/rest/v1/privilege/d05118c6-2490-4d78-a41a-390e3596a248"
+                                  }
+                                ]
+                              }
+                            ],
+                            "inheritedRoles": [],
+                            "links": [
+                              {
+                                "rel": "self",
+                                "uri": "http://127.0.0.1:8080/openmrs/ws/rest/v1/role/8d94f280-c2cc-11de-8d13-0010c6dffd0f"
+                              }
+                            ],
+                            "resourceVersion": "1.8"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid input data"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "User not found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Internal server error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Update a user details",
+        "description": "This API allows to update a user with given details",
+        "tags": [
+          "User"
+        ],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "description": "Unique ID of the user to update the user detail",
+            "schema": {
+              "type": "string",
+              "example": "12345"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "example": "john_doe"
+                  },
+                  "password": {
+                    "type": "string",
+                    "example": "password123"
+                  },
+                  "givenName": {
+                    "type": "string",
+                    "example": "John"
+                  },
+                  "familyName": {
+                    "type": "string",
+                    "example": "Doe"
+                  },
+                  "gender": {
+                    "type": "string",
+                    "example": "male"
+                  },
+                  "birthdate": {
+                    "type": "string",
+                    "format": "date",
+                    "example": "1990-01-01"
+                  },
+                  "addresses": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "street": {
+                          "type": "string",
+                          "example": "123 Main St"
+                        },
+                        "city": {
+                          "type": "string",
+                          "example": "Anytown"
+                        },
+                        "state": {
+                          "type": "string",
+                          "example": "Anystate"
+                        },
+                        "zip": {
+                          "type": "string",
+                          "example": "12345"
+                        },
+                        "country": {
+                          "type": "string",
+                          "example": "USA"
+                        }
+                      }
+                    }
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "nurse",
+                      "doctor"
+                    ],
+                    "example": "doctor"
+                  },
+                  "identifier": {
+                    "type": "string",
+                    "example": "unique-identifier"
+                  }
+                },
+                "required": [
+                  "username",
+                  "password",
+                  "givenName",
+                  "familyName",
+                  "role",
+                  "identifier"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "User updated successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "code": {
+                      "type": "string",
+                      "example": "422"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid input data"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "code": {
+                      "type": "string",
+                      "example": "ERR_BAD_REQUEST"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid input data"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "code": {
+                      "type": "string",
+                      "example": "ERR_BAD_REQUEST"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Internal server error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete User",
+        "description": "This API allows to delete the user",
+        "tags": [
+          "User"
+        ],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "description": "Unique ID of the user to delete",
+            "schema": {
+              "type": "string",
+              "example": "12345"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User password updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "User password updated successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "code": {
+                      "type": "string",
+                      "example": "422"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid input data"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "code": {
+                      "type": "string",
+                      "example": "ERR_BAD_REQUEST"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid input data"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "code": {
+                      "type": "string",
+                      "example": "ERR_BAD_REQUEST"
                     },
                     "message": {
                       "type": "string",
@@ -331,6 +1148,10 @@
                       "type": "boolean",
                       "example": false
                     },
+                    "code": {
+                      "type": "string",
+                      "example": "ERR_BAD_REQUEST"
+                    },
                     "message": {
                       "type": "string",
                       "example": "Invalid input data"
@@ -351,6 +1172,10 @@
                       "type": "boolean",
                       "example": false
                     },
+                    "code": {
+                      "type": "string",
+                      "example": "ERR_BAD_REQUEST"
+                    },
                     "message": {
                       "type": "string",
                       "example": "Internal server error"
@@ -368,8 +1193,19 @@
         "summary": "Reset User Password",
         "description": "This API allows to reset the user password from admin",
         "tags": [
-          "User",
-          "Reset Password"
+          "User"
+        ],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "description": "Unique ID of the user to reset password",
+            "schema": {
+              "type": "string",
+              "example": "12345"
+            }
+          }
         ],
         "requestBody": {
           "required": true,
@@ -427,6 +1263,10 @@
                       "type": "boolean",
                       "example": false
                     },
+                    "code": {
+                      "type": "string",
+                      "example": "422"
+                    },
                     "message": {
                       "type": "string",
                       "example": "Invalid input data"
@@ -447,6 +1287,10 @@
                       "type": "boolean",
                       "example": false
                     },
+                    "code": {
+                      "type": "string",
+                      "example": "ERR_BAD_REQUEST"
+                    },
                     "message": {
                       "type": "string",
                       "example": "Invalid input data"
@@ -466,6 +1310,161 @@
                     "status": {
                       "type": "boolean",
                       "example": false
+                    },
+                    "code": {
+                      "type": "string",
+                      "example": "ERR_BAD_REQUEST"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Internal server error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/provider/:user_uuid": {
+      "get": {
+        "summary": "Get Provider",
+        "description": "This API allows to get the providers",
+        "tags": [
+          "Provider"
+        ],
+        "parameters": [
+          {
+            "name": "user_uuid",
+            "in": "path",
+            "required": true,
+            "description": "Unique ID of the user to get the provider",
+            "schema": {
+              "type": "string",
+              "example": "12345"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Get the user provider",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "results": {
+                      "type": "array",
+                      "example": [
+                        {
+                          "uuid": "26b75fdd-27ef-46ab-84de-8f3798255d91",
+                          "person": {
+                            "uuid": "f22fa4d3-28ba-4939-af1d-973bca4c5805",
+                            "display": "Test User",
+                            "gender": "M",
+                            "age": 25,
+                            "birthdate": "1998-09-02T00:00:00.000+0530",
+                            "preferredName": {
+                              "display": "Test User",
+                              "uuid": "7fbc2209-f069-4638-914b-4dd1d78f5488",
+                              "givenName": "Test User",
+                              "middleName": null,
+                              "familyName": "Test User",
+                              "familyName2": null,
+                              "voided": true,
+                              "links": [
+                                {
+                                  "rel": "self",
+                                  "uri": "http://127.0.0.1:8080/openmrs/ws/rest/v1/person/f22fa4d3-28ba-4939-af1d-973bca4c5805/name/7fbc2209-f069-4638-914b-4dd1d78f5488"
+                                },
+                                {
+                                  "rel": "full",
+                                  "uri": "http://127.0.0.1:8080/openmrs/ws/rest/v1/person/f22fa4d3-28ba-4939-af1d-973bca4c5805/name/7fbc2209-f069-4638-914b-4dd1d78f5488?v=full"
+                                }
+                              ],
+                              "resourceVersion": "1.8"
+                            }
+                          },
+                          "attributes": [
+                            {
+                              "display": "emailId: test@mailinator.com",
+                              "uuid": "3f55d97b-f9b5-4418-8c75-6294e7ab4868",
+                              "attributeType": {
+                                "uuid": "226c0494-d67e-47b4-b7ec-b368064844bd",
+                                "display": "emailId",
+                                "links": [
+                                  {
+                                    "rel": "self",
+                                    "uri": "http://127.0.0.1:8080/openmrs/ws/rest/v1/providerattributetype/226c0494-d67e-47b4-b7ec-b368064844bd"
+                                  }
+                                ]
+                              },
+                              "value": "test@mailinator.com",
+                              "voided": false,
+                              "links": [
+                                {
+                                  "rel": "self",
+                                  "uri": "http://127.0.0.1:8080/openmrs/ws/rest/v1/provider/26b75fdd-27ef-46ab-84de-8f3798255d91/attribute/3f55d97b-f9b5-4418-8c75-6294e7ab4868"
+                                },
+                                {
+                                  "rel": "full",
+                                  "uri": "http://127.0.0.1:8080/openmrs/ws/rest/v1/provider/26b75fdd-27ef-46ab-84de-8f3798255d91/attribute/3f55d97b-f9b5-4418-8c75-6294e7ab4868?v=full"
+                                }
+                              ],
+                              "resourceVersion": "1.9"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "code": {
+                      "type": "string",
+                      "example": "422"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid Input Perameter"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "code": {
+                      "type": "string",
+                      "example": "ERR_BAD_REQUEST"
                     },
                     "message": {
                       "type": "string",

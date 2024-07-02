@@ -21,7 +21,9 @@ const {
   deleteUserParamSchema,
   loginSchema,
   updateUserParamSchema,
-  updateUserSchema
+  updateUserSchema,
+  getUserParamSchema,
+  getProviderParamSchema
 } = require("../validator/auth.validator");
 const { validate, validateParams } = require("../middleware/validationMiddleware");
 var router = express.Router();
@@ -37,8 +39,16 @@ router.post("/createUser", [
   validate(createUserSchema),
   createUser
 ]);
-router.get("/user/:user_uuid", [authMiddleware, getUser]);
-router.get("/provider/:user_uuid", [authMiddleware, getProvider]);
+router.get("/user/:user_uuid", [
+  authMiddleware,
+  validateParams(getUserParamSchema),
+  getUser
+]);
+router.get("/provider/:user_uuid", [
+  authMiddleware,
+  validateParams(getProviderParamSchema),
+  getProvider
+]);
 router.post("/provider/:user_uuid", [authMiddleware, setProvider]);
 router.post("/user/:uuid", [
   authMiddleware,
