@@ -6,6 +6,10 @@ exports.loginSchema = Joi.object({
     rememberme: Joi.optional()
 })
 
+exports.getUserParamSchema = Joi.object({
+    user_uuid: Joi.string().guid().required()
+})
+
 exports.deleteUserParamSchema = Joi.object({
     uuid: Joi.string().guid().required()
 })
@@ -71,3 +75,8 @@ exports.resetPassswordSchema = Joi.object({
             'any.only': `"confirmNewPassword" does not match "newPassword"`,
         })
 });
+
+
+exports.getProviderParamSchema = Joi.object({
+    user_uuid: Joi.string().guid().required()
+})
