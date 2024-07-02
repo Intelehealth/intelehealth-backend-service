@@ -18,7 +18,7 @@ exports.validateUserSchema = Joi.object({
 exports.createUserSchema = Joi.object({
     givenName: Joi.string().required(),
     familyName: Joi.string().required(),
-    middleName: Joi.string().optional(),
+    middleName: Joi.string().optional().allow(null, ''),
     gender: Joi.optional().valid('M', 'F'),
     birthdate: Joi.optional(),
     username: Joi.string().required().min(3),
