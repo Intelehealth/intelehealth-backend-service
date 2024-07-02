@@ -121,6 +121,7 @@ module.exports = (function () {
 
       if(!addresses) addresses = [{country:"india"}];
       if(!identifier) identifier = username;
+      if(!middleName) middleName = null;
 
       const personPayload = {
         givenName,
