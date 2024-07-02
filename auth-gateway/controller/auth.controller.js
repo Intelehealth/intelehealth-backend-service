@@ -121,6 +121,7 @@ module.exports = (function () {
 
       if(!addresses) addresses = [{country:"india"}];
       if(!identifier) identifier = username;
+      if(!middleName) middleName = null;
 
       const personPayload = {
         givenName,
@@ -338,13 +339,13 @@ module.exports = (function () {
 
   this.setProvider = async (req, res, next) => {
     try {
-      const { user_uuid } = req.params;
+      const { uuid } = req.params;
       const data = req.body;
       logStream("debug", "API calling", "Set Provider");
-      const provider = await _setProvider(user_uuid, data);
+      await _setProvider(uuid, data);
       logStream("debug", 'Set the Provider', "Set Provider");
       res.json({
-        data: provider.results,
+        data: "User updated successfully",
         status: true
       });
     } catch (error) {

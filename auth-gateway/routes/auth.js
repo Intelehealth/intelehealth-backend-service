@@ -49,7 +49,7 @@ router.get("/provider/:user_uuid", [
   validateParams(getProviderParamSchema),
   getProvider
 ]);
-router.post("/provider/:user_uuid", [authMiddleware, setProvider]);
+router.post("/provider/:uuid", [authMiddleware, setProvider]);
 router.post("/user/:uuid", [
   authMiddleware,
   validateParams(updateUserParamSchema),
