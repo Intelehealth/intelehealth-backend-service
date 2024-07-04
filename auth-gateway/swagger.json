@@ -978,7 +978,7 @@
                     },
                     "code": {
                       "type": "string",
-                      "example": "ERR_BAD_REQUEST"
+                      "example": "ERR_BAD_RESPONSE"
                     },
                     "message": {
                       "type": "string",
@@ -1092,7 +1092,7 @@
                     },
                     "code": {
                       "type": "string",
-                      "example": "ERR_BAD_REQUEST"
+                      "example": "ERR_BAD_RESPONSE"
                     },
                     "message": {
                       "type": "string",
@@ -1186,7 +1186,7 @@
                     },
                     "code": {
                       "type": "string",
-                      "example": "ERR_BAD_REQUEST"
+                      "example": "ERR_BAD_RESPONSE"
                     },
                     "message": {
                       "type": "string",
