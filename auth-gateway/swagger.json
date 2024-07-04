@@ -430,31 +430,32 @@
                   },
                   "gender": {
                     "type": "string",
-                    "example": "male"
+                    "example": "M"
                   },
                   "birthdate": {
                     "type": "string",
                     "format": "date",
                     "example": "1990-01-01"
                   },
+                  "phoneNumber": {
+                    "type": "string",
+                    "format": "number",
+                    "example": "1234567890"
+                  },
                   "addresses": {
                     "type": "array",
                     "items": {
                       "type": "object",
                       "properties": {
-                        "street": {
+                        "address1": {
                           "type": "string",
                           "example": "123 Main St"
                         },
-                        "city": {
+                        "cityVillage": {
                           "type": "string",
                           "example": "Anytown"
                         },
-                        "state": {
-                          "type": "string",
-                          "example": "Anystate"
-                        },
-                        "zip": {
+                        "postalCode": {
                           "type": "string",
                           "example": "12345"
                         },
@@ -481,6 +482,10 @@
                     "type": "string",
                     "format": "email",
                     "example": "john.doe@example.com"
+                  },
+                  "countryCode": {
+                    "type": "string",
+                    "example": "USA"
                   }
                 },
                 "required": [
@@ -592,7 +597,7 @@
         }
       }
     },
-    "/auth/user/:uuid": {
+    "/auth/user/{user_uuid}": {
       "get": {
         "summary": "Get Single User",
         "description": "This API allows to retrive the user detail",
@@ -601,13 +606,14 @@
         ],
         "parameters": [
           {
-            "name": "uuid",
+            "name": "user_uuid",
             "in": "path",
             "required": true,
             "description": "Unique ID of the user to fetch the details",
             "schema": {
               "type": "string",
-              "example": "12345"
+              "format": "uuid",
+              "example": "7fbc2209-f069-4638-914b-4dd1d78f5488"
             }
           }
         ],
@@ -781,7 +787,9 @@
             }
           }
         }
-      },
+      }
+    },
+    "/auth/user/{uuid}": {
       "post": {
         "summary": "Update a user details",
         "description": "This API allows to update a user with given details",
@@ -796,7 +804,8 @@
             "description": "Unique ID of the user to update the user detail",
             "schema": {
               "type": "string",
-              "example": "12345"
+              "format": "uuid",
+              "example": "7fbc2209-f069-4638-914b-4dd1d78f5488"
             }
           }
         ],
@@ -825,31 +834,32 @@
                   },
                   "gender": {
                     "type": "string",
-                    "example": "male"
+                    "example": "M"
                   },
                   "birthdate": {
                     "type": "string",
                     "format": "date",
                     "example": "1990-01-01"
                   },
+                  "phoneNumber": {
+                    "type": "string",
+                    "format": "number",
+                    "example": "1234567890"
+                  },
                   "addresses": {
                     "type": "array",
                     "items": {
                       "type": "object",
                       "properties": {
-                        "street": {
+                        "address1": {
                           "type": "string",
                           "example": "123 Main St"
                         },
-                        "city": {
+                        "cityVillage": {
                           "type": "string",
                           "example": "Anytown"
                         },
-                        "state": {
-                          "type": "string",
-                          "example": "Anystate"
-                        },
-                        "zip": {
+                        "postalCode": {
                           "type": "string",
                           "example": "12345"
                         },
@@ -871,6 +881,15 @@
                   "identifier": {
                     "type": "string",
                     "example": "unique-identifier"
+                  },
+                  "emailId": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "john.doe@example.com"
+                  },
+                  "countryCode": {
+                    "type": "string",
+                    "example": "USA"
                   }
                 },
                 "required": [
@@ -994,7 +1013,8 @@
             "description": "Unique ID of the user to delete",
             "schema": {
               "type": "string",
-              "example": "12345"
+              "format": "uuid",
+              "example": "7fbc2209-f069-4638-914b-4dd1d78f5488"
             }
           }
         ],
@@ -1203,7 +1223,8 @@
             "description": "Unique ID of the user to reset password",
             "schema": {
               "type": "string",
-              "example": "12345"
+              "format": "uuid",
+              "example": "7fbc2209-f069-4638-914b-4dd1d78f5488"
             }
           }
         ],
@@ -1327,12 +1348,12 @@
         }
       }
     },
-    "/auth/provider/:user_uuid": {
+    "/auth/provider/{user_uuid}": {
       "get": {
         "summary": "Get Provider",
         "description": "This API allows to get the providers",
         "tags": [
-          "Provider"
+          "User"
         ],
         "parameters": [
           {
@@ -1342,7 +1363,8 @@
             "description": "Unique ID of the user to get the provider",
             "schema": {
               "type": "string",
-              "example": "12345"
+              "format": "uuid",
+              "example": "7fbc2209-f069-4638-914b-4dd1d78f5488"
             }
           }
         ],
