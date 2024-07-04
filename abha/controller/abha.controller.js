@@ -48,6 +48,7 @@ module.exports = (function () {
    * @param {token} string
    */
   this.getPublicKey = async (token) => {
+    logStream("debug", process.env.PUBLIC_KEY_GEN_URL, 'Get Public Key - URL');
     const resposnse = await axiosInstance.get(
       process.env.PUBLIC_KEY_GEN_URL, {
     }, {
@@ -55,6 +56,7 @@ module.exports = (function () {
         ...this.getInitialHeaderrs(token)
       }
     });
+    logStream("debug", resposnse.data, 'Get Public Key - Response');
     return resposnse.data;
   }
 
@@ -107,7 +109,7 @@ module.exports = (function () {
   this.getEnrollOTPReq = async (req, res, next) => {
     try {
 
-      const { value , txnId = "", scope = "aadhar" } = req.body;
+      const { value, txnId = "", scope = "aadhar" } = req.body;
 
       const accessToken = req.token
 
@@ -214,7 +216,7 @@ module.exports = (function () {
 
       logStream("debug", process.env.ENROLL_AADHAR_BY_URL, 'Enroll By Aadhar - URL');
       logStream("debug", payload, 'Enroll By Aadhar - Payload');
-      
+
       const apiResponse = await axiosInstance.post(
         process.env.ENROLL_AADHAR_BY_URL,
         payload,
@@ -280,7 +282,7 @@ module.exports = (function () {
 
       logStream("debug", process.env.ENROLL_BY_ABDM_URL, 'Enroll By Abdm - URL');
       logStream("debug", payload, 'Enroll By Abdm - Payload');
-      
+
       logStream("debug", 'Calling API to Enroll By Abdm Response', 'Enroll By Abdm');
 
       const apiResponse = await axiosInstance.post(
@@ -321,7 +323,7 @@ module.exports = (function () {
 
       logStream("debug", process.env.ENROLL_SUGGESION_URL, 'Get Enroll Suggestions - URL');
       logStream("debug", req.body, 'Get Enroll Suggestions - Payload');
-      
+
       const apiResponse = await axiosInstance.get(
         process.env.ENROLL_SUGGESION_URL,
         {
@@ -367,7 +369,7 @@ module.exports = (function () {
 
       logStream("debug", process.env.ENROLL_SUGGESION_URL, 'Set Prefer Address - URL');
       logStream("debug", payload, 'Set Prefer Address - Payload');
-      
+
       const apiResponse = await axiosInstance.post(
         process.env.SET_PREFERED_ADDRESS_URL,
         payload,
@@ -610,10 +612,10 @@ module.exports = (function () {
       }
 
       const url = scope == 'abha-address' ? process.env.ACCOUNT_VERIFY_ABHA_USER_URL : process.env.ACCOUNT_VERIFY_USER_URL;
-      
+
       logStream("debug", 'Calling API to Get Profile', 'Get Profile');
       logStream("debug", url, 'Get Profile - URL');
-      
+
       const apiResponse = await axiosInstance.get(url,
         {
           headers: {
@@ -658,36 +660,14 @@ module.exports = (function () {
 
       const accessToken = req.token;
 
-      // const { txnId, abhaNumber, scope = '' } = req.body;
+      const scope = req.query.scope;
 
-      // if (scope === 'mobile') {
-      //   logStream("debug", process.env.LOGIN_VERIFY_USER_URL, 'Get Card - Login Verify User - URL');
-      //   logStream("debug", req.body, 'Get Card - Login Verify User - Payload');
-        
-      //   const loginVerifyRes = await axiosInstance.post(
-      //     process.env.LOGIN_VERIFY_USER_URL,
-      //     {
-      //       "ABHANumber": abhaNumber,
-      //       "txnId": txnId
-      //     },
-      //     {
-      //       headers: {
-      //         ...this.getInitialHeaderrs(accessToken),
-      //         'REQUEST-ID': uuid(),
-      //         'TIMESTAMP': this.getTimestamp(),
-      //         'T-Token': `Bearer ${xToken}`
-      //       }
-      //     }
-      //   );
-      //   xToken = loginVerifyRes.data.token;
-      //   logStream("debug", loginVerifyRes.data, 'Get Card - Login Verify User - Response');
-      // }
+      const url = ['mobile', 'abha-address'].includes(scope) ? process.env.ABHA_ADDRESS_GET_CARD_URL : process.env.GET_CARD_URL
 
       logStream("debug", 'Calling API to Get Card', 'Get Card');
-      logStream("debug", process.env.GET_CARD_URL, 'Get Card - URL');
+      logStream("debug", url, 'Get Card - URL');
 
-      const apiResponse = await axiosInstance.get(
-        process.env.GET_CARD_URL,
+      const apiResponse = await axiosInstance.get(url,
         {
           responseType: 'arraybuffer',
           headers: {
@@ -792,7 +772,7 @@ module.exports = (function () {
       abdmVisitStatus.response = abdmResponse?.response?.data ?? abdmResponse?.data;
 
       logStream("debug", process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + visitUUID, 'Verify the link care context status - URL');
-      
+
       // Call get request to verify the care context link status
       const careContexts = await axiosInstance.get(
         process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + visitUUID, {
@@ -877,7 +857,7 @@ module.exports = (function () {
       }
 
       logStream("debug", abdmResponse?.data, 'smsNotifyCareContext - Response');
-      
+
       return { success: true, data: abdmResponse?.data, message: "Care context sms notified successfully." }
     } catch (error) {
       logStream("error", JSON.stringify(error));
@@ -977,7 +957,7 @@ module.exports = (function () {
       const response = await openmrsService.getVisitByUUID(visitUUID);
       if (!response.success) throw response;
       const formattedResponse = formatCareContextFHIBundle(response?.data);
-      if(!formattedResponse) throw new Error('Visit is not shared the prescription yet!')
+      if (!formattedResponse) throw new Error('Visit is not shared the prescription yet!')
       res.json(formattedResponse);
       return;
     } catch (error) {
