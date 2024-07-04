@@ -1208,7 +1208,7 @@
         }
       }
     },
-    "/auth/user/reset-password/:uuid": {
+    "/auth/user/reset-password/{uuid}": {
       "post": {
         "summary": "Reset User Password",
         "description": "This API allows to reset the user password from admin",
