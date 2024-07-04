@@ -591,7 +591,7 @@ module.exports = (function () {
       if (!['abha-address', 'abha-number', 'aadhar'].includes(scope)) {
         logStream("debug", process.env.LOGIN_VERIFY_USER_URL, 'Get Profile - Login Verify User - URL');
         logStream("debug", req.body, 'Get Profile - Login Verify User - Payload');
-
+        
         loginVerifyRes = await axiosInstance.post(
           process.env.LOGIN_VERIFY_USER_URL,
           {
