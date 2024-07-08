@@ -83,7 +83,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -107,7 +107,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -131,7 +131,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -155,7 +155,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -390,7 +390,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -414,7 +414,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -438,7 +438,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -462,7 +462,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -613,7 +613,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -637,7 +637,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -661,7 +661,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -685,7 +685,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -841,7 +841,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -865,7 +865,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -885,7 +885,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -909,7 +909,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -1072,7 +1072,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -1096,7 +1096,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -1120,7 +1120,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -1144,7 +1144,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -1210,7 +1210,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -1234,7 +1234,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -1258,7 +1258,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -1282,7 +1282,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -1352,7 +1352,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -1376,7 +1376,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -1400,7 +1400,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -1424,7 +1424,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -1516,7 +1516,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -1540,7 +1540,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -1564,7 +1564,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -1588,7 +1588,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -1716,7 +1716,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -1740,7 +1740,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -1764,7 +1764,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
@@ -1788,7 +1788,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "status": {
+                    "success": {
                       "type": "boolean",
                       "example": false
                     },
