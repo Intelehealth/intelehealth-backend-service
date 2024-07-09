@@ -55,14 +55,15 @@ module.exports = (function () {
      * @param { string } subject - Subject for email
      * @param { string } otp - OTP
      */
-  const sendEmailOtp = async function (email, subject, otp) {
+  const sendEmailOtp = async function (email, subject, otp, message) {
     const otpTemplate = fs
       .readFileSync("./common/emailtemplates/otpTemplate.html", "utf8")
       .toString();
 
     const replacedTemplate = otpTemplate
       .replace("$otpFor", subject)
-      .replace("$otp", otp);
+      .replace("$otp", otp)
+      .replace("$message", message);
 
     return await functions.sendEmail(
       email,
@@ -166,6 +167,11 @@ module.exports = (function () {
         }
       }
 
+      let message = 'If you have not initiated this request, please contact your admin.';
+      if(Constant.USERNAME == otpFor) message = 'If the username retrieval has not been initiated by you, please contact your admin immediately';
+      if(Constant.PASSWORD == otpFor) message = 'If the password reset has not been initiated by you, please contact your admin immediately';
+      if(Constant.VERIFICATON == otpFor) message = 'If the user verification has not been initiated by you, please contact your admin immediately';
+
       const data = await getUserData(phoneNumber, email, username, otpFor);
       if (data.length) {
         if (otpFor === Constant.USERNAME || otpFor === Constant.VERIFICATON) {
@@ -184,7 +190,7 @@ module.exports = (function () {
             if (element.attributeTypeName == Constant.EMAIL_ID) {
               // Send email here
               const randomOtp = otpGenerator.generate(6, { lowerCaseAlphabets: false, upperCaseAlphabets: false, specialChars: false });
-              const mail = await sendEmailOtp(email, otpFor === Constant.USERNAME ? MESSAGE.AUTH.VERIFICATION_CODE_FOR_FORGOT_USERNAME : MESSAGE.AUTH.VERIFICATION_CODE_FOR_SIGN_IN, randomOtp);
+              const mail = await sendEmailOtp(email, otpFor === Constant.USERNAME ? MESSAGE.AUTH.VERIFICATION_CODE_FOR_FORGOT_USERNAME : MESSAGE.AUTH.VERIFICATION_CODE_FOR_SIGN_IN, randomOtp, message);
               if (mail.messageId) {
                 // Save OTP in database for verification
                 await saveOtp(element.uuid, randomOtp, otpFor === Constant.USERNAME ? "U" : "A");
@@ -234,13 +240,13 @@ module.exports = (function () {
                 // Save OTP in database for verification
                 await saveOtp(data[0].userUuid, otp.data.OTP, "P");
                 if (email) {
-                  await sendEmailOtp(email, MESSAGE.AUTH.VERIFICATION_CODE_FOR_FORGOT_PASSWORD, otp.data.OTP);  
+                  await sendEmailOtp(email, MESSAGE.AUTH.VERIFICATION_CODE_FOR_FORGOT_PASSWORD, otp.data.OTP, message);  
                 }
               }
             } else if (email) {
               // Send email here
               const randomOtp = otpGenerator.generate(6, { lowerCaseAlphabets: false, upperCaseAlphabets: false, specialChars: false });
-              const mail = await sendEmailOtp(email, MESSAGE.AUTH.VERIFICATION_CODE_FOR_FORGOT_PASSWORD, randomOtp);
+              const mail = await sendEmailOtp(email, MESSAGE.AUTH.VERIFICATION_CODE_FOR_FORGOT_PASSWORD, randomOtp, message);
               if (mail.messageId) {
                 // Save OTP in database for verification
                 await saveOtp(data[i].uuid, randomOtp, "P");
@@ -322,7 +328,7 @@ module.exports = (function () {
             }
 
             if (user) {
-              if (moment().diff(moment(user.updatedAt), "minutes") < 5) {
+              if (moment().diff(moment(user.updatedAt), "minutes") < 1) {
                 //TODO: Code for send otp to phone number.
                 if (phoneNumber) {
                   const body = new URLSearchParams();
@@ -378,7 +384,7 @@ module.exports = (function () {
               },
             });
             if (user) {
-              if (moment().diff(moment(user.updatedAt), "minutes") < 5) {
+              if (moment().diff(moment(user.updatedAt), "minutes") < 1) {
                 // Send username here
 
                 return {
@@ -422,7 +428,7 @@ module.exports = (function () {
             }
 
             if (user) {
-              if (moment().diff(moment(user.updatedAt), "minutes") < 5) {
+              if (moment().diff(moment(user.updatedAt), "minutes") < 1) {
                 return {
                   code: 200,
                   success: true,
