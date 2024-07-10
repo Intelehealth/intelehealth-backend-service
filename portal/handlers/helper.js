@@ -12,10 +12,19 @@ const {
   DEBUG
 } = process.env;
 
+/**
+ * Initialize firebase app with credentials
+ */
 admin.initializeApp({
   credential: admin.credential.cert(JSON.parse(FIREBASE_SERVICE_ACCOUNT_KEY)),
   databaseURL: FIREBASE_DB_URL,
 });
+
+/**
+ * Set vapid public and private keys for web push notification
+ */
+webpush.setVapidDetails(VAPID_MAILTO, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+
 
 
 module.exports = (function () {

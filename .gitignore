@@ -12,4 +12,4 @@
 /portal/.env
 /auth-gateway/.pem
 /web-rtc/.pem
-/portal/.pem
+/portal-rtc/.pem

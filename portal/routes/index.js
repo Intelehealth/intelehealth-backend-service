@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const authMiddleware = require('../middleware/auth');
 
 const {
   getMindmapDetails,
@@ -10,12 +11,12 @@ const {
   downloadMindmaps,
 } = require("../controllers/mindmap.controller");
 
-router.post("/mindmap/upload", addUpdateMindMap);
-router.get("/mindmap", getMindmapKeys);
+router.post("/mindmap/upload", [authMiddleware, addUpdateMindMap]);
+router.get("/mindmap", [authMiddleware, getMindmapKeys]);
 
-router.post("/mindmap/addUpdatekey", addUpdateLicenceKey);
-router.get("/mindmap/details/:key", getMindmapDetails);
-router.post("/mindmap/delete/:key", deleteMindmapKey);
+router.post("/mindmap/addUpdatekey", [authMiddleware, addUpdateLicenceKey]);
+router.get("/mindmap/details/:key", [authMiddleware, getMindmapDetails]);
+router.post("/mindmap/delete/:key", [authMiddleware, deleteMindmapKey]);
 router.get("/mindmap/download", downloadMindmaps);
 
 router.use("/mindmap", require("./notification.route"));
