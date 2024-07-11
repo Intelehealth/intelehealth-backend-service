@@ -1,7 +1,7 @@
 const validate = (schema, property) => (req, res, next) => {
     const { error } = schema.validate(req[property]);
     const valid = error == null;
-    if (valid) { next(); } 
+    if (valid) { next(); }
     else {
         res.status(422).json(
             {

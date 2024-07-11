@@ -20,6 +20,25 @@ const createTicketDatabase = async (incident, user_id, priority) => {
     }
 };
 
+const updateTicketStatusDatabase = async (event) => {
+    try {
+        if (
+            event?.resource_type !== 'incident' 
+            || event?.data?.type !== 'incident'
+            || !['triggered','acknowledged','resolved'].includes(event?.data?.status)) {
+            return;
+        }
+        const incident = event?.data
+        await PagerdutyTickets.update({ status: incident.status }, {
+            where: {
+                incident_id: incident?.id
+            }
+        });
+    } catch (error) {
+        return null;
+    }
+};
+
 const getUserTicketsDatabase = async (user_id, limit, offset) => {
     try {
         const tickets = await PagerdutyTickets.findAndCountAll({
@@ -38,5 +57,6 @@ const getUserTicketsDatabase = async (user_id, limit, offset) => {
 
 module.exports = {
     createTicketDatabase,
-    getUserTicketsDatabase
+    getUserTicketsDatabase,
+    updateTicketStatusDatabase
 }
