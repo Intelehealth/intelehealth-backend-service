@@ -1,5 +1,5 @@
 const { api } = require('@pagerduty/pdjs');
-const pd = api({ token: process.env.PAGERDUTY_API_TOKEN });
+const pd = api({token: process.env.PAGERDUTY_API_TOKEN});
 const {
     createTicketDatabase,
     getUserTicketsDatabase
@@ -27,10 +27,10 @@ const getPriorityId = (priority) => {
     let id;
     switch (priority) {
         case 'high':
-            id = process.env.HIGH_PRIORITY_ID;
+            id = process.env.HIGH_PRIORITY_ID; 
             break;
         case 'medium':
-            id = process.env.MEDIUM_PRIORITY_ID;
+            id = process.env.MEDIUM_PRIORITY_ID; 
             break;
         case 'low':
             id = process.env.LOW_PRIORITY_ID;
@@ -46,10 +46,10 @@ const getPriorityFromId = (id) => {
     let priority;
     switch (id) {
         case process.env.HIGH_PRIORITY_ID:
-            priority = 'high';
+            priority = 'high'; 
             break;
         case process.env.MEDIUM_PRIORITY_ID:
-            priority = 'medium';
+            priority = 'medium'; 
             break;
         case process.env.LOW_PRIORITY_ID:
             priority = 'low';
@@ -60,7 +60,7 @@ const getPriorityFromId = (id) => {
 
 const createTicket = async (req, res, next) => {
     try {
-        const { title, description, priority = 'low' } = req.body;
+        const { title, description, priority='low' } = req.body;
         const { userId } = req.user?.data;
         const incident = await pd.post('/incidents', {
             data: {
