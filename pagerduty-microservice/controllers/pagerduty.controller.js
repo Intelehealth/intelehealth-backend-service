@@ -33,7 +33,7 @@ const getPriorityId = (priority) => {
             id = process.env.MEDIUM_PRIORITY_ID; 
             break;
         case 'low':
-            id = process.env.LOW_PRIORITY_ID; 
+            id = process.env.LOW_PRIORITY_ID;
             break;
         default:
             id = process.env.LOW_PRIORITY_ID;
@@ -52,7 +52,7 @@ const getPriorityFromId = (id) => {
             priority = 'medium'; 
             break;
         case process.env.LOW_PRIORITY_ID:
-            priority = 'low'; 
+            priority = 'low';
             break;
     }
     return priority;
@@ -106,11 +106,20 @@ const getTicket = async (req, res, next) => {
     }
 };
 
+const getPagingData = (data, page, limit) => {
+    const { count: totalItems, rows: tickets } = data;
+    const currentPage = page ? +page : 0;
+    const totalPages = Math.ceil(totalItems / limit);
+    return { totalItems, tickets, totalPages, currentPage };
+};
+
 const getUserTickets = async (req, res, next) => {
     try {
+        const { page, size } = req.query;
         const { userId } = req.user?.data;
-        const data = await getUserTicketsDatabase(userId);
-        return res.status(200).json(data);
+        const offset = (page - 1) * size;
+        const data = await getUserTicketsDatabase(userId, +size, offset);
+        return res.status(200).json(getPagingData(data, page, size));
     } catch (error) {
         next(error);
     }
