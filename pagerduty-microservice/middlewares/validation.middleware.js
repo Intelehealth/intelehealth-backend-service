@@ -13,4 +13,4 @@ const validate = (schema, property) => (req, res, next) => {
     }
 };
 
-module.exports = validate;
+module.exports = { validate };
