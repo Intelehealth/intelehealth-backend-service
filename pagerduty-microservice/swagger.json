@@ -7,11 +7,654 @@
     },
     "servers": [
         {
-            "url": "https://dev.intelehealth.org/api",
+            "url": "http://localhost:3004/api",
             "description": ""
         }
     ],
     "paths": {
-
-    }
+        "/getPriorities": {
+            "get": {
+                "description": "Returns all priorities from the PagerDuty",
+                "tags": ["Priorities"],
+                "responses": {
+                    "200": {
+                        "description": "A list of priorities.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "priorities": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": { "type": "string" },
+                                                    "type": { "type": "string" },
+                                                    "name": { "type": "string" }
+                                                }
+                                            }
+                                        },
+                                        "limit": { "type": "number" },
+                                        "offset": { "type": "number" },
+                                        "more": { "type": "boolean" },
+                                        "total": { "type": "number" }                                        
+                                    }
+                                },
+                                "example": {
+                                    "priorities": [
+                                        {
+                                            "id": "P8Z1YPZ",
+                                            "type": "priority",
+                                            "name": "P1"
+                                        },
+                                        {
+                                            "id": "P4MDXA9",
+                                            "type": "priority",
+                                            "name": "P2"
+                                        },
+                                        {
+                                            "id": "P1QSWKJ",
+                                            "type": "priority",
+                                            "name": "P3"
+                                        },
+                                        {
+                                            "id": "PK9BX83",
+                                            "type": "priority",
+                                            "name": "P4"
+                                        },
+                                        {
+                                            "id": "PGAQWVD",
+                                            "type": "priority",
+                                            "name": "P5"
+                                        }
+                                    ],
+                                    "limit": 25,
+                                    "offset": 0,
+                                    "more": false,
+                                    "total": null
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid authorization header",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": { "type": "boolean" },
+                                        "message": { "type": "string" },
+                                        "code": { "type": "number" }                                       
+                                    }
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Invalid authorization header",
+                                    "code": 401
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/getEscalationPolicies": {
+            "get": {
+                "description": "Returns all escalation policies from the PagerDuty",
+                "tags": ["Policies"],
+                "responses": {
+                    "200": {
+                        "description": "A list of escalation policies.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "escalation_policies": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": { "type": "string" },
+                                                    "type": { "type": "string" },
+                                                    "name": { "type": "string" }
+                                                }
+                                            }
+                                        },
+                                        "limit": { "type": "number" },
+                                        "offset": { "type": "number" },
+                                        "more": { "type": "boolean" },
+                                        "total": { "type": "number" }                                        
+                                    }
+                                },
+                                "example": {
+                                    "escalation_policies": [
+                                        {
+                                            "id": "P36BNV3",
+                                            "type": "escalation_policy",
+                                            "name": "Default"
+                                        },
+                                        {
+                                            "id": "PNOHX95",
+                                            "type": "escalation_policy",
+                                            "name": "Jira Service-ep"
+                                        }
+                                    ],
+                                    "limit": 25,
+                                    "offset": 0,
+                                    "more": false,
+                                    "total": null
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid authorization header",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": { "type": "boolean" },
+                                        "message": { "type": "string" },
+                                        "code": { "type": "number" }                                       
+                                    }
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Invalid authorization header",
+                                    "code": 401
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/createTicket": {
+            "post": {
+                "description": "Create ticket for an user",
+                "tags": ["Tickets"],
+                "requestBody": {
+                    "description": "Ticket details to be created",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "description": "Title for the ticket",
+                                        "required": true
+                                    },
+                                    "priority": {
+                                        "type": "string",
+                                        "description": "Priority of the ticket (high/medium/low)",
+                                        "required": false,
+                                        "default": "low"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "description": "Decsription for the ticket",
+                                        "required": true
+                                    }
+                                }
+                            },
+                            "example": {
+                                "title": "TEST TICKET",
+                                "priority": "medium",
+                                "description": "A test ticket from pagerduty."
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Details of ticket created",
+                        "content": {
+                            "application/json": {
+                                "example": {
+                                    "incident": {
+                                        "incident_number": 18083,
+                                        "title": "ANURAG TEST TICKET",
+                                        "description": "ANURAG TEST TICKET",
+                                        "created_at": "2024-07-11T05:02:03Z",
+                                        "updated_at": "2024-07-11T05:02:03Z",
+                                        "status": "triggered",
+                                        "incident_key": "e71adcf1c7a24e518645aff64286a412",
+                                        "service": {
+                                            "id": "PF4G4QZ",
+                                            "type": "service_reference",
+                                            "summary": "Jira Service",
+                                            "self": "https://api.pagerduty.com/services/PF4G4QZ",
+                                            "html_url": "https://intelehealth-org.pagerduty.com/service-directory/PF4G4QZ"
+                                        },
+                                        "assignments": [
+                                            {
+                                                "at": "2024-07-11T05:02:03Z",
+                                                "assignee": {
+                                                    "id": "PI3V57L",
+                                                    "type": "user_reference",
+                                                    "summary": "Sagar Doke",
+                                                    "self": "https://api.pagerduty.com/users/PI3V57L",
+                                                    "html_url": "https://intelehealth-org.pagerduty.com/users/PI3V57L"
+                                                }
+                                            }
+                                        ],
+                                        "assigned_via": "escalation_policy",
+                                        "last_status_change_at": "2024-07-11T05:02:03Z",
+                                        "resolved_at": null,
+                                        "first_trigger_log_entry": {
+                                            "id": "R0NLRAM3A1OIV0EMPNFO3GG5CG",
+                                            "type": "trigger_log_entry_reference",
+                                            "summary": "Triggered through the website.",
+                                            "self": "https://api.pagerduty.com/log_entries/R0NLRAM3A1OIV0EMPNFO3GG5CG",
+                                            "html_url": "https://intelehealth-org.pagerduty.com/incidents/Q2DZJ6WZCS5SUW/log_entries/R0NLRAM3A1OIV0EMPNFO3GG5CG"
+                                        },
+                                        "alert_counts": {
+                                            "all": 0,
+                                            "triggered": 0,
+                                            "resolved": 0
+                                        },
+                                        "is_mergeable": true,
+                                        "escalation_policy": {
+                                            "id": "PNOHX95",
+                                            "type": "escalation_policy_reference",
+                                            "summary": "Jira Service-ep",
+                                            "self": "https://api.pagerduty.com/escalation_policies/PNOHX95",
+                                            "html_url": "https://intelehealth-org.pagerduty.com/escalation_policies/PNOHX95"
+                                        },
+                                        "teams": [
+                                            {
+                                                "id": "P5CI5CV",
+                                                "type": "team_reference",
+                                                "summary": "L1",
+                                                "self": "https://api.pagerduty.com/teams/P5CI5CV",
+                                                "html_url": "https://intelehealth-org.pagerduty.com/teams/P5CI5CV"
+                                            }
+                                        ],
+                                        "impacted_services": [
+                                            {
+                                                "id": "PF4G4QZ",
+                                                "type": "service_reference",
+                                                "summary": "Jira Service",
+                                                "self": "https://api.pagerduty.com/services/PF4G4QZ",
+                                                "html_url": "https://intelehealth-org.pagerduty.com/service-directory/PF4G4QZ"
+                                            }
+                                        ],
+                                        "pending_actions": [],
+                                        "acknowledgements": [],
+                                        "basic_alert_grouping": null,
+                                        "alert_grouping": null,
+                                        "last_status_change_by": {
+                                            "id": "PF4G4QZ",
+                                            "type": "service_reference",
+                                            "summary": "Jira Service",
+                                            "self": "https://api.pagerduty.com/services/PF4G4QZ",
+                                            "html_url": "https://intelehealth-org.pagerduty.com/service-directory/PF4G4QZ"
+                                        },
+                                        "external_references": [
+                                            {
+                                                "id": "PSDWJHD",
+                                                "type": "incident_external_reference",
+                                                "summary": "JIRA",
+                                                "self": null,
+                                                "html_url": null,
+                                                "external_id": "IDA4-3871",
+                                                "external_url": "https://intelehealthwiki.atlassian.net/browse/IDA4-3871",
+                                                "sync": false,
+                                                "webhook": {
+                                                    "id": "PAX4Y33",
+                                                    "type": "webhook_reference",
+                                                    "summary": "Create JIRA Issue",
+                                                    "self": "https://api.pagerduty.com/webhooks/PAX4Y33",
+                                                    "html_url": null
+                                                }
+                                            }
+                                        ],
+                                        "priority": {
+                                            "id": "P4MDXA9",
+                                            "type": "priority",
+                                            "summary": "P2",
+                                            "self": "https://api.pagerduty.com/priorities/P4MDXA9",
+                                            "html_url": null,
+                                            "account_id": "PXUYDYZ",
+                                            "color": "eb6016",
+                                            "created_at": "2023-05-04T12:38:28Z",
+                                            "description": "",
+                                            "name": "P2",
+                                            "order": 400000000,
+                                            "schema_version": 0,
+                                            "updated_at": "2023-05-04T12:38:28Z"
+                                        },
+                                        "incidents_responders": [],
+                                        "responder_requests": [],
+                                        "subscriber_requests": [],
+                                        "urgency": "low",
+                                        "body": {
+                                            "details": "A test ticket from pagerduty."
+                                        },
+                                        "id": "Q2DZJ6WZCS5SUW",
+                                        "type": "incident",
+                                        "summary": "[#18083] ANURAG TEST TICKET",
+                                        "self": "https://api.pagerduty.com/incidents/Q2DZJ6WZCS5SUW",
+                                        "html_url": "https://intelehealth-org.pagerduty.com/incidents/Q2DZJ6WZCS5SUW"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid authorization header",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": { "type": "boolean" },
+                                        "message": { "type": "string" },
+                                        "code": { "type": "number" }                                       
+                                    }
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Invalid authorization header",
+                                    "code": 401
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/getTicket/{id}": {
+            "get": {
+                "description": "Get ticket details by incident id.",
+                "tags": ["Tickets"],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "description": "Incident ID",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Ticket details.",
+                        "content": {
+                            "application/json": {
+                                "example": {
+                                    "incident": {
+                                        "incident_number": 18048,
+                                        "title": "ANURAG TEST TICKET",
+                                        "description": "ANURAG TEST TICKET",
+                                        "created_at": "2024-07-10T11:25:38Z",
+                                        "updated_at": "2024-07-10T11:25:38Z",
+                                        "status": "triggered",
+                                        "incident_key": "a3fa36427bad49c6be299fc604a24dc3",
+                                        "service": {
+                                            "id": "PF4G4QZ",
+                                            "type": "service_reference",
+                                            "summary": "Jira Service",
+                                            "self": "https://api.pagerduty.com/services/PF4G4QZ",
+                                            "html_url": "https://intelehealth-org.pagerduty.com/service-directory/PF4G4QZ"
+                                        },
+                                        "assignments": [
+                                            {
+                                                "at": "2024-07-10T11:25:38Z",
+                                                "assignee": {
+                                                    "id": "PI3V57L",
+                                                    "type": "user_reference",
+                                                    "summary": "Sagar Doke",
+                                                    "self": "https://api.pagerduty.com/users/PI3V57L",
+                                                    "html_url": "https://intelehealth-org.pagerduty.com/users/PI3V57L"
+                                                }
+                                            }
+                                        ],
+                                        "assigned_via": "escalation_policy",
+                                        "last_status_change_at": "2024-07-10T11:25:38Z",
+                                        "resolved_at": null,
+                                        "first_trigger_log_entry": {
+                                            "id": "R9TB685QVFER6TJZYFV6GYT0Q5",
+                                            "type": "trigger_log_entry_reference",
+                                            "summary": "Triggered through the website.",
+                                            "self": "https://api.pagerduty.com/log_entries/R9TB685QVFER6TJZYFV6GYT0Q5",
+                                            "html_url": "https://intelehealth-org.pagerduty.com/incidents/Q16E684XVME7FV/log_entries/R9TB685QVFER6TJZYFV6GYT0Q5"
+                                        },
+                                        "alert_counts": {
+                                            "all": 0,
+                                            "triggered": 0,
+                                            "resolved": 0
+                                        },
+                                        "is_mergeable": true,
+                                        "escalation_policy": {
+                                            "id": "PNOHX95",
+                                            "type": "escalation_policy_reference",
+                                            "summary": "Jira Service-ep",
+                                            "self": "https://api.pagerduty.com/escalation_policies/PNOHX95",
+                                            "html_url": "https://intelehealth-org.pagerduty.com/escalation_policies/PNOHX95"
+                                        },
+                                        "teams": [
+                                            {
+                                                "id": "P5CI5CV",
+                                                "type": "team_reference",
+                                                "summary": "L1",
+                                                "self": "https://api.pagerduty.com/teams/P5CI5CV",
+                                                "html_url": "https://intelehealth-org.pagerduty.com/teams/P5CI5CV"
+                                            }
+                                        ],
+                                        "impacted_services": [
+                                            {
+                                                "id": "PF4G4QZ",
+                                                "type": "service_reference",
+                                                "summary": "Jira Service",
+                                                "self": "https://api.pagerduty.com/services/PF4G4QZ",
+                                                "html_url": "https://intelehealth-org.pagerduty.com/service-directory/PF4G4QZ"
+                                            }
+                                        ],
+                                        "pending_actions": [],
+                                        "acknowledgements": [],
+                                        "basic_alert_grouping": null,
+                                        "alert_grouping": null,
+                                        "last_status_change_by": {
+                                            "id": "PF4G4QZ",
+                                            "type": "service_reference",
+                                            "summary": "Jira Service",
+                                            "self": "https://api.pagerduty.com/services/PF4G4QZ",
+                                            "html_url": "https://intelehealth-org.pagerduty.com/service-directory/PF4G4QZ"
+                                        },
+                                        "external_references": [
+                                            {
+                                                "id": "PZU2XO1",
+                                                "type": "incident_external_reference",
+                                                "summary": "JIRA",
+                                                "self": null,
+                                                "html_url": null,
+                                                "external_id": "IDA4-3867",
+                                                "external_url": "https://intelehealthwiki.atlassian.net/browse/IDA4-3867",
+                                                "sync": false,
+                                                "webhook": {
+                                                    "id": "PAX4Y33",
+                                                    "type": "webhook_reference",
+                                                    "summary": "Create JIRA Issue",
+                                                    "self": "https://api.pagerduty.com/webhooks/PAX4Y33",
+                                                    "html_url": null
+                                                }
+                                            }
+                                        ],
+                                        "priority": {
+                                            "id": "P1QSWKJ",
+                                            "type": "priority",
+                                            "summary": "P3",
+                                            "self": "https://api.pagerduty.com/priorities/P1QSWKJ",
+                                            "html_url": null,
+                                            "account_id": "PXUYDYZ",
+                                            "color": "f9b406",
+                                            "created_at": "2023-05-04T12:38:28Z",
+                                            "description": "",
+                                            "name": "P3",
+                                            "order": 300000000,
+                                            "schema_version": 0,
+                                            "updated_at": "2023-05-04T12:38:28Z"
+                                        },
+                                        "incidents_responders": [],
+                                        "responder_requests": [],
+                                        "subscriber_requests": [],
+                                        "urgency": "low",
+                                        "body": {
+                                            "details": "A test ticket from pagerduty."
+                                        },
+                                        "id": "Q16E684XVME7FV",
+                                        "type": "incident",
+                                        "summary": "[#18048] ANURAG TEST TICKET",
+                                        "self": "https://api.pagerduty.com/incidents/Q16E684XVME7FV",
+                                        "html_url": "https://intelehealth-org.pagerduty.com/incidents/Q16E684XVME7FV"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid authorization header",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": { "type": "boolean" },
+                                        "message": { "type": "string" },
+                                        "code": { "type": "number" }                                       
+                                    }
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Invalid authorization header",
+                                    "code": 401
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/getUserTickets": {
+            "get": {
+                "description": "Returns all tickets created a by an user.",
+                "tags": ["Tickets"],
+                "parameters": [
+                    {
+                        "name": "page",
+                        "description": "Page number",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "name": "size",
+                        "description": "Page size",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "number"
+                        }  
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A list of tickets.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "tickets": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": { "type": "number" },
+                                                    "user_id": { "type": "string" },
+                                                    "incident_id": { "type": "string" },
+                                                    "jira_ticket_id": { "type": "string" },
+                                                    "incident_key": { "type": "string" },
+                                                    "title": { "type": "string" },
+                                                    "priority": { "type": "string" },
+                                                    "urgency": { "type": "string" },
+                                                    "status": { "type": "string" },
+                                                    "createdAt": { "type": "string" },
+                                                    "resolvedAt": { "type": "string" },
+                                                    "updatedAt": { "type": "string" }
+                                                }
+                                            }
+                                        },
+                                        "totalItems": { "type": "number" },
+                                        "totalPages": { "type": "number" },
+                                        "currentPage": { "type": "number" }                                       
+                                    }
+                                },
+                                "example": {
+                                    "totalItems": 1,
+                                    "tickets": [
+                                        {
+                                            "id": 1,
+                                            "user_id": "b5c314f8-93db-4697-ad33-1f8410eb986f",
+                                            "incident_id": "Q2DZJ6WZCS5SUW",
+                                            "jira_ticket_id": "IDA4-3871",
+                                            "incident_key": "e71adcf1c7a24e518645aff64286a412",
+                                            "title": "ANURAG TEST TICKET",
+                                            "priority": "medium",
+                                            "urgency": "low",
+                                            "status": "triggered",
+                                            "createdAt": "2024-07-11T05:02:10.000Z",
+                                            "resolvedAt": null,
+                                            "updatedAt": "2024-07-11T05:02:10.000Z"
+                                        }
+                                    ],
+                                    "totalPages": 1,
+                                    "currentPage": 1
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid authorization header",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": { "type": "boolean" },
+                                        "message": { "type": "string" },
+                                        "code": { "type": "number" }                                       
+                                    }
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Invalid authorization header",
+                                    "code": 401
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT"
+            }
+        }
+    },
+    "security": [{
+        "bearerAuth": []
+    }]
 }

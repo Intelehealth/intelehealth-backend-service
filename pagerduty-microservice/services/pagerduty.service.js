@@ -20,12 +20,14 @@ const createTicketDatabase = async (incident, user_id, priority) => {
     }
 };
 
-const getUserTicketsDatabase = async (user_id) => {
+const getUserTicketsDatabase = async (user_id, limit, offset) => {
     try {
-        const tickets = await PagerdutyTickets.findAll({
+        const tickets = await PagerdutyTickets.findAndCountAll({
             where: {
                 user_id
             },
+            limit,
+            offset,
             raw: true
         });
         return tickets;

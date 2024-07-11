@@ -10,7 +10,13 @@ const getTicketSchema = Joi.object().keys({
     id: Joi.string().required()
 });
 
+const getTicketsSchema = Joi.object().keys({
+    page: Joi.number().required().min(1),
+    size: Joi.number().required().valid(5,10,50,100)
+});
+
 module.exports = {
     createTicketSchema,
-    getTicketSchema
+    getTicketSchema,
+    getTicketsSchema
 };
