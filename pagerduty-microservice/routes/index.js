@@ -6,6 +6,11 @@ const { authMiddleware } = require("../middlewares/auth.middleware");
 const { createTicketSchema, getTicketSchema } = require('../validators/schemas');
 
 /* GET home page. */
+router.post('/webhook', function(req, res, next) {
+  console.log(JSON.stringify(req.body, null, 4));
+  return res.status(200).json(req.body);
+});
+
 // router.get('/', function(req, res, next) {
 //   res.render('index', { title: 'Express' });
 // });
