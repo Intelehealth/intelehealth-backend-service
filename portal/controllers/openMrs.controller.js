@@ -14,6 +14,7 @@ const {
   _getInProgressVisits,
   _getCompletedVisits,
   setLocationTree,
+  _updateLocationAttributes
 } = require("../services/openmrs.service");
 const { validateParams } = require("../handlers/helper");
 
@@ -252,6 +253,20 @@ const getCompletedVisits = async (req, res, next) => {
     res.json({ status: false, message: error.message });
   }
 };
+const updateLocationAttributes = async (req, res, next) => {
+  try {
+    const locationId = req.params.locationId;
+    const updatedData = req.body;
+    const data = await _updateLocationAttributes(locationId, updatedData);  
+    res.json({
+      data:data,
+      success: true,
+    });
+  } catch (error) {
+    res.statusCode = 422;
+    res.json({ status: false, message: error.message });
+  }
+};
 
 module.exports = {
   getVisitCounts,
@@ -263,4 +278,5 @@ module.exports = {
   getPriorityVisits,
   getInProgressVisits,
   getCompletedVisits,
+  updateLocationAttributes
 };

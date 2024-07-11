@@ -1,4 +1,5 @@
 const { QueryTypes } = require("sequelize");
+const { axiosInstance } = require("../handlers/helper");
 const { getVisitCountV2, locationQuery } = require("../controllers/queries");
 const {
   visit,
@@ -295,6 +296,36 @@ module.exports = (function () {
     } catch (error) {
       throw error;
     }
+  };
+
+  this._updateLocationAttributes   = async (locationId, dataToUpdate) => {
+      let response = await axiosInstance.get(
+        `/openmrs/ws/rest/v1/location/${locationId}/attribute`
+      );
+      for (let key of dataToUpdate) {
+          let attr = response.data.results.find((a) => a.attributeType.uuid === key.attributeType);
+          if (attr) {
+              //update
+              const payload = {
+                attributeType: attr.attributeType.uuid,
+                value:key.value,
+              };
+              const url = `/openmrs/ws/rest/v1/location/${locationId}/attribute/${attr.uuid}`;
+              await axiosInstance.post(url, payload).catch((err) => {});
+            } else {
+              //create
+              const payload = {
+                attributeType: key.attributeType,
+                value:key.value,
+              };
+              const url = `/openmrs/ws/rest/v1/location/${locationId}/attribute`;
+              await axiosInstance.post(url, payload).catch((err) => {});
+            }
+      }
+      let updatedRes = await axiosInstance.get(
+        `/openmrs/ws/rest/v1/location/${locationId}/attribute`
+      );
+      return (updatedRes.data.results);
   };
 
   return this;
