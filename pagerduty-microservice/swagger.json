@@ -1,0 +1,17 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "PagerDuty Microservice",
+        "version": "1.0.0",
+        "description": "PagerDuty Microservice provides API's for incident creation, listing, get incident etc. on JIRA via PagerDuty."
+    },
+    "servers": [
+        {
+            "url": "https://dev.intelehealth.org/api",
+            "description": ""
+        }
+    ],
+    "paths": {
+
+    }
+}
