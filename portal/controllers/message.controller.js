@@ -111,6 +111,7 @@ module.exports = (function () {
             }
           }
         }
+        let notificationResponse = "";
 
         if (!isLiveMessageSent) {
           const userSetting = await user_settings.findOne({
@@ -118,20 +119,30 @@ module.exports = (function () {
           });
           if (userSetting && userSetting.device_reg_token) {
             notificationResponse = await sendCloudNotification({
-              title: "New chat message",
-              body: message,
+              // title: "New chat message",
+              // body: message,
               data: {
+                // ...req.body,
+                title:"New chat message",
+                body: message,
+                message,
+                visitId,
+                patientId,
+                openMrsId,
+                type,
+                fromUser,
+                toUser,
+                patientName,
                 actionType: "TEXT_CHAT",
               },
               regTokens: [userSetting.device_reg_token],
             }).catch((err) => {
               console.log("err: ", err);
             });
+            console.log('notificationResponse: ', notificationResponse);
           }
         }
         
-        let notificationResponse = "";
-
         // Send push notification
         if (appType !== 'webapp') {
           notificationResponse = this.sendMessageNotification(req.body);
