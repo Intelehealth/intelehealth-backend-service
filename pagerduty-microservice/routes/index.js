@@ -4,11 +4,15 @@ const { createTicket, getPriorities, getEscalationPolicies, getTicket, getUserTi
 const { validate } = require("../middlewares/validation.middleware");
 const { authMiddleware } = require("../middlewares/auth.middleware");
 const { createTicketSchema, getTicketSchema, getTicketsSchema } = require('../validators/schemas');
+const { updateTicketStatusDatabase } = require('../services/pagerduty.service');
 
 /* GET home page. */
 router.post('/webhook', function(req, res, next) {
-  console.log(JSON.stringify(req.body, null, 4));
-  return res.status(200).json(req.body);
+ if(process.env.PAGERDUTY_API_TOKEN !== req.headers['x-pagerduty-api-token']) {
+    return res.status(200).send('OK');
+ }
+  updateTicketStatusDatabase(req?.body?.event);
+  return res.status(200).send('OK');
 });
 
 // router.get('/', function(req, res, next) {
