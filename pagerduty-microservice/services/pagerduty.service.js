@@ -55,8 +55,24 @@ const getUserTicketsDatabase = async (user_id, limit, offset) => {
     }
 };
 
+const getUserTicketByincidentIdDatabase = async (incident_id) => {
+    try {
+        const tickets = await PagerdutyTickets.findOne({
+            where: {
+                incident_id: incident_id
+            },
+            raw: true
+        });;
+        return tickets;
+    } catch (error) {
+        throw error;
+    }
+};
+
+
 module.exports = {
     createTicketDatabase,
     getUserTicketsDatabase,
-    updateTicketStatusDatabase
+    updateTicketStatusDatabase,
+    getUserTicketByincidentIdDatabase
 }
