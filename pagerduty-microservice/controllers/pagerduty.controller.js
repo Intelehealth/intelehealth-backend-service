@@ -2,7 +2,8 @@ const { api } = require('@pagerduty/pdjs');
 const pd = api({token: process.env.PAGERDUTY_API_TOKEN});
 const {
     createTicketDatabase,
-    getUserTicketsDatabase
+    getUserTicketsDatabase,
+    getUserTicketByincidentIdDatabase
 } = require("../services/pagerduty.service");
 
 const getPriorities = async (req, res, next) => {
@@ -99,8 +100,14 @@ const createTicket = async (req, res, next) => {
 const getTicket = async (req, res, next) => {
     try {
         const { id } = req.params;
+        const incidentFromDB = await getUserTicketByincidentIdDatabase(id)
         const incident = await pd.get(`/incidents/${id}?include[]=external_references&include[]=body`);
-        return res.status(200).json(incident.data);
+        return res.status(200).json({
+            incident: {
+                ...incident?.data?.incident,
+                jira_ticket_id: incidentFromDB?.jira_ticket_id,
+            }
+        });
     } catch (error) {
         next(error);
     }
