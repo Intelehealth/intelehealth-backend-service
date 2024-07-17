@@ -1,9 +1,11 @@
-const { Configuration, OpenAIApi } = require("openai");
-const configuration = new Configuration({
-    apiKey: process.env.OPEN_AI_KEY,
+const { Configuration, OpenAIApi, OpenAI } = require("openai");
+// const configuration = new Configuration({
+//     apiKey: process.env.OPEN_AI_KEY,
+// });
+const openai = new OpenAI({
+    apiKey: process.env.OPEN_AI_KEY
 });
-const openai = new OpenAIApi(configuration);
-const { gptinputs, gptmodels, Sequelize } = require("../models");
+const { gptinputs, gptmodels, Sequelize, sequelize, chatgptmodels, chatgptprompts } = require("../models");
 const axios = require("axios");
 const readXlsxFile = require('read-excel-file/node');
 const xlsx = require('node-xlsx').default;
@@ -450,6 +452,378 @@ module.exports = (function () {
                 success: true,
                 message: MESSAGE.OPEN_AI.CHAT_COMPLETION_CREATED_SUCCESSFULLY,
                 data: buffer
+            };
+        } catch (error) {
+            if (error.code === null || error.code === undefined) {
+                error.code = 500;
+            }
+            return { code: error.code, success: false, data: error.data, message: error.message };
+        }
+
+    };
+
+    this.getChatGptModels = async function () {
+        try {
+            const response = await chatgptmodels.findAll({
+                where: {
+                    id: {
+                        [Sequelize.Op.not]: null
+                    }
+                },
+                order: [
+                    ['id', 'ASC']
+                ],
+            });
+            return {
+                code: 200,
+                success: true,
+                message: "List of ChatGpt models retreived successfully!",
+                data: response
+            };
+        } catch (error) {
+            if (error.code === null || error.code === undefined) {
+                error.code = 500;
+            }
+            return { code: error.code, success: false, data: error.data, message: error.message };
+        }
+    };
+
+    this.setAsDefaultModelChatGpt = async function (id) {
+        try {
+
+            const response = await chatgptmodels.update(
+                { isDefault: false },
+                {
+                    where: {
+                        id: {
+                            [Sequelize.Op.not]: id
+                        }
+                    }
+                }
+            );
+            const data = await chatgptmodels.update(
+                { isDefault: true },
+                {
+                    where: {
+                        id: id
+                    }
+                }
+            );
+            return {
+                code: 200,
+                success: true,
+                message: "ChatGpt model set as default successfully!",
+                data: data
+            };
+        } catch (error) {
+            if (error.code === null || error.code === undefined) {
+                error.code = 500;
+            }
+            return { code: error.code, success: false, data: error.data, message: error.message };
+        }
+    };
+
+    this.updateChatGptModel = async function (id, temprature, top_p) {
+        try {
+
+            const response = await chatgptmodels.update(
+                {
+                    temprature,
+                    top_p
+                },
+                {
+                    where: {
+                        id: id
+                    }
+                }
+            );
+
+            return {
+                code: 200,
+                success: true,
+                message: "ChatGpt model updated successfully!",
+                data: null
+            };
+        } catch (error) {
+            if (error.code === null || error.code === undefined) {
+                error.code = 500;
+            }
+            return { code: error.code, success: false, data: error.data, message: error.message };
+        }
+    };
+
+    this.getChatGptPrompts = async function () {
+        try {
+            const response = await chatgptprompts.findAll({
+                where: {
+                    id: {
+                        [Sequelize.Op.not]: null
+                    }
+                },
+                order: [
+                    ['id', 'ASC']
+                ],
+            });
+
+            const data = {};
+            response.forEach(e => {
+                data[e.key] = e.value
+            });
+            
+            return {
+                code: 200,
+                success: true,
+                message: "ChatGpt prompts retreived successfully!",
+                data: data
+            };
+        } catch (error) {
+            if (error.code === null || error.code === undefined) {
+                error.code = 500;
+            }
+            return { code: error.code, success: false, data: error.data, message: error.message };
+        }
+    };
+
+    this.updateChatGptPrompts = async function (prompt1, prompt2, prompt3) {
+        try {
+
+            const response1 = await chatgptprompts.update(
+                {
+                    value: prompt1
+                },
+                {
+                    where: {
+                        key: 'prompt1'
+                    }
+                }
+            );
+
+            const response2 = await chatgptprompts.update(
+                {
+                    value: prompt2
+                },
+                {
+                    where: {
+                        key: 'prompt2'
+                    }
+                }
+            );
+
+            const response3 = await chatgptprompts.update(
+                {
+                    value: prompt3
+                },
+                {
+                    where: {
+                        key: 'prompt3'
+                    }
+                }
+            );
+
+            return {
+                code: 200,
+                success: true,
+                message: "ChatGpt prompts updated successfully!",
+                data: null
+            };
+        } catch (error) {
+            if (error.code === null || error.code === undefined) {
+                error.code = 500;
+            }
+            return { code: error.code, success: false, data: error.data, message: error.message };
+        }
+    };
+
+    this.getDiagnosisSuggestions = async function (payload) {
+        try {
+            const prompt = await chatgptprompts.findOne({
+                where: {
+                    key: 'prompt1'
+                }
+            });
+            let gptInput = prompt.value.replace('[case information]', payload);
+
+            const gptModel = await chatgptmodels.findOne({
+                where: {
+                    isDefault: true
+                }
+            });
+            const response = await openai.chat.completions.create({
+                model: gptModel.model,
+                messages: [
+                    {
+                        role: "user",
+                        content: `${gptInput} \nStrictly use below json format to return response:\n { "diagnosis": [{ "name": "<DIAGNOSIS_NAME_HERE>", "description": "<DEATIL_EXPLANATION_FOR_DIAGNOSIS>","rank": "LIKELIHOOD_RANK_HERE" }] }`
+                    }
+                ],
+                temperature: prompt.temperature,
+                top_p: gptModel.top_p
+            });
+            return {
+                code: 200,
+                success: true,
+                message: "Chat completion created successfully!",
+                data: response
+            };
+        } catch (error) {
+            if (error.code === null || error.code === undefined) {
+                error.code = 500;
+            }
+            return { code: error.code, success: false, data: error.data, message: error.message };
+        }
+
+    };
+
+    this.getUpdatedDiagnosisSuggestions = async function (caseInformation, additionalNotes) {
+        try {
+            const prompt = await chatgptprompts.findOne({
+                where: {
+                    key: 'prompt2'
+                }
+            });
+            let gptInput = prompt.value.replace('[case information]', caseInformation).replace('[additional notes]', additionalNotes);
+
+            const gptModel = await chatgptmodels.findOne({
+                where: {
+                    isDefault: true
+                }
+            });
+            const response = await openai.chat.completions.create({
+                model: gptModel.model,
+                messages: [
+                    {
+                        role: "user",
+                        content: `${gptInput} \n Strictly use below json format to return response:\n { "diagnosis": [{ "name": "<DIAGNOSIS_NAME_HERE>", "description": "<DEATIL_EXPLANATION_FOR_DIAGNOSIS>","rank": "LIKELIHOOD_RANK_HERE" }] }`
+                    }
+                ],
+                temperature: prompt.temperature,
+                top_p: gptModel.top_p
+            });
+            return {
+                code: 200,
+                success: true,
+                message: "Chat completion created successfully!",
+                data: response
+            };
+        } catch (error) {
+            if (error.code === null || error.code === undefined) {
+                error.code = 500;
+            }
+            return { code: error.code, success: false, data: error.data, message: error.message };
+        }
+
+    };
+
+    this.getDiagnosticTestAndTreatmentPlan = async function (caseInformation, finalDiagnosis) {
+        try {
+            const prompt = await chatgptprompts.findOne({
+                where: {
+                    key: 'prompt3'
+                }
+            });
+            let gptInput = prompt.value.replace('[case information]', caseInformation).replace('[final diagnosis]', finalDiagnosis);
+
+            const gptModel = await chatgptmodels.findOne({
+                where: {
+                    isDefault: true
+                }
+            });
+            const response = await openai.chat.completions.create({
+                model: gptModel.model,
+                messages: [
+                    {
+                        role: "user",
+                        content: `${gptInput} \n Strictly use below json format to return response:\n { "diagnostic_tests": [{ "test_name": "<DIAGNOSTIC_TEST_NAME_HERE>", "test_need": "<DIAGNOSTIC_TEST_NEED_AND_DESCRIPTION>"}], treatment_plan: [<TREATMENT_PLAN/MEDICATIONS/ADVICE/ADVICE_FOR_REFERAL>] }`
+                    }
+                ],
+                temperature: prompt.temperature,
+                top_p: gptModel.top_p
+            });
+            return {
+                code: 200,
+                success: true,
+                message: "Chat completion created successfully!",
+                data: response
+            };
+        } catch (error) {
+            if (error.code === null || error.code === undefined) {
+                error.code = 500;
+            }
+            return { code: error.code, success: false, data: error.data, message: error.message };
+        }
+
+    };
+
+    this.getDiagnosisSuggestions2 = async function (payload) {
+        try {
+            const prompt = await chatgptprompts.findOne({
+                where: {
+                    key: 'prompt1'
+                }
+            });
+            let gptInput = prompt.value.replace('[case information]', payload);
+
+            const gptModel = await chatgptmodels.findOne({
+                where: {
+                    isDefault: true
+                }
+            });
+            const response = await openai.chat.completions.create({
+                model: gptModel.model,
+                messages: [
+                    {
+                        role: "user",
+                        content: `${gptInput}`
+                    }
+                ],
+                temperature: prompt.temperature,
+                top_p: gptModel.top_p
+            });
+            return {
+                code: 200,
+                success: true,
+                message: "Chat completion created successfully!",
+                data: response
+            };
+        } catch (error) {
+            if (error.code === null || error.code === undefined) {
+                error.code = 500;
+            }
+            return { code: error.code, success: false, data: error.data, message: error.message };
+        }
+
+    };
+
+    this.getUpdatedDiagnosisSuggestions2 = async function (caseInformation, additionalNotes) {
+        try {
+            const prompt = await chatgptprompts.findOne({
+                where: {
+                    key: 'prompt2'
+                }
+            });
+            let gptInput = prompt.value.replace('[case information]', caseInformation).replace('[additional notes]', additionalNotes);
+
+            const gptModel = await chatgptmodels.findOne({
+                where: {
+                    isDefault: true
+                }
+            });
+            const response = await openai.chat.completions.create({
+                model: gptModel.model,
+                messages: [
+                    {
+                        role: "user",
+                        content: `${gptInput}`
+                    }
+                ],
+                temperature: prompt.temperature,
+                top_p: gptModel.top_p
+            });
+            return {
+                code: 200,
+                success: true,
+                message: "Chat completion created successfully!",
+                data: response
             };
         } catch (error) {
             if (error.code === null || error.code === undefined) {
