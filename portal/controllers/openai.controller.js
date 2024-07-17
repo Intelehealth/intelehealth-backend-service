@@ -1,6 +1,28 @@
 const { MESSAGE } = require("../constants/messages");
 const { RES } = require("../handlers/helper");
-const { createCompletion, createCompletion2, translateExcel, getGTPInputs, addGTPInput, setAsDefaultGTPInput, deleteGPTInput, getGPTModels, addGPTModel, setAsDefaultGPTModel, deleteGPTModel } = require("../services/openai.service");
+const { 
+  createCompletion, 
+  createCompletion2, 
+  translateExcel, 
+  getGTPInputs, 
+  addGTPInput, 
+  setAsDefaultGTPInput, 
+  deleteGPTInput, 
+  getGPTModels, 
+  addGPTModel, 
+  setAsDefaultGPTModel, 
+  deleteGPTModel,
+  getChatGptModels,
+  setAsDefaultModelChatGpt,
+  updateChatGptModel,
+  getChatGptPrompts,
+  updateChatGptPrompts,
+  getDiagnosisSuggestions,
+  getUpdatedDiagnosisSuggestions,
+  getDiagnosisSuggestions2,
+  getUpdatedDiagnosisSuggestions2,
+  getDiagnosticTestAndTreatmentPlan
+ } = require("../services/openai.service");
 const { logStream } = require("../logger/index");
 
 module.exports = (function () {
@@ -476,6 +498,400 @@ module.exports = (function () {
         }
       } catch (error) {
         logStream("error", error.message);
+        if (error.code === null || error.code === undefined) {
+          error.code = 500;
+        }
+        RES(
+          res,
+          { success: false, data: error.data, message: error.message },
+          error.code
+        );
+      }
+    };
+
+    /**
+     * 
+     * @param {*} req
+     * @param {*} res
+     */
+    this.getChatGptModels = async (req, res) => {
+      try {
+        const data = await getChatGptModels();
+        RES(
+          res,
+          {
+            success: data.success,
+            message: data.message,
+            data: data.data,
+          },
+          data.code
+        );
+      } catch (error) {
+        if (error.code === null || error.code === undefined) {
+          error.code = 500;
+        }
+        RES(
+          res,
+          { success: false, data: error.data, message: error.message },
+          error.code
+        );
+      }
+    };
+
+    /**
+     * 
+     * @param {*} req
+     * @param {*} res
+     */
+    this.setAsDefaultModelChatGpt = async (req, res) => {
+      try {
+        const { id } = req.body;
+        if (id) {
+          const data = await setAsDefaultModelChatGpt(id);
+          RES(
+            res,
+            {
+              success: data.success,
+              message: data.message,
+              data: data.data,
+            },
+            data.code
+          );
+        } else {
+          RES(
+            res,
+            {
+              success: false,
+              message: "Bad request! Invalid arguments.",
+              data: null,
+            },
+            400
+          );
+        }
+      } catch (error) {
+        if (error.code === null || error.code === undefined) {
+          error.code = 500;
+        }
+        RES(
+          res,
+          { success: false, data: error.data, message: error.message },
+          error.code
+        );
+      }
+    };
+
+    /**
+     * 
+     * @param {*} req
+     * @param {*} res
+     */
+    this.updateChatGptModel = async (req, res) => {
+      try {
+        const { id, temprature, top_p } = req.body;
+        if (id && temprature && top_p) {
+          const data = await updateChatGptModel(id, temprature, top_p);
+          RES(
+            res,
+            {
+              success: data.success,
+              message: data.message,
+              data: data.data,
+            },
+            data.code
+          );
+        } else {
+          RES(
+            res,
+            {
+              success: false,
+              message: "Bad request! Invalid arguments.",
+              data: null,
+            },
+            400
+          );
+        }
+      } catch (error) {
+        if (error.code === null || error.code === undefined) {
+          error.code = 500;
+        }
+        RES(
+          res,
+          { success: false, data: error.data, message: error.message },
+          error.code
+        );
+      }
+    };
+
+    /**
+     * 
+     * @param {*} req
+     * @param {*} res
+     */
+    this.getChatGptPrompts = async (req, res) => {
+      try {
+        const data = await getChatGptPrompts();
+        RES(
+          res,
+          {
+            success: data.success,
+            message: data.message,
+            data: data.data,
+          },
+          data.code
+        );
+      } catch (error) {
+        if (error.code === null || error.code === undefined) {
+          error.code = 500;
+        }
+        RES(
+          res,
+          { success: false, data: error.data, message: error.message },
+          error.code
+        );
+      }
+    };
+
+    /**
+     * 
+     * @param {*} req
+     * @param {*} res
+     */
+    this.updateChatGptPrompts = async (req, res) => {
+      try {
+        const { prompt1, prompt2, prompt3 } = req.body;
+        if (prompt1 && prompt2 && prompt3) {
+          const data = await updateChatGptPrompts(prompt1, prompt2, prompt3);
+          RES(
+            res,
+            {
+              success: data.success,
+              message: data.message,
+              data: data.data,
+            },
+            data.code
+          );
+        } else {
+          RES(
+            res,
+            {
+              success: false,
+              message: "Bad request! Invalid arguments.",
+              data: null,
+            },
+            400
+          );
+        }
+      } catch (error) {
+        if (error.code === null || error.code === undefined) {
+          error.code = 500;
+        }
+        RES(
+          res,
+          { success: false, data: error.data, message: error.message },
+          error.code
+        );
+      }
+    };
+
+    /**
+     * 
+     * @param {*} req
+     * @param {*} res
+     */
+    this.getDiagnosisSuggestions = async (req, res) => {
+      try {
+        const { payload } = req.body;
+        if (payload) {
+          const data = await getDiagnosisSuggestions(payload);
+          RES(
+            res,
+            {
+              success: data.success,
+              message: data.message,
+              data: data.data,
+            },
+            data.code
+          );
+        } else {
+          RES(
+            res,
+            {
+              success: false,
+              message: "Bad request! Invalid arguments.",
+              data: null,
+            },
+            400
+          );
+        }
+      } catch (error) {
+        if (error.code === null || error.code === undefined) {
+          error.code = 500;
+        }
+        RES(
+          res,
+          { success: false, data: error.data, message: error.message },
+          error.code
+        );
+      }
+    };
+
+    /**
+     * 
+     * @param {*} req
+     * @param {*} res
+     */
+    this.getUpdatedDiagnosisSuggestions = async (req, res) => {
+      try {
+        const { caseInformation, additionalNotes } = req.body;
+        if (caseInformation && additionalNotes) {
+          const data = await getUpdatedDiagnosisSuggestions(caseInformation, additionalNotes);
+          RES(
+            res,
+            {
+              success: data.success,
+              message: data.message,
+              data: data.data,
+            },
+            data.code
+          );
+        } else {
+          RES(
+            res,
+            {
+              success: false,
+              message: "Bad request! Invalid arguments.",
+              data: null,
+            },
+            400
+          );
+        }
+      } catch (error) {
+        if (error.code === null || error.code === undefined) {
+          error.code = 500;
+        }
+        RES(
+          res,
+          { success: false, data: error.data, message: error.message },
+          error.code
+        );
+      }
+    };
+
+    /**
+     * 
+     * @param {*} req
+     * @param {*} res
+     */
+    this.getDiagnosticTestAndTreatmentPlan = async (req, res) => {
+      try {
+        const { caseInformation, finalDiagnosis } = req.body;
+        if (caseInformation && finalDiagnosis) {
+          const data = await getDiagnosticTestAndTreatmentPlan(caseInformation, finalDiagnosis);
+          RES(
+            res,
+            {
+              success: data.success,
+              message: data.message,
+              data: data.data,
+            },
+            data.code
+          );
+        } else {
+          RES(
+            res,
+            {
+              success: false,
+              message: "Bad request! Invalid arguments.",
+              data: null,
+            },
+            400
+          );
+        }
+      } catch (error) {
+        if (error.code === null || error.code === undefined) {
+          error.code = 500;
+        }
+        RES(
+          res,
+          { success: false, data: error.data, message: error.message },
+          error.code
+        );
+      }
+    };
+
+    /**
+     * 
+     * @param {*} req
+     * @param {*} res
+     */
+    this.getDiagnosisSuggestions2 = async (req, res) => {
+      try {
+        const { payload } = req.body;
+        if (payload) {
+          const data = await getDiagnosisSuggestions2(payload);
+          RES(
+            res,
+            {
+              success: data.success,
+              message: data.message,
+              data: data.data,
+            },
+            data.code
+          );
+        } else {
+          RES(
+            res,
+            {
+              success: false,
+              message: "Bad request! Invalid arguments.",
+              data: null,
+            },
+            400
+          );
+        }
+      } catch (error) {
+        if (error.code === null || error.code === undefined) {
+          error.code = 500;
+        }
+        RES(
+          res,
+          { success: false, data: error.data, message: error.message },
+          error.code
+        );
+      }
+    };
+
+    /**
+     * 
+     * @param {*} req
+     * @param {*} res
+     */
+    this.getUpdatedDiagnosisSuggestions2 = async (req, res) => {
+      try {
+        const { caseInformation, additionalNotes } = req.body;
+        if (caseInformation && additionalNotes) {
+          const data = await getUpdatedDiagnosisSuggestions2(caseInformation, additionalNotes);
+          RES(
+            res,
+            {
+              success: data.success,
+              message: data.message,
+              data: data.data,
+            },
+            data.code
+          );
+        } else {
+          RES(
+            res,
+            {
+              success: false,
+              message: "Bad request! Invalid arguments.",
+              data: null,
+            },
+            400
+          );
+        }
+      } catch (error) {
         if (error.code === null || error.code === undefined) {
           error.code = 500;
         }
