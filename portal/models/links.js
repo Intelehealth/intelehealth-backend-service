@@ -16,6 +16,7 @@ module.exports = (sequelize, DataTypes) => {
       hash: DataTypes.STRING,
       link: DataTypes.STRING,
       otp: DataTypes.STRING,
+      type: DataTypes.STRING,
     },
     {
       sequelize,
