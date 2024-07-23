@@ -2,6 +2,7 @@ const { user_settings } = require("../models");
 const { RES, sendPrescriptionCloudNotification } = require("../handlers/helper");
 const { MESSAGE } = require("../constants/messages");
 const { logStream } = require("../logger/index");
+const { createNotification } = require("../services/notifications.service");
 Date.prototype.addMinutes = function (m) {
   this.setTime(this.getTime() + m * 60000);
   return this;
@@ -74,7 +75,7 @@ const setUserSettings = async ({ body }, res) => {
  * @param {request} req
  * @param {response} res
  */
-const getNotificationStatus = async ( req, res) => {
+const getNotificationStatus = async (req, res) => {
   try {
     logStream('debug', 'API call', 'Get Notification Status');
     const { uuid } = req.params;
@@ -102,9 +103,9 @@ const getNotificationStatus = async ( req, res) => {
         {
           success: true,
           message: 'Notification status retrieved successfully!',
-          data: { 
-            notification_status: user.notification, 
-            snooze_till: user.snooze_till 
+          data: {
+            notification_status: user.notification,
+            snooze_till: user.snooze_till
           }
         },
         200
@@ -112,8 +113,8 @@ const getNotificationStatus = async ( req, res) => {
     } else {
       logStream('debug', 'Bad Request', 'Get Notification Status');
       RES(
-        res, 
-        { success: false, message: MESSAGE.COMMON.BAD_REQUEST, data: null }, 
+        res,
+        { success: false, message: MESSAGE.COMMON.BAD_REQUEST, data: null },
         400
       );
     }
@@ -135,7 +136,7 @@ const getNotificationStatus = async ( req, res) => {
  * @param {request} req
  * @param {response} res
  */
-const toggleNotificationStatus = async ( req, res) => {
+const toggleNotificationStatus = async (req, res) => {
   try {
     logStream('debug', 'API call', 'Toggle Notification Status');
     const { uuid } = req.params;
@@ -168,8 +169,8 @@ const toggleNotificationStatus = async ( req, res) => {
     } else {
       logStream('debug', 'Bad Request', 'Toggle Notification Status');
       RES(
-        res, 
-        { success: false, message: MESSAGE.COMMON.BAD_REQUEST, data: null }, 
+        res,
+        { success: false, message: MESSAGE.COMMON.BAD_REQUEST, data: null },
         400
       );
     }
@@ -191,7 +192,7 @@ const toggleNotificationStatus = async ( req, res) => {
  * @param {request} req
  * @param {response} res
  */
-const snoozeNotification = async ( req, res) => {
+const snoozeNotification = async (req, res) => {
   try {
     logStream('debug', 'API call', 'Snooze Notification');
     const { uuid } = req.params;
@@ -245,12 +246,12 @@ const snoozeNotification = async ( req, res) => {
           200
         );
       }
-      
+
     } else {
       logStream('debug', 'Bad Request', 'Snooze Notification');
       RES(
-        res, 
-        { success: false, message: MESSAGE.COMMON.BAD_REQUEST, data: null }, 
+        res,
+        { success: false, message: MESSAGE.COMMON.BAD_REQUEST, data: null },
         400
       );
     }
@@ -279,15 +280,22 @@ const notifyApp = async (req, res, next) => {
       let notficationObj = {
         title: req.body.title,
         body: req.body.body,
-        regTokens: [userSetting.device_reg_token],
+        regTokens: [userSetting?.device_reg_token],
       };
       if (req.body.data) notficationObj.data = req.body.data;
-      if (req.body.title) notficationObj.title = req.body.title;
-      if (req.body.body) notficationObj.body = req.body.body;
-
-      data = await sendPrescriptionCloudNotification(notficationObj).catch((err) => {
-        logStream("error", err.message);
-      });
+     
+      data = await sendPrescriptionCloudNotification(notficationObj)
+        .then((res) => {
+          createNotification({
+            user_uuid: req.params.userId,
+            title: notficationObj.title,
+            description: notficationObj.body,
+            payload: notficationObj
+          })
+        })
+        .catch((err) => {
+          logStream("error", err.message);
+        });
     }
     logStream('debug', `Success`, 'Notify App');
     res.json({

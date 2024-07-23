@@ -64,15 +64,17 @@ where
           if (token) {
             logStream('debug','Success', 'Send Cancel Notification');
             await sendCloudNotification({
-              title:
-                locale === "ru"
-                  ? `Запись на прием за ${patientName}(${slotTime}) отменена.`
-                  : `Appointment for ${patientName}(${slotTime}) has been cancelled.`,
-              body:
-                locale === "ru"
-                  ? `Причина: В связи с изменением графика врача`
-                  : `Reason : Due to doctor's change in schedule.`,
-              regTokens: [token],
+              notification: {
+                title:
+                  locale === "ru"
+                    ? `Запись на прием за ${patientName}(${slotTime}) отменена.`
+                    : `Appointment for ${patientName}(${slotTime}) has been cancelled.`,
+                body:
+                  locale === "ru"
+                    ? `Причина: В связи с изменением графика врача`
+                    : `Reason : Due to doctor's change in schedule.`,
+              },
+              regTokens: [token]
             }).catch((err) => { 
               logStream("error", err.message);
             });
