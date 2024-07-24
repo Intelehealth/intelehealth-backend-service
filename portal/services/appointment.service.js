@@ -19,7 +19,7 @@ module.exports = (function () {
   const DATE_FORMAT = "DD/MM/YYYY";
   const TIME_FORMAT = "LT";
   const FILTER_TIME_DATE_FORMAT = "DD/MM/YYYY HH:mm:ss";
-  // const TIMEZONE = config.timezone || "Asia/Kolkata";
+  const TIMEZONE = process.env.TIMEZONE || "Asia/Kolkata";
 
   const sendCancelNotification = async ({ id, slotTime, patientName }) => {
     const query = `

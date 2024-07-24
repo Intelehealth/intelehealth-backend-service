@@ -84,6 +84,7 @@ const getLocationQuery = () => {
   ltm.location_id as id,
   ltm.location_tag_id as tagId,
   l.name as name,
+  l.description as description, 
   l.parent_location as parent,
   lt.name as tag,
   l.uuid as uuid
@@ -156,7 +157,8 @@ const getVisitCounts = async (req, res, next) => {
       logStream("error", err.message);
       throw err;
     });
-    let states = data.filter((d) => d.tag === "State");
+    const sortedResult = data.sort((a,b)=> { return a.description?.localeCompare(b.description, 'ar')});
+    let states = sortedResult.filter((d) => d.tag === "State");
     if (states.length) {
       states = states.map((s) => {
         let districts = data.filter(

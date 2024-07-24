@@ -6,6 +6,10 @@
 
 require("dotenv").config();
 let app = require("../app");
+var debug = require("debug")("mindmapbackend:server");
+var http = require("http");
+var https = require("https");
+var fs = require('fs');
 
 let server;
 const isDevelopment = process.env.NODE_ENV !== "production";

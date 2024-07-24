@@ -58,18 +58,16 @@ router.post("/subscribe", async (req, res) => {
   }
 });
 
-//for demo server
+//for production server
 const vapidKeys = {
-  publicKey:
-    "BJJvSw6ltFPN5GDxIOwbRtJUBBJp2CxftaRNGbntvE0kvzpe05D9zKr-SknKvNBihXDoyd09KuHrWwC3lFlTe54",
-  privateKey: "7A59IAQ78P3qbnLL0uICspWr2BJ8II1FnxTatMNelkI",
+  publicKey: "BMGYasq0YzQ4B9RmKuaMJY3hWcOmN-3BMZfy4e9jXXUp8w7tcoNikwXAkS86Eb9nWANm_gU7CyOaVD9zMZ0QU2w",
+  privateKey: "_wx2SO9yaLDGVBVZDeY0v85CaxwiKZGWzpa0CugUIss",
   mailTo: "mailto:support@intelehealth.org",
 };
 // For testing server
 // const vapidKeys = {
-//     publicKey:
-//         "BAfolLQ7VpRSmWm6DskG-YyG3jjzq5z0rjKEl5HXLCw2W8CKS9cVmifnCAWnrlJMETgbgjuV1pWKLUf8zlbojH0",
-//     privateKey: "kCDISA3-UoW0pEx_gSTm4VtQASbvza-uw27Mq1x2wEc",
+//     publicKey: "BJJvSw6ltFPN5GDxIOwbRtJUBBJp2CxftaRNGbntvE0kvzpe05D9zKr-SknKvNBihXDoyd09KuHrWwC3lFlTe54",
+//     privateKey: "7A59IAQ78P3qbnLL0uICspWr2BJ8II1FnxTatMNelkI",
 //     mailTo: "mailto:support@intelehealth.org"
 // };
 
