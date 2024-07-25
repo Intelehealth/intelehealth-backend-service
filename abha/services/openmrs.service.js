@@ -1,3 +1,4 @@
+const { openmrsAxiosInstance } = require('../handlers/axiosHelper');
 const { convertDateToDDMMYYYY } = require('../handlers/utilityHelper');
 const { logStream } = require('../logger');
 const { patient_identifier, visit, Sequelize, encounter, person_name, person, person_attribute, visit_attribute, patient } = require('../openmrs_models');
@@ -192,7 +193,7 @@ module.exports = (function () {
   */
   this.getVisitByUUID = async (visitUUID) => {
     try {
-      const url = `/ws/rest/v1/visit/${visitUUID}?v=custom:(location:(display),uuid,display,startDatetime,dateCreated,stopDatetime,encounters:(display,uuid,encounterDatetime,encounterType:(display),obs:(display,uuid,value,obsDatetime,concept:(uuid,display,id)),encounterProviders:(display,provider:(uuid,providerId,attributes,person:(uuid,display,gender,age,dateCreated,dateChanged)))),patient:(uuid,dateCreated,dateChanged,identifiers:(identifier,identifierType:(name,uuid,display)),attributes,person:(display,gender,age)),attributes)`;
+      const url = `/ws/rest/v1/visit/${visitUUID}?v=custom:(location:(display),uuid,display,startDatetime,dateCreated,stopDatetime,encounters:(display,uuid,encounterDatetime,encounterType:(display),obs:(display,uuid,value,obsDatetime,concept:(uuid,display,id)),encounterProviders:(display,provider:(uuid,providerId,attributes,person:(uuid,display,gender,age,dateCreated,dateChanged)))),patient:(uuid,dateCreated,dateChanged,identifiers:(identifier,identifierType:(name,uuid,display)),attributes,person:(display,gender,age,birthdate,preferredAddress:(cityVillage,address1,address2),preferredName:(givenName,middleName,familyName),attributes)),attributes)`;
       const visit = await openmrsAxiosInstance.get(url);
       return {
         success: true,

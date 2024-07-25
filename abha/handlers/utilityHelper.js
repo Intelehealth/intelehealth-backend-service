@@ -67,13 +67,18 @@ function getDoctorDetail(encounters) {
     const encounter = encounters?.find((encounter) => ["Visit Complete", "Visit Note"].includes(encounter?.encounterType?.display));
     const doctor = encounter?.encounterProviders?.[0]?.provider;
     if (!doctor) return;
+    
     return {
+        "encounterDatetime": encounter?.encounterDatetime,
         "name": doctor?.person?.display ?? '',
         "gender": getGender(doctor?.person?.gender),
         "practitioner_id": doctor?.uuid ?? '',
+        "person_uuid": doctor?.person?.uuid ?? '',
+        "typeOfProfession": doctor?.typeOfProfession,
         "telecom": getAttributeByName(doctor?.attributes, 'phoneNumber')?.value ?? '',
         "dateUpdated": doctor?.person?.dateUpdated ?? doctor?.person?.dateCreated,
-        "registrationNumber": getAttributeByName(doctor?.attributes, 'registrationNumber')?.value ?? ''
+        "registrationNumber": getAttributeByName(doctor?.attributes, 'registrationNumber')?.value ?? '',
+        "signature": getAttributeByName(doctor?.attributes, 'signature')?.value ?? ''
     }
 }
 
@@ -724,9 +729,6 @@ function getEncountersFHIBundle(encounters, practitioner, patient) {
                 } else if (obs.concept.display === VISIT_TYPES.FAMILY_HISTORY) {
                     medicalFamilyHistoryStructure(obs, familyHistoryData, practitioner, patient)
                 }
-                // else if (obs.concept.display === VISIT_TYPES.COMPLEX_IMAGE) {
-                //     documentReferences = appendStr(documentReferences, `https://${process.env.DOMAIN}/openmrs/ws/rest/v1/obs/${obs.uuid}/value`)
-                // }
             };
         } else if (enc.encounterType.display === VISIT_TYPES.VITALS) {
             for (const obs of enc.obs) {
@@ -762,11 +764,6 @@ function getEncountersFHIBundle(encounters, practitioner, patient) {
                 }
             }
         }
-        // else if (enc.encounterType.display === VISIT_TYPES.ATTACHMENT_UPLOAD) {
-        //     enc.obs.forEach((obs) => {
-        //         documentReferences = appendStr(documentReferences, `https://${process.env.DOMAIN}/openmrs/ws/rest/v1/obs/${obs.uuid}/value`)
-        //     })
-        // }
     };
 
     return {
@@ -782,13 +779,15 @@ function getEncountersFHIBundle(encounters, practitioner, patient) {
 }
 
 function formatCareContextFHIBundle(response) {
+    const practitioner = getDoctorDetail(response?.encounters);
+    if (!practitioner) return;
+    
     const patientTelecom = getAttributeByName(response?.patient?.attributes, 'Telephone Number');
     const openMRSID = getIdentifierByName(response?.patient?.identifiers, 'OpenMRS ID')?.identifier;
     const abhaNumber = getIdentifierByName(response?.patient?.identifiers, 'Abha Number')?.identifier;
     const abhaAddress = getIdentifierByName(response?.patient?.identifiers, 'Abha Address')?.identifier;
-    const practitioner = getDoctorDetail(response?.encounters);
-    if (!practitioner) return;
     const patient = response?.patient;
+    
     const { medications, cheifComplaints, medicalHistory, familyHistory, physicalExamination, serviceRequest, followUp, referrals } = getEncountersFHIBundle(response?.encounters, practitioner, patient, response?.startDatetime);
 
     const sections = [];
@@ -799,7 +798,7 @@ function formatCareContextFHIBundle(response) {
     if (physicalExamination?.section) sections.push(physicalExamination?.section)
     if (serviceRequest?.section) sections.push(serviceRequest?.section)
     if (followUp?.section) sections.push(followUp?.section)
-    if (referrals?.section) sections.push(followUp?.section)
+    if (referrals?.section) sections.push(referrals?.section)
 
     return {
         "identifier": {
