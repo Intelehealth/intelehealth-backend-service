@@ -299,34 +299,46 @@ module.exports = (function () {
   };
 
   this._updateLocationAttributes   = async (locationId, dataToUpdate) => {
-      let response = await axiosInstance.get(
-        `/openmrs/ws/rest/v1/location/${locationId}/attribute`
-      );
+    let response;
       for (let key of dataToUpdate) {
-          let attr = response.data.results.find((a) => a.attributeType.uuid === key.attributeType);
-          if (attr) {
-              //update
-              const payload = {
-                attributeType: attr.attributeType.uuid,
-                value:key.value,
-              };
-              const url = `/openmrs/ws/rest/v1/location/${locationId}/attribute/${attr.uuid}`;
-              await axiosInstance.post(url, payload).catch((err) => {});
-            } else {
-              //create
-              const payload = {
-                attributeType: key.attributeType,
-                value:key.value,
-              };
-              const url = `/openmrs/ws/rest/v1/location/${locationId}/attribute`;
-              await axiosInstance.post(url, payload).catch((err) => {});
-            }
+        if(key.secondaryVillageId) {
+          response = await axiosInstance.get(
+            `/openmrs/ws/rest/v1/location/${key.secondaryVillageId}/attribute`
+          );
+          await saveLocationAttributes(response, key, key.secondaryVillageId);
+        } else{
+           response = await axiosInstance.get(
+            `/openmrs/ws/rest/v1/location/${locationId}/attribute`
+          );
+          await saveLocationAttributes(response, key, locationId);
+        }
       }
       let updatedRes = await axiosInstance.get(
         `/openmrs/ws/rest/v1/location/${locationId}/attribute`
       );
       return (updatedRes.data.results);
   };
+
+  async function saveLocationAttributes(response, key, locationId) {
+    let attr = response.data.results.find((a) => a.attributeType.uuid === key.attributeType);
+    if (attr) {
+      //update
+      const payload = {
+        attributeType: attr.attributeType.uuid,
+        value: key.value,
+      };
+      const url = `/openmrs/ws/rest/v1/location/${locationId}/attribute/${attr.uuid}`;
+      await axiosInstance.post(url, payload).catch((err) => { });
+    } else {
+      //create
+      const payload = {
+        attributeType: key.attributeType,
+        value: key.value,
+      };
+      const url = `/openmrs/ws/rest/v1/location/${locationId}/attribute`;
+      await axiosInstance.post(url, payload).catch((err) => { });
+    }
+  }
 
   return this;
 })();
