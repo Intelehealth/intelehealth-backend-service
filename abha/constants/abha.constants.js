@@ -67,7 +67,11 @@ const VISIT_TYPES = {
     ADDITIONAL_COMMENTS: 'Additional Comments',
     FOLLOW_UP_VISIT: 'Follow up visit',
     ATTACHMENT_UPLOAD: 'Attachment Upload',
-    COMPLEX_IMAGE: "Complex Image"
+    COMPLEX_IMAGE: "Complex Image",
+    VISIT_COMPLETE: "Visit Complete",
+    DOCTOR_DETIALS: "Doctor details",
+    ADDITIONAL_INSTURCTION: 'additionalInstruction',
+    ABDOMEN_EXAMINATION: 'abdomen_examination'
 };
 
 
