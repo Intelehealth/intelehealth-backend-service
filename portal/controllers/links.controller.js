@@ -17,13 +17,16 @@ module.exports = (function () {
   this.shortLink = async (req, res) => {
     try {
       logStream('debug', 'API call', 'Create Short Link');
-      const { link } = req.body;
+      let { link, type } = req.body;
+
+      if(!type) type = "presctiption-verification";
+
       if (!link) {
         RES(res, { success: false, message: MESSAGE.LINK.PLEASE_PASS_LINK }, 422);
         return;
       }
       const linkAlreadyExist = await links.findOne({
-        where: { link },
+        where: { link, type },
         raw: true,
       });
       if (linkAlreadyExist) {
@@ -44,7 +47,7 @@ module.exports = (function () {
         }));
         tried++;
       }
-      const data = await links.create({ link, hash });
+      const data = await links.create({ link, hash, type });
       logStream('debug', 'Success', 'Create Short Link');
       RES(res, { success: true, data });
     } catch (error) {
@@ -65,7 +68,7 @@ module.exports = (function () {
 
       const data = await links.findOne({
         where: { hash },
-        attributes: ["link"],
+        attributes: ["link","type"],
         raw: true,
       });
       if (!data) {
