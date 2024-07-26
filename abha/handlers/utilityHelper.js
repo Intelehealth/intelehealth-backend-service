@@ -970,7 +970,7 @@ function formatCareContextFHIBundle(response) {
                         }
                     ],
                     "id": patient?.uuid,
-                    "birthDate": patient?.person?.birthDate,
+                    "birthDate": patient?.person?.birthdate,
                     "resourceType": "Patient"
                 },
                 "fullUrl": `Patient/${patient?.uuid}`
