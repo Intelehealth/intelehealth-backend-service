@@ -12,7 +12,6 @@ const openmrsService = require("../services/openmrs.service");
 const { convertDateToDDMMYYYY, handleError, formatCareContextFHIBundle } = require("../handlers/utilityHelper");
 const { abdm_visit_status } = require("../models");
 
-
 module.exports = (function () {
 
   /**
@@ -235,6 +234,9 @@ module.exports = (function () {
       return res.json(apiResponse.data)
 
     } catch (error) {
+      if(error?.response?.data?.otpValue) {
+        error.message = error?.response?.data?.otpValue
+      }
       logStream("error", JSON.stringify(error));
       next(error);
     }
@@ -303,6 +305,9 @@ module.exports = (function () {
       return res.json(apiResponse.data)
 
     } catch (error) {
+      if(error?.response?.data?.otpValue) {
+        error.message = error?.response?.data?.otpValue
+      }
       logStream("error", JSON.stringify(error));
       next(error);
     }
@@ -561,12 +566,14 @@ module.exports = (function () {
           }
         }
       );
-
       logStream("debug", apiResponse.data, 'Enroll By Aadhar - Response');
 
       return res.json(apiResponse.data)
 
     } catch (error) {
+      if(error?.response?.data?.otpValue) {
+        error.message = error?.response?.data?.otpValue
+      }
       logStream("error", JSON.stringify(error));
       next(error);
     }
@@ -956,7 +963,7 @@ module.exports = (function () {
       const visitUUID = req.body.visitUUID ?? req.params.visitUUID;
       const response = await openmrsService.getVisitByUUID(visitUUID);
       if (!response.success) throw response;
-      const formattedResponse = formatCareContextFHIBundle(response?.data);
+      const formattedResponse = await formatCareContextFHIBundle(response?.data);
       if (!formattedResponse) throw new Error('Visit is not shared the prescription yet!')
       res.json(formattedResponse);
       return;
