@@ -566,7 +566,6 @@ module.exports = (function () {
           }
         }
       );
-      console.log(JSON.stringify(apiResponse.data, null, 4))
       logStream("debug", apiResponse.data, 'Enroll By Aadhar - Response');
 
       return res.json(apiResponse.data)
