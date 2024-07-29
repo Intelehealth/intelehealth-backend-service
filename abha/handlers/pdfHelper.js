@@ -158,6 +158,9 @@ function getPatientRegField(patient, fieldName) {
         case 'Social Category':
             value = getAttributeByName(patient?.person?.attributes, 'Caste');
             break;
+        case 'Abha Address': 
+            value = getIdentifierByName(patient?.identifiers, 'Abha Address');
+            break;
         case 'Corresponding Address 1':
             value = patient?.person?.preferredAddress?.address1;
             break;
@@ -336,7 +339,8 @@ function getOtherInfo(patient) {
         'Education',
         'National ID',
         'Economic Category',
-        'Social Category'
+        'Social Category',
+        'Abha Address'
     ].forEach((v) => {
         const value = getPatientRegField(patient, v)
         if (value != 'NA' && value) {
