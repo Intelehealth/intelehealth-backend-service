@@ -1,6 +1,7 @@
 const { OBSERVATION_TYPE, VISIT_TYPES, RELATIONS } = require("../constants/abha.constants");
 const { uuid } = require('uuidv4');
 const { logStream } = require("../logger");
+const { downloadPrescription } = require("./pdfHelper");
 
 function convertDateToDDMMYYYY(inputFormat) {
     if (!inputFormat) return undefined
@@ -778,7 +779,56 @@ function getEncountersFHIBundle(encounters, practitioner, patient) {
     }
 }
 
-function formatCareContextFHIBundle(response) {
+
+async function prescriptionDocumentReferenceStructure(response, doctorDetail) {
+    const result = await downloadPrescription(response, doctorDetail);
+    if(!result || !result?.success || !result?.content) return null;
+    const uniquId = uuid();
+    return {
+        "fullUrl": uniquId,
+        "resource": {
+            "resourceType": "DocumentReference",
+            "id": uniquId,
+            "meta": {
+                "profile": [
+                    "https://nrces.in/ndhm/fhir/r4/StructureDefinition/DocumentReference"
+                ]
+            },
+            "text": {
+                "status": "generated",
+                "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p><b>Generated Narrative: DocumentReference</b></p></div>"
+            },
+            "status": "current",
+            "docStatus": "final",
+            "type": {
+                "coding": [
+                    {
+                        "system": "http://snomed.info/sct",
+                        "code": "4241000179101",
+                        "display": "Laboratory report"
+                    }
+                ],
+                "text": "Prescription Report"
+            },
+            "subject": {
+                "reference": `Patient/${response?.patient?.uuid}`,
+                "display": "Patient"
+            },
+            "content": [
+                {
+                    "attachment": {
+                        "contentType": "application/pdf",
+                        "language": "en-IN",
+                        "data": result?.content,
+                        "title": "Prescription Report",
+                        "creation": convertDataToISO(response?.startDatetime)
+                    }
+                }
+            ]
+        }
+    }
+}
+async function formatCareContextFHIBundle(response) {
     const practitioner = getDoctorDetail(response?.encounters);
     if (!practitioner) return;
     
@@ -789,6 +839,7 @@ function formatCareContextFHIBundle(response) {
     const patient = response?.patient;
     
     const { medications, cheifComplaints, medicalHistory, familyHistory, physicalExamination, serviceRequest, followUp, referrals } = getEncountersFHIBundle(response?.encounters, practitioner, patient, response?.startDatetime);
+    const prescriptionDocumentReference = await prescriptionDocumentReferenceStructure(response, practitioner)
 
     const sections = [];
     if (medications?.section) sections.push(medications?.section)
@@ -970,7 +1021,7 @@ function formatCareContextFHIBundle(response) {
                         }
                     ],
                     "id": patient?.uuid,
-                    "birthDate": patient?.person?.birthdate,
+                    "birthDate": patient?.person?.birthdate ? new Date(patient?.person?.birthdate).toISOString().slice(0, 10) : null,
                     "resourceType": "Patient"
                 },
                 "fullUrl": `Patient/${patient?.uuid}`
@@ -1011,7 +1062,8 @@ function formatCareContextFHIBundle(response) {
                     "status": "finished"
                 },
                 "fullUrl": `Encounter/${response?.encounters[0]?.uuid}`
-            }
+            },
+            prescriptionDocumentReference
         ],
         "meta": {
             "lastUpdated": convertDataToISO(response?.encounters[0]?.encounterDatetime ?? response?.startDatetime),
