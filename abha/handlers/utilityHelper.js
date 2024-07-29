@@ -1021,7 +1021,7 @@ async function formatCareContextFHIBundle(response) {
                         }
                     ],
                     "id": patient?.uuid,
-                    "birthDate": patient?.person?.birthdate ? new Date(patient?.person?.birthdate).toISOString().slice(0, 10) : null,
+                    "birthDate": patient?.person?.birthdate ? patient?.person?.birthdate?.slice(0, 10) : null,
                     "resourceType": "Patient"
                 },
                 "fullUrl": `Patient/${patient?.uuid}`
