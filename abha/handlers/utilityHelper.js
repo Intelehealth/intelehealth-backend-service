@@ -785,46 +785,63 @@ async function prescriptionDocumentReferenceStructure(response, doctorDetail) {
     if(!result || !result?.success || !result?.content) return null;
     const uniquId = uuid();
     return {
-        "fullUrl": uniquId,
-        "resource": {
-            "resourceType": "DocumentReference",
-            "id": uniquId,
-            "meta": {
-                "profile": [
-                    "https://nrces.in/ndhm/fhir/r4/StructureDefinition/DocumentReference"
-                ]
-            },
-            "text": {
-                "status": "generated",
-                "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p><b>Generated Narrative: DocumentReference</b></p></div>"
-            },
-            "status": "current",
-            "docStatus": "final",
-            "type": {
+        section: {
+            "entry": [{
+                "reference": `DocumentReference/${uniquId}`
+            }],
+            "code": {
                 "coding": [
                     {
                         "system": "http://snomed.info/sct",
-                        "code": "4241000179101",
-                        "display": "Laboratory report"
+                        "code": "371530004",
+                        "display": "Clinical consultation report"
                     }
-                ],
-                "text": "Prescription Report"
+                ]
             },
-            "subject": {
-                "reference": `Patient/${response?.patient?.uuid}`,
-                "display": "Patient"
-            },
-            "content": [
-                {
-                    "attachment": {
-                        "contentType": "application/pdf",
-                        "language": "en-IN",
-                        "data": result?.content,
-                        "title": "Prescription Report",
-                        "creation": convertDataToISO(response?.startDatetime)
+            "title": "Clinical consultation report"
+        },
+        content: {
+            "fullUrl": `DocumentReference/${uniquId}`,
+            "resource": {
+                "resourceType": "DocumentReference",
+                "id": uniquId,
+                "meta": {
+                    "profile": [
+                        "https://nrces.in/ndhm/fhir/r4/StructureDefinition/DocumentReference"
+                    ]
+                },
+                "text": {
+                    "status": "generated",
+                    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p><b>Generated Narrative: DocumentReference</b></p></div>"
+                },
+                "status": "current",
+                "docStatus": "final",
+                "type": {
+                    "coding": [
+                        {
+                            "system": "http://snomed.info/sct",
+                            "code": "371530004",
+                            "display": "Clinical consultation report"
+                        }
+                    ],
+                    "text": "Clinical consultation report"
+                },
+                "subject": {
+                    "reference": `Patient/${response?.patient?.uuid}`,
+                    "display": "Patient"
+                },
+                "content": [
+                    {
+                        "attachment": {
+                            "contentType": "application/pdf",
+                            "language": "en-IN",
+                            "data": result?.content,
+                            "title": "OP Record",
+                            "creation": convertDataToISO(response?.startDatetime)
+                        }
                     }
-                }
-            ]
+                ]
+            }
         }
     }
 }
@@ -850,6 +867,7 @@ async function formatCareContextFHIBundle(response) {
     if (serviceRequest?.section) sections.push(serviceRequest?.section)
     if (followUp?.section) sections.push(followUp?.section)
     if (referrals?.section) sections.push(referrals?.section)
+    if (prescriptionDocumentReference?.section) sections.push(prescriptionDocumentReference.section);    
 
     return {
         "identifier": {
@@ -1063,7 +1081,7 @@ async function formatCareContextFHIBundle(response) {
                 },
                 "fullUrl": `Encounter/${response?.encounters[0]?.uuid}`
             },
-            prescriptionDocumentReference
+            prescriptionDocumentReference ? prescriptionDocumentReference.content : {}
         ],
         "meta": {
             "lastUpdated": convertDataToISO(response?.encounters[0]?.encounterDatetime ?? response?.startDatetime),
