@@ -306,7 +306,7 @@ module.exports = (function () {
             `/openmrs/ws/rest/v1/location/${key.secondaryVillageId}/attribute`
           );
           await saveLocationAttributes(response, key, key.secondaryVillageId);
-        } else{
+        } else {
            response = await axiosInstance.get(
             `/openmrs/ws/rest/v1/location/${locationId}/attribute`
           );
@@ -319,7 +319,7 @@ module.exports = (function () {
       return (updatedRes.data.results);
   };
 
-  async function saveLocationAttributes(response, key, locationId) {
+   this.saveLocationAttributes= async (response, key, locationId) => {
     let attr = response.data.results.find((a) => a.attributeType.uuid === key.attributeType);
     if (attr) {
       //update
