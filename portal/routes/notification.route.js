@@ -6,7 +6,9 @@ const {
   setUserSettings,
   getNotificationStatus,
   toggleNotificationStatus,
-  notifyApp
+  notifyApp,
+  clearNotification,
+  acknowledgeNotification
 } = require("../controllers/notification.controller");
 
 router.put("/snooze_notification/:uuid", snoozeNotification);
@@ -15,5 +17,7 @@ router.get("/user_settings/:uuid", getUserSettings);
 router.get("/getNotificationStatus/:uuid", getNotificationStatus);
 router.put("/toggleNotificationStatus/:uuid", toggleNotificationStatus);
 router.post("/notify-app/:userId", notifyApp);
+router.put("/acknowledge/:id", acknowledgeNotification);
+router.delete("/clearAll/:userId", clearNotification);
 
 module.exports = router;

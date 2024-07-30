@@ -77,5 +77,25 @@ module.exports = (function () {
         }
     };
 
+
+    /**
+     * Delete all the notification for particular user
+     * @returns []Array
+     */
+    this.deleteNotifications = async (user_uuid) => {
+        try {
+            const data = await notifications.destroy({ where: {
+                user_uuid: user_uuid
+              }})
+            return { success: true, data };
+        } catch (error) {
+            return {
+                success: false,
+                data: [],
+                error
+            };
+        }
+    };
+
     return this;
 })();
