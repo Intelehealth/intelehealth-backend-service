@@ -1040,6 +1040,8 @@ async function formatCareContextFHIBundle(response) {
                     ],
                     "id": patient?.uuid,
                     "birthDate": patient?.person?.birthdate ? patient?.person?.birthdate?.slice(0, 10) : null,
+                    // "abhaAddress": abhaAddress,
+                    // "abhaNumber": abhaNumber, 
                     "resourceType": "Patient"
                 },
                 "fullUrl": `Patient/${patient?.uuid}`

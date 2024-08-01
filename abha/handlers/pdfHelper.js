@@ -158,8 +158,11 @@ function getPatientRegField(patient, fieldName) {
         case 'Social Category':
             value = getAttributeByName(patient?.person?.attributes, 'Caste');
             break;
-        case 'Abha Address': 
+        case 'ABHA Address': 
             value = getIdentifierByName(patient?.identifiers, 'Abha Address');
+            break;
+        case 'ABHA Number': 
+            value = getIdentifierByName(patient?.identifiers, 'Abha Number');
             break;
         case 'Corresponding Address 1':
             value = patient?.person?.preferredAddress?.address1;
@@ -340,7 +343,8 @@ function getOtherInfo(patient) {
         'National ID',
         'Economic Category',
         'Social Category',
-        'Abha Address'
+        'ABHA Address',
+        'ABHA Number'
     ].forEach((v) => {
         const value = getPatientRegField(patient, v)
         if (value != 'NA' && value) {
@@ -374,15 +378,14 @@ function getOtherInfo(patient) {
  * @returns 
  */
 function getDoctorDetail(enc) {
-    let consultedDoctor = {
-        encounterDatetime: enc?.encounterDatetime
-    };
+    let consultedDoctor = {};
     for (const obs of enc.obs) {
         if (obs.concept.display === VISIT_TYPES.DOCTOR_DETIALS) {
             consultedDoctor = JSON.parse(obs.value)
         }
     }
     const p = enc.encounterProviders?.[0]?.provider;
+    consultedDoctor.encounterDatetime = enc?.encounterDatetime
     consultedDoctor.gender = getGender(p?.provider?.person?.gender);
     consultedDoctor.person_uuid = p?.provider?.person?.uuid;
     consultedDoctor.signature = p?.provider?.attributes?.find(a => a?.attributeType?.display === 'signature')?.value ?? '';
@@ -759,7 +762,8 @@ async function downloadPrescription(visit, doctorDetail = null) {
                                                         colSpan: 2,
                                                         ul: [
                                                             { text: [{ text: 'Patient ID:', bold: true }, ` ${getIdentifierByName(visit?.patient?.identifiers, 'OpenMRS ID')}`], margin: [0, 5, 0, 5] },
-                                                            { text: [{ text: 'Date of Consultation:', bold: true }, ` ${moment(getRecords(encountersRecords, VISIT_TYPES.DOCTOR_DETIALS)?.encounterDatetime).format('DD MMM yyyy')}`], margin: [0, 5, 0, 5] }
+                                                            { text: [{ text: 'Visit Start Date:', bold: true }, ` ${moment(visit?.startDatetime).format('DD MMM yyyy')}`], margin: [0, 5, 0, 5] },
+                                                            { text: [{ text: 'Date of Consultation:', bold: true }, ` ${moment(consultedDoctor?.encounterDatetime).format('DD MMM yyyy')}`], margin: [0, 5, 0, 5] }
                                                         ]
                                                     }
                                                 ]
