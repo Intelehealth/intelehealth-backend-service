@@ -3,6 +3,7 @@ const cookieParser = require("cookie-parser");
 const bodyParser = require("body-parser");
 const Sequelize = require("sequelize");
 const session = require("express-session");
+const path = require("path");
 const SequelizeStore = require("connect-session-sequelize")(session.Store);
 const db = require("./models");
 const morganMiddleware = require("./middleware/morgan");
@@ -33,6 +34,7 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, "public")));
 
 app.use(cookieParser());
 

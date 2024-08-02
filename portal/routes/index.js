@@ -19,7 +19,7 @@ router.get("/mindmap", [authMiddleware, getMindmapKeys]);
 router.post("/mindmap/addUpdatekey", [authMiddleware, addUpdateLicenceKey]);
 router.get("/mindmap/details/:key", [authMiddleware, getMindmapDetails]);
 router.post("/mindmap/delete/:key", [authMiddleware, deleteMindmapKey]);
-router.get("/mindmap/download", [authMiddleware, downloadMindmaps]);
+router.get("/mindmap/download", [downloadMindmaps]);
 router.post("/mindmap/toggleStatus", [authMiddleware, toggleMindmapActiveStatus]);
 
 router.use("/mindmap", require("./notification.route"));
