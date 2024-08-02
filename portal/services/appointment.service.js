@@ -44,7 +44,7 @@ module.exports = (function () {
      * @param { string } slotTime - Slot time
      * @param { string } patientName - Patient name
      */
-  const sendCancelNotification = async ({ id, slotTime, patientName }) => {
+  const sendCancelNotification = async ({ id, slotTime, patientName }, reschedule = false) => {
     const query = `
     select
     a.id,
@@ -56,30 +56,35 @@ from
 where
     a.id = ${id};`;
     try {
-      logStream('debug','Appointment Service', 'Send Cancel Notification');
+      const msg = reschedule ? 'Rescheduled' : 'Cancelled';
+      const msgru = reschedule ? 'перенесено' : 'отменена';
+      logStream('debug', 'Appointment Service', 'Send Cancel Notification');
       const data = await getDataFromQuery(query);
       if (data && data.length) {
         asyncForEach(data, async (item) => {
           const { token, locale } = item;
           if (token) {
-            logStream('debug','Success', 'Send Cancel Notification');
+            logStream('debug', 'Success', 'Send Cancel Notification');
             await sendCloudNotification({
-              title:
-                locale === "ru"
-                  ? `Запись на прием за ${patientName}(${slotTime}) отменена.`
-                  : `Appointment for ${patientName}(${slotTime}) has been cancelled.`,
-              body:
-                locale === "ru"
-                  ? `Причина: В связи с изменением графика врача`
-                  : `Reason : Due to doctor's change in schedule.`,
+              notification: {
+                title:
+                  locale === "ru"
+                    ? `Запись на прием за ${patientName}(${slotTime}) ${msgru}.`
+                    : `${msg} appointment:${patientName}(${slotTime})`,
+                body:
+                  locale === "ru"
+                    ? `Причина: В связи с изменением графика врача`
+                    : `Reason : Due to doctor's change in schedule.`,
+                click_action: 'FCM_PLUGIN_APPOINTMENT_ACTIVITY'
+              },
               regTokens: [token],
-            }).catch((err) => { 
+            }).catch((err) => {
               logStream("error", err.message);
             });
           }
         });
       }
-    } catch (error) { 
+    } catch (error) {
       logStream("error", error.message);
     }
   };
@@ -96,7 +101,7 @@ where
     slotTime,
     patientName,
     openMrsId,
-  }) => {
+  }, reschedule = false) => {
     const query = `SELECT
     a.id,
     s.notification_object as webpush_obj,
@@ -107,15 +112,17 @@ FROM
 WHERE
     a.id = ${id}`;
     try {
-      logStream('debug','Appointment Service', 'Send Cancel Notification To Webapp Doctor');
+      const msg = reschedule ? 'Rescheduled' : 'Cancelled';
+      const msgru = reschedule ? 'перенесено' : 'отменена';
+      logStream('debug', 'Appointment Service', `Send ${msg} Notification To Webapp Doctor`);
       const data = await getDataFromQuery(query);
       if (data && data.length) {
         asyncForEach(data, async (data) => {
           if (data.webpush_obj) {
-            const engTitle = `Appointment for ${patientName}(${slotTime}) has been cancelled.`;
-            const ruTitle = `Запись на прием за ${patientName}(${slotTime}) отменена.`;
+            const engTitle = `${msg} appointment for ${patientName}(${slotTime}).`;
+            const ruTitle = `Запись на прием за ${patientName}(${slotTime}) ${msgru}.`;
             const title = data.locale === "ru" ? ruTitle : engTitle;
-            logStream('debug','Success', 'Send Cancel Notification To Webapp Doctor');
+            logStream('debug', 'Success', `Send ${msg} Notification To Webapp Doctor`);
             sendWebPushNotification({
               webpush_obj: data.webpush_obj,
               title,
@@ -124,7 +131,7 @@ WHERE
           }
         });
       }
-    } catch (error) { 
+    } catch (error) {
       logStream("error", error.message);
     }
   };
@@ -162,7 +169,7 @@ WHERE
     // endDate,
   }) => {
     try {
-      logStream('debug','Appointment Service', 'Upsert Appointment Schedule');
+      logStream('debug', 'Appointment Service', 'Upsert Appointment Schedule');
       const opts = { where: { userUuid, year, month } };
       const schedule = await this.getUserAppointmentSchedule(opts);
       const update = { slotDays };
@@ -180,10 +187,10 @@ WHERE
           data: await Schedule.update(update, opts),
         };
         await this.rescheduleOrCancelAppointment(userUuid);
-        logStream('debug','Appointment Updated', 'Upsert Appointment Schedule');
+        logStream('debug', 'Appointment Updated', 'Upsert Appointment Schedule');
         return resp;
       } else {
-        logStream('debug','Appointment Created', 'Upsert Appointment Schedule');
+        logStream('debug', 'Appointment Created', 'Upsert Appointment Schedule');
         return {
           message: MESSAGE.APPOINTMENT.APPOINTMENT_CREATED_SUCCESSFULLY,
           data: await Schedule.create({
@@ -226,7 +233,7 @@ WHERE
      */
   this.getScheduledMonths = async ({ userUuid, year }) => {
     try {
-      logStream('debug','Appointment Service', 'Get Scheduled Months');
+      logStream('debug', 'Appointment Service', 'Get Scheduled Months');
       //Getting currentYear & nextYear Data
       const nextYear = (+(year) + 1);
       const data = await Schedule.findAll({
@@ -247,7 +254,7 @@ WHERE
           months.push(month);
         });
       }
-      logStream('debug','Success', 'Get Scheduled Months');
+      logStream('debug', 'Success', 'Get Scheduled Months');
       return months;
     } catch (error) {
       logStream("error", error.message);
@@ -275,7 +282,7 @@ WHERE
      */
   this.getUserSlots = async ({ userUuid, fromDate, toDate }) => {
     try {
-      logStream('debug','Appointment Service', 'Get User Slots');
+      logStream('debug', 'Appointment Service', 'Get User Slots');
       const data = await Appointment.findAll({
         where: {
           userUuid,
@@ -341,7 +348,7 @@ WHERE
         ]
       });
       const mergedArray = data.map(x => ({ ...x, visit: visits.find(y => y.uuid == x.visitUuid)?.dataValues, visitStatus: visitStatus.find(z => z.uuid == x.visitUuid)?.Status }));
-      logStream('debug','Success', 'Get User Slots');
+      logStream('debug', 'Success', 'Get User Slots');
       return mergedArray;
     } catch (error) {
       logStream("error", error.message);
@@ -358,7 +365,7 @@ WHERE
      */
   this.checkAppointment = async ({ userUuid, fromDate, toDate, speciality }) => {
     try {
-      logStream('debug','Appointment Service', 'Check Appointment');
+      logStream('debug', 'Appointment Service', 'Check Appointment');
       const data = await Appointment.findAll({
         where: {
           userUuid,
@@ -371,7 +378,7 @@ WHERE
         order: [[Constant.SLOT_JS_DATE, "ASC"]],
         raw: true,
       });
-      logStream('debug','Success', 'Check Appointment');
+      logStream('debug', 'Success', 'Check Appointment');
       return data.length ? true : false;
     } catch (error) {
       logStream("error", error.message);
@@ -386,7 +393,7 @@ WHERE
      */
   this.updateSlotSpeciality = async ({ userUuid, speciality }) => {
     try {
-      logStream('debug','Appointment Service', 'Update Slot Speciality');
+      logStream('debug', 'Appointment Service', 'Update Slot Speciality');
       const data = await Schedule.update({
         speciality
       },
@@ -395,7 +402,7 @@ WHERE
             userUuid
           }
         });
-      logStream('debug','Success', 'Update Slot Speciality');
+      logStream('debug', 'Success', 'Update Slot Speciality');
       return data;
     } catch (error) {
       logStream("error", error.message);
@@ -411,7 +418,7 @@ WHERE
      */
   this.getSpecialitySlots = async ({ speciality, fromDate, toDate }) => {
     try {
-      logStream('debug','Appointment Service', 'Get Speciality Slots');
+      logStream('debug', 'Appointment Service', 'Get Speciality Slots');
       let setting = await Setting.findOne({ where: {}, raw: true });
 
       const SLOT_DURATION =
@@ -456,9 +463,9 @@ WHERE
           }
         } catch (error) {
           logStream("error", error.message);
-         }
+        }
       });
-      logStream('debug','Success', 'Get Speciality Slots');
+      logStream('debug', 'Success', 'Get Speciality Slots');
       return data;
     } catch (error) {
       logStream("error", error.message);
@@ -474,7 +481,7 @@ WHERE
      */
   this.getSlots = async ({ locationUuid, fromDate, toDate }) => {
     try {
-      logStream('debug','Appointment Service', 'Get Slots');
+      logStream('debug', 'Appointment Service', 'Get Slots');
       const data = await Appointment.findAll({
         where: {
           locationUuid,
@@ -500,7 +507,7 @@ WHERE
           }
         });
       }
-      logStream('debug','Success', 'Get Slots');
+      logStream('debug', 'Success', 'Get Slots');
       return visits;
     } catch (error) {
       logStream("error", error.message);
@@ -521,7 +528,7 @@ WHERE
     SLOT_DURATION,
     SLOT_DURATION_UNIT,
   }) => {
-    logStream('debug','Appointment Service', 'Get Month Slots');
+    logStream('debug', 'Appointment Service', 'Get Month Slots');
     let dates = [];
     const slots = schedule.slotSchedule.filter((s) => s.startTime && s.endTime);
     const slotDays = slots
@@ -560,7 +567,7 @@ WHERE
         }
       });
     });
-    logStream('debug','Success', 'Get Month Slots');
+    logStream('debug', 'Success', 'Get Month Slots');
     return dates;
   };
 
@@ -577,7 +584,7 @@ WHERE
     SLOT_DURATION,
     SLOT_DURATION_UNIT,
   }) => {
-    logStream('debug','Appointment Service', 'Get Week Slots');
+    logStream('debug', 'Appointment Service', 'Get Week Slots');
     let dates = [];
     const slots = schedule.slotSchedule.filter((s) => s.startTime && s.endTime);
     const slotDays = slots.map((s) => s.day);
@@ -606,7 +613,7 @@ WHERE
         }
       }
     });
-    logStream('debug','Success', 'Get Week Slots');
+    logStream('debug', 'Success', 'Get Week Slots');
     return dates;
   };
 
@@ -623,7 +630,7 @@ WHERE
     speciality,
     returnAllSlots = false,
   }) => {
-    logStream('debug','Appointment Service', 'Get Appointment Slots');
+    logStream('debug', 'Appointment Service', 'Get Appointment Slots');
     let schedules = await Schedule.findAll({
       where: { speciality },
       raw: true,
@@ -717,7 +724,7 @@ WHERE
           });
         }
       }
-      logStream('debug','Success', 'Get Appointment Slots');
+      logStream('debug', 'Success', 'Get Appointment Slots');
       return { dates: uniqueTimeSlots };
     } catch (error) {
       logStream("error", error.message);
@@ -758,7 +765,7 @@ WHERE
     patientId,
     ...rest
   }) => {
-    logStream('debug','Appointment Service', 'Create Appointment');
+    logStream('debug', 'Appointment Service', 'Create Appointment');
     return await Appointment.create({
       slotDay,
       slotDate,
@@ -791,7 +798,7 @@ WHERE
   this._bookAppointment = async (params) => {
     const { slotDate, slotTime, speciality, visitUuid } = params;
     try {
-      logStream('debug','API calling', 'Book Appointment');
+      logStream('debug', 'API calling', 'Book Appointment');
       const appntSlots = await this._getAppointmentSlots({
         fromDate: slotDate,
         toDate: slotDate,
@@ -829,7 +836,7 @@ WHERE
       }
 
       const data = await createAppointment(params);
-      logStream('debug','Success', 'Book Appointment');
+      logStream('debug', 'Success', 'Book Appointment');
       return {
         data: data.toJSON(),
       };
@@ -852,7 +859,7 @@ WHERE
     notify = true,
     reschedule = false
   ) => {
-    logStream('debug','Appointment Service', 'Cancel Appointment');
+    logStream('debug', 'Appointment Service', 'Cancel Appointment');
     const { id, visitUuid, hwUUID, reason } = params;
     let where = { id };
     if (visitUuid) where.visitUuid = visitUuid;
@@ -868,15 +875,16 @@ WHERE
     // }
     const status = reschedule ? Constant.RESCHEDULED : Constant.CANCELLED;
     if (appointment) {
-      logStream('debug','Success', 'Cancel Appointment');
+      logStream('debug', 'Success', 'Cancel Appointment');
       appointment.update({ status, updatedBy: hwUUID, reason });
       if (notify) sendCancelNotificationToWebappDoctor(appointment);
+      if (notify) await sendCancelNotification(appointment);
       return {
         status: true,
         message: MESSAGE.APPOINTMENT.APPOINTMENT_CANCELLED_SUCCESSFULLY,
       };
     } else {
-      logStream('debug','Appointment not found!', 'Cancel Appointment');
+      logStream('debug', 'Appointment not found!', 'Cancel Appointment');
       return {
         status: false,
         message: MESSAGE.APPOINTMENT.APPOINTMENT_NOT_FOUND,
@@ -893,7 +901,7 @@ WHERE
     let where = {
       status: Constant.BOOKED,
     };
-    logStream('debug','Appointment Service', 'Complete Appointment');
+    logStream('debug', 'Appointment Service', 'Complete Appointment');
     if (visitUuid) where.visitUuid = visitUuid;
     if (id) where.id = id;
 
@@ -902,7 +910,7 @@ WHERE
     });
 
     if (appointment) {
-      logStream('debug','Success', 'Complete Appointment');
+      logStream('debug', 'Success', 'Complete Appointment');
       appointment.update({ status: Constant.COMPLETED, updatedBy: hwUUID });
       return {
         status: true,
@@ -932,7 +940,7 @@ WHERE
      * @param { string } - User uuid
      */
   this.rescheduleOrCancelAppointment = async (userUuid) => {
-    logStream('debug','Appointment Service', 'Reschedule Or Cancel Appointment');
+    logStream('debug', 'Appointment Service', 'Reschedule Or Cancel Appointment');
     const todayDate = moment.utc().format();
     const data = await Appointment.findAll({
       where: {
@@ -995,12 +1003,12 @@ WHERE
           });
           await this._cancelAppointment(appointment, true, false, true);
           await this._bookAppointment(apnmtData);
-          logStream('debug','Success', 'Reschedule Or Cancel Appointment');
+          await sendCancelNotification(appointment, true);
+          logStream('debug', 'Success', 'Reschedule Or Cancel Appointment');
         } else {
-          await this._cancelAppointment(appointment, true, false);
-          await sendCancelNotification(apnmt);
+          await this._cancelAppointment(appointment, true, true);
           await sendCancelNotificationToWebappDoctor(apnmt);
-          logStream('debug','Success', 'Reschedule Or Cancel Appointment');
+          logStream('debug', 'Success', 'Reschedule Or Cancel Appointment');
         }
       });
     }
@@ -1035,7 +1043,7 @@ WHERE
     hwGender,
     webApp,
   }) => {
-    logStream('debug','Appointment Service', 'Reschedule Appointment');
+    logStream('debug', 'Appointment Service', 'Reschedule Appointment');
     const cancelled = await this._cancelAppointment(
       { id: appointmentId, userId: hwUUID, reason },
       false,
@@ -1054,35 +1062,38 @@ WHERE
     });
 
     if (appointment) {
+      logStream('debug', 'Appointment Service', 'ANOTHER_APPOINTMENT_HAS_ALREADY_BEEN_BOOKED_FOR_THIS_TIME_SLOT');
       throw new Error(MESSAGE.APPOINTMENT.ANOTHER_APPOINTMENT_HAS_ALREADY_BEEN_BOOKED_FOR_THIS_TIME_SLOT);
     }
 
     if (cancelled && cancelled.status) {
-      logStream('debug','Success', 'Reschedule Appointment');
-      return {
-        data: await createAppointment({
-          openMrsId,
-          patientName,
-          locationUuid,
-          hwUUID,
-          slotDay,
-          slotDate,
-          slotDuration,
-          slotDurationUnit,
-          slotTime,
-          speciality,
-          userUuid,
-          drName,
-          visitUuid,
-          patientId,
-          patientAge,
-          patientGender,
-          patientPic,
-          hwName,
-          hwAge,
-          hwGender
-        }),
-      };
+      logStream('debug', 'Success', 'Reschedule Appointment Rescheduled', cancelled.status);
+      const appointment = await createAppointment({
+        openMrsId,
+        patientName,
+        locationUuid,
+        hwUUID,
+        slotDay,
+        slotDate,
+        slotDuration,
+        slotDurationUnit,
+        slotTime,
+        speciality,
+        userUuid,
+        drName,
+        visitUuid,
+        patientId,
+        patientAge,
+        patientGender,
+        patientPic,
+        hwName,
+        hwAge,
+        hwGender
+      })
+      await sendCancelNotification(appointment, true);
+      await sendCancelNotificationToWebappDoctor(appointment, true);
+
+      return appointment
     } else {
       return cancelled;
     }
@@ -1093,7 +1104,7 @@ WHERE
      * @param { object } - (drName, userUuid, appointmentId)
      */
   this.startAppointment = async ({ drName, userUuid, appointmentId }) => {
-    logStream('debug','Appointment Service', 'Start Appointment');
+    logStream('debug', 'Appointment Service', 'Start Appointment');
     let appointment = await Appointment.findOne({
       where: {
         id: appointmentId,
@@ -1104,7 +1115,7 @@ WHERE
       appointment.userUuid = userUuid;
       appointment.drName = drName;
       await appointment.save();
-      logStream('debug','Success', 'Start Appointment');
+      logStream('debug', 'Success', 'Start Appointment');
       return appointment;
     } else {
       logStream("error", "Appointment not found!");
@@ -1117,7 +1128,7 @@ WHERE
      * @param { object } - (visitUuid)
      */
   this.releaseAppointment = async ({ visitUuid }) => {
-    logStream('debug','Appointment Service', 'Release Appointment');
+    logStream('debug', 'Appointment Service', 'Release Appointment');
     let appointment = await Appointment.findOne({
       where: {
         visitUuid,
@@ -1129,7 +1140,7 @@ WHERE
       appointment.userUuid = null;
       appointment.drName = null;
       await appointment.save();
-      logStream('debug','Success', 'Release Appointment');
+      logStream('debug', 'Success', 'Release Appointment');
       return appointment;
     } else {
       logStream("error", "Appointment not found!");
@@ -1147,7 +1158,7 @@ WHERE
     speciality,
     userUuid,
   }) => {
-    logStream('debug','Appointment Service', 'Get Booked Appointments');
+    logStream('debug', 'Appointment Service', 'Get Booked Appointments');
     const where = {
       slotJsDate: {
         [Op.between]: this.getFilterDates(fromDate, toDate),
@@ -1157,7 +1168,7 @@ WHERE
 
     if (userUuid) where.userUuid = userUuid;
     if (speciality) where.speciality = speciality;
-    logStream('debug','Success', 'Get Booked Appointments');
+    logStream('debug', 'Success', 'Get Booked Appointments');
     return await Appointment.findAll({
       where,
       order: [[Constant.SLOT_JS_DATE, "DESC"]],
@@ -1175,7 +1186,7 @@ WHERE
     speciality,
     userUuid,
   }) => {
-    logStream('debug','Appointment Service', 'get Rescheduled Appointments');
+    logStream('debug', 'Appointment Service', 'get Rescheduled Appointments');
     const where = {
       slotJsDate: {
         [Op.between]: this.getFilterDates(fromDate, toDate),
@@ -1185,7 +1196,7 @@ WHERE
 
     if (userUuid) where.userUuid = userUuid;
     if (speciality) where.speciality = speciality;
-    logStream('debug','Success', 'get Rescheduled Appointments');
+    logStream('debug', 'Success', 'get Rescheduled Appointments');
     return await Appointment.findAll({
       where,
       order: [[Constant.SLOT_JS_DATE, "DESC"]],
@@ -1198,12 +1209,12 @@ WHERE
      * @param { object } - (visitUuid)
      */
   this.getRescheduledAppointmentsOfVisit = async ({ visitUuid }) => {
-    logStream('debug','Appointment Service', 'Get Rescheduled Appointments Of Visit');
+    logStream('debug', 'Appointment Service', 'Get Rescheduled Appointments Of Visit');
     const where = {
       visitUuid,
       status: Constant.RESCHEDULED,
     };
-    logStream('debug','Success', 'Get Rescheduled Appointments Of Visit');
+    logStream('debug', 'Success', 'Get Rescheduled Appointments Of Visit');
     return await Appointment.findAll({
       where,
       order: [[Constant.SLOT_JS_DATE, "DESC"]],
@@ -1222,7 +1233,7 @@ WHERE
     locationUuid,
     userUuid,
   }) => {
-    logStream('debug','Appointment Service', 'Get Cancelled Appointments');
+    logStream('debug', 'Appointment Service', 'Get Cancelled Appointments');
     const where = {
       slotJsDate: {
         [Op.between]: this.getFilterDates(fromDate, toDate),
@@ -1233,7 +1244,7 @@ WHERE
     if (locationUuid) where.locationUuid = locationUuid;
     if (userUuid) where.userUuid = userUuid;
     if (speciality) where.speciality = speciality;
-    logStream('debug','Success', 'Get Cancelled Appointments');
+    logStream('debug', 'Success', 'Get Cancelled Appointments');
     return await Appointment.findAll({
       where,
       order: [[Constant.SLOT_JS_DATE, "DESC"]],
@@ -1250,19 +1261,19 @@ WHERE
    */
   this.updateDaysOffSchedule = async ({ userUuid, daysOff, month, year }) => {
     try {
-      logStream('debug','Appointment Service', 'Update Days Off Schedule');
+      logStream('debug', 'Appointment Service', 'Update Days Off Schedule');
       const opts = { where: { userUuid, month, year } };
       const schedule = await this.getUserAppointmentSchedule(opts);
       const update = { daysOff };
       if (schedule) {
-        logStream('debug','Schedule Updated', 'Update Days Off Schedule');
+        logStream('debug', 'Schedule Updated', 'Update Days Off Schedule');
         const resp = {
           message: MESSAGE.APPOINTMENT.SCHEDULE_UPDATED_SUCCESSFULLY,
           data: await Schedule.update(update, opts),
         };
         return resp;
       } else {
-        logStream('debug','Schedule Created', 'Update Days Off Schedule');
+        logStream('debug', 'Schedule Created', 'Update Days Off Schedule');
         return {
           message: MESSAGE.APPOINTMENT.SCHEDULE_CREATED_SUCCESSFULLY,
           data: await Schedule.create({
@@ -1277,20 +1288,20 @@ WHERE
     }
   };
 
-   /**
-   * validate the dayoff for current user
-   * @param {string} userUuid - User uuid
-   * @param {string} date - date
-   * @param {string} time - time
-   */
+  /**
+  * validate the dayoff for current user
+  * @param {string} userUuid - User uuid
+  * @param {string} date - date
+  * @param {string} time - time
+  */
   this.validateDayOff = async ({ userUuid, month, year, date, time }) => {
     try {
-      const opts = { where: { userUuid, month, year  } };
-    
+      const opts = { where: { userUuid, month, year } };
+
       const schedule = await this.getUserAppointmentSchedule(opts);
-      if(schedule?.daysOff?.includes(date)) throw new Error(MESSAGE.APPOINTMENT.CANNOT_SCHEDULE_THE_VISIT);
-      
-      return {schedule};
+      if (schedule?.daysOff?.includes(date)) throw new Error(MESSAGE.APPOINTMENT.CANNOT_SCHEDULE_THE_VISIT);
+
+      return { schedule };
     } catch (error) {
       throw error;
     }
