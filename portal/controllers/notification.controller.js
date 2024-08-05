@@ -2,7 +2,8 @@ const { user_settings } = require("../models");
 const { RES, sendPrescriptionCloudNotification } = require("../handlers/helper");
 const { MESSAGE } = require("../constants/messages");
 const { logStream } = require("../logger/index");
-const { createNotification, readNotificationById, deleteNotifications} = require("../services/notifications.service");
+const { createNotification, readNotificationById, deleteNotifications, getNotifications} = require("../services/notifications.service");
+const { getPagingData } = require("../handlers/functions");
 Date.prototype.addMinutes = function (m) {
   this.setTime(this.getTime() + m * 60000);
   return this;
@@ -344,6 +345,26 @@ const clearNotification = async(req, res, next) => {
   }
 }
 
+const listNotifications = async (req, res, next) => {
+  logStream('debug', 'API call', 'All Notification');
+  const { userId, page = 1, size = 10 } = req.query;
+  if (!userId) {
+    res.status(422).json({ message: "Please pass correct user id!" });
+    return;
+  }
+  try {
+    const offset = (page - 1) * size;
+    const data = await getNotifications({ userUuid: userId }, offset, +size);
+    logStream('debug', 'Success', 'All Notification');
+    return res.status(200).json({
+      message: "Notification Successfully",
+      ...getPagingData(data, page, size)
+    });
+  } catch (error) {
+    next(error)
+  }
+}
+
 module.exports = {
   snoozeNotification,
   getUserSettings,
@@ -353,4 +374,5 @@ module.exports = {
   notifyApp,
   acknowledgeNotification,
   clearNotification,
+  listNotifications
 };
