@@ -246,12 +246,13 @@ module.exports = (function () {
     try {
       let mobileNumber = params?.verifiedIdentifiers.find((v) => v.type?.toUpperCase() === 'MOBILE')?.value;
       const abhaNumber = params?.verifiedIdentifiers.find((v) => v.type === 'NDHM_HEALTH_NUMBER')?.value;
-      const abhaAddress = params?.id ?? params?.verifiedIdentifiers.find((v) => v.type === 'HEALTH_ID')?.value ?? (abhaNumber ? `${abhaNumber.replace(/-/g, '')}@sbx` : undefined);
+      const abhaAddress = params?.id ?? params?.verifiedIdentifiers.find((v) => v.type === 'HEALTH_ID')?.value;
       const or = []
       if (abhaNumber) {
         or.push(abhaNumber);
       }
       if (abhaAddress) {
+        or.push(abhaAddress.replace(process.env.ABHA_ADDRESS_SUFFIX, ''));
         or.push(abhaAddress);
       }
       let patientInfo = null;
