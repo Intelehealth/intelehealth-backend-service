@@ -356,10 +356,7 @@ const listNotifications = async (req, res, next) => {
     const offset = (page - 1) * size;
     const data = await getNotifications({ userUuid: userId }, offset, +size);
     logStream('debug', 'Success', 'All Notification');
-    return res.status(200).json({
-      message: "Notification Successfully",
-      ...getPagingData(data, page, size)
-    });
+    return res.status(200).json(getPagingData(data, page, size));
   } catch (error) {
     next(error)
   }
