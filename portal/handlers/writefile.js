@@ -1,5 +1,13 @@
 const fs = require("fs");
 
+const KEY_FILES = [
+  "famHist.json",
+  "patHist.json",
+  "physExam.json",
+  "config.json",
+  "state_district_tehsil.json",
+];
+
 module.exports = {
     /**
      * Write mindmap
@@ -7,7 +15,7 @@ module.exports = {
      * @param {*} result - content
      */
     wrMindmap: (mindmap, result) => {
-        if (mindmap.match('famHist') || mindmap.match('patHist') || mindmap.match('physExam') || mindmap.match('config') !== null) {
+        if (KEY_FILES.includes(mindmap)) {
             path = `./public/key/${mindmap}`;
             fs.writeFileSync(path, result);
         }

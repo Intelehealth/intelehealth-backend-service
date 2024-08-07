@@ -210,7 +210,7 @@ const downloadMindmaps = async (req, res) => {
     const licenceData = await licences.findOne({
       where: {
         keyName: key,
-        isActive: true
+        // isActive: true
       },
       raw: true,
     });
