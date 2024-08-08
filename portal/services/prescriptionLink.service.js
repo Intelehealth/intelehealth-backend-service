@@ -1,5 +1,5 @@
 const { default: axios } = require("axios");
-const { links } = require("../models");
+const { links, facility_contacts} = require("../models");
 const { MESSAGE } = require("../constants/messages");
 const { logStream } = require("../logger/index");
 
@@ -48,17 +48,35 @@ module.exports = (function () {
     });
 
     if (!link) {
-      logStream("error", error.message);
       throw new Error(MESSAGE.PRESCRIPTION.INVALID_LINK);
     }
 
     if (link.otp === otp) {
+      logStream('debug','Success', 'Verify Prescription Otp');
       return true;
     } else {
-      logStream("error", error.message);
       throw new Error(MESSAGE.PRESCRIPTION.INVALID_OTP);
     }
   };
-  logStream('debug','Success', 'Verify Prescription Otp');
+
+  /**
+    * get List of facility contacts
+    */
+  this.getFacilityContacts = async () => {
+    logStream('debug','PrescriptionLink Service', 'Get Facility Contacts');
+    return await facility_contacts.findAll();
+  };
+
+  /**
+    * get Facility Contact by Id
+    */
+  this.getFacilityContactById = async (id) => {
+    logStream('debug','PrescriptionLink Service', 'Get Facility Contacts');
+    const facility_contact = await facility_contacts.findOne({ where: { id } });
+    if (!facility_contact) {
+      throw new Error("Facility Contact not found");
+    }
+    return facility_contact;
+  };
   return this;
 })();
