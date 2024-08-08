@@ -5,6 +5,8 @@ const { logStream } = require("../logger/index");
 const {
   requestPresctionOtp,
   verfifyPresctionOtp,
+  getFacilityContacts,
+  getFacilityContactById
 } = require("../services/prescriptionLink.service");
 
 module.exports = (function () {
@@ -112,6 +114,45 @@ module.exports = (function () {
       const { hash, otp } = req.body;
       const data = await verfifyPresctionOtp(hash, otp);
       logStream('debug', 'Success', 'Verify Otp');
+      RES(res, { success: true, data });
+    } catch (error) {
+      logStream("error", error.message);
+      RES(res, { success: false, message: error.message }, 422);
+    }
+  };
+
+
+  /**
+   * Get List of Facility Contacts
+   *  @param {*} req
+   *  @param {*} res
+   *  @returns facility contact list
+   */
+  this.getFacilityContactsList = async (req, res) => {
+    try {
+      logStream('debug', 'API call', 'Get List of Facility Contacts');
+      const data = await getFacilityContacts();
+      logStream('debug', 'Success', 'Get List of Facility Contacts');
+      RES(res, { success: true, data });
+    } catch (error) {
+      logStream("error", error.message);
+      RES(res, { success: false, message: error.message }, 422);
+    }
+  };
+
+
+  /**
+   * Get Facility Contactd by Id
+   * @param {*} req
+   * @param {*} res
+   * @returns facility contact
+   */
+  this.getFacilityContactById = async (req, res) => {
+    try {
+      logStream('debug', 'API call', 'Get Facility Contact by Id');
+      const { id } = req.params;
+      const data = await getFacilityContactById(id);
+      logStream('debug', 'Success', 'Get Facility Contact by Id');
       RES(res, { success: true, data });
     } catch (error) {
       logStream("error", error.message);
