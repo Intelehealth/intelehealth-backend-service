@@ -303,8 +303,8 @@ const getInProgressVisits = async (req, res, next) => {
 const getCompletedVisits = async (req, res, next) => {
   try {
     logStream('debug', 'API call', 'Get Completed Visits');
-    const { speciality, page } = req.query;
-    const data = await _getCompletedVisits(speciality, page);
+    const { speciality, page, countOnly } = req.query;
+    const data = await _getCompletedVisits(speciality, page, null, countOnly === 'true' ? true : false);
     logStream('debug', 'Success', 'Get Completed Visits');
     res.json({
       count: data.currentCount,
