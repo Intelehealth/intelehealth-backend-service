@@ -18,7 +18,7 @@ module.exports = {
       user_uuid: Sequelize.STRING,
       type: {
         type: Sequelize.ENUM,
-        values: ["prescription"],
+        values: ["prescription", 'followup', 'appointment'],
         defaultValue: "prescription",
       },
       payload: {
