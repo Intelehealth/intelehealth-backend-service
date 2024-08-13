@@ -102,10 +102,13 @@ const getTicket = async (req, res, next) => {
         const { id } = req.params;
         const incidentFromDB = await getUserTicketByincidentIdDatabase(id)
         const incident = await pd.get(`/incidents/${id}?include[]=external_references&include[]=body`);
+        const jiraTicketDetails = incident?.data?.incident?.external_references?.pop();
         return res.status(200).json({
             incident: {
-                ...incident?.data?.incident,
-                jira_ticket_id: incidentFromDB?.jira_ticket_id,
+                ...incidentFromDB,
+                jira_ticket_id: jiraTicketDetails.external_id,
+                jira_ticket_url: jiraTicketDetails.external_url,
+                description: incident?.data?.incident?.body?.details
             }
         });
     } catch (error) {
