@@ -210,7 +210,7 @@ function getPersonalInfo(patient) {
                 [
                     {
                         colSpan: 4,
-                        text: `[ Personal Information ]`,
+                        text: `Personal Information`,
                         style: 'subheader'
                     },
                     '',
@@ -271,7 +271,7 @@ function getAddress(patient) {
     data.table.body.push([
         {
             colSpan: 4,
-            text: `[ Address ]`,
+            text: `Address`,
             style: 'subheader'
         },
         '',
@@ -332,7 +332,7 @@ function getOtherInfo(patient) {
     data.table.body.push([
         {
             colSpan: 4,
-            text: `[ Other Information ]`,
+            text: `Other Information`,
             style: 'subheader'
         },
         '',
@@ -1090,9 +1090,8 @@ async function downloadPrescription(visit, doctorDetail = null) {
                         margin: [0, 10, 0, 10]
                     },
                     subheader: {
-                        fontSize: 10,
+                        fontSize: 12,
                         bold: true,
-                        color: 'blue',
                         margin: [0, 2, 0, 2],
                     },
                     subsubheader: {
