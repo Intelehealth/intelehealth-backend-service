@@ -272,6 +272,19 @@ module.exports = (function () {
       let visits = [];
       const resp = {};
 
+      const obsCondition = {
+        model: obs,
+        as: "obs",
+        attributes: ["value_text", "concept_id", "value_numeric"],
+      }
+      if(type === 'Follow-Up'){
+        obsCondition.where = {
+          concept_id: 163345,
+          value_text: { [Op.ne]: "No" },
+          voided: 0,
+        };
+        type = "Completed Visit";
+      }
       if (limit > 5000) limit = 5000;
       const visitIds = await this.getVisits(type, speciality);
 
@@ -287,11 +300,7 @@ module.exports = (function () {
               as: "encounters",
               attributes: ["encounter_datetime"],
               include: [
-                {
-                  model: obs,
-                  as: "obs",
-                  attributes: ["value_text", "concept_id", "value_numeric"],
-                },
+                obsCondition,
                 {
                   model: encounter_type,
                   as: "type",
@@ -466,6 +475,33 @@ module.exports = (function () {
       throw error;
     }
   };
+
+/**
+ * Get follow-up visits
+ * @param { string } speciality - Doctor speciality
+ * @param { number } page - Page number
+ * @param { number } limit - Limit
+ */
+this._getFollowUpVisits = async (
+  speciality,
+  page = 1,
+  limit = 1000,
+  countOnly
+) => {
+  try {
+    logStream('debug', 'Openmrs Service', 'Get Follow-Up Visits');
+    return await getVisitsByType(
+      speciality,
+      page,
+      limit,
+      "Follow-Up",
+      countOnly
+    );
+  } catch (error) {
+    logStream("error", error.message);
+    throw error;
+  }
+};
 
   /**
   * Get ended visits
