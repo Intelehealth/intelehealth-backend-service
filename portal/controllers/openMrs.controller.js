@@ -1,6 +1,6 @@
 const { MESSAGE } = require("../constants/messages");
 const openMrsDB = require("../handlers/mysql/mysqlOpenMrs");
-const { sendOtp, resetPassword } = require("../services/openmrs.service");
+const { sendOtp, resetPassword, _getFollowUpVisits } = require("../services/openmrs.service");
 const { logStream } = require("../logger/index");
 const {
   _getAwaitingVisits,
@@ -320,6 +320,32 @@ const getCompletedVisits = async (req, res, next) => {
 };
 
 /**
+ * Get follow-up visits.
+ * @param {request} req
+ * @param {response} res
+ * @returns visits
+ */
+const getFollowUpVisits = async (req, res, next) => {
+  try {
+    logStream('debug', 'API call', 'Get Follow-Up Visits');
+    const { speciality, page, countOnly } = req.query;
+    const data = await _getFollowUpVisits(speciality, page, null, countOnly === 'true');
+    logStream('debug', 'Success', 'Get Follow-Up Visits');
+    res.json({
+      count: data.currentCount,
+      totalCount: data.totalCount,
+      data: data.visits,
+      success: true,
+    });
+  } catch (error) {
+    logStream("error", error.message);
+    res.statusCode = 422;
+    res.json({ status: false, message: error.message });
+  }
+};
+
+
+/**
  * Get ended visit.
  * @param {request} req
  * @param {response} res
@@ -353,5 +379,6 @@ module.exports = {
   getPriorityVisits,
   getInProgressVisits,
   getCompletedVisits,
-  getEndedVisits
+  getEndedVisits,
+  getFollowUpVisits
 };
