@@ -220,7 +220,13 @@ function getPersonalInfo(patient) {
             ]
         }
     };
-    let other = [];
+    const other = [{
+        stack: [
+            { text: 'Name', style: 'subsubheader' },
+            { text: patient?.person?.display ?? 'NA', style: 'pval' }
+        ]
+    }];
+
     [
         'Gender',
         'Date of Birth',
@@ -278,7 +284,7 @@ function getAddress(patient) {
         '',
         ''
     ]);
-    let other = [];
+    const other = [];
     [
         'Corresponding Address 1',
         'Corresponding Address 2',
@@ -766,7 +772,8 @@ async function downloadPrescription(visit, doctorDetail = null) {
                                                         ul: [
                                                             { text: [{ text: 'Patient ID:', bold: true }, ` ${getIdentifierByName(visit?.patient?.identifiers, 'OpenMRS ID')}`], margin: [0, 5, 0, 5] },
                                                             { text: [{ text: 'Visit Start Date:', bold: true }, ` ${moment(visit?.startDatetime).format('DD MMM yyyy')}`], margin: [0, 5, 0, 5] },
-                                                            { text: [{ text: 'Date of Consultation:', bold: true }, ` ${moment(consultedDoctor?.encounterDatetime).format('DD MMM yyyy')}`], margin: [0, 5, 0, 5] }
+                                                            { text: [{ text: 'Date of Consultation:', bold: true }, ` ${moment(consultedDoctor?.encounterDatetime).format('DD MMM yyyy')}`], margin: [0, 5, 0, 5] },
+                                                            { text: [{ text: 'Clinic Name:', bold: true }, 'Intelehealth Telemedicine, Maharashtra'], margin: [0, 5, 0, 5] },
                                                         ]
                                                     }
                                                 ]
