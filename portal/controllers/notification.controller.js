@@ -244,7 +244,7 @@ const snoozeNotification = async (req, res) => {
             message: MESSAGE.COMMON.USER_NOT_EXIST,
             data: null
           },
-          200
+          404
         );
       }
 
@@ -313,12 +313,14 @@ const notifyApp = async (req, res, next) => {
 const acknowledgeNotification = async (req ,res, next) => {
   logStream('debug', 'API call', 'Acknowledge Notification');
   const { id } = req.params;
-  if (!id)
+  if (!id || id.trim().length === 0) {
     res.status(422).json({ message: "Please pass correct notification id!" });
+    return
+  }
 
   let data = await readNotificationById(id);
   if (data.data && data.data[0] === 0) 
-    res.status(503).json({ message: "Record not present" });
+    res.status(404).json({ message: "Record not present" });
   else{
     logStream('debug', 'Success', 'Acknowledge Notification');
     res.status(200).json({
@@ -336,7 +338,7 @@ const clearNotification = async(req, res, next) => {
 
   let data = await deleteNotifications(userId);
   if (!data.data) 
-    res.status(503).json({ message: "Records not present" });
+    res.status(404).json({ message: "Records not present" });
   else{ 
     logStream('debug', 'Success', 'Clear Notification');
     res.status(200).json({
