@@ -101,19 +101,6 @@
         "tags": [
           "Notification"
         ],
-        "parameters": [
-          {
-            "name": "uuid",
-            "in": "path",
-            "required": true,
-            "description": "Unique ID of the user to fetch the settings",
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "example": "39002eee-8571-4402-b40b-899c8b9202d6"
-            }
-          }
-        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -715,6 +702,130 @@
         }
       }
     },
+    "/api/mindmap/notify-app/{userId}": {
+      "post": {
+        "summary": "Sent the notification to health worker",
+        "description": "This API is send the notification to helath worker based on user uuid.",
+        "tags": [
+          "Notification"
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "Unique ID of the user to send the notification",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "54b04270-4c96-4ff9-be8c-3c6cb32975b5"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": true,
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "required": true
+                  },
+                  "body": {
+                    "type": "string",
+                    "required": true
+                  },
+                  "type": {
+                    "type": "string",
+                    "required": true
+                  },
+                  "data": {
+                    "type": "object",
+                    "required": false,
+                    "properties": {
+                      "patientFirstName": {
+                        "type": "string"
+                      },
+                      "patientMiddleName": {
+                        "type": "string"
+                      },
+                      "patientLastName": {
+                        "type": "string"
+                      },
+                      "patientUuid":{
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "patientOpenMrsId":{
+                        "type": "string"
+                      },
+                      "visitUuid": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "followupDatetime":{
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "title": "Folloup date time added for Test ChatOne",
+                  "body": "Click notification to see!",
+                  "type": "followup",
+                  "data": {
+                    "patientFirstName": "Test",
+                    "patientMiddleName": "",
+                    "patientLastName": "ChatOne",
+                    "patientUuid": "77dc79e6-8192-4a4a-a7a2-e55e7c05b635",
+                    "patientOpenMrsId": "161GP-7",
+                    "visitUuid": "8e269401-8789-4183-be9c-a1e41f0f32d9",
+                    "followupDatetime": "No"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Please pass correct user id!"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/links/getFacilityContacts": {
       "get": {
         "summary": "Get The Facility Contacts",
@@ -1016,6 +1127,183 @@
                     "message": {
                       "type": "string",
                       "example": "Invalid OTP!"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/links/getLink/{hash}": {
+      "get": {
+        "summary": "Get the short link for hash",
+        "description": "This API is retrive the short link and validate link.",
+        "tags": [
+          "Facility Contacts"
+        ],
+        "parameters": [
+          {
+            "name": "hash",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "cc"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                   "success": {
+                      "type": "string",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "example": {
+                        "link": "/i/47de9084-4006-4bef-b0da-393fd3e39a6e",
+                        "type": "presctiption-verification"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "string",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid link!"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Records not present!"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/links/shortLink": {
+      "post": {
+        "summary": "Create the short link hash",
+        "description": "This API is crate the short link.",
+        "tags": [
+          "Facility Contacts"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "link": {
+                    "required": true,
+                    "type": "string",
+                    "example": "/i/8e269401-8789-4183-be9c-a1e41f0f32d9"
+                  },
+                  "type": {
+                    "type": "string",
+                    "example": "presctiption-verification"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                   "success": {
+                      "type": "string",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "example": {
+                        "id": 962,
+                        "hash": "d4",
+                        "link": "/i/8e269401-8789-4183-be9c-a1e41f0f32d9",
+                        "otp": null,
+                        "type": "presctiption-verification",
+                        "createdAt": "2024-09-03T08:41:06.000Z",
+                        "updatedAt": "2024-09-03T08:41:06.000Z"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "string",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Please pass link!"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Records not present!"
                     }
                   }
                 }
