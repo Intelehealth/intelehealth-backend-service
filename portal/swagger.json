@@ -1010,7 +1010,7 @@
                   "example": "hash",
                   "description": "Unique hash string for links"
                 },
-                "otp": {
+                "phoneNumber": {
                   "required": true,
                   "type": "number",
                   "example": "1234567890",
