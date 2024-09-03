@@ -995,31 +995,30 @@
         "tags": [
           "Facility Contacts"
         ],
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "description": "Unique hash string for links",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "hash": {
-                  "required": true,
-                  "type": "string",
-                  "example": "hash",
-                  "description": "Unique hash string for links"
-                },
-                "phoneNumber": {
-                  "required": true,
-                  "type": "number",
-                  "example": "1234567890",
-                  "description": "Mobile number to receive the OTP"
-                }    
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "hash": {
+                    "required": true,
+                    "type": "string",
+                    "example": "hash",
+                    "description": "Unique hash string for links"
+                  },
+                  "phoneNumber": {
+                    "required": true,
+                    "type": "string",
+                    "example": "1234567890",
+                    "description": "Mobile number to receive the OTP"
+                  }
+                }
               }
             }
           }
-        ],
+        },
         "responses": {
           "200": {
             "description": "Success Response",
@@ -1067,31 +1066,30 @@
         "tags": [
           "Facility Contacts"
         ],
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "description": "Unique hash string for links",
-            "schema": {
-              "type": "object",
-              "properties": {
-                "hash": {
-                  "required": true,
-                  "type": "string",
-                  "example": "hash",
-                  "description": "Unique hash string for links"
-                },
-                "otp": {
-                  "required": true,
-                  "type": "number",
-                  "example": "123456",
-                  "description": "Verify the opt retivied in mobile using request OTP"
-                }    
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "hash": {
+                    "required": true,
+                    "type": "string",
+                    "example": "hash",
+                    "description": "Unique hash string for links"
+                  },
+                  "otp": {
+                    "required": true,
+                    "type": "string",
+                    "example": "123456",
+                    "description": "Verify the opt retivied in mobile using request OTP"
+                  }
+                }
               }
             }
           }
-        ],
+        },
         "responses": {
           "200": {
             "description": "Success Response",
