@@ -19,7 +19,7 @@ const MESSAGE = {
         VERIFICATION_CODE_FOR_FORGOT_PASSWORD: "Verification code for forgot password",
         VERIFICATION_CODE_FOR_FORGOT_USERNAME: "Verification code for forgot username",
         VERIFICATION_CODE_FOR_SIGN_IN: "Verification code for sign in",
-        YOUR_ACCOUNT_CREDENTIALS_AT_INTELEHEALTH: "Your account credentials at Intelehealth",
+        YOUR_ACCOUNT_CREDENTIALS_AT_INTELEHEALTH: "Your account credentials at Ekal Arogya",
         PASSWORD_RESET_SUCCESSFUL: "Password reset successful.",
         NO_PHONENUMBER_EMAIL_UPDATED_FOR_THIS_USERNAME: "No phoneNumber/email updated for this username.",
         NO_USER_EXISTS_WITH_THIS_PHONE_NUMBER_EMAIL_USERNAME: "No user exists with this phone number/email/username."

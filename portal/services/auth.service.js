@@ -318,7 +318,7 @@ module.exports = (function () {
                   body.append('apikey', process.env.APIKEY_2FACTOR);
                   body.append('to', `+${countryCode}${phoneNumber}`);
                   body.append('from', 'TIFDOC');
-                  body.append('msg', `Welcome to Intelehealth. Please use the username ${data[index].username} to sign in at Intelehealth.`);
+                  body.append('msg', `Welcome to Ekal Arogya. Please use the username ${data[index].username} to sign in at Ekal Arogya.`);
                   const otp = await axios.post(`https://2factor.in/API/R1/`, body, {
                       headers: { 
                         "Content-Type": "application/x-www-form-urlencoded"
