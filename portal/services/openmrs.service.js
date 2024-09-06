@@ -478,5 +478,114 @@ module.exports = (function () {
     }
   };
 
+    /**
+  * Update location attributes
+  * @param { string } locationId - location Id
+  * @param { Object } dataToUpdate - dataToUpdate
+  */
+  this._updateLocationAttributes   = async (locationId, dataToUpdate) => {
+    let response;
+      for (let key of dataToUpdate) {
+        if(key.secondaryVillageId) {
+          response = await axiosInstance.get(
+            `/openmrs/ws/rest/v1/location/${key.secondaryVillageId}/attribute`
+          );
+          await saveLocationAttributes(response, key, key.secondaryVillageId);
+        } else {
+           response = await axiosInstance.get(
+            `/openmrs/ws/rest/v1/location/${locationId}/attribute`
+          );
+          await saveLocationAttributes(response, key, locationId);
+        }
+      }
+      let updatedRes = await axiosInstance.get(
+        `/openmrs/ws/rest/v1/location/${locationId}/attribute`
+      );
+      return (updatedRes.data.results);
+  };
+
+   this.saveLocationAttributes= async (response, key, locationId) => {
+    let attr = response.data.results.find((a) => a.attributeType.uuid === key.attributeType);
+    if (attr) {
+      //update
+      const payload = {
+        attributeType: attr.attributeType.uuid,
+        value: key.value,
+      };
+      const url = `/openmrs/ws/rest/v1/location/${locationId}/attribute/${attr.uuid}`;
+      await axiosInstance.post(url, payload).catch((err) => { });
+    } else {
+      //create
+      const payload = {
+        attributeType: key.attributeType,
+        value: key.value,
+      };
+      const url = `/openmrs/ws/rest/v1/location/${locationId}/attribute`;
+      await axiosInstance.post(url, payload).catch((err) => { });
+    }
+  };
+
+    /**
+  * Get location 
+  * @param data - location data
+  */
+  this._setLocationTree = (data) => {
+    let states = data.filter((d) => d.tag === "State");
+    if (states.length) {
+      states = states.map((s) => {
+        let districts = data.filter(
+          (d) => d.parent === s.id && d.tag === "District"
+        );
+        if (districts.length) {
+          districts = districts.map((d) => {
+            let child = {};
+            const sanchs = data.filter(
+              (s) => s.parent === d.id && s.tag === "Sanch"
+            );
+            const tehsils = data.filter(
+              (t) => t.parent === d.id && t.tag === "Tehsil"
+            );
+            if (sanchs.length) {
+              child.sanchs = sanchs.map((s) => {
+                const villages = data
+                  .filter((v) => v.parent === s.id && v.tag === "Village")
+                  .map(({ name, uuid, id }) => ({ name, uuid, id }));
+
+                return { name: s.name, uuid: s.uuid, id: s.id, villages };
+              });
+            } else if (tehsils.length) {
+              child.tehsils = tehsils.map((t) => {
+                const villages = data
+                  .filter((v) => v.parent === t.id && v.tag === "Village")
+                  .map(({ name, uuid, id }) => ({ name, uuid, id }));
+
+                return { name: s.name, uuid: s.uuid, id: s.id, villages };
+              });
+            } else {
+              child.villages = data
+                .filter((v) => v.parent === d.id && v.tag === "Village")
+                .map(({ name, uuid, id }) => ({ name, uuid, id }));
+            }
+            return {
+              name: d.name,
+              uuid: d.uuid,
+              id: d.id,
+              ...child,
+            };
+          });
+        }
+
+        return {
+          name: s.name,
+          id: s.id,
+          uuid: s.uuid,
+          districts,
+        };
+      });
+    }
+
+    return states;
+  };
+
   return this;
 })();

@@ -9,7 +9,9 @@ const {
   getPriorityVisits,
   getInProgressVisits,
   getCompletedVisits,
-  getEndedVisits
+  getEndedVisits,
+  getLocations,
+  updateLocationAttributes
 } = require("../controllers/openMrs.controller");
 const authMiddleware = require("../middleware/auth");
 
@@ -29,5 +31,12 @@ router.get("/getPriorityVisits", [authMiddleware, getPriorityVisits]);
 router.get("/getInProgressVisits", [authMiddleware, getInProgressVisits]);
 router.get("/getCompletedVisits", [authMiddleware, getCompletedVisits]);
 router.get("/getEndedVisits", [authMiddleware, getEndedVisits]);
+
+
+/**
+ * Location API
+ */
+router.get("/getLocations", [authMiddleware, getLocations]);
+router.post("/location/:locationId", [authMiddleware, updateLocationAttributes]);
 
 module.exports = router;

@@ -7,7 +7,9 @@ const {
   _getPriorityVisits,
   _getInProgressVisits,
   _getCompletedVisits,
-  _getEndedVisits
+  _getEndedVisits,
+  _updateLocationAttributes,
+  _setLocationTree
 } = require("../services/openmrs.service");
 
 const getVisitCountQuery = ({ speciality = "General Physician" }) => {
@@ -344,6 +346,55 @@ const getEndedVisits = async (req, res, next) => {
   }
 };
 
+
+/**
+ * Get location hierarchy 
+ * @param {*} req
+ * @param {*} res
+ * @param {*} next
+ */
+const getLocations = async (req, res, next) => {
+  try {
+    const data = await new Promise((resolve, reject) => {
+      openMrsDB.query(locationQuery(), (err, results, fields) => {
+        if (err) reject(err);
+        resolve(results);
+      });
+    }).catch((err) => {
+      throw err;
+    });
+    let states = _setLocationTree(data);
+    res.json({
+      states,
+      message: "Locations fetched successfully",
+    });
+  } catch (error) {
+    res.statusCode = 422;
+    res.json({ status: false, message: error.message });
+  }
+};
+
+/**
+ * Update Location attributes
+ * @param {request} req
+ * @param {response} res
+ * @returns location attributes
+ */
+const updateLocationAttributes = async (req, res, next) => {
+  try {
+    const locationId = req.params.locationId;
+    const updatedData = req.body;
+    const data = await _updateLocationAttributes(locationId, updatedData);  
+    res.json({
+      data:data,
+      success: true,
+    });
+  } catch (error) {
+    res.statusCode = 422;
+    res.json({ status: false, message: error.message });
+  }
+};
+
 module.exports = {
   getVisitCounts,
   getFollowUpVisit,
@@ -353,5 +404,7 @@ module.exports = {
   getPriorityVisits,
   getInProgressVisits,
   getCompletedVisits,
-  getEndedVisits
+  getEndedVisits,
+  getLocations,
+  updateLocationAttributes
 };
