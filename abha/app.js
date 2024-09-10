@@ -19,15 +19,17 @@ const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS && JSON.parse(process.env.AL
 app.use(cors(
 	{
 		origin: (origin, callback) => {
-			const theOrigin = ALLOWED_ORIGINS.indexOf(origin) >= 0 ? origin : ALLOWED_ORIGINS[0];
-			if (theOrigin || !origin) {
+			const theOrigin = ALLOWED_ORIGINS.indexOf(origin) >= 0 ? origin : null;
+			if (theOrigin) {
 				callback(null, true)
 			} else {
 				callback(new Error('origin not allowed by Cors'))
 			}
 		},
 		optionsSuccessStatus: 200,
-		credentials: true
+		credentials: true,
+		methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+        allowedHeaders: 'Content-Type, Authorization'
 	}
 ));
 app.use(logger("dev"));
