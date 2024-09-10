@@ -88,10 +88,13 @@ const sendCloudNotification = async ({
 }) => {
   let payload = {};
 
-  if (data) payload.data = data;
+  const message = {
+    data: data,
+    tokens: regTokens
+  };
 
   if (title) {
-    payload.notification = {
+    message.notification = {
       title,
       icon,
       body,
@@ -103,11 +106,14 @@ const sendCloudNotification = async ({
     priority: "high",
   };
 
-  try {
-    return await messaging.sendToDevice(regTokens, payload, options);
-  } catch (err) {
-    console.error("Cloud notification error:", err);
-  }
+   return messaging.sendEachForMulticast(message)
+    .then((response) => {
+      // Response is a message ID string.
+      console.log('Successfully sent message:', response);
+    })
+    .catch((error) => {
+      console.log('Error sending message:', error);
+    });
 };
 
 const getFirebaseAdmin = () => admin;
