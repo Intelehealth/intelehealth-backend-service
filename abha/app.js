@@ -20,16 +20,14 @@ app.use(cors(
 	{
 		origin: (origin, callback) => {
 			const theOrigin = ALLOWED_ORIGINS.indexOf(origin) >= 0 ? origin : null;
-			if (theOrigin) {
+			if (theOrigin || !origin) {
 				callback(null, true)
 			} else {
 				callback(new Error('origin not allowed by Cors'))
 			}
 		},
 		optionsSuccessStatus: 200,
-		credentials: true,
-		methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-        allowedHeaders: 'Content-Type, Authorization'
+		credentials: true
 	}
 ));
 app.use(logger("dev"));
