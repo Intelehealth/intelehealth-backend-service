@@ -95,8 +95,8 @@ module.exports = (function () {
     try {
       logStream('debug', 'API calling', 'Get Scheduled Months')
       const { userUuid } = req.params;
-      const { year } = req.query;
-      const data = await getScheduledMonths({ userUuid, year });
+      const { year, speciality = null } = req.query;
+      const data = await getScheduledMonths({ userUuid, year, speciality });
       logStream('debug', 'Got Scheduled Months', 'Get Scheduled Months')
       res.json({
         status: true,
