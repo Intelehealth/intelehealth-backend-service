@@ -246,7 +246,6 @@ WHERE
           speciality: { [Op.eq]: speciality }
         })
       }
-      console.log("$where", $where)
       const data = await Schedule.findAll({
         where: $where,
         raw: true,
@@ -286,17 +285,22 @@ WHERE
      * @param { string } fromDate - From date
      * @param { string } toDate - To date
      */
-  this.getUserSlots = async ({ userUuid, fromDate, toDate }) => {
+  this.getUserSlots = async ({ userUuid, fromDate, toDate, speciality = null }) => {
     try {
       logStream('debug','Appointment Service', 'Get User Slots');
-      const data = await Appointment.findAll({
-        where: {
-          userUuid,
-          slotJsDate: {
-            [Op.between]: this.getFilterDates(fromDate, toDate),
-          },
-          status: Constant.BOOKED,
+      const $where = {
+        slotJsDate: {
+          [Op.between]: this.getFilterDates(fromDate, toDate),
         },
+        status: Constant.BOOKED,
+        [Op.or]: [{ userUuid: { [Op.eq]: userUuid } }]
+      }
+
+      if(speciality) {
+        $where[Op.or].push({ speciality: { [Op.eq]: speciality } })
+      }
+      const data = await Appointment.findAll({
+        where: $where,
         order: [[Constant.SLOT_JS_DATE, "ASC"]],
         raw: true,
       });
