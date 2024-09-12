@@ -287,8 +287,8 @@ const notifyApp = async (req, res, next) => {
      
       data = await sendPrescriptionCloudNotification(notficationObj)
         .then((res) => {
-          createNotification({
-            type: req.body.type,
+          if(res) createNotification({
+            type: req.body.type ?? 'prescription',
             user_uuid: req.params.userId,
             title: notficationObj.title,
             description: notficationObj.body,

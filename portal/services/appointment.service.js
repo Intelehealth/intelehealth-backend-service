@@ -222,22 +222,33 @@ WHERE
   };
 
   /**
-     * Get scheduled months for a given user
+     * Get scheduled months for a given user or Speciality
      * @param { string } userUuid - User uuid
      * @param { string } year - Year
+     * @param { string } speciality = Speciality of User
      */
-  this.getScheduledMonths = async ({ userUuid, year }) => {
+  this.getScheduledMonths = async ({ userUuid, year, speciality }) => {
     try {
       logStream('debug','Appointment Service', 'Get Scheduled Months');
       //Getting currentYear & nextYear Data
       const nextYear = (+(year) + 1);
-      const data = await Schedule.findAll({
-        where: {
-          userUuid,
-          year: {
-            [Op.in]: [year, nextYear.toString()]
-          },
+      const $where = {
+        year: {
+          [Op.in]: [year, nextYear.toString()]
         },
+        [Op.or]: [{
+          userUuid: { [Op.eq]: userUuid }
+        }]
+      };
+
+      if (speciality) {
+        $where[Op.or].push({
+          speciality: { [Op.eq]: speciality }
+        })
+      }
+      console.log("$where", $where)
+      const data = await Schedule.findAll({
+        where: $where,
         raw: true,
       });
       let months = [];
