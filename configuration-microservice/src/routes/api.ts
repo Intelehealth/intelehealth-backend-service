@@ -8,6 +8,7 @@ import AuthRoutes from './AuthRoutes';
 import UserRoutes from './UserRoutes';
 import SpecializationRoutes from './SpecializationRoutes';
 import VitalRoutes from './PatientVitalRoutes';
+import DiagnosticRoutes from './PatientDiagnosticsRoutes';
 import ConfigRoutes from './ConfigRoutes';
 import LanguageRoutes from './LanguageRoutes';
 import PatientRegistrationRoutes from './PatientRegistrationRoutes';
@@ -279,6 +280,33 @@ vitalRouter.put(
 
 // Add PatientVitalRouter
 apiRouter.use(Paths.PatientVital.Base, authMw, vitalRouter);
+
+// **** Setup DiagnosticsRouter **** //
+
+const diagnosticsRouter = Router();
+
+// Get all patient vitals
+diagnosticsRouter.get(
+  Paths.PatientDiagnostics.Get,
+  DiagnosticRoutes.getAll,
+);
+
+// Update one patient vital enabled status
+diagnosticsRouter.put(
+  Paths.PatientDiagnostics.UpdateIsEnabled,
+  validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body']),
+  DiagnosticRoutes.updateIsEnabled,
+);
+
+// Update one patient vital mandatory status
+diagnosticsRouter.put(
+  Paths.PatientDiagnostics.updateIsMandatory,
+  validate(['id', 'number', 'params'],['is_mandatory', 'boolean', 'body']),
+  DiagnosticRoutes.updateIsMandatory,
+);
+
+// Add PatientDiagnosticsRouter
+apiRouter.use(Paths.PatientDiagnostics.Base, authMw, diagnosticsRouter);
 
 // **** Setup WebrtcRouter **** //
 
