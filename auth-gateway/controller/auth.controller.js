@@ -141,6 +141,9 @@ module.exports = (function () {
         case "doctor":
           roles = JSON.parse(process.env.DOCTOR_ROLES);
           break;
+        case "mcc":
+          roles = JSON.parse(process.env.MCC_ROLES);
+          break;
 
         default:
           throw createError("Role not found", 404);

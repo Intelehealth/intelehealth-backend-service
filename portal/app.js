@@ -6,6 +6,8 @@ const session = require("express-session");
 const SequelizeStore = require("connect-session-sequelize")(session.Store);
 const db = require("./models");
 const morganMiddleware = require("./middleware/morgan");
+const swaggerUi = require('swagger-ui-express');
+const swaggerDocument = require('./swagger.json');
 
 const app = express();
 
@@ -61,6 +63,14 @@ app.use(
     saveUninitialized: true,
   })
 );
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
+  explorer: true,
+  swaggerOptions: {
+    docExpansions: "none",
+    persistAuthorization: true
+  }
+}));
 
 app.use("/api", require("./routes/index"));
 app.use("/notification", require("./routes/pushNotification"));

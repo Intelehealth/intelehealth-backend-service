@@ -2,7 +2,8 @@ const { user_settings } = require("../models");
 const { RES, sendPrescriptionCloudNotification } = require("../handlers/helper");
 const { MESSAGE } = require("../constants/messages");
 const { logStream } = require("../logger/index");
-const { createNotification } = require("../services/notifications.service");
+const { createNotification, readNotificationById, deleteNotifications, getNotifications} = require("../services/notifications.service");
+const { getPagingData } = require("../handlers/functions");
 Date.prototype.addMinutes = function (m) {
   this.setTime(this.getTime() + m * 60000);
   return this;
@@ -243,7 +244,7 @@ const snoozeNotification = async (req, res) => {
             message: MESSAGE.COMMON.USER_NOT_EXIST,
             data: null
           },
-          200
+          404
         );
       }
 
@@ -286,7 +287,8 @@ const notifyApp = async (req, res, next) => {
      
       data = await sendPrescriptionCloudNotification(notficationObj)
         .then((res) => {
-          createNotification({
+          if(res) createNotification({
+            type: req.body.type ?? 'prescription',
             user_uuid: req.params.userId,
             title: notficationObj.title,
             description: notficationObj.body,
@@ -308,11 +310,69 @@ const notifyApp = async (req, res, next) => {
   }
 };
 
+const acknowledgeNotification = async (req ,res, next) => {
+  logStream('debug', 'API call', 'Acknowledge Notification');
+  const { id } = req.params;
+  if (!id || id.trim().length === 0) {
+    res.status(422).json({ message: "Please pass correct notification id!" });
+    return
+  }
+
+  let data = await readNotificationById(id);
+  if (data.data && data.data[0] === 0) 
+    res.status(404).json({ message: "Record not present" });
+  else{
+    logStream('debug', 'Success', 'Acknowledge Notification');
+    res.status(200).json({
+      message: "Acknowledged Notification Successfully",
+      data
+    });
+  }
+}
+
+const clearNotification = async(req, res, next) => {
+  logStream('debug', 'API call', 'Clear Notification');
+  const { userId } = req.params;
+  if (!userId)
+    res.status(422).json({ message: "Please pass correct user id!" });
+
+  let data = await deleteNotifications(userId);
+  if (!data.data) 
+    res.status(404).json({ message: "Records not present" });
+  else{ 
+    logStream('debug', 'Success', 'Clear Notification');
+    res.status(200).json({
+      message: "Clear Notification Successfully",
+      data
+    });
+  }
+}
+
+const listNotifications = async (req, res, next) => {
+  logStream('debug', 'API call', 'All Notification');
+  const { userId, page = 1, size = 10 } = req.query;
+  if (!userId) {
+    res.status(422).json({ message: "Please pass correct user id!" });
+    return;
+  }
+  try {
+    const offset = (page - 1) * size;
+    const data = await getNotifications({ userUuid: userId }, offset, +size);
+    logStream('debug', 'Success', 'All Notification');
+    return res.status(200).json(getPagingData(data, page, size));
+  } catch (error) {
+    next(error)
+  }
+}
+
 module.exports = {
   snoozeNotification,
   getUserSettings,
   setUserSettings,
   getNotificationStatus,
   toggleNotificationStatus,
-  notifyApp
+  notifyApp,
+  acknowledgeNotification,
+  clearNotification,
+  listNotifications
 };

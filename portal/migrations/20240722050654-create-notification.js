@@ -18,7 +18,7 @@ module.exports = {
       user_uuid: Sequelize.STRING,
       type: {
         type: Sequelize.ENUM,
-        values: ["prescription"],
+        values: ["prescription", 'followup', 'appointment'],
         defaultValue: "prescription",
       },
       payload: {
@@ -27,7 +27,7 @@ module.exports = {
       },
       isRead: {
         type: Sequelize.BOOLEAN,
-        default: false
+        defaultValue: false
       },
       createdAt: {
         allowNull: false,

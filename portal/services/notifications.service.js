@@ -55,18 +55,44 @@ module.exports = (function () {
         }
     };
 
-
-
     /**
      * Return all the notification
      * @returns []Array
      */
-    this.getNotifications = async (filters = null) => {
+    this.getNotifications = async (filters = null, offset = 0, limit = 10) => {
         try {
-            const data = await messages.findAll({
-                where: { user_uuid: filters.userUuid },
+            const where = {};
+            if(filters.userUuid) {
+                where.user_uuid = filters.userUuid 
+            }
+
+            const data = await notifications.findAndCountAll({
+                where: where,
+                limit: limit,
+                offset: offset,
                 order: [[Sequelize.col("createdAt"), "DESC"]],
+                raw: true
             });
+            
+            return data;
+        } catch (error) {
+            return {
+                rows: [],
+                count: 0
+            };
+        }
+    };
+
+
+    /**
+     * Delete all the notification for particular user
+     * @returns []Array
+     */
+    this.deleteNotifications = async (user_uuid) => {
+        try {
+            const data = await notifications.destroy({ where: {
+                user_uuid: user_uuid
+              }})
             return { success: true, data };
         } catch (error) {
             return {

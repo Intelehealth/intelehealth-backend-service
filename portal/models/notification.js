@@ -32,7 +32,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     isRead: {
       type: DataTypes.BOOLEAN,
-      default: false
+      defaultValue: false
     }
   }, {
     sequelize,

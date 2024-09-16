@@ -222,22 +222,32 @@ WHERE
   };
 
   /**
-     * Get scheduled months for a given user
+     * Get scheduled months for a given user or Speciality
      * @param { string } userUuid - User uuid
      * @param { string } year - Year
+     * @param { string } speciality = Speciality of User
      */
-  this.getScheduledMonths = async ({ userUuid, year }) => {
+  this.getScheduledMonths = async ({ userUuid, year, speciality }) => {
     try {
       logStream('debug','Appointment Service', 'Get Scheduled Months');
       //Getting currentYear & nextYear Data
       const nextYear = (+(year) + 1);
-      const data = await Schedule.findAll({
-        where: {
-          userUuid,
-          year: {
-            [Op.in]: [year, nextYear.toString()]
-          },
+      const $where = {
+        year: {
+          [Op.in]: [year, nextYear.toString()]
         },
+        [Op.or]: [{
+          userUuid: { [Op.eq]: userUuid }
+        }]
+      };
+
+      if (speciality) {
+        $where[Op.or].push({
+          speciality: { [Op.eq]: speciality }
+        })
+      }
+      const data = await Schedule.findAll({
+        where: $where,
         raw: true,
       });
       let months = [];
@@ -275,17 +285,22 @@ WHERE
      * @param { string } fromDate - From date
      * @param { string } toDate - To date
      */
-  this.getUserSlots = async ({ userUuid, fromDate, toDate }) => {
+  this.getUserSlots = async ({ userUuid, fromDate, toDate, speciality = null }) => {
     try {
       logStream('debug','Appointment Service', 'Get User Slots');
-      const data = await Appointment.findAll({
-        where: {
-          userUuid,
-          slotJsDate: {
-            [Op.between]: this.getFilterDates(fromDate, toDate),
-          },
-          status: Constant.BOOKED,
+      const $where = {
+        slotJsDate: {
+          [Op.between]: this.getFilterDates(fromDate, toDate),
         },
+        status: Constant.BOOKED,
+        [Op.or]: [{ userUuid: { [Op.eq]: userUuid } }]
+      }
+
+      if(speciality) {
+        $where[Op.or].push({ speciality: { [Op.eq]: speciality } })
+      }
+      const data = await Appointment.findAll({
+        where: $where,
         order: [[Constant.SLOT_JS_DATE, "ASC"]],
         raw: true,
       });
