@@ -20,7 +20,7 @@ const {
   patient_identifier,
   person_name,
   encounter_type,
-  encounter_provider,
+  person_attribute,
   person,
   provider,
   location,
@@ -349,6 +349,15 @@ WHERE
             model: person,
             as: "person",
             attributes: ["uuid", "gender", "birthdate"],
+            include: [
+              {
+                required: false,
+                model: person_attribute,
+                as: "person_attribute",
+                attributes: ["value", "person_attribute_type_id"],
+                where: {person_attribute_type_id: 8}
+              }
+            ],
           },
           {
             model: location,
