@@ -77,4 +77,9 @@ export default {
     Get: '/all',
     UpdateIsEnabled: '/updateIsEnabled/:id',
   },
+  SidebarMenus: {
+    Base: '/sidebar-menu',
+    Get: '/all',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+  },
 } as const;
