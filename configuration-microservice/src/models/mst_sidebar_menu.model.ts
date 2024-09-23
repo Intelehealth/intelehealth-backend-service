@@ -14,7 +14,7 @@ export interface SidebarMenuCreationAttributes extends Optional<SidebarMenuAttri
 
 @Table({
     timestamps: true,
-    tableName: "mst_sidebar_menus"
+    tableName: "mst_sidebar_menu"
 })
 export class SidebarMenu extends Model<SidebarMenuCreationAttributes, SidebarMenuCreationAttributes> {
     @Column({
