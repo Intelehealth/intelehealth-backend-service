@@ -13,7 +13,8 @@ module.exports = {
         { name: 'Appointment', key: 'appointment', is_enabled: true },
         { name: 'Calendar', key: 'calendar', is_enabled: true },
         { name: 'Prescription', key: 'prescription', is_enabled: true },
-        { name: 'Help & Support', key: 'help_support', is_enabled: true }
+        { name: 'Help & Support', key: 'help_support', is_enabled: true },
+        { name: 'My Profile', key: 'my_profile', is_enabled: true }
       ];
       await queryInterface.bulkInsert('dic_config', [
         {
