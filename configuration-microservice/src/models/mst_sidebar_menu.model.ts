@@ -6,6 +6,7 @@ export interface SidebarMenuAttributes {
   name: string;
   key: string;
   is_enabled: boolean;
+  is_locked: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -44,6 +45,12 @@ export class SidebarMenu extends Model<SidebarMenuCreationAttributes, SidebarMen
         defaultValue: false
     })
     is_enabled!: boolean;
+
+    @Column({
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
+    })
+    is_locked!: boolean;
 
     @CreatedAt
     @Column

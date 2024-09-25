@@ -7,15 +7,15 @@ module.exports = {
       /**
        * Add seed commands here.
       */
-      const menus = [
-        { name: 'Dashboard', key: 'dashboard', is_enabled: true },
-        { name: 'Messages', key: 'messages', is_enabled: true },
-        { name: 'Appointment', key: 'appointment', is_enabled: true },
-        { name: 'Calendar', key: 'calendar', is_enabled: true },
-        { name: 'Prescription', key: 'prescription', is_enabled: true },
-        { name: 'Help & Support', key: 'help_support', is_enabled: true },
-        { name: 'My Profile', key: 'my_profile', is_enabled: true }
-      ];
+      const menus = {
+        dashboard: true,
+        messages: true,
+        appointment: true,
+        calendar: true,
+        prescription: true,
+        help_support: true,
+        my_profile: true
+      }
       await queryInterface.bulkInsert('dic_config', [
         {
           key: 'sidebar_menus',
