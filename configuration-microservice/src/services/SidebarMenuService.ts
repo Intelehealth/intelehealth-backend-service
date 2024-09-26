@@ -8,6 +8,7 @@ import { SidebarMenu } from '@src/models/mst_sidebar_menu.model';
 // **** Variables **** //
 
 export const SIDEBAR_MENU_NOT_FOUND_ERR = 'Sidebar menu section not found';
+export const CANT_UPDATE_MANDATORY_STATUS_IF_LOCKED = 'Can not update mandatory status for default compulsory field';
 
 // **** Functions **** //
 
@@ -33,6 +34,15 @@ async function updateIsEnabled(id: string, is_enabled: boolean, user_id: string,
         );
     }
 
+    // Check if locked, if locked don't do anything
+    if (menu.is_locked) {
+        throw new RouteError(
+            HttpStatusCodes.NOT_FOUND,
+            CANT_UPDATE_MANDATORY_STATUS_IF_LOCKED,
+        );
+    }
+
+
     // Check if new status and current status are same or not, if same don't do anything
     if (menu.is_enabled === is_enabled) {
         return;
@@ -47,7 +57,7 @@ async function updateIsEnabled(id: string, is_enabled: boolean, user_id: string,
     });
 
     const data = sections.reduce((acc: any, item: SidebarMenu) => {
-        const key = item.key.replace(new RegExp(' ', 'g'),'_').toLowerCase();
+        const key = item.key;
         if (!acc[key]) {
             acc[key] = Boolean(item.is_enabled);
         }

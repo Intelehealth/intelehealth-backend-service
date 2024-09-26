@@ -26,6 +26,10 @@ module.exports = {
               type: DataTypes.BOOLEAN,
               defaultValue: false,
             },
+            is_locked: {
+              type: DataTypes.BOOLEAN,
+              defaultValue: false,
+            },
             createdAt: {
               allowNull: false,
               type: DataTypes.DATE,
