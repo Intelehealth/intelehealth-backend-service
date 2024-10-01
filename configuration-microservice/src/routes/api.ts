@@ -18,6 +18,7 @@ import multer from 'multer';
 import WebrtcRoutes from './WebrtcRoutes';
 import FeaturesRoutes from './FeaturesRoutes';
 import PatientVisitSummaryRoutes from './PatientVisitSummaryRoutes';
+import SidebarMenuRoutes from './SidebarMenuRoutes';
 
 // **** Variables **** //
 
@@ -375,6 +376,26 @@ pvsRouter.put(
 
 // Add PatientVisitSummaryRouter
 apiRouter.use(Paths.PatientVisitSummary.Base, authMw, pvsRouter);
+
+
+// **** Setup SpecializationRouter **** //
+
+const siderbarMenuRouter = Router();
+
+// Get all sidebar menus
+siderbarMenuRouter.get(
+  Paths.SidebarMenus.Get,
+  SidebarMenuRoutes.getAll,
+);
+
+// Update one sidebar menus status
+siderbarMenuRouter.put(
+  Paths.SidebarMenus.UpdateIsEnabled,
+  validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body']),
+  SidebarMenuRoutes.updateIsEnabled,
+);
+// Add SiderbarMenuRouter
+apiRouter.use(Paths.SidebarMenus.Base, authMw, siderbarMenuRouter);
 
 // **** Export default **** //
 
