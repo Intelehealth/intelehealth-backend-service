@@ -82,4 +82,10 @@ export default {
     Get: '/all',
     UpdateIsEnabled: '/updateIsEnabled/:id',
   },
+  PatientVisitSections: {
+    Base: '/patient-visit-sections',
+    Get: '/all',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+    UpdateName: '/updateName/:id'
+  },
 } as const;

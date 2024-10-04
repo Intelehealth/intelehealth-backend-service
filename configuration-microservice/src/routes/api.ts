@@ -19,6 +19,7 @@ import WebrtcRoutes from './WebrtcRoutes';
 import FeaturesRoutes from './FeaturesRoutes';
 import PatientVisitSummaryRoutes from './PatientVisitSummaryRoutes';
 import SidebarMenuRoutes from './SidebarMenuRoutes';
+import PatientVisitSectionsRoutes from './PatientVisitSectionsRoutes';
 
 // **** Variables **** //
 
@@ -378,7 +379,7 @@ pvsRouter.put(
 apiRouter.use(Paths.PatientVisitSummary.Base, authMw, pvsRouter);
 
 
-// **** Setup SpecializationRouter **** //
+// **** Setup SiderbarMenuRouter **** //
 
 const siderbarMenuRouter = Router();
 
@@ -396,6 +397,33 @@ siderbarMenuRouter.put(
 );
 // Add SiderbarMenuRouter
 apiRouter.use(Paths.SidebarMenus.Base, authMw, siderbarMenuRouter);
+
+
+// **** Setup PatientVisitSectionsRouter **** //
+
+const patientVisitSectionsRouter = Router();
+
+// Get all patient visit sections
+patientVisitSectionsRouter.get(
+  Paths.PatientVisitSections.Get,
+  PatientVisitSectionsRoutes.getAll,
+);
+
+// Update one patient visit sections status
+patientVisitSectionsRouter.put(
+  Paths.PatientVisitSections.UpdateIsEnabled,
+  validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body']),
+  PatientVisitSectionsRoutes.updateIsEnabled,
+);
+
+// Update one patient visit sections name
+patientVisitSectionsRouter.put(
+  Paths.PatientVisitSections.UpdateName,
+  validate(['id', 'number', 'params'],['name', 'object', 'body']),
+  PatientVisitSectionsRoutes.updateName,
+);
+// Add SiderbarMenuRouter
+apiRouter.use(Paths.PatientVisitSections.Base, authMw, patientVisitSectionsRouter);
 
 // **** Export default **** //
 
