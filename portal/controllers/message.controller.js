@@ -6,7 +6,7 @@ const {
   readMessagesById,
   getVisits,
 } = require("../services/message.service");
-const { validateParams, sendWebPushNotification } = require("../handlers/helper");
+const { validateParams, sendWebPushNotification, sendCloudNotification } = require("../handlers/helper");
 const { user_settings, pushnotifications } = require("../models");
 const { uploadFile } = require("../handlers/file.handler");
 
@@ -104,8 +104,10 @@ module.exports = (function () {
           });
           if (userSetting?.device_reg_token) {
             notificationResponse = await sendCloudNotification({
-              title: "New chat message",
-              body: message,
+              notification: {
+                title: "New chat message",
+                body: message,
+              },
               data: {
                 ...req.body,
                 ...data.data.dataValues,

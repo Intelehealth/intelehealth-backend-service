@@ -440,8 +440,10 @@ module.exports = function (server) {
         let notificationResponse;
         if (userSetting && userSetting.device_reg_token) {
           notificationResponse = await sendCloudNotification({
-            title: "New Patient Assigned",
-            body: "New patient has been assigned to you by another HW.",
+            notification:{
+              title: "New Patient Assigned",
+              body: "New patient has been assigned to you by another HW.",
+            },
             data: {
               ...py,
               actionType: "SHIFT_CHANGE",

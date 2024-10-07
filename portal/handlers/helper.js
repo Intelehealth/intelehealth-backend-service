@@ -100,29 +100,20 @@ const validateParams = (params, keysAndTypeToCheck = []) => {
  * @param {*} data - (title, body, icon, data(payload), regTokens, click_action)
  */
 const sendCloudNotification = async ({
-  title,
-  body,
-  icon = "ic_launcher",
   data = {},
+  notification = null,
   regTokens,
-  click_action = "FCM_PLUGIN_HOME_ACTIVITY",
 }) => {
   const payload = {
     data,
-    // notification: {
-    //   title,
-    //   icon,
-    //   body,
-    //   click_action,
-    // },
+    tokens: regTokens,
   };
 
-  const options = {
-    priority: "high",
-  };
+  if(notification) payload.notification = notification;
 
   try {
-    const result = await messaging.sendToDevice(regTokens, payload, options);
+    const result = await messaging.sendEachForMulticast(payload);
+    return result;
   } catch (err) {
     console.error("Cloud notification error:", err);
   }
