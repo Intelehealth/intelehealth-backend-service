@@ -94,11 +94,12 @@ const sendCloudNotification = async ({
   };
 
   if (title) {
+	  data.click_action=click_action;
     message.notification = {
       title,
-      icon,
+     // icon,
       body,
-      click_action,
+     // click_action,
     };
   }
 
