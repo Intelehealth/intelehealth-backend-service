@@ -11,7 +11,7 @@ import PatientVisitSectionService from '@src/services/PatientVisitSectionService
  */
 async function getAll(_: IReq, res: IRes) {
     const pvs = await PatientVisitSectionService.getAll();
-    return res.status(HttpStatusCodes.OK).json({ patient_visit_sections: pvs});
+    return res.status(HttpStatusCodes.OK).json({ patient_visit_sections: (pvs ?? [])});
 }
 
 /**

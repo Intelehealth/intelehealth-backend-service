@@ -85,8 +85,10 @@ async function updateName(id: string, name: any, user_id: string, user_name: str
         );
     }
 
+    const stringifyName = JSON.stringify(name);
+
     // Check if new status and current status are same or not, if same don't do anything
-    if (JSON.stringify(patientVisitSection.name) === JSON.stringify(name)) {
+    if (JSON.stringify(patientVisitSection.name) === stringifyName) {
         return;
     }
 
@@ -103,7 +105,7 @@ async function updateName(id: string, name: any, user_id: string, user_name: str
     await Config.update({ value: JSON.stringify(enabledSections), published: false }, { where: { key: 'patient_visit_sections' } });
 
     // Insert audit trail entry
-    await AuditTrail.create({ user_id, user_name, activity_type: 'PATIENT VISIT SECTION NAME UPDATED', description: `Old name ${JSON.stringify(patientVisitSection.name)} New Name ${JSON.stringify(name)} patient visit section.`});
+    await AuditTrail.create({ user_id, user_name, activity_type: 'PATIENT VISIT SECTION NAME UPDATED', description: `Old name ${JSON.stringify(patientVisitSection.name)} New Name ${stringifyName} patient visit section.`});
 }
 
 /**
