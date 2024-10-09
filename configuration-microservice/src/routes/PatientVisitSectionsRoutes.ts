@@ -32,7 +32,6 @@ async function updateName(req: IReqUser<{ name: any }>, res: IRes) {
     const { id } = req.params;
     const { userId, name } = req.user.data;
     const { name: langNames } = req.body
-    console.log("ID", id, langNames)
     await PatientVisitSectionService.updateName(id, langNames, userId, name);
     return res.status(HttpStatusCodes.OK).json({ success: true, data: null });
 }
@@ -41,11 +40,10 @@ async function updateName(req: IReqUser<{ name: any }>, res: IRes) {
 /**
  * Update patient visit section order updated.
  */
-async function updateOrder(req: IReqUser<{ data: { order: number, id: number}[]}>, res: IRes) {
-    const { id } = req.params;
+async function updateOrder(req: IReqUser<{ order:any }>, res: IRes) {
     const { userId, name } = req.user.data;
-    const { data } = req.body
-    await PatientVisitSectionService.updateIsEnabled(id, data as any, userId, name);
+    const { order } = req.body
+    await PatientVisitSectionService.updateOrder(order, userId, name);
     return res.status(HttpStatusCodes.OK).json({ success: true, data: null });
 }
 

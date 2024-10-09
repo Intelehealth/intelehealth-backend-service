@@ -422,6 +422,13 @@ patientVisitSectionsRouter.put(
   validate(['id', 'number', 'params'],['name', 'object', 'body']),
   PatientVisitSectionsRoutes.updateName,
 );
+
+// Update one patient visit sections name
+patientVisitSectionsRouter.put(
+  Paths.PatientVisitSections.UpdateOrder,
+  validate(['order', 'object', 'body']),
+  PatientVisitSectionsRoutes.updateOrder,
+);
 // Add SiderbarMenuRouter
 apiRouter.use(Paths.PatientVisitSections.Base, authMw, patientVisitSectionsRouter);
 

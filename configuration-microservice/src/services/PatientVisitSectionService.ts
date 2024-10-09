@@ -3,6 +3,7 @@ import HttpStatusCodes from '@src/constants/HttpStatusCodes';
 import { Config } from '@src/models/dic_config.model';
 import { AuditTrail } from '@src/models/audit_trail.model';
 import { PatientVisitSection } from '@src/models/mst_patient_visit_section.model';
+import connection from '@src/database/connection';
 
 
 // **** Variables **** //
@@ -102,14 +103,41 @@ async function updateName(id: string, name: any, user_id: string, user_name: str
     await Config.update({ value: JSON.stringify(enabledSections), published: false }, { where: { key: 'patient_visit_sections' } });
 
     // Insert audit trail entry
-    await AuditTrail.create({ user_id, user_name, activity_type: 'PATIENT VISIT SECTION ENABLED STATUS UPDATED', description: `Old name ${JSON.stringify(patientVisitSection.name)} New Name ${JSON.stringify(name)} patient visit section.`});
+    await AuditTrail.create({ user_id, user_name, activity_type: 'PATIENT VISIT SECTION NAME UPDATED', description: `Old name ${JSON.stringify(patientVisitSection.name)} New Name ${JSON.stringify(name)} patient visit section.`});
 }
 
+/**
+ * Update patient visit section enabled status..
+ */
+async function updateOrder(order: any[], user_id: string, user_name: string): Promise<void> {
+
+    // Get All sections
+    const enabledSections = await PatientVisitSection.findAll({
+        attributes: ['name', 'key', 'is_enabled', 'order'],
+        where: { is_enabled: true }
+    });
+
+    const updates = order.map(item => `WHEN id = ${item.id} THEN ${item.order}`).join(' ');
+
+    const query = `UPDATE mst_patient_visit_sections SET \`order\` = CASE ${updates} END WHERE id IN (${order.map(item => item.id).join(', ')});`;
+    console.log("query", query)
+    try {
+        await connection.query(query);
+        // Update dic_config patient_visit_sections
+        await Config.update({ value: JSON.stringify(enabledSections), published: false }, { where: { key: 'patient_visit_sections' } });
+        // Insert audit trail entry
+        await AuditTrail.create({ user_id, user_name, activity_type: 'PATIENT VISIT SECTION ORDER UPDATED', description: `Old order ${JSON.stringify(enabledSections?.map((section) => ({id: section?.id, order: section.order})))} New Name ${JSON.stringify(order)} patient visit section.`});
+    } catch (err) {
+        throw err;
+    }
+    
+}
 
 // **** Export default **** //
 
 export default {
     getAll,
     updateIsEnabled,
-    updateName
+    updateName,
+    updateOrder
 } as const;
