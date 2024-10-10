@@ -30,7 +30,7 @@ export class PatientVisitSection extends Model<SidebarMenuCreationAttributes, Si
         type: DataTypes.JSON,
         allowNull: true
     })
-    name!: string;
+    name!: object;
 
     @Column({
       type: DataTypes.STRING,
