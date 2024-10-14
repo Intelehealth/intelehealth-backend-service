@@ -58,7 +58,8 @@ export class AuditTrail extends Model<AuditTrailAttributes, AuditTrailCreationAt
             'SIDEBAR MENU STATUS UPDATED',
             'PATIENT VISIT SECTION ENABLED STATUS UPDATED',
             'PATIENT VISIT SECTION NAME UPDATED',
-            'PATIENT VISIT SECTION ORDER UPDATED'
+            'PATIENT VISIT SECTION ORDER UPDATED',
+            'VITAL NAME UPDATED'
         ],
         allowNull: false
     })

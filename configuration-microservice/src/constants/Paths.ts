@@ -40,6 +40,7 @@ export default {
     Get: '/all',
     updateIsMandatory: '/updateIsMandatory/:id',
     UpdateIsEnabled: '/updateIsEnabled/:id',
+    updateVitalName: '/updateVitalName/:id',
   },
   PatientDiagnostics: {
     Base: '/diagnostics',
