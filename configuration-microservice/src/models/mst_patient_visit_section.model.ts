@@ -4,6 +4,7 @@ import { Table, Model, Column, CreatedAt, UpdatedAt } from 'sequelize-typescript
 export interface SidebarMenuAttributes {
   id: number;
   name: string;
+  lang: object;
   key: string;
   is_enabled: boolean;
   is_locked: boolean;
@@ -27,10 +28,16 @@ export class PatientVisitSection extends Model<SidebarMenuCreationAttributes, Si
     id!: number;
 
     @Column({
-        type: DataTypes.JSON,
+        type: DataTypes.STRING,
         allowNull: true
     })
-    name!: object;
+    name!: string;
+
+    @Column({
+      type: DataTypes.JSON,
+      allowNull: true
+    })
+    lang!: object;
 
     @Column({
       type: DataTypes.STRING,

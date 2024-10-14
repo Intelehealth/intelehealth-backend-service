@@ -419,7 +419,7 @@ patientVisitSectionsRouter.put(
 // Update one patient visit sections name
 patientVisitSectionsRouter.put(
   Paths.PatientVisitSections.UpdateName,
-  validate(['id', 'number', 'params'],['name', 'object', 'body']),
+  validate(['id', 'number', 'params'],['lang', 'object', 'body']),
   PatientVisitSectionsRoutes.updateName,
 );
 
