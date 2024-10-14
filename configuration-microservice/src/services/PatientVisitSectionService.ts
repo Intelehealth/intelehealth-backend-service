@@ -19,8 +19,9 @@ export const CANT_UPDATE_NAME_IF_EDITABLE_FALSE = 'Can update the name, because 
  */
 function getAll(): Promise<PatientVisitSection[]> {
     return PatientVisitSection.findAll({
-        attributes: ['id', 'name', 'key', 'is_editable', 'is_enabled', 'is_locked', 'order', 'createdAt', 'updatedAt'],
-        raw: true
+        attributes: ['id', 'name', 'lang', 'key', 'is_editable', 'is_enabled', 'is_locked', 'order', 'createdAt', 'updatedAt'],
+        raw: true,
+        order: [['order', 'asc']]
     });
 }
 
@@ -54,7 +55,7 @@ async function updateIsEnabled(id: string, is_enabled: boolean, user_id: string,
 
     // Get enabled sections
     const enabledSections = await PatientVisitSection.findAll({
-        attributes: ['name', 'key', 'is_enabled', 'order'],
+        attributes: ['name', 'lang', 'key', 'is_enabled', 'order'],
         where: { is_enabled: true }
     });
 
@@ -86,18 +87,18 @@ async function updateName(id: string, name: any, user_id: string, user_name: str
     }
 
     const stringifyName = JSON.stringify(name);
-
+    console.log("patientVisitSection.lang", patientVisitSection.lang)
     // Check if new status and current status are same or not, if same don't do anything
-    if (JSON.stringify(patientVisitSection.name) === stringifyName) {
+    if (JSON.stringify(patientVisitSection.lang) === stringifyName) {
         return;
     }
 
     // Update enabled status
-    await PatientVisitSection.update({ name: name }, { where: { id } });
+    await PatientVisitSection.update({ lang: name }, { where: { id } });
 
     // Get enabled sections
     const enabledSections = await PatientVisitSection.findAll({
-        attributes: ['name', 'key', 'is_enabled', 'order'],
+        attributes: ['name', 'lang', 'key', 'is_enabled', 'order'],
         where: { is_enabled: true }
     });
 
@@ -105,7 +106,7 @@ async function updateName(id: string, name: any, user_id: string, user_name: str
     await Config.update({ value: JSON.stringify(enabledSections), published: false }, { where: { key: 'patient_visit_sections' } });
 
     // Insert audit trail entry
-    await AuditTrail.create({ user_id, user_name, activity_type: 'PATIENT VISIT SECTION NAME UPDATED', description: `Old name ${JSON.stringify(patientVisitSection.name)} New Name ${stringifyName} patient visit section.`});
+    await AuditTrail.create({ user_id, user_name, activity_type: 'PATIENT VISIT SECTION NAME UPDATED', description: `Old name ${JSON.stringify(patientVisitSection.lang)} New Name ${stringifyName} patient visit section.`});
 }
 
 /**

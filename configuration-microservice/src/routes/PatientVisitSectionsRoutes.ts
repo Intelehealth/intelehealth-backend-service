@@ -28,11 +28,11 @@ async function updateIsEnabled(req: IReqUser<{ is_enabled: boolean }>, res: IRes
 /**
  * Update patient visit section name update.
  */
-async function updateName(req: IReqUser<{ name: any }>, res: IRes) {
+async function updateName(req: IReqUser<{ lang: any }>, res: IRes) {
     const { id } = req.params;
     const { userId, name } = req.user.data;
-    const { name: langNames } = req.body
-    await PatientVisitSectionService.updateName(id, langNames, userId, name);
+    const { lang } = req.body
+    await PatientVisitSectionService.updateName(id, lang, userId, name);
     return res.status(HttpStatusCodes.OK).json({ success: true, data: null });
 }
 
