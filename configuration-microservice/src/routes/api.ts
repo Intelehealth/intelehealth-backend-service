@@ -280,6 +280,13 @@ vitalRouter.put(
   VitalRoutes.updateIsMandatory,
 );
 
+// Update one patient vital name
+vitalRouter.put(
+  Paths.PatientVital.updateVitalName,
+  validate(['id', 'number', 'params'],['lang', 'object', 'body']),
+  VitalRoutes.updateVitalName,
+);
+
 // Add PatientVitalRouter
 apiRouter.use(Paths.PatientVital.Base, authMw, vitalRouter);
 

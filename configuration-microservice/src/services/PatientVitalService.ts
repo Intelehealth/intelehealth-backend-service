@@ -24,7 +24,7 @@ export const CANT_CHANGE_MANDATORY_STATUS = "Can't update, vital must be always 
  */
 function getAll(): Promise<Vital[]> {
     return Vital.findAll({
-        attributes: ['id', 'name', 'key', 'uuid', 'is_enabled', 'is_mandatory', 'createdAt', 'updatedAt'],
+        attributes: ['id', 'name', 'key', 'uuid', 'is_enabled', 'is_mandatory', 'createdAt', 'updatedAt', 'lang'],
         raw: true
     });
 }
@@ -104,7 +104,7 @@ async function updateIsEnabled(id: string, is_enabled: boolean, user_id: string,
 
     // Get enabled specializations
     const enabledVitals = await Vital.findAll({
-        attributes: ['name', 'key', 'uuid', 'is_mandatory'],
+        attributes: ['name', 'key', 'uuid', 'is_mandatory', 'lang'],
         where: { is_enabled: true }
     });
 
@@ -164,7 +164,7 @@ async function updateIsMandatory(id: string, is_mandatory: boolean, user_id: str
 
     // Get enabled specializations
     const enabledVitals = await Vital.findAll({
-        attributes: ['name', 'key', 'uuid', 'is_mandatory'],
+        attributes: ['name', 'key', 'uuid', 'is_mandatory', 'lang'],
         where: { is_mandatory: true }
     });
 
@@ -175,10 +175,46 @@ async function updateIsMandatory(id: string, is_mandatory: boolean, user_id: str
     await AuditTrail.create({ user_id, user_name, activity_type: 'VITAL MANDATORY STATUS UPDATED', description: `"${vital.name}" patient vital field marked as ${is_mandatory ? 'mandatory':'not mandatory'}.` });
 }
 
+/**
+ * Update & add the patient vital name..
+ */
+async function updateVitalName(id: string, lang: any, user_id: string, user_name: string): Promise<void> {
+    const vital = await Vital.findOne({ where: { id } });
+    if (!vital) {
+        throw new RouteError(
+            HttpStatusCodes.NOT_FOUND,
+            VITAL_NOT_FOUND_ERR,
+        );
+    }
+    
+    const stringifylang = JSON.stringify(lang);
+
+    // Check if new status and current status are same or not, if same don't do anything
+    if (JSON.stringify(vital.lang) === stringifylang) {
+        return;
+    }
+
+    // Update enabled status
+    await Vital.update({ lang: lang }, { where: { id } });
+
+    // Get enabled specializations
+    const enabledVitals = await Vital.findAll({
+        attributes: ['name', 'key', 'uuid', 'is_mandatory', 'lang'],
+        where: { is_enabled: true }
+    });
+
+    // Update dic_config patient_vitals
+    await Config.update({ value: JSON.stringify(enabledVitals), published: false }, { where: { key: 'patient_vitals' } });
+
+    // Insert audit trail entry
+    await AuditTrail.create({ user_id, user_name, activity_type: 'VITAL NAME UPDATED', description: `Old vital name ${JSON.stringify(vital.lang)} New vital name ${stringifylang}.`});
+}
+
 // **** Export default **** //
 
 export default {
     getAll,
     updateIsEnabled,
     updateIsMandatory,
+    updateVitalName
 } as const;
