@@ -237,9 +237,15 @@ module.exports = (function () {
         });
         appointmentVisitIds = data.map(i=>i.visitUuid);
       }
-      return Array.isArray(visits)
+      if( type === "Ended Visit") {
+        return Array.isArray(visits)
+        ? visits.filter((v) => (v?.Status === "Ended Visit" || v?.Status === "Completed Visit") && v.speciality == speciality && !appointmentVisitIds.includes(v.uuid)).map((v) => v?.visit_id)
+        : [];
+      } else {
+        return Array.isArray(visits)
         ? visits.filter((v) => v?.Status === type && v.speciality == speciality && !appointmentVisitIds.includes(v.uuid)).map((v) => v?.visit_id)
         : [];
+      } 
     }
   };
   
