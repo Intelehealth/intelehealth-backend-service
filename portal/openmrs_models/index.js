@@ -32,6 +32,7 @@ const sequelize = new Sequelize({
     idle: 5000,
   },
   logging: false,
+  timezone: "+05:30"
 });
 
 fs.readdirSync(__dirname)
