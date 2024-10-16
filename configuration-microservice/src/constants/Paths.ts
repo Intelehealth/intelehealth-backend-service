@@ -88,6 +88,7 @@ export default {
     Get: '/all',
     UpdateIsEnabled: '/updateIsEnabled/:id',
     UpdateName: '/updateName/:id',
-    UpdateOrder: '/update-order'
+    UpdateOrder: '/update-order',
+    UpdateSubSectionIsEnabled: '/UpdateSubSectionIsEnabled/:id',
   },
 } as const;
