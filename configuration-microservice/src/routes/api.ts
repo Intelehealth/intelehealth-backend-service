@@ -436,6 +436,13 @@ patientVisitSectionsRouter.put(
   validate(['order', 'object', 'body']),
   PatientVisitSectionsRoutes.updateOrder,
 );
+
+// Update one patient visit sections status
+patientVisitSectionsRouter.put(
+  Paths.PatientVisitSections.UpdateSubSectionIsEnabled,
+  validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body'], ['sub_section', 'string', 'body']),
+  PatientVisitSectionsRoutes.updateSubSectionIsEnabled,
+);
 // Add SiderbarMenuRouter
 apiRouter.use(Paths.PatientVisitSections.Base, authMw, patientVisitSectionsRouter);
 

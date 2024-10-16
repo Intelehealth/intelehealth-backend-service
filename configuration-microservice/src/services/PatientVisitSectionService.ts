@@ -19,7 +19,7 @@ export const CANT_UPDATE_NAME_IF_EDITABLE_FALSE = 'Can update the name, because 
  */
 function getAll(): Promise<PatientVisitSection[]> {
     return PatientVisitSection.findAll({
-        attributes: ['id', 'name', 'lang', 'key', 'is_editable', 'is_enabled', 'is_locked', 'order', 'createdAt', 'updatedAt'],
+        attributes: ['id', 'name', 'lang', 'key', 'is_editable', 'is_enabled', 'is_locked', 'order', 'createdAt', 'updatedAt', 'sub_sections'],
         raw: true,
         order: [['order', 'asc']]
     });
@@ -136,11 +136,58 @@ async function updateOrder(order: any[], user_id: string, user_name: string): Pr
     
 }
 
+/**
+ * Update patient visit sub section enabled status..
+ */
+async function updateSubSectionIsEnabled(id: string, sub_section: string, is_enabled: boolean, user_id: string, user_name: string): Promise<void> {
+    const patientVisitSection = await PatientVisitSection.findOne({ where: { id } });
+    if (!patientVisitSection) {
+        throw new RouteError(
+            HttpStatusCodes.NOT_FOUND,
+            PATIENT_VISIT_SECTION_NOT_FOUND_ERR,
+        );
+    }
+
+    // Check if locked, if locked don't do anything
+    if (patientVisitSection.is_locked) {
+        throw new RouteError(
+            HttpStatusCodes.NOT_FOUND,
+            CANT_UPDATE_ENABLED_STATUS_IF_LOCKED,
+        );
+    }
+
+    //Update sub-sections status
+    let sub_sections = patientVisitSection.sub_sections;
+    if(sub_sections){
+        sub_sections.forEach((obj:any)=>{
+            if(obj.name === sub_section){
+                obj.is_enabled = is_enabled;
+            }
+        });
+    }
+
+    // Update enabled status
+    await PatientVisitSection.update({ sub_sections }, { where: { id } });
+
+    // Get enabled sections
+    const enabledSections = await PatientVisitSection.findAll({
+        attributes: ['name', 'lang', 'key', 'is_enabled', 'order', 'sub_sections'],
+        where: { is_enabled: true }
+    });
+
+    // Update dic_config patient_visit_sections
+    await Config.update({ value: JSON.stringify(enabledSections), published: false }, { where: { key: 'patient_visit_sections' } });
+
+    // Insert audit trail entry
+    await AuditTrail.create({ user_id, user_name, activity_type: 'PATIENT VISIT SECTION ENABLED STATUS UPDATED', description: `${is_enabled ? 'Enabled' : 'Disabled'} "${sub_section}" patient visit section.` });
+}
+
 // **** Export default **** //
 
 export default {
     getAll,
     updateIsEnabled,
     updateName,
-    updateOrder
+    updateOrder,
+    updateSubSectionIsEnabled
 } as const;

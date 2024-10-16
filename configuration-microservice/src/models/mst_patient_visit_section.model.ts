@@ -5,6 +5,7 @@ export interface SidebarMenuAttributes {
   id: number;
   name: string;
   lang: object;
+  sub_sections: object[];
   key: string;
   is_enabled: boolean;
   is_locked: boolean;
@@ -70,6 +71,12 @@ export class PatientVisitSection extends Model<SidebarMenuCreationAttributes, Si
         defaultValue: false
     })
     is_locked!: boolean;
+
+    @Column({
+      type: DataTypes.JSON,
+      allowNull: true
+    })
+    sub_sections!: object[];
 
     @CreatedAt
     @Column
