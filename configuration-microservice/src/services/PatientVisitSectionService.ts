@@ -56,7 +56,8 @@ async function updateIsEnabled(id: string, is_enabled: boolean, user_id: string,
     // Get enabled sections
     const enabledSections = await PatientVisitSection.findAll({
         attributes: ['name', 'lang', 'key', 'is_enabled', 'order'],
-        where: { is_enabled: true }
+        where: { is_enabled: true },
+        order: [['order', 'asc']]
     });
 
     // Update dic_config patient_visit_sections
@@ -87,7 +88,6 @@ async function updateName(id: string, name: any, user_id: string, user_name: str
     }
 
     const stringifyName = JSON.stringify(name);
-    console.log("patientVisitSection.lang", patientVisitSection.lang)
     // Check if new status and current status are same or not, if same don't do anything
     if (JSON.stringify(patientVisitSection.lang) === stringifyName) {
         return;
@@ -99,7 +99,8 @@ async function updateName(id: string, name: any, user_id: string, user_name: str
     // Get enabled sections
     const enabledSections = await PatientVisitSection.findAll({
         attributes: ['name', 'lang', 'key', 'is_enabled', 'order'],
-        where: { is_enabled: true }
+        where: { is_enabled: true },
+        order: [['order', 'asc']]
     });
 
     // Update dic_config patient_visit_sections
@@ -113,23 +114,39 @@ async function updateName(id: string, name: any, user_id: string, user_name: str
  * Update patient visit section enabled status..
  */
 async function updateOrder(order: any[], user_id: string, user_name: string): Promise<void> {
-
-    // Get All sections
-    const enabledSections = await PatientVisitSection.findAll({
-        attributes: ['name', 'key', 'is_enabled', 'order'],
-        where: { is_enabled: true }
+    const oldArr = await PatientVisitSection.findAll({
+        attributes: ['id', 'order'],
+        where: { is_enabled: true },
+        order: [['order', 'asc']],
+        raw: true
     });
+
+    // Function to check if two arrays are equal based on `id` and `order`
+    function arraysAreEqual(arr1: any[], arr2: any[]): boolean {
+        if (arr1.length !== arr2.length) return false;
+        
+        const map1 = new Map(arr1.map(obj => [obj.id, obj.order]));
+        return arr2.every((obj) => map1.get(obj.id) === obj.order);
+    }
+
+    if (arraysAreEqual(oldArr, order)) return;
+
 
     const updates = order.map(item => `WHEN id = ${item.id} THEN ${item.order}`).join(' ');
 
     const query = `UPDATE mst_patient_visit_sections SET \`order\` = CASE ${updates} END WHERE id IN (${order.map(item => item.id).join(', ')});`;
-    console.log("query", query)
     try {
         await connection.query(query);
+        // Get All sections
+        const enabledSections = await PatientVisitSection.findAll({
+            attributes: ['name', 'lang', 'key', 'is_enabled', 'order'],
+            where: { is_enabled: true },
+            order: [['order', 'asc']]
+        });
         // Update dic_config patient_visit_sections
         await Config.update({ value: JSON.stringify(enabledSections), published: false }, { where: { key: 'patient_visit_sections' } });
         // Insert audit trail entry
-        await AuditTrail.create({ user_id, user_name, activity_type: 'PATIENT VISIT SECTION ORDER UPDATED', description: `Old order ${JSON.stringify(enabledSections?.map((section) => ({id: section?.id, order: section.order})))} New Name ${JSON.stringify(order)} patient visit section.`});
+        await AuditTrail.create({ user_id, user_name, activity_type: 'PATIENT VISIT SECTION ORDER UPDATED', description: `Old order ${JSON.stringify(oldArr)} New Name ${JSON.stringify(order)} patient visit section.`});
     } catch (err) {
         throw err;
     }
@@ -172,7 +189,8 @@ async function updateSubSectionIsEnabled(id: string, sub_section: string, is_ena
     // Get enabled sections
     const enabledSections = await PatientVisitSection.findAll({
         attributes: ['name', 'lang', 'key', 'is_enabled', 'order', 'sub_sections'],
-        where: { is_enabled: true }
+        where: { is_enabled: true },
+        order: [['order', 'asc']]
     });
 
     // Update dic_config patient_visit_sections
