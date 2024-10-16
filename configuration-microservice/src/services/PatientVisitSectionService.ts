@@ -56,7 +56,8 @@ async function updateIsEnabled(id: string, is_enabled: boolean, user_id: string,
     // Get enabled sections
     const enabledSections = await PatientVisitSection.findAll({
         attributes: ['name', 'lang', 'key', 'is_enabled', 'order'],
-        where: { is_enabled: true }
+        where: { is_enabled: true },
+        order: [['order', 'asc']]
     });
 
     // Update dic_config patient_visit_sections
@@ -87,7 +88,6 @@ async function updateName(id: string, name: any, user_id: string, user_name: str
     }
 
     const stringifyName = JSON.stringify(name);
-    console.log("patientVisitSection.lang", patientVisitSection.lang)
     // Check if new status and current status are same or not, if same don't do anything
     if (JSON.stringify(patientVisitSection.lang) === stringifyName) {
         return;
@@ -99,7 +99,8 @@ async function updateName(id: string, name: any, user_id: string, user_name: str
     // Get enabled sections
     const enabledSections = await PatientVisitSection.findAll({
         attributes: ['name', 'lang', 'key', 'is_enabled', 'order'],
-        where: { is_enabled: true }
+        where: { is_enabled: true },
+        order: [['order', 'asc']]
     });
 
     // Update dic_config patient_visit_sections
@@ -114,22 +115,27 @@ async function updateName(id: string, name: any, user_id: string, user_name: str
  */
 async function updateOrder(order: any[], user_id: string, user_name: string): Promise<void> {
 
-    // Get All sections
-    const enabledSections = await PatientVisitSection.findAll({
-        attributes: ['name', 'key', 'is_enabled', 'order'],
-        where: { is_enabled: true }
-    });
-
     const updates = order.map(item => `WHEN id = ${item.id} THEN ${item.order}`).join(' ');
 
     const query = `UPDATE mst_patient_visit_sections SET \`order\` = CASE ${updates} END WHERE id IN (${order.map(item => item.id).join(', ')});`;
-    console.log("query", query)
     try {
+        const oldOrder = await PatientVisitSection.findAll({
+            attributes: ['order'],
+            where: { is_enabled: true },
+            order: [['order', 'asc']]
+        });
+        
         await connection.query(query);
+        // Get All sections
+        const enabledSections = await PatientVisitSection.findAll({
+            attributes: ['name', 'lang', 'key', 'is_enabled', 'order'],
+            where: { is_enabled: true },
+            order: [['order', 'asc']]
+        });
         // Update dic_config patient_visit_sections
         await Config.update({ value: JSON.stringify(enabledSections), published: false }, { where: { key: 'patient_visit_sections' } });
         // Insert audit trail entry
-        await AuditTrail.create({ user_id, user_name, activity_type: 'PATIENT VISIT SECTION ORDER UPDATED', description: `Old order ${JSON.stringify(enabledSections?.map((section) => ({id: section?.id, order: section.order})))} New Name ${JSON.stringify(order)} patient visit section.`});
+        await AuditTrail.create({ user_id, user_name, activity_type: 'PATIENT VISIT SECTION ORDER UPDATED', description: `Old order ${JSON.stringify(oldOrder?.map((section) => ({id: section?.id, order: section.order})))} New Name ${JSON.stringify(order)} patient visit section.`});
     } catch (err) {
         throw err;
     }
