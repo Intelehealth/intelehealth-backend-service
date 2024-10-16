@@ -189,7 +189,8 @@ async function updateSubSectionIsEnabled(id: string, sub_section: string, is_ena
     // Get enabled sections
     const enabledSections = await PatientVisitSection.findAll({
         attributes: ['name', 'lang', 'key', 'is_enabled', 'order', 'sub_sections'],
-        where: { is_enabled: true }
+        where: { is_enabled: true },
+        order: [['order', 'asc']]
     });
 
     // Update dic_config patient_visit_sections
