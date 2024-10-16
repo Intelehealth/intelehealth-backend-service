@@ -20,6 +20,10 @@ module.exports = {
               type: DataTypes.JSON,
               allowNull: true
             },
+            sub_sections: {
+              type: DataTypes.JSON,
+              allowNull: true
+            },
             key: {
               type: DataTypes.STRING,
               allowNull: false,
