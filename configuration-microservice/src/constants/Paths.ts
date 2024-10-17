@@ -59,7 +59,8 @@ export default {
     uploadImage: '/uploadImage',
     updateThemeConfig: '/updateThemeConfig',
     updateImagesText: '/updateImagesText',
-    deleteImage: '/deleteImage'
+    deleteImage: '/deleteImage',
+    updateHelpTour: '/updateHelpTour'
   },
   Webrtc: {
     Base: '/webrtc',

@@ -246,6 +246,12 @@ themeConfigRouter.put(
   ThemeConfigRoutes.updateImagesText
 );
 
+// Update theme config
+themeConfigRouter.put(
+  Paths.ThemeConfig.updateHelpTour,
+  ThemeConfigRoutes.updateHelpTour
+);
+
 // Delete Image 
 themeConfigRouter.delete(
   Paths.ThemeConfig.deleteImage,
