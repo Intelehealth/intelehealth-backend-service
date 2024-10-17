@@ -16,6 +16,7 @@ export const CONFIG_NOT_FOUND_ERR = 'Config not Found';
 export const FILE_UPLOAD_ERR = 'Unable to upload file';
 export const IMAGES_LOCAL_PATH = 'dist/public/assets/images';
 export const IMAGES_WITH_TEXT = 'images_with_text';
+export const HELP_TOUR_CONFIG = 'help_tour_config';
 export const PUBLIC_DIR = 'dist/public/';
 
 // **** Functions **** //
@@ -108,6 +109,34 @@ async function updateImagesText(data : { text: string, image: string}[], user_id
     return await ThemeConfig.findOne({ where: { key } });
 }
 
+/**
+ * Update help tour.
+ */
+async function updateHelpTourConfig(help_tour_config :string, user_id: string, user_name: string): Promise<ThemeConfig|null> {
+    const key = HELP_TOUR_CONFIG
+    const themeConfig = await ThemeConfig.findOne({ where: { key } });
+    if (!themeConfig) {
+        throw new RouteError(
+            HttpStatusCodes.NOT_FOUND,
+            CONFIG_NOT_FOUND_ERR,
+        );
+    }
+
+    // Update theme condig
+    await ThemeConfig.update({ value: JSON.stringify(help_tour_config) }, { where: { key } });
+
+    // Get all theme config
+    const allThemeConfig = await getThemeConfigData();
+
+    // Update dic_config language key
+    await Config.update({ value: JSON.stringify(allThemeConfig), published: false }, { where: { key: 'theme_config' } });
+
+    // Insert audit trail entry
+    await AuditTrail.create({ user_id, user_name, activity_type: 'THEME CONFIG UPDATED', description: `Updated Help Tour in theme config.` });
+
+    return await ThemeConfig.findOne({ where: { key } });
+}
+
 async function getThemeConfigData() {
     let themeConfigData = await ThemeConfig.findAll({
         attributes: ['key','value','default_value']
@@ -146,5 +175,6 @@ export default {
     getAll,
     updateThemeConfig,
     updateImagesText,
-    deleteFile
+    deleteFile,
+    updateHelpTourConfig
 } as const;
