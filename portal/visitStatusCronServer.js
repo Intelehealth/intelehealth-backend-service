@@ -65,7 +65,7 @@ const resetVisit = async (visit) => {
 
 const statusCron = () => {
   new Promise(async (res, rej) => {
-    const visitIds = await getVisits("Visit In Progress");
+  const visitIds = await getVisits("Visit In Progress",'General Physician');
     // let startTime = moment();
     // startTime = startTime.subtract(8, "hour").format("YYYY-MM-DD HH:mm:ss");
 
