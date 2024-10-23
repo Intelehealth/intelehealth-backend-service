@@ -32,5 +32,6 @@ router.use("/support", require("./support.route"));
 router.use("/openai", require("./openai.route"));
 router.use('/signature', require("./signature.route"));
 router.use("/user", require("./user.route"));
+router.use("/video-library", require("./videoLibrary.route"));
 
 module.exports = router;
