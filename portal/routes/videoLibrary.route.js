@@ -26,6 +26,7 @@ router.get("/getVideosByCategoryId/:categoryId", [
 
 router.patch("/updateCategory/:id", [authMiddleware, updateCategory]);
 router.patch("/updateVideo/:id", [authMiddleware, updateVideo]);
+router.patch("/updateCategoryId/:videoId", [authMiddleware, updateCategoryIdOfVideo]);
 
 router.delete("/deleteCategory/:id", [authMiddleware, deleteCategory]);
 router.delete("/deleteVideo/:id", [authMiddleware, deleteVideo]);

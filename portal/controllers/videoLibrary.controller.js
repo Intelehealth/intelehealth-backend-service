@@ -95,6 +95,34 @@ module.exports = (function () {
     }
   };
 
+  this.updateCategoryIdOfVideo = async (req, res, next) => {
+    try {
+      const video = await videos.findOne({
+        where: { id: req.params.videoId },
+      });
+
+      if (!video) throw new Error("Invalid Video Id.");
+      video.categoryId = req.body.newCategoryId;
+      await video.save();
+      res.json({
+        success: true,
+        data: await video_categories.findOne({
+          where: {
+            id: req.body.oldCategoryId,
+          },
+          include: [
+            {
+              model: videos,
+              as: "videos",
+            },
+          ],
+        }),
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   this.deleteCategory = async (req, res, next) => {
     try {
       const category = await video_categories.findOne({
