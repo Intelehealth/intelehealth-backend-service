@@ -90,8 +90,9 @@ module.exports = (function () {
           });
           if (userSetting && userSetting.device_reg_token) {
             notificationResponse = await sendCloudNotification({
-              title: "New chat message",
-              body: message,
+             // title: "New chat message",
+             title: "", 
+             body: message,
               data: {
                 ...req.body,
                 actionType: "TEXT_CHAT",

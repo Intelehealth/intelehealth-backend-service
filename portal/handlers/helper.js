@@ -86,15 +86,16 @@ const sendCloudNotification = async ({
   regTokens,
   click_action = "FCM_PLUGIN_HOME_ACTIVITY",
 }) => {
-  let payload = {};
 
   const message = {
     data: data,
-    tokens: regTokens
+    tokens: regTokens,
+    android:{ priority : 'high'}
   };
 
+  data.click_action=click_action;
+
   if (title) {
-	  data.click_action=click_action;
     message.notification = {
       title,
      // icon,
@@ -102,10 +103,6 @@ const sendCloudNotification = async ({
      // click_action,
     };
   }
-
-  const options = {
-    priority: "high",
-  };
 
    return messaging.sendEachForMulticast(message)
     .then((response) => {
