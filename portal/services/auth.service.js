@@ -55,19 +55,32 @@ module.exports = (function () {
      * @param { string } subject - Subject for email
      * @param { string } otp - OTP
      */
-  const sendEmailOtp = async function (email, subject, otp) {
+  const sendEmailOtp = async function (email, subject, otp, message) {
     const otpTemplate = fs
       .readFileSync("./common/emailtemplates/otpTemplate.html", "utf8")
       .toString();
 
     const replacedTemplate = otpTemplate
       .replace("$otpFor", subject)
-      .replace("$otp", otp);
+      .replace("$otp", otp)
+      .replace("$message", message);
 
     return await functions.sendEmail(
       email,
       subject,
       replacedTemplate
+    ).catch((error) => { throw error });
+  };
+
+  const sendEmailSuccess = async function (email, subject) {
+    const emailTemplate = fs
+      .readFileSync("./common/emailtemplates/emailTemplate.html", "utf8")
+      .toString();
+
+    return await functions.sendEmail(
+      email,
+      subject,
+      emailTemplate
     ).catch((error) => { throw error });
   };
 
@@ -154,6 +167,11 @@ module.exports = (function () {
         }
       }
 
+      let message = 'If you have not initiated this request, please contact your admin.';
+      if(Constant.USERNAME == otpFor) message = 'If the username retrieval has not been initiated by you, please contact your admin immediately';
+      if(Constant.PASSWORD == otpFor) message = 'If the password reset has not been initiated by you, please contact your admin immediately';
+      if(Constant.VERIFICATON == otpFor) message = 'If the user verification has not been initiated by you, please contact your admin immediately';
+
       const data = await getUserData(phoneNumber, email, username, otpFor);
       if (data.length) {
         if (otpFor === Constant.USERNAME || otpFor === Constant.VERIFICATON) {
@@ -172,7 +190,7 @@ module.exports = (function () {
             if (element.attributeTypeName == Constant.EMAIL_ID) {
               // Send email here
               const randomOtp = otpGenerator.generate(6, { lowerCaseAlphabets: false, upperCaseAlphabets: false, specialChars: false });
-              const mail = await sendEmailOtp(email, otpFor === Constant.USERNAME ? MESSAGE.AUTH.VERIFICATION_CODE_FOR_FORGOT_USERNAME : MESSAGE.AUTH.VERIFICATION_CODE_FOR_SIGN_IN, randomOtp);
+              const mail = await sendEmailOtp(email, otpFor === Constant.USERNAME ? MESSAGE.AUTH.VERIFICATION_CODE_FOR_FORGOT_USERNAME : MESSAGE.AUTH.VERIFICATION_CODE_FOR_SIGN_IN, randomOtp, message);
               if (mail.messageId) {
                 // Save OTP in database for verification
                 await saveOtp(element.uuid, randomOtp, otpFor === Constant.USERNAME ? "U" : "A");
@@ -222,13 +240,13 @@ module.exports = (function () {
                 // Save OTP in database for verification
                 await saveOtp(data[0].userUuid, otp.data.OTP, "P");
                 if (email) {
-                  await sendEmailOtp(email, MESSAGE.AUTH.VERIFICATION_CODE_FOR_FORGOT_PASSWORD, otp.data.OTP);  
+                  await sendEmailOtp(email, MESSAGE.AUTH.VERIFICATION_CODE_FOR_FORGOT_PASSWORD, otp.data.OTP, message);  
                 }
               }
             } else if (email) {
               // Send email here
               const randomOtp = otpGenerator.generate(6, { lowerCaseAlphabets: false, upperCaseAlphabets: false, specialChars: false });
-              const mail = await sendEmailOtp(email, MESSAGE.AUTH.VERIFICATION_CODE_FOR_FORGOT_PASSWORD, randomOtp);
+              const mail = await sendEmailOtp(email, MESSAGE.AUTH.VERIFICATION_CODE_FOR_FORGOT_PASSWORD, randomOtp, message);
               if (mail.messageId) {
                 // Save OTP in database for verification
                 await saveOtp(data[i].uuid, randomOtp, "P");
@@ -310,7 +328,7 @@ module.exports = (function () {
             }
 
             if (user) {
-              if (moment().diff(moment(user.updatedAt), "minutes") < 5) {
+              if (moment().diff(moment(user.updatedAt), "minutes") < 1) {
                 //TODO: Code for send otp to phone number.
                 if (phoneNumber) {
                   const body = new URLSearchParams();
@@ -366,7 +384,7 @@ module.exports = (function () {
               },
             });
             if (user) {
-              if (moment().diff(moment(user.updatedAt), "minutes") < 5) {
+              if (moment().diff(moment(user.updatedAt), "minutes") < 1) {
                 // Send username here
 
                 return {
@@ -410,7 +428,7 @@ module.exports = (function () {
             }
 
             if (user) {
-              if (moment().diff(moment(user.updatedAt), "minutes") < 5) {
+              if (moment().diff(moment(user.updatedAt), "minutes") < 1) {
                 return {
                   code: 200,
                   success: true,
@@ -468,6 +486,18 @@ module.exports = (function () {
         },
       });
 
+      let person = await new Promise((resolve, reject) => {
+        openMrsDB.query(
+          `SELECT u.username, u.system_id, u.uuid AS userUuid, p.uuid AS providerUuid, u.person_id, p.provider_id FROM users u LEFT JOIN provider p ON p.person_id = u.person_id WHERE u.uuid = '${userUuid}' OR u.system_id = '${userUuid}' AND p.retired = 0 AND u.retired = 0;`,        
+          (err, results, fields) => {
+            if (err) reject(err);
+            resolve(results);
+          }
+        );
+      }).catch((err) => {
+        throw err;
+      });
+
       if (user) {
         const payload = {
           newPassword,
@@ -476,6 +506,50 @@ module.exports = (function () {
         await axiosInstance.post(url, payload).catch((err) => {
           throw err;
         });
+
+        // Get phoneNumber and email of the user
+        let attributes = await new Promise((resolve, reject) => {
+          openMrsDB.query(
+            `SELECT pa.value_reference AS attributeValue, pat.name AS attributeTypeName FROM provider_attribute pa LEFT JOIN provider_attribute_type pat ON pat.provider_attribute_type_id = pa.attribute_type_id WHERE pa.provider_id = ${person[0].provider_id} AND (pat.name = 'emailId' OR pat.name = 'phoneNumber' OR pat.name = 'countryCode') AND pa.voided = false`,          
+            (err, results, fields) => {
+              if (err) reject(err);
+              resolve(results);
+            }
+          );
+        }).catch((err) => {
+          throw err;
+        });
+
+        if (attributes.length) {
+          for (const element of attributes) {
+            if (element.attributeTypeName == Constant.PHONE_NUMBER) {
+              phoneNumber = element.attributeValue
+            }
+            // if (element.attributeTypeName == Constant.COUNTRY_CODE) {
+            //   countryCode = element.attributeValue
+            // }
+            if (element.attributeTypeName == Constant.EMAIL_ID) {
+              email = element.attributeValue
+            }
+          }
+
+          // If phoneNumber exists
+          if (phoneNumber) {
+
+          }
+          // Send email here
+          if (email) {
+            await sendEmailSuccess(email, MESSAGE.AUTH.PASSWORD_RESET_SUCCESSFUL);
+          }
+        } else {
+          return {
+            code: 200,
+            success: false,
+            message: MESSAGE.AUTH.NO_PHONENUMBER_EMAIL_UPDATED_FOR_THIS_USERNAME,
+            data: null
+          }
+        }
+
 
         return {
           code: 200,
@@ -516,7 +590,9 @@ module.exports = (function () {
     providerUuid
   ) {
     try {
-      let query = `SELECT pa.value_reference AS attributeValue, pat.name AS attributeTypeName, p.provider_id, p.person_id FROM provider_attribute pa LEFT JOIN provider_attribute_type pat ON pa.attribute_type_id = pat.provider_attribute_type_id LEFT JOIN provider p ON p.provider_id = pa.provider_id WHERE pat.name = '${attributeType}' AND pa.value_reference = '${attributeValue}' AND p.retired = 0 AND pa.voided = false AND p.uuid != '${providerUuid}'`;
+      let provider_condition = "";
+      if(providerUuid) provider_condition = `AND p.uuid != '${providerUuid}'`;
+      let query = `SELECT pa.value_reference AS attributeValue, pat.name AS attributeTypeName, p.provider_id, p.person_id FROM provider_attribute pa LEFT JOIN provider_attribute_type pat ON pa.attribute_type_id = pat.provider_attribute_type_id LEFT JOIN provider p ON p.provider_id = pa.provider_id WHERE pat.name = '${attributeType}' AND pa.value_reference = '${attributeValue}' AND p.retired = 0 AND pa.voided = false ${provider_condition}`;      
       let data = await new Promise((resolve, reject) => {
         openMrsDB.query(query, (err, results, fields) => {
           if (err) reject(err);

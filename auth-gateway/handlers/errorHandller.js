@@ -16,15 +16,19 @@ const errorHandler = (err, req, res, next) => {
   }
 
   if (err.name === "CastError" && err.path === "_id") {
-    res.status(422).json({ success: false, message: "Invalid ObjectID." });
+    res.status(422).json({ success: false, code: 422, message: "Invalid ObjectID." });
     return;
   }
 
-  res.status(err.status || 500);
+  if (err?.response?.data?.error?.message) {
+    err.message = err?.response?.data?.error?.message
+  }
+
+  res.status(err?.response?.status ?? err?.status ?? 500);
 
   return res.json({
     success: false,
-    code: err.code || 422,
+    code: err?.code ?? err?.response?.status ?? err?.status ?? 500,
     message: err.message,
   });
 };

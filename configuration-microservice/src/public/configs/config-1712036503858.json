@@ -1,0 +1,57 @@
+{
+    "specialization": [
+        {
+            "name": "General Physician",
+            "key": "general_physician"
+        },
+        {
+            "name": "Pediatrician",
+            "key": "pediatrician"
+        },
+        {
+            "name": "Dermatologist or Skin Specialist",
+            "key": "dermatologist_or_skin_specialist"
+        },
+        {
+            "name": "OBGyn Specialist or Gynecologist",
+            "key": "obgyn_specialist_or_gynecologist"
+        },
+        {
+            "name": "Psychiatrist",
+            "key": "psychiatrist"
+        },
+        {
+            "name": "Neurologist",
+            "key": "neurologist"
+        },
+        {
+            "name": "Endocrinologist",
+            "key": "endocrinologist"
+        },
+        {
+            "name": "Cardiologist",
+            "key": "cardiologist"
+        },
+        {
+            "name": "Respiratory Medicine",
+            "key": "respiratory_medicine"
+        }
+    ],
+    "language": [
+        {
+            "name": "English",
+            "code": "en",
+            "is_default": true
+        },
+        {
+            "name": "हिंदी",
+            "code": "hi",
+            "is_default": false
+        },
+        {
+            "name": "русский",
+            "code": "ru",
+            "is_default": false
+        }
+    ]
+}

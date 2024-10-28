@@ -222,9 +222,26 @@ module.exports = (function () {
     if (!type) {
       return [];
     } else {
-      const visits = await sequelize.query(getVisitCountV3(), {
-        type: QueryTypes.SELECT,
-      });
+      let visits = [];
+      if(process.env.VIDEO_CONSULATION_TYPE === 'true') {        
+        const visitType = await sequelize.query(
+          `select
+            visit_type_id from visit_type 
+            where name = 'Video consultation' 
+          `, {
+            type: QueryTypes.SELECT,
+          });
+          
+        const visitTypeId = visitType[0]['visit_type_id'];
+        console.log(visitTypeId, 'Video consultation');
+        visits = await sequelize.query(getVisitCountV3(visitTypeId), {
+          type: QueryTypes.SELECT,
+        });
+      } else {
+        visits = await sequelize.query(getVisitCountV3(), {
+          type: QueryTypes.SELECT,
+        });
+      }
       let appointmentVisitIds = [];
       if(type === "Awaiting Consult"){
         const data = await Appointment.findAll({
@@ -263,91 +280,112 @@ module.exports = (function () {
     speciality,
     page = 1,
     limit = 1000,
-    type
+    type,
+    countOnly = false
   ) => {
     try {
       logStream('debug','Openmrs Service', 'Get Visits By Type');
       let offset = limit * (Number(page) - 1);
+      let visits = [];
+      const resp = {};
 
+      const obsCondition = {
+        model: obs,
+        as: "obs",
+        attributes: ["value_text", "concept_id", "value_numeric"],
+      }
+      if(type === 'Follow-Up'){
+        obsCondition.where = {
+          concept_id: 163345,
+          value_text: { [Op.ne]: "No" },
+          voided: 0,
+        };
+        type = "Completed Visit";
+      }
       if (limit > 5000) limit = 5000;
       const visitIds = await this.getVisits(type, speciality);
 
-      const visits = await visit.findAll({
-        where: {
-          visit_id: { [Op.in]: visitIds },
-        },
-        attributes: ["uuid","date_stopped","date_created"],
-        include: [
-          {
-            model: encounter,
-            as: "encounters",
-            attributes: ["encounter_datetime"],
-            include: [
-              {
-                model: obs,
-                as: "obs",
-                attributes: ["value_text", "concept_id", "value_numeric"]
-              },
-              {
-                model: encounter_type,
-                as: "type",
-                attributes: ["name"],
-              },
-              {
-                model: encounter_provider,
-                as: "encounter_provider",
-                attributes: ["uuid"],
-                include: [
-                  {
-                    model: provider,
-                    as: "provider",
-                    attributes: ["identifier", "uuid"],
-                    include: [
-                      {
-                        model: person,
-                        as: "person",
-                        attributes: ["gender"],
-                        include: [
-                          {
-                            model: person_name,
-                            as: "person_name",
-                            attributes: ["given_name", "family_name", "middle_name"],
-                          },
-                        ],
-                      },
-                    ],
-                  },
-                ],
-              },
-            ],
+      if (!countOnly) {
+        visits = await visit.findAll({
+          where: {
+            visit_id: { [Op.in]: visitIds },
           },
-          {
-            model: patient_identifier,
-            as: "patient",
-            attributes: ["identifier"],
-          },
-          {
-            model: person_name,
-            as: "patient_name",
-            attributes: ["given_name", "family_name", "middle_name"],
-          },
-          {
-            model: person,
-            as: "person",
-            attributes: ["uuid", "gender", "birthdate"],
-          },
-          {
-            model: location,
-            as: "location",
-            attributes: ["name"],
-          },
-        ],
-        order: [["visit_id", "DESC"]],
-        limit,
-        offset,
-      });
+          attributes: ["uuid", "date_stopped", "date_created"],
+          include: [
+            {
+              model: encounter,
+              as: "encounters",
+              attributes: ["encounter_datetime"],
+              include: [
+                obsCondition,
+                {
+                  model: encounter_type,
+                  as: "type",
+                  attributes: ["name"],
+                },
+                {
+                  model: encounter_provider,
+                  as: "encounter_provider",
+                  attributes: ["uuid"],
+                  include: [
+                    {
+                      model: provider,
+                      as: "provider",
+                      attributes: ["identifier", "uuid"],
+                      include: [
+                        {
+                          model: person,
+                          as: "person",
+                          attributes: ["gender"],
+                          include: [
+                            {
+                              model: person_name,
+                              as: "person_name",
+                              attributes: [
+                                "given_name",
+                                "family_name",
+                                "middle_name",
+                              ],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              model: patient_identifier,
+              as: "patient",
+              attributes: ["identifier"],
+            },
+            {
+              model: person_name,
+              as: "patient_name",
+              attributes: ["given_name", "family_name", "middle_name"],
+            },
+            {
+              model: person,
+              as: "person",
+              attributes: ["uuid", "gender", "birthdate"],
+            },
+            {
+              model: location,
+              as: "location",
+              attributes: ["name"],
+            },
+          ],
+          order: [["visit_id", "DESC"]],
+          limit,
+          offset,
+        });
+        resp.currentCount = visits.length;
+        resp.visits = visits;
+      }
+      resp.totalCount = visitIds.length;
 
-      return {  totalCount: visitIds.length, currentCount: visits.length, visits: visits};
+      return resp;
     } catch (error) {
       logStream("error", error.message);
       throw error;
@@ -437,7 +475,8 @@ module.exports = (function () {
   this._getCompletedVisits = async (
     speciality,
     page = 1,
-    limit = 1000
+    limit = 1000,
+    countOnly
   ) => {
     try {
       logStream('debug','Openmrs Service', 'Get Completed Visits');
@@ -445,13 +484,41 @@ module.exports = (function () {
         speciality,
         page,
         limit,
-        "Completed Visit"
+        "Completed Visit",
+        countOnly
       );
     } catch (error) {
       logStream("error", error.message);
       throw error;
     }
   };
+
+/**
+ * Get follow-up visits
+ * @param { string } speciality - Doctor speciality
+ * @param { number } page - Page number
+ * @param { number } limit - Limit
+ */
+this._getFollowUpVisits = async (
+  speciality,
+  page = 1,
+  limit = 1000,
+  countOnly
+) => {
+  try {
+    logStream('debug', 'Openmrs Service', 'Get Follow-Up Visits');
+    return await getVisitsByType(
+      speciality,
+      page,
+      limit,
+      "Follow-Up",
+      countOnly
+    );
+  } catch (error) {
+    logStream("error", error.message);
+    throw error;
+  }
+};
 
   /**
   * Get ended visits
