@@ -1,0 +1,1315 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Portal",
+    "version": "1.0.0",
+    "description": "Portal Microservice having APIs for user for schedule appointment, notifications, messages visits and etc"
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/mindmap/user_settings/{uuid}": {
+      "get": {
+        "summary": "Get User Settings",
+        "description": "This API is return the user setting spacified uuid.",
+        "tags": [
+          "Notification"
+        ],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "description": "Unique ID of the user to fetch the settings",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "39002eee-8571-4402-b40b-899c8b9202d6"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Settings saved successfully."
+                    },
+                    "data": {
+                      "type": "object",
+                      "example": {
+                        "user_uuid": ":uuid",
+                        "snooze_till": "1724669425009",
+                        "device_reg_token": null,
+                        "locale": null,
+                        "otp": null,
+                        "otpFor": null,
+                        "notification": false,
+                        "createdAt": "2024-08-26T09:34:24.000Z",
+                        "updatedAt": "2024-08-26T10:20:25.000Z"
+                      }
+                    },
+                    "snooze_till": {
+                      "type": "string",
+                      "example": 1724669425009
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Please pass correct user id!"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mindmap/user_settings": {
+      "put": {
+        "summary": "Set User Settings",
+        "description": "This API is update the user setting to spacified uuid.",
+        "tags": [
+          "Notification"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "user_uuid": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "39002eee-8571-4402-b40b-899c8b9202d6"
+                  },
+                  "snooze_for": {
+                    "type": "string",
+                    "example": "30m"
+                  },
+                  "device_reg_token": {
+                    "type": "string",
+                    "example": "uniqtoken"
+                  },
+                  "locale": {
+                    "type": "string",
+                    "example": "en"
+                  },
+                  "otp": {
+                    "type": "string",
+                    "example": 123456
+                  },
+                  "otpFor": {
+                    "type": "string",
+                    "example": "U"
+                  },
+                  "notification": {
+                    "type": "string",
+                    "example": false
+                  },
+                  "createdAt": {
+                    "type": "string",
+                    "example": "2024-08-26T09:34:24.000Z"
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "example": "2024-08-26T09:34:24.000Z"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Settings recevied successfully."
+                    },
+                    "data": {
+                      "type": "object",
+                      "example": {
+                        "user_uuid": ":uuid",
+                        "snooze_till": "1724669425009",
+                        "device_reg_token": null,
+                        "locale": null,
+                        "otp": null,
+                        "otpFor": null,
+                        "notification": false,
+                        "createdAt": "2024-08-26T09:34:24.000Z",
+                        "updatedAt": "2024-08-26T10:20:25.000Z"
+                      }
+                    },
+                    "snooze_till": {
+                      "type": "string",
+                      "example": 1724669425009
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Please pass correct user id!"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mindmap/notifications": {
+      "get": {
+        "summary": "User Notifications",
+        "description": "This API is return all the notification for spacified user in mobile app side.",
+        "tags": [
+          "Notification"
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "39002eee-8571-4402-b40b-899c8b9202d6"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total": {
+                      "type": "string",
+                      "example": "1"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "example": [
+                        {
+                          "title": "Title",
+                          "description": "Description",
+                          "type": "prescription",
+                          "isRead": false,
+                          "payload": {
+                            "body": "Body",
+                            "data": {
+                              "icon": "ic_launcher",
+                              "click_action": "FCM_PLUGIN_HOME_ACTIVITY"
+                            },
+                            "title": "Title",
+                            "regTokens": [
+                              null
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    "totalPages": {
+                      "type": "string",
+                      "example": "1"
+                    },
+                    "currentPage": {
+                      "type": "string",
+                      "example": "1"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Please pass correct user id!"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mindmap/getNotificationStatus/{uuid}": {
+      "get": {
+        "summary": "Get User Notification status",
+        "description": "This API is return the notification status spacified uuid.",
+        "tags": [
+          "Notification"
+        ],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "description": "Unique ID of the notification to fetch the status",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "39002eee-8571-4402-b40b-899c8b9202d6"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "string",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Notification status retrieved successfully!"
+                    },
+                    "data": {
+                      "type": "object",
+                      "example": {
+                        "notification_status": false,
+                        "snooze_till": ""
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Please pass correct user id!"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mindmap/toggleNotificationStatus/{uuid}": {
+      "put": {
+        "summary": "Toggle User Notification status",
+        "description": "This API is update the user status spacified uuid.",
+        "tags": [
+          "Notification"
+        ],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "description": "Unique ID of the user to fetch the status",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "39002eee-8571-4402-b40b-899c8b9202d6"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "string",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Notification status changed successfully!"
+                    },
+                    "data": {
+                      "type": "object",
+                      "example": {
+                        "notification_status": false
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Please pass correct user id!"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mindmap/acknowledge/{id}": {
+      "put": {
+        "summary": "Aknowledge Notification",
+        "description": "This API is akknowledge the notifications.",
+        "tags": [
+          "Notification"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "1"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Acknowledged Notification Successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "success": {
+                          "type": "string",
+                          "example": true
+                        },
+                        "data": {
+                          "type": "array",
+                          "example": [
+                            1
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Please pass correct user id!"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Records not present!"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mindmap/snooze_notification/{uuid}": {
+      "put": {
+        "summary": "Snooze User Notification status",
+        "description": "This API is make the notification status snooze for spacified uuid.",
+        "tags": [
+          "Notification"
+        ],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "description": "Unique ID of the user to fetch the status",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "39002eee-8571-4402-b40b-899c8b9202d6"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "snooze_for": {
+                    "type": "string",
+                    "example": "30m"
+                  }
+                },
+                "required": [
+                  "snooze_for"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "string",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Notification snoozed successfully!"
+                    },
+                    "data": {
+                      "type": "object",
+                      "example": {
+                        "snooze_till": 1724669401423
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Please pass correct user id!"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "string",
+                      "example": false
+                    },
+                    "data": {
+                      "type": "object",
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Bad request! Invalid arguments."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "string",
+                      "example": false
+                    },
+                    "data": {
+                      "type": "object",
+                      "example": null
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "No such user exists"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mindmap/clearAll/{uuid}": {
+      "delete": {
+        "summary": "Clear all notifications by user uuid",
+        "description": "This API is clear the notifications spacified user uuid.",
+        "tags": [
+          "Notification"
+        ],
+        "parameters": [
+          {
+            "name": "uuid",
+            "in": "path",
+            "required": true,
+            "description": "Unique ID of users to clear all notifications",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "39002eee-8571-4402-b40b-899c8b9202d6"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Clear Notification Successfully!"
+                    },
+                    "data": {
+                      "type": "object",
+                      "example": {
+                        "success": true,
+                        "data": 2
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Records not present!"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mindmap/notify-app/{userId}": {
+      "post": {
+        "summary": "Sent the notification to health worker",
+        "description": "This API is send the notification to helath worker based on user uuid.",
+        "tags": [
+          "Notification"
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "Unique ID of the user to send the notification",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "54b04270-4c96-4ff9-be8c-3c6cb32975b5"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": true,
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "required": true
+                  },
+                  "body": {
+                    "type": "string",
+                    "required": true
+                  },
+                  "type": {
+                    "type": "string",
+                    "required": true
+                  },
+                  "data": {
+                    "type": "object",
+                    "required": false,
+                    "properties": {
+                      "patientFirstName": {
+                        "type": "string"
+                      },
+                      "patientMiddleName": {
+                        "type": "string"
+                      },
+                      "patientLastName": {
+                        "type": "string"
+                      },
+                      "patientUuid":{
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "patientOpenMrsId":{
+                        "type": "string"
+                      },
+                      "visitUuid": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "followupDatetime":{
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "title": "Folloup date time added for Test ChatOne",
+                  "body": "Click notification to see!",
+                  "type": "followup",
+                  "data": {
+                    "patientFirstName": "Test",
+                    "patientMiddleName": "",
+                    "patientLastName": "ChatOne",
+                    "patientUuid": "77dc79e6-8192-4a4a-a7a2-e55e7c05b635",
+                    "patientOpenMrsId": "161GP-7",
+                    "visitUuid": "8e269401-8789-4183-be9c-a1e41f0f32d9",
+                    "followupDatetime": "No"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Please pass correct user id!"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/links/getFacilityContacts": {
+      "get": {
+        "summary": "Get The Facility Contacts",
+        "description": "This API is return all the facility contacts.",
+        "tags": [
+          "Facility Contacts"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "string",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "example": [
+                        {
+                          "id": 1,
+                          "facility_name": "Facility 1",
+                          "incharge_name": "Incharge 1",
+                          "contact_no": "123913123",
+                          "createdAt": "2024-08-26T09:34:24.000Z",
+                          "updatedAt": "2024-08-26T10:20:25.000Z"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid authorization header"
+                    },
+                    "code": {
+                      "type": "number",
+                      "example": 401
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/links/getFacilityContacts/{id}": {
+      "get": {
+        "summary": "Get The Facility Contact by Id",
+        "description": "This API is return the facility contacts detail.",
+        "tags": [
+          "Facility Contacts"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Unique ID of facility contacts",
+            "schema": {
+              "type": "number",
+              "example": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "string",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "example": {
+                        "id": 1,
+                        "facility_name": "Facility 1",
+                        "incharge_name": "Incharge 1",
+                        "contact_no": "123913123",
+                        "createdAt": "2024-08-26T09:34:24.000Z",
+                        "updatedAt": "2024-08-26T10:20:25.000Z"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid authorization header"
+                    },
+                    "code": {
+                      "type": "number",
+                      "example": 401
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Facility Contact not found"
+                    },
+                    "code": {
+                      "type": "number",
+                      "example": 401
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/links/requestOtp": {
+      "post": {
+        "summary": "Request OTP",
+        "description": "This API is send the opt to requested mobile no.",
+        "tags": [
+          "Facility Contacts"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "hash": {
+                    "required": true,
+                    "type": "string",
+                    "example": "hash",
+                    "description": "Unique hash string for links"
+                  },
+                  "phoneNumber": {
+                    "required": true,
+                    "type": "string",
+                    "example": "1234567890",
+                    "description": "Mobile number to receive the OTP"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "string",
+                      "example": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid link!"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/links/verifyOtp": {
+      "post": {
+        "summary": "Verify OTP",
+        "description": "This API is verify the opt.",
+        "tags": [
+          "Facility Contacts"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "hash": {
+                    "required": true,
+                    "type": "string",
+                    "example": "hash",
+                    "description": "Unique hash string for links"
+                  },
+                  "otp": {
+                    "required": true,
+                    "type": "string",
+                    "example": "123456",
+                    "description": "Verify the opt retivied in mobile using request OTP"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "string",
+                      "example": true
+                    },
+                    "data": {
+                      "type":"boolean",
+                      "example": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid OTP!"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/links/getLink/{hash}": {
+      "get": {
+        "summary": "Get the short link for hash",
+        "description": "This API is retrive the short link and validate link.",
+        "tags": [
+          "Facility Contacts"
+        ],
+        "parameters": [
+          {
+            "name": "hash",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "cc"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                   "success": {
+                      "type": "string",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "example": {
+                        "link": "/i/47de9084-4006-4bef-b0da-393fd3e39a6e",
+                        "type": "presctiption-verification"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "string",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid link!"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Records not present!"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/links/shortLink": {
+      "post": {
+        "summary": "Create the short link hash",
+        "description": "This API is crate the short link.",
+        "tags": [
+          "Facility Contacts"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "link": {
+                    "required": true,
+                    "type": "string",
+                    "example": "/i/8e269401-8789-4183-be9c-a1e41f0f32d9"
+                  },
+                  "type": {
+                    "type": "string",
+                    "example": "presctiption-verification"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                   "success": {
+                      "type": "string",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "example": {
+                        "id": 962,
+                        "hash": "d4",
+                        "link": "/i/8e269401-8789-4183-be9c-a1e41f0f32d9",
+                        "otp": null,
+                        "type": "presctiption-verification",
+                        "createdAt": "2024-09-03T08:41:06.000Z",
+                        "updatedAt": "2024-09-03T08:41:06.000Z"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "string",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Please pass link!"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Records not present!"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

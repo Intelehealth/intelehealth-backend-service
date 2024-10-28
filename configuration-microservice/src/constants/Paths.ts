@@ -35,10 +35,58 @@ export default {
     updateIsEditable: '/updateIsEditable/:id',
     UpdateIsEnabled: '/updateIsEnabled/:id',
   },
+  PatientVital: {
+    Base: '/vitals',
+    Get: '/all',
+    updateIsMandatory: '/updateIsMandatory/:id',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+  },
+  PatientDiagnostics: {
+    Base: '/diagnostics',
+    Get: '/all',
+    updateIsMandatory: '/updateIsMandatory/:id',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+  },
   Config: {
     Base: '/config',
     Get: '/getApplicationConfig',
     GetPublished: '/getPublishedConfig',
     Publish: '/publish',
-  }
+  },
+  ThemeConfig: {
+    Base: '/theme_config',
+    Get: '/all',
+    uploadImage: '/uploadImage',
+    updateThemeConfig: '/updateThemeConfig',
+    updateImagesText: '/updateImagesText',
+    deleteImage: '/deleteImage'
+  },
+  Webrtc: {
+    Base: '/webrtc',
+    Get: '/all',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+  },
+  Features: {
+    Base: '/feature',
+    Get: '/all',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+    GetByKey: '/getByKey/:key'
+  },
+  PatientVisitSummary: {
+    Base: '/pvs',
+    Get: '/all',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+  },
+  SidebarMenus: {
+    Base: '/sidebar-menu',
+    Get: '/all',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+  },
+  PatientVisitSections: {
+    Base: '/patient-visit-sections',
+    Get: '/all',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+    UpdateName: '/updateName/:id',
+    UpdateOrder: '/update-order'
+  },
 } as const;

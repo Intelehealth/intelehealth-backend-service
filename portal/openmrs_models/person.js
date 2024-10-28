@@ -14,6 +14,12 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: "person_id",
         sourceKey: "person_id",
       });
+
+      this.hasMany(models.person_attribute, {
+        as: "person_attribute",
+        foreignKey: "person_id",
+        sourceKey: "person_id",
+      });
     }
   }
   person.init(

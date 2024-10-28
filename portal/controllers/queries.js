@@ -182,7 +182,8 @@ module.exports = (function () {
   `;
     };
 
-    this.getVisitCountV3 = () => {
+    this.getVisitCountV3 = (visitTypeId = null) => {
+        const visitTypeCondition = visitTypeId ? `and v.visit_type_id = ${visitTypeId}` : '';  // Add the visitTypeId clause conditionally for video consultations.
         return `select
         t1.visit_id,
         t1.uuid,
@@ -235,6 +236,7 @@ module.exports = (function () {
                 LEFT JOIN visit_attribute va on (va.visit_id= v.visit_id and va.voided = 0 and va.attribute_type_id = 5)
             where
                 v.voided = 0
+                ${visitTypeCondition}
                 and e.voided = 0
             group by
                 v.visit_id,

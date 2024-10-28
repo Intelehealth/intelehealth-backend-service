@@ -84,4 +84,11 @@ const writeToLicenseKey = (contents) => {
   })
 }
 
-module.exports = { sendEmail, getFormattedUrl, readLicenseFile, writeToLicenseKey };
+const getPagingData = (data, page, limit) => {
+  const { count: total, rows } = data;
+  const currentPage = page ? +page : 0;
+  const totalPages = Math.ceil(total / limit);
+  return { total, rows, totalPages, currentPage };
+};
+
+module.exports = { sendEmail, getFormattedUrl, readLicenseFile, writeToLicenseKey, getPagingData };

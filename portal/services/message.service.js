@@ -350,16 +350,23 @@ module.exports = (function () {
   this.getVisits = async (patientId) => {
     try {
       const data = await messages.findAll({
-        attributes: ["visitId", "createdAt"],
+        attributes: [
+          [
+            Sequelize.fn("max", Sequelize.col("createdAt")),
+            "createdAt",
+          ],
+          "visitId"
+        ],
         where: { patientId },
-        order: [["createdAt", "DESC"]],
         group: ["visitId"],
+        order: [[Sequelize.col("createdAt"), "DESC"]],
       });
       return { success: true, data };
     } catch (error) {
       return {
         success: false,
         data: [],
+        error
       };
     }
   };
