@@ -23,11 +23,11 @@ exports.createUserSchema = Joi.object({
     givenName: Joi.string().required(),
     familyName: Joi.string().required(),
     middleName: Joi.string().optional().allow(null, ''),
-    gender: Joi.optional().valid('M', 'F'),
+    gender: Joi.optional().valid('M', 'F', 'U'),
     birthdate: Joi.optional(),
     username: Joi.string().required().min(3),
     password: Joi.string().required(),
-    role: Joi.required().valid('nurse', 'doctor'),
+    role: Joi.required().valid('nurse', 'doctor', 'mcc'),
     addresses: Joi.array().items({
         address1: Joi.string().optional(),
         cityVillage: Joi.string().optional(),
@@ -52,7 +52,7 @@ exports.updateUserSchema = Joi.object({
     birthdate: Joi.optional(),
     username: Joi.string().required().min(3),
     password: Joi.string().required(),
-    role: Joi.required().valid('nurse', 'doctor'),
+    role: Joi.required().valid('nurse', 'doctor', 'mcc'),
     addresses: Joi.array().items({
         address1: Joi.string().optional(),
         cityVillage: Joi.string().optional(),

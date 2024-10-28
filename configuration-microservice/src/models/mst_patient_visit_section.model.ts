@@ -29,8 +29,8 @@ export class PatientVisitSection extends Model<SidebarMenuCreationAttributes, Si
     id!: number;
 
     @Column({
-        type: DataTypes.STRING,
-        allowNull: true
+      type: DataTypes.STRING,
+      allowNull: true
     })
     name!: string;
 
