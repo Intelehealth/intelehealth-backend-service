@@ -40,6 +40,7 @@ export default {
     Get: '/all',
     updateIsMandatory: '/updateIsMandatory/:id',
     UpdateIsEnabled: '/updateIsEnabled/:id',
+    updateVitalName: '/updateVitalName/:id',
   },
   PatientDiagnostics: {
     Base: '/diagnostics',
@@ -59,7 +60,8 @@ export default {
     uploadImage: '/uploadImage',
     updateThemeConfig: '/updateThemeConfig',
     updateImagesText: '/updateImagesText',
-    deleteImage: '/deleteImage'
+    deleteImage: '/deleteImage',
+    updateHelpTour: '/updateHelpTour'
   },
   Webrtc: {
     Base: '/webrtc',
@@ -87,6 +89,7 @@ export default {
     Get: '/all',
     UpdateIsEnabled: '/updateIsEnabled/:id',
     UpdateName: '/updateName/:id',
-    UpdateOrder: '/update-order'
+    UpdateOrder: '/update-order',
+    UpdateSubSectionIsEnabled: '/UpdateSubSectionIsEnabled/:id',
   },
 } as const;

@@ -55,6 +55,16 @@ async function deleteFile(req: IReqUser<{ filePath: string }>, res: IRes) {
     return res.status(HttpStatusCodes.OK).json({ success: true });
 }
 
+/**
+ * Update help tour.
+ */
+async function updateHelpTour(req: IReqUser<{ help_tour_config: string }>, res: IRes) {
+    const { help_tour_config } = req.body;
+    const { userId, name } = req.user.data;
+    await ThemeConfigService.updateHelpTourConfig(help_tour_config, userId, name);
+    return res.status(HttpStatusCodes.OK).json({ success: true });
+}
+
 // **** Export default **** //
 
 export default {
@@ -62,5 +72,6 @@ export default {
     updateThemeConfig,
     updateImagesText,
     uploadImage,
-    deleteFile
+    deleteFile,
+    updateHelpTour
 } as const;
