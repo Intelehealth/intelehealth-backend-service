@@ -13,6 +13,14 @@ module.exports = {
               type: DataTypes.INTEGER,
             },
             name: {
+              type: DataTypes.STRING,
+              allowNull: true
+            },
+            lang: {
+              type: DataTypes.JSON,
+              allowNull: true
+            },
+            sub_sections: {
               type: DataTypes.JSON,
               allowNull: true
             },
