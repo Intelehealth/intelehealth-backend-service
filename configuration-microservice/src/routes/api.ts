@@ -247,6 +247,12 @@ themeConfigRouter.put(
   ThemeConfigRoutes.updateImagesText
 );
 
+// Update theme config
+themeConfigRouter.put(
+  Paths.ThemeConfig.updateHelpTour,
+  ThemeConfigRoutes.updateHelpTour
+);
+
 // Delete Image 
 themeConfigRouter.delete(
   Paths.ThemeConfig.deleteImage,
@@ -278,6 +284,13 @@ vitalRouter.put(
   Paths.PatientVital.updateIsMandatory,
   validate(['id', 'number', 'params'],['is_mandatory', 'boolean', 'body']),
   VitalRoutes.updateIsMandatory,
+);
+
+// Update one patient vital name
+vitalRouter.put(
+  Paths.PatientVital.updateVitalName,
+  validate(['id', 'number', 'params'],['lang', 'object', 'body']),
+  VitalRoutes.updateVitalName,
 );
 
 // Add PatientVitalRouter
@@ -419,7 +432,7 @@ patientVisitSectionsRouter.put(
 // Update one patient visit sections name
 patientVisitSectionsRouter.put(
   Paths.PatientVisitSections.UpdateName,
-  validate(['id', 'number', 'params'],['name', 'object', 'body']),
+  validate(['id', 'number', 'params'],['lang', 'object', 'body']),
   PatientVisitSectionsRoutes.updateName,
 );
 
@@ -428,6 +441,13 @@ patientVisitSectionsRouter.put(
   Paths.PatientVisitSections.UpdateOrder,
   validate(['order', 'object', 'body']),
   PatientVisitSectionsRoutes.updateOrder,
+);
+
+// Update one patient visit sections status
+patientVisitSectionsRouter.put(
+  Paths.PatientVisitSections.UpdateSubSectionIsEnabled,
+  validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body'], ['sub_section', 'string', 'body']),
+  PatientVisitSectionsRoutes.updateSubSectionIsEnabled,
 );
 // Add SiderbarMenuRouter
 apiRouter.use(Paths.PatientVisitSections.Base, authMw, patientVisitSectionsRouter);

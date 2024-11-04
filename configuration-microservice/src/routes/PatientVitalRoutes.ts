@@ -38,10 +38,22 @@ async function updateIsMandatory(req: IReqUser<{ is_mandatory: boolean }>, res: 
     return res.status(HttpStatusCodes.OK).json({ success: true, data: null });
 }
 
+/**
+ * Update patient visit section name update.
+ */
+async function updateVitalName(req: IReqUser<{ lang: any }>, res: IRes) {
+    const { id } = req.params;
+    const { userId, name } = req.user.data;
+    const { lang: lang } = req.body
+    await VitalService.updateVitalName(id, lang, userId, name);
+    return res.status(HttpStatusCodes.OK).json({ success: true, data: null });
+}
+
 // **** Export default **** //
 
 export default {
     getAll,
     updateIsEnabled,
     updateIsMandatory,
+    updateVitalName
 } as const;
