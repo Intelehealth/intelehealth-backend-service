@@ -3,6 +3,12 @@ const { video_categories, videos } = require("../models");
 module.exports = (function () {
   this.createCategory = async (req, res, next) => {
     try {
+
+      let categoryName = await video_categories.findOne({
+        where: { name: req.body.name }
+      });
+      if (categoryName) throw new Error("Category with same name already exists.");
+
       res.json({
         success: true,
         data: await video_categories.create(req.body),
@@ -14,6 +20,10 @@ module.exports = (function () {
 
   this.createVideo = async (req, res, next) => {
     try {
+      let videoName = await videos.findOne({
+        where: { title: req.body.title }
+      });
+      if (videoName) throw new Error("Video with same name already exists.");
       res.json({
         success: true,
         data: await videos.create(req.body),
@@ -85,6 +95,11 @@ module.exports = (function () {
       });
 
       if (!video) throw new Error("Invalid Video Id.");
+
+      let videoName = await videos.findOne({
+        where: { title: req.body.title }
+      });
+      if (videoName) throw new Error("Video with same name already exists.");
 
       res.json({
         success: true,
