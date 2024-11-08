@@ -125,10 +125,10 @@ const getPagingData = (data, page, limit) => {
 
 const getUserTickets = async (req, res, next) => {
     try {
-        const { page, size } = req.query;
+        const { page, size, search} = req.query;
         const { userId } = req.user?.data;
         const offset = (page - 1) * size;
-        const data = await getUserTicketsDatabase(userId, +size, offset);
+        const data = await getUserTicketsDatabase(userId, +size, offset, search);
         return res.status(200).json(getPagingData(data, page, size));
     } catch (error) {
         next(error);
