@@ -12,7 +12,8 @@ const getTicketSchema = Joi.object().keys({
 
 const getTicketsSchema = Joi.object().keys({
     page: Joi.number().required().min(1),
-    size: Joi.number().required().valid(5,10,50,100)
+    size: Joi.number().required().valid(5,10,50,100),
+    search: Joi.string().optional()
 });
 
 module.exports = {

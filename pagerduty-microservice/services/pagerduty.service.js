@@ -1,4 +1,4 @@
-const { where } = require("sequelize");
+const { where, Op } = require("sequelize");
 const { PagerdutyTickets } = require("../models");
 const { raw } = require("body-parser");
 const { Sequelize } = require("../models");
@@ -50,11 +50,14 @@ const updateTicketStatusDatabase = async (event) => {
     }
 };
 
-const getUserTicketsDatabase = async (user_id, limit, offset) => {
+const getUserTicketsDatabase = async (user_id, limit, offset, search="") => {
     try {
         const tickets = await PagerdutyTickets.findAndCountAll({
             where: {
-                user_id
+                user_id,
+                title: {
+                    [Op.like]: `%${search}%`,
+                }
             },
             limit,
             offset,
