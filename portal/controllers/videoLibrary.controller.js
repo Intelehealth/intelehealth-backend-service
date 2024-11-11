@@ -23,7 +23,25 @@ module.exports = (function () {
       let videoName = await videos.findOne({
         where: { title: req.body.title }
       });
-      if (videoName) throw new Error("Video with same name already exists.");
+
+      if (videoName && (videoName?.dataValues?.id !== Number(req.params.id))) {
+        let video = await video_categories.findOne({
+          where: { id: videoName?.dataValues?.categoryId },
+        });
+        throw new Error(`Video with same name already exists in ${video?.dataValues?.name}.`);
+      } 
+
+      let presentvideo = await videos.findOne({
+        where: { videoId: req.body.videoId }
+      });
+
+      if (presentvideo && (presentvideo?.dataValues?.id !== Number(req.params.id))) {
+        let video = await video_categories.findOne({
+          where: { id: presentvideo?.dataValues?.categoryId },
+        });
+        throw new Error(`Video with same videoId already exists in ${video?.dataValues?.name}.`);
+      }
+
       res.json({
         success: true,
         data: await videos.create(req.body),
@@ -99,7 +117,23 @@ module.exports = (function () {
       let videoName = await videos.findOne({
         where: { title: req.body.title }
       });
-      if (videoName) throw new Error("Video with same name already exists.");
+      if (videoName && (videoName?.dataValues?.id !== Number(req.params.id))) {
+        let video = await video_categories.findOne({
+          where: { id: videoName?.dataValues?.categoryId },
+        });
+        throw new Error(`Video with same name already exists in ${video?.dataValues?.name}.`);
+      } 
+
+      let presentvideo = await videos.findOne({
+        where: { videoId: req.body.videoId }
+      });
+
+      if (presentvideo && (presentvideo?.dataValues?.id !== Number(req.params.id))) {
+        let video = await video_categories.findOne({
+          where: { id: presentvideo?.dataValues?.categoryId },
+        });
+        throw new Error(`Video with same videoId already exists in ${video?.dataValues?.name}.`);
+      }
 
       res.json({
         success: true,
