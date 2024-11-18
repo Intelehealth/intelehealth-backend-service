@@ -2,7 +2,7 @@ const CronJob = require("cron").CronJob;
 const { Sequelize, active_session, user_status } = require("./models");
 const moment = require("moment");
 const { TIME_FORMAT } = require("./services/user.service");
-const { logStream } = require("../logger/index");
+const { logStream } = require("./logger/index");
 
 const removeOldSessions = async () => {
   await active_session.destroy({
