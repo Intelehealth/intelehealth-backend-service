@@ -9,6 +9,11 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate(models) {
       // define association here
+      this.hasOne(models.person_attribute_type, {
+        as: "person_attribute_type",
+        foreignKey: "person_attribute_type_id",
+        sourceKey: "person_attribute_type_id",
+      });
     }
   }
   person_attribute.init(

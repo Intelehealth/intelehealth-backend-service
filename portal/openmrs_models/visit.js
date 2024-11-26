@@ -33,6 +33,11 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: "person_id",
         sourceKey: "patient_id",
       });
+      this.hasOne(models.person_attribute, {
+        as: "person_attribute",
+        foreignKey: "person_id",
+        sourceKey: "patient_id",
+      });
       this.hasOne(models.location, {
         as: "location",
         foreignKey: "location_id",
