@@ -20,6 +20,7 @@ import FeaturesRoutes from './FeaturesRoutes';
 import PatientVisitSummaryRoutes from './PatientVisitSummaryRoutes';
 import SidebarMenuRoutes from './SidebarMenuRoutes';
 import PatientDetailsRoutes from './PatientDetailsRoutes';
+import PatientVisitSectionsRoutes from './PatientVisitSectionsRoutes';
 
 // **** Variables **** //
 
@@ -286,6 +287,13 @@ vitalRouter.put(
   VitalRoutes.updateIsMandatory,
 );
 
+// Update one patient vital name
+vitalRouter.put(
+  Paths.PatientVital.updateVitalName,
+  validate(['id', 'number', 'params'],['lang', 'object', 'body']),
+  VitalRoutes.updateVitalName,
+);
+
 // Add PatientVitalRouter
 apiRouter.use(Paths.PatientVital.Base, authMw, vitalRouter);
 
@@ -424,6 +432,47 @@ siderbarMenuRouter.put(
 );
 // Add SiderbarMenuRouter
 apiRouter.use(Paths.SidebarMenus.Base, authMw, siderbarMenuRouter);
+
+
+// **** Setup PatientVisitSectionsRouter **** //
+
+const patientVisitSectionsRouter = Router();
+
+// Get all patient visit sections
+patientVisitSectionsRouter.get(
+  Paths.PatientVisitSections.Get,
+  PatientVisitSectionsRoutes.getAll,
+);
+
+// Update one patient visit sections status
+patientVisitSectionsRouter.put(
+  Paths.PatientVisitSections.UpdateIsEnabled,
+  validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body']),
+  PatientVisitSectionsRoutes.updateIsEnabled,
+);
+
+// Update one patient visit sections name
+patientVisitSectionsRouter.put(
+  Paths.PatientVisitSections.UpdateName,
+  validate(['id', 'number', 'params'],['lang', 'object', 'body']),
+  PatientVisitSectionsRoutes.updateName,
+);
+
+// Update one patient visit sections name
+patientVisitSectionsRouter.put(
+  Paths.PatientVisitSections.UpdateOrder,
+  validate(['order', 'object', 'body']),
+  PatientVisitSectionsRoutes.updateOrder,
+);
+
+// Update one patient visit sections status
+patientVisitSectionsRouter.put(
+  Paths.PatientVisitSections.UpdateSubSectionIsEnabled,
+  validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body'], ['sub_section', 'string', 'body']),
+  PatientVisitSectionsRoutes.updateSubSectionIsEnabled,
+);
+// Add SiderbarMenuRouter
+apiRouter.use(Paths.PatientVisitSections.Base, authMw, patientVisitSectionsRouter);
 
 // **** Export default **** //
 

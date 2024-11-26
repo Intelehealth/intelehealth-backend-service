@@ -40,6 +40,7 @@ export default {
     Get: '/all',
     updateIsMandatory: '/updateIsMandatory/:id',
     UpdateIsEnabled: '/updateIsEnabled/:id',
+    updateVitalName: '/updateVitalName/:id',
   },
   PatientDiagnostics: {
     Base: '/diagnostics',
@@ -82,6 +83,14 @@ export default {
     Base: '/sidebar-menu',
     Get: '/all',
     UpdateIsEnabled: '/updateIsEnabled/:id',
+  },
+  PatientVisitSections: {
+    Base: '/patient-visit-sections',
+    Get: '/all',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+    UpdateName: '/updateName/:id',
+    UpdateOrder: '/update-order',
+    UpdateSubSectionIsEnabled: '/UpdateSubSectionIsEnabled/:id',
   },
   PatientDetails: {
     Base: '/pds',

@@ -11,6 +11,7 @@ export interface VitalAttributes {
   createdAt?: Date;
   updatedAt?: Date;
   deletedAt?: Date;
+  lang: object;
 }
 
 export interface VitalCreationAttributes extends Optional<VitalAttributes, 'id'> {}
@@ -73,4 +74,10 @@ export class Vital extends Model<VitalAttributes, VitalCreationAttributes> {
     @DeletedAt
     @Column
     deletedAt!: Date;
+
+    @Column({
+        type: DataTypes.JSON,
+        allowNull: true
+    })
+    lang!: object;
 }

@@ -12,7 +12,6 @@ import FeaturesService from '@src/services/FeaturesService';
 async function getAll(_: IReq, res: IRes) {
     const secs = ['Patient Family Member Registration','Patient Household Survey'];
     let sections = await FeaturesService.getAll();
-    console.log('sections: ', sections);
     sections = sections.filter((section:any) => secs.includes(section.name));
     return res.status(HttpStatusCodes.OK).json({ patient_details_sections: sections });
 }

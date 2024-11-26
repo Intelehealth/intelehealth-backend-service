@@ -1,11 +1,11 @@
-import { QueryInterface, DataTypes, QueryTypes, Sequelize } from 'sequelize';
+import { QueryInterface, DataTypes, Sequelize } from 'sequelize';
 
 /** @type {import("sequelize-cli").Migration} */
 module.exports = {
     up: (queryInterface: QueryInterface): Promise<void> => queryInterface.sequelize.transaction(
-        async (transaction) => {
+        async () => {
           // here go all migration changes
-          await queryInterface.createTable('mst_patient_vital', {
+          await queryInterface.createTable('mst_patient_visit_sections', {
             id: {
               allowNull: false,
               autoIncrement: true,
@@ -14,24 +14,35 @@ module.exports = {
             },
             name: {
               type: DataTypes.STRING,
-              allowNull: false,
-              unique: true
+              allowNull: true
+            },
+            lang: {
+              type: DataTypes.JSON,
+              allowNull: true
+            },
+            sub_sections: {
+              type: DataTypes.JSON,
+              allowNull: true
             },
             key: {
               type: DataTypes.STRING,
               allowNull: false,
               unique: true
             },
-            uuid: {
-              type: DataTypes.STRING,
+            order: {
+              type: DataTypes.INTEGER,
               allowNull: false,
-              unique: true
+              defaultValue: 0
+            },
+            is_editable: {
+              type: DataTypes.BOOLEAN,
+              defaultValue: false,
             },
             is_enabled: {
               type: DataTypes.BOOLEAN,
               defaultValue: false,
             },
-            is_mandatory: {
+            is_locked: {
               type: DataTypes.BOOLEAN,
               defaultValue: false,
             },
@@ -44,22 +55,15 @@ module.exports = {
               allowNull: false,
               type: DataTypes.DATE,
               defaultValue: Sequelize.literal('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'),
-            },
-            deletedAt: {
-              type: DataTypes.DATE,
-            },
-            lang: {
-              type: DataTypes.JSON,
-              allowNull: true
             }
           });
         }
     ),
 
     down: (queryInterface: QueryInterface): Promise<void> => queryInterface.sequelize.transaction(
-        async (transaction) => {
+        async () => {
           // here go all migration undo changes
-          await queryInterface.dropTable('mst_patient_vital');
+          await queryInterface.dropTable('mst_patient_visit_sections');
         }
     )
 };

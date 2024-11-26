@@ -222,9 +222,26 @@ module.exports = (function () {
     if (!type) {
       return [];
     } else {
-      const visits = await sequelize.query(getVisitCountV3(), {
-        type: QueryTypes.SELECT,
-      });
+      let visits = [];
+      if(process.env.VIDEO_CONSULATION_TYPE === 'true') {        
+        const visitType = await sequelize.query(
+          `select
+            visit_type_id from visit_type 
+            where name = 'Video consultation' 
+          `, {
+            type: QueryTypes.SELECT,
+          });
+          
+        const visitTypeId = visitType[0]['visit_type_id'];
+        console.log(visitTypeId, 'Video consultation');
+        visits = await sequelize.query(getVisitCountV3(visitTypeId), {
+          type: QueryTypes.SELECT,
+        });
+      } else {
+        visits = await sequelize.query(getVisitCountV3(), {
+          type: QueryTypes.SELECT,
+        });
+      }
       let appointmentVisitIds = [];
       if(type === "Awaiting Consult"){
         const data = await Appointment.findAll({
