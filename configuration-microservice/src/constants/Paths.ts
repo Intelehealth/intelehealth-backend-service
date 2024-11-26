@@ -92,4 +92,9 @@ export default {
     UpdateOrder: '/update-order',
     UpdateSubSectionIsEnabled: '/UpdateSubSectionIsEnabled/:id',
   },
+  PatientDetails: {
+    Base: '/pds',
+    Get: '/all',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+  },
 } as const;
