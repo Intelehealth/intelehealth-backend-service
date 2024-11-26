@@ -107,9 +107,9 @@ const validateParams = (params, keysAndTypeToCheck = []) => {
  * @param {*} data - (title, body, icon, data(payload), regTokens, click_action)
  */
 const sendCloudNotification = async ({
-  title,
-  body,
-  icon = "ic_launcher",
+  // title,
+  // body,
+  // icon = "ic_launcher",
   data = {},
   notification = null,
   regTokens,
@@ -117,22 +117,16 @@ const sendCloudNotification = async ({
 }) => {
   const payload = {
     data,
-    // notification: { //TODO: removed this as per comment IDA4-3303
-    //   title,
-    //   icon,
-    //   body,
-    //   click_action,
-    // },
+    tokens: regTokens,
+    android:{ priority : 'high'}
   };
-
+  
+  data.click_action=click_action;
   if(notification) payload.notification = notification;
 
-  const options = {
-    priority: "high",
-  };
-
   try {
-    const result = await messaging.sendToDevice(regTokens, payload, options);
+    const result = await messaging.sendEachForMulticast(payload);
+    return result;
   } catch (err) {
     console.error("Cloud notification error:", err);
   }
@@ -145,7 +139,7 @@ const sendCloudNotification = async ({
   const sendPrescriptionCloudNotification = async ({
     title,
     body,
-    icon = "ic_launcher",
+    //icon = "ic_launcher",
     data = {},
     regTokens,
     click_action = "FCM_PLUGIN_HOME_ACTIVITY",
@@ -154,18 +148,19 @@ const sendCloudNotification = async ({
       data,
       notification: {
         title,
-        icon,
+        //icon,
         body,
-        click_action,
+        //click_action,
       },
+      tokens: regTokens,
+      android:{ priority : 'high'}
     };
 
-    const options = {
-      priority: "high",
-    };
+    data.click_action=click_action;
 
     try {
-      const result = await messaging.sendToDevice(regTokens, payload, options);
+      const result = await messaging.sendEachForMulticast(payload);
+      return result;
     } catch (err) {
       console.error("Cloud notification error:", err);
     }
