@@ -19,6 +19,7 @@ import WebrtcRoutes from './WebrtcRoutes';
 import FeaturesRoutes from './FeaturesRoutes';
 import PatientVisitSummaryRoutes from './PatientVisitSummaryRoutes';
 import SidebarMenuRoutes from './SidebarMenuRoutes';
+import PatientDetailsRoutes from './PatientDetailsRoutes';
 
 // **** Variables **** //
 
@@ -382,6 +383,27 @@ pvsRouter.put(
 
 // Add PatientVisitSummaryRouter
 apiRouter.use(Paths.PatientVisitSummary.Base, authMw, pvsRouter);
+
+
+// **** Setup PatientDetailsRouter **** //
+
+const patientDetailsRouter = Router();
+
+// Get all patient details
+patientDetailsRouter.get(
+  Paths.PatientDetails.Get,
+  PatientDetailsRoutes.getAll,
+);
+
+// Update one patient detail status
+patientDetailsRouter.put(
+  Paths.PatientDetails.UpdateIsEnabled,
+  validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body']),
+  PatientVisitSummaryRoutes.updateIsEnabled,
+);
+
+// Add PatientDetailsRouter
+apiRouter.use(Paths.PatientDetails.Base, authMw, patientDetailsRouter);
 
 
 // **** Setup SpecializationRouter **** //
