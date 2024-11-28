@@ -19,7 +19,9 @@ const {
   Sequelize,
   sequelize,
   concept,
-  concept_name
+  concept_name,
+  person_attribute,
+  person_attribute_type
 } = require("../openmrs_models");
 const { MESSAGE } = require("../constants/messages");
 const { logStream } = require("../logger/index");
@@ -364,6 +366,18 @@ module.exports = (function () {
               model: person_name,
               as: "patient_name",
               attributes: ["given_name", "family_name", "middle_name"],
+            },
+            {
+              model: person_attribute,
+              as: "person_attribute",
+              attributes: ["value"],
+              include: [
+                {
+                  model: person_attribute_type,
+                  as: "person_attribute_type",
+                  attributes: ["name"],
+                }
+              ],
             },
             {
               model: person,
