@@ -1,11 +1,7 @@
 const { token } = require("morgan");
 const { axiosInstance } = require("../handlers/axiosHelper");
 
-const EncryptRsa = require('encrypt-rsa').default;
-
 const { logStream } = require("./../logger/index");
-
-const encryptRsa = new EncryptRsa();
 
 const { uuid } = require('uuidv4');
 const openmrsService = require("../services/openmrs.service");
@@ -21,7 +17,10 @@ module.exports = (function () {
   this.getInitialHeaderrs = (token = null) => {
     const headers = {
       'Content-Type': 'application/json',
-      'Accept-Language': 'en-us'
+      'Accept-Language': 'en-us',
+      'X-CM-ID': process.env.X_CM_ID,
+      'TIMESTAMP': this.getTimestamp(),
+      'REQUEST-ID': uuid()
     }
 
     if (token) headers['Authorization'] = `Bearer ${token}`
@@ -37,7 +36,10 @@ module.exports = (function () {
     const resposnse = await axiosInstance.post(
       process.env.SESSION_TOKEN_GEN_URL, {
       "clientId": process.env.CLIENT_ID,
-      "clientSecret": process.env.CLIENT_SECRET
+      "clientSecret": process.env.CLIENT_SECRET,
+      "grantType": "client_credentials"
+    }, {
+      headers: this.getInitialHeaderrs()
     });
     return resposnse.data;
   }
@@ -50,13 +52,10 @@ module.exports = (function () {
     logStream("debug", process.env.PUBLIC_KEY_GEN_URL, 'Get Public Key - URL');
     const resposnse = await axiosInstance.get(
       process.env.PUBLIC_KEY_GEN_URL, {
-    }, {
-      headers: {
-        ...this.getInitialHeaderrs(token)
-      }
+      headers: this.getInitialHeaderrs(token)
     });
-    logStream("debug", resposnse.data, 'Get Public Key - Response');
-    return resposnse.data;
+    logStream("debug", resposnse?.data, 'Get Public Key - Response');
+    return resposnse?.data;
   }
 
   /**
@@ -64,11 +63,39 @@ module.exports = (function () {
    * @param {publicKey} string
    * @param {str} string
    */
-  this.getRSAText = (publicKey, str) => {
-    return encryptRsa.encryptStringWithRsaPublicKey({
-      text: str.toString(),
-      publicKey,
+  this.getRSAText = async (cypherType = 'RSA/ECB/OAEPWithSHA-1AndMGF1Padding', publicKey, str) => {
+    const response = await axiosInstance.post(
+      process.env.ENCYPTED_DATA_URL, {
+      "textToEncrypt": str?.toString(),
+      "publicKey": publicKey,
+      "privateKey": publicKey,
+      "keyType": "publicKeyForEncryption",
+      "cipherType": cypherType
     });
+    return response?.data?.encryptedOutput;
+  }
+
+  /**
+   * @param {string} token
+   * @param {string} value
+   * @returns {string} encryptedText
+   */
+
+  this.getEncryptedData = async (accessToken, value, methodName) => {
+    try {
+      logStream("debug", 'Calling API to Get Public Key', methodName);
+
+      const publicKeyResponse = await this.getPublicKey(accessToken);
+
+      logStream("debug", 'Got Public Key', methodName);
+      if (!publicKeyResponse) throw new Error('Public Key not generated');
+
+      const encryptedText = await this.getRSAText(publicKeyResponse?.encryptionAlgorithm, publicKeyResponse?.publicKey, value);
+
+      return Promise.resolve(encryptedText)
+    } catch (err) {
+      return Promise.reject(err?.message)
+    }
   }
 
   /**
@@ -112,15 +139,9 @@ module.exports = (function () {
 
       const accessToken = req.token
 
-      logStream("debug", 'Calling API to Get Public Key', 'Enroll OTP Req');
+      const encryptedText = await this.getEncryptedData(accessToken, value, 'Enroll OTP Req');
 
-      const publicKey = await this.getPublicKey(accessToken);
-
-      logStream("debug", 'Got Public Key', 'Enroll OTP Req');
-
-      const encryptedText = this.getRSAText(publicKey, value);
-
-      logStream("debug", scope + ' Encrypted', 'Enroll OTP Req');
+      logStream("debug", 'Scope:' + scope + ' \n value: ' + value + ' Encrypted', 'Enroll OTP Req');
 
       let payload = {
         "txnId": "",
@@ -146,17 +167,11 @@ module.exports = (function () {
       logStream("debug", process.env.REQ_OTP_URL, 'Enroll OTP Req - URL');
       logStream("debug", payload, 'Enroll OTP Req - Payload');
 
-      logStream("debug", 'Calling API to get otp', 'Enroll OTP Req');
-
       const apiResponse = await axiosInstance.post(
         process.env.REQ_OTP_URL,
         payload,
         {
-          headers: {
-            ...this.getInitialHeaderrs(accessToken),
-            'REQUEST-ID': uuid(),
-            'TIMESTAMP': this.getTimestamp(),
-          }
+          headers: this.getInitialHeaderrs(accessToken)
         }
       );
 
@@ -184,16 +199,9 @@ module.exports = (function () {
       const { otp, txnId, mobileNo } = req.body
 
       const accessToken = req.token
+      const encryptedText = await this.getEncryptedData(accessToken, otp, 'Enroll By Aadhar');
 
-      logStream("debug", 'Calling API to Get Public Key', 'Enroll By Aadhar');
-
-      const publicKey = await this.getPublicKey(accessToken);
-
-      logStream("debug", 'Got Public Key', 'Get OTP');
-
-      const encryptedText = this.getRSAText(publicKey, otp);
-
-      logStream("debug", 'Encrypted Text', 'Enroll By Aadhar');
+      logStream("debug", 'mobileNo:' + mobileNo + ' \n value: ' + otp + ' Encrypted', 'Enroll By Aadhar');
 
       const payload = {
         "authData": {
@@ -222,8 +230,6 @@ module.exports = (function () {
         {
           headers: {
             ...this.getInitialHeaderrs(accessToken),
-            'REQUEST-ID': uuid(),
-            'TIMESTAMP': this.getTimestamp(),
             'TRANSACTION_ID': uuid(),
           }
         }
@@ -234,7 +240,7 @@ module.exports = (function () {
       return res.json(apiResponse.data)
 
     } catch (error) {
-      if(error?.response?.data?.otpValue) {
+      if (error?.response?.data?.otpValue) {
         error.message = error?.response?.data?.otpValue
       }
       logStream("error", JSON.stringify(error));
@@ -255,15 +261,9 @@ module.exports = (function () {
 
       const accessToken = req.token
 
-      logStream("debug", 'Calling API to Get Public Key', 'Enroll By Abdm');
+      const encryptedText = await this.getEncryptedData(accessToken, otp, 'Enroll By Abdm');
 
-      const publicKey = await this.getPublicKey(accessToken);
-
-      logStream("debug", 'Got Public Key', 'Get OTP');
-
-      const encryptedText = this.getRSAText(publicKey, otp);
-
-      logStream("debug", 'Encrypted Text', 'Enroll By Abdm');
+      logStream("debug", 'txnId:' + txnId + ' \n value: ' + otp + ' Encrypted', 'Enroll By Aadhar');
 
       const payload = {
         "scope": [
@@ -285,16 +285,12 @@ module.exports = (function () {
       logStream("debug", process.env.ENROLL_BY_ABDM_URL, 'Enroll By Abdm - URL');
       logStream("debug", payload, 'Enroll By Abdm - Payload');
 
-      logStream("debug", 'Calling API to Enroll By Abdm Response', 'Enroll By Abdm');
-
       const apiResponse = await axiosInstance.post(
         process.env.ENROLL_BY_ABDM_URL,
         payload,
         {
           headers: {
             ...this.getInitialHeaderrs(accessToken),
-            'REQUEST-ID': uuid(),
-            'TIMESTAMP': this.getTimestamp(),
             'TRANSACTION_ID': uuid(),
           }
         }
@@ -305,7 +301,7 @@ module.exports = (function () {
       return res.json(apiResponse.data)
 
     } catch (error) {
-      if(error?.response?.data?.otpValue) {
+      if (error?.response?.data?.otpValue) {
         error.message = error?.response?.data?.otpValue
       }
       logStream("error", JSON.stringify(error));
@@ -336,7 +332,6 @@ module.exports = (function () {
             'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
             'REQUEST-ID': uuid(),
-            'TIMESTAMP': this.getTimestamp(),
             'TRANSACTION_ID': txnId,
             'Accept-Language': 'en-us'
           }
@@ -377,14 +372,9 @@ module.exports = (function () {
 
       const apiResponse = await axiosInstance.post(
         process.env.SET_PREFERED_ADDRESS_URL,
-        payload,
-        {
-          headers: {
-            ...this.getInitialHeaderrs(accessToken),
-            'REQUEST-ID': uuid(),
-            'TIMESTAMP': this.getTimestamp()
-          }
-        }
+        payload, {
+        headers: this.getInitialHeaderrs(accessToken)
+      }
       );
 
       logStream("debug", apiResponse.data, 'Set Prefer Address - Response ');
@@ -410,15 +400,9 @@ module.exports = (function () {
 
       const accessToken = req.token
 
-      logStream("debug", 'Calling API to Get Public Key', 'GET Login OTP Req');
+      const encryptedText = await this.getEncryptedData(accessToken, otp, 'GET Login OTP Req');
 
-      const publicKey = await this.getPublicKey(accessToken);
-
-      logStream("debug", 'Got Public Key', 'GET Login OTP Req');
-
-      const encryptedText = this.getRSAText(publicKey, value);
-
-      logStream("debug", 'Aadhar Encrypted', 'GET Login OTP Req');
+      logStream("debug", 'Scope:' + scope + ' \n value: ' + value + ' \n authMethod:' + authMethod + ' Encrypted', 'GET Login OTP Req');
 
       let payload = {
         "scope": [
@@ -465,16 +449,10 @@ module.exports = (function () {
       logStream("debug", url, 'GET Login OTP Req - URL');
       logStream("debug", payload, 'GET Login OTP Req - Payload');
 
-      logStream("debug", 'Calling API to get otp', 'GET Login OTP Req');
-
       const apiResponse = await axiosInstance.post(url,
         payload,
         {
-          headers: {
-            ...this.getInitialHeaderrs(accessToken),
-            'REQUEST-ID': uuid(),
-            'TIMESTAMP': this.getTimestamp(),
-          }
+          headers: this.getInitialHeaderrs(accessToken)
         }
       );
 
@@ -504,15 +482,9 @@ module.exports = (function () {
 
       const accessToken = req.token
 
-      logStream("debug", 'Calling API to Get Public Key', 'Get Login OTP Verify');
+      const encryptedText = await this.getEncryptedData(accessToken, otp, 'Get Login OTP Verify');
 
-      const publicKey = await this.getPublicKey(accessToken);
-
-      logStream("debug", 'Got Public Key', 'Get Login OTP Verify');
-
-      const encryptedText = this.getRSAText(publicKey, otp);
-
-      logStream("debug", 'Encrypted Text', 'Get Login OTP Verify');
+      logStream("debug", 'Scope:' + scope + ' \n txnId: ' + txnId + ' \n value: ' + otp + ' \n authMethod:' + authMethod + ' Encrypted', 'Get Login OTP Verify');
 
       let payload = {
         "scope": [
@@ -554,16 +526,10 @@ module.exports = (function () {
       logStream("debug", url, 'Get Login OTP Verify - URL');
       logStream("debug", payload, 'Get Login OTP Verify - Payload');
 
-      logStream("debug", 'Calling API to Get Login OTP Verify', 'Get Login OTP Verify');
-
       const apiResponse = await axiosInstance.post(url,
         payload,
         {
-          headers: {
-            ...this.getInitialHeaderrs(accessToken),
-            'REQUEST-ID': uuid(),
-            'TIMESTAMP': this.getTimestamp(),
-          }
+          headers: this.getInitialHeaderrs(accessToken)
         }
       );
       logStream("debug", apiResponse.data, 'Enroll By Aadhar - Response');
@@ -571,7 +537,7 @@ module.exports = (function () {
       return res.json(apiResponse.data)
 
     } catch (error) {
-      if(error?.response?.data?.otpValue) {
+      if (error?.response?.data?.otpValue) {
         error.message = error?.response?.data?.otpValue
       }
       logStream("error", JSON.stringify(error));
@@ -598,7 +564,7 @@ module.exports = (function () {
       if (!['abha-address', 'abha-number', 'aadhar'].includes(scope)) {
         logStream("debug", process.env.LOGIN_VERIFY_USER_URL, 'Get Profile - Login Verify User - URL');
         logStream("debug", req.body, 'Get Profile - Login Verify User - Payload');
-        
+
         loginVerifyRes = await axiosInstance.post(
           process.env.LOGIN_VERIFY_USER_URL,
           {
@@ -608,8 +574,6 @@ module.exports = (function () {
           {
             headers: {
               ...this.getInitialHeaderrs(accessToken),
-              'REQUEST-ID': uuid(),
-              'TIMESTAMP': this.getTimestamp(),
               'T-Token': `Bearer ${xToken}`
             }
           }
@@ -627,8 +591,6 @@ module.exports = (function () {
         {
           headers: {
             ...this.getInitialHeaderrs(accessToken),
-            'REQUEST-ID': uuid(),
-            'TIMESTAMP': this.getTimestamp(),
             'X-Token': `Bearer ${xToken}`
           }
         }
@@ -679,8 +641,6 @@ module.exports = (function () {
           responseType: 'arraybuffer',
           headers: {
             ...this.getInitialHeaderrs(accessToken),
-            'REQUEST-ID': uuid(),
-            'TIMESTAMP': this.getTimestamp(),
             'X-Token': `Bearer ${xToken}`
           }
         }

@@ -2,7 +2,6 @@
 const moment = require("moment");
 const pdfMake = require("pdfmake/build/pdfmake");
 const pdfFonts = require('pdfmake/build/vfs_fonts');
-pdfMake.vfs = pdfFonts.pdfMake.vfs;
 const { VISIT_TYPES } = require("../constants/abha.constants");
 const { logo, precription, visitImage } = require("./images");
 const { logStream } = require("../logger");
@@ -709,6 +708,7 @@ function getEncountersRecords(encounters = [], doctorDetail = null) {
 async function downloadPrescription(visit, doctorDetail = null) {
     return new Promise((resolve, reject) => {
         try {
+            pdfMake.vfs = pdfFonts.pdfMake.vfs
             const encountersRecords = getEncountersRecords(visit?.encounters, doctorDetail);
             const consultedDoctor = doctorDetail ? doctorDetail : encountersRecords[VISIT_TYPES.DOCTOR_DETIALS];
 
