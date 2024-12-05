@@ -81,40 +81,25 @@ const validateParams = (params, keysAndTypeToCheck = []) => {
 
 const sendCloudNotification = async ({
   data = {},
+  notification = null,
   regTokens,
-  // click_action = "FCM_PLUGIN_HOME_ACTIVITY",
-  opts = {},
-  notification = null /**
-   notification: {
-    //   title,
-    //   icon ="ic_launcher",
-    //   body,
-    //   click_action,
-    // },
-   */,
 }) => {
   const messaging = admin.messaging();
 
-  var payload = {
+  const payload = {
     data,
+    tokens: regTokens,
   };
 
-  if (notification) {
-    payload.notification = notification;
-  }
-
-  const options = {
-    priority: "high",
-    ...opts,
-  };
+  if(notification) payload.notification = notification;
 
   return messaging
-    .sendToDevice(regTokens, payload, options)
+    .sendEachForMulticast(payload)
     .then((result) => {
-      console.log(result);
+      console.log('Successfully sent message:', result);
     })
-    .catch((err) => {
-      console.log("err: ", err);
+    .catch((error) => {
+      console.log('Error sending message:', error);
     });
 };
 
