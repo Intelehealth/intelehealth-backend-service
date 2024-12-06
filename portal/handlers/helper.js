@@ -107,11 +107,10 @@ const validateParams = (params, keysAndTypeToCheck = []) => {
  * @param {*} data - (title, body, icon, data(payload), regTokens, click_action)
  */
 const sendCloudNotification = async ({
-  // title,
-  // body,
+   title,
+   body,
   // icon = "ic_launcher",
   data = {},
-  notification = null,
   regTokens,
   click_action = "FCM_PLUGIN_HOME_ACTIVITY",
 }) => {
@@ -122,8 +121,14 @@ const sendCloudNotification = async ({
   };
   
   data.click_action=click_action;
-  if(notification) payload.notification = notification;
-
+  if(title)  {
+    payload.notification = {
+      title,
+     // icon,
+      body,
+     // click_action,
+    };
+  }
   try {
     const result = await messaging.sendEachForMulticast(payload);
     return result;

@@ -8,7 +8,8 @@ const {
 } = require("../services/message.service");
 const {
   validateParams,
-  sendWebPushNotification
+  sendWebPushNotification,
+  sendCloudNotification
 } = require("../handlers/helper");
 const { user_settings, pushnotification } = require("../models");
 const { uploadFile } = require("../handlers/file.handler");
@@ -26,7 +27,7 @@ module.exports = (function () {
     subscriptions.forEach(async (sub) => {
       sendWebPushNotification({
         webpush_obj: sub.notification_object,
-        data: {
+        data: { 
           ...payload,
           url: `${
             process.env.NODE_ENV === "prod" ? "/intelehealth" : ""
@@ -111,7 +112,25 @@ module.exports = (function () {
           }
         }
         let notificationResponse = "";
-
+        if (!isLiveMessageSent) {
+          const userSetting = await user_settings.findOne({
+            where: { user_uuid: toUser },
+          });
+          if (userSetting && userSetting.device_reg_token) {
+            notificationResponse = await sendCloudNotification({
+             // title: "New chat message",
+             title: "", 
+             body: message,
+              data: {
+                ...req.body,
+                actionType: "TEXT_CHAT",
+              },
+              regTokens: [userSetting.device_reg_token],
+            }).catch((err) => {
+              console.log("err: ", err);
+            });
+          }
+        }
         // Send push notification
         const us = await user_settings.findOne({
           where: {
