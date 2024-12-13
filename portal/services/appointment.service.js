@@ -26,6 +26,7 @@ const {
   location,
   obs,
   sequelize,
+  person_attribute_type
 } = require("../openmrs_models");
 const { QueryTypes } = require("sequelize");
 const { getVisitCountV4 } = require("../controllers/queries");
@@ -356,6 +357,18 @@ WHERE
                 as: "person_attribute",
                 attributes: ["value", "person_attribute_type_id"],
                 where: {person_attribute_type_id: 8}
+              }
+            ],
+          },
+          {
+            model: person_attribute,
+            as: "person_attribute",
+            attributes: ["value"],
+            include: [
+              {
+                model: person_attribute_type,
+                as: "person_attribute_type",
+                attributes: ["name"],
               }
             ],
           },
