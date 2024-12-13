@@ -10,7 +10,7 @@ import FeaturesService from '@src/services/FeaturesService';
  * Get all patient visit summary sections.
  */
 async function getAll(_: IReq, res: IRes) {
-    const secs = ['Patient Family Member Registration','Patient Household Survey'];
+    const secs = ['Patient Family Member Registration','Patient Household Survey', 'Patient Draft Survey'];
     let sections = await FeaturesService.getAll();
     sections = sections.filter((section:any) => secs.includes(section.name));
     return res.status(HttpStatusCodes.OK).json({ patient_details_sections: sections });
