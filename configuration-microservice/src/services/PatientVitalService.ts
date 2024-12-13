@@ -165,7 +165,7 @@ async function updateIsMandatory(id: string, is_mandatory: boolean, user_id: str
     // Get enabled specializations
     const enabledVitals = await Vital.findAll({
         attributes: ['name', 'key', 'uuid', 'is_mandatory', 'lang', 'is_enabled'],
-        where: { is_mandatory: true }
+        where: { is_enabled: true }
     });
 
     // Update dic_config specialization
