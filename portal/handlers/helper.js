@@ -114,6 +114,16 @@ const sendCloudNotification = async ({
   const payload = {
     data,
     tokens: regTokens,
+    android: {
+      priority: 'high'  // For Android, you can set 'high' or 'normal'
+    },
+    apns: {
+      payload: {
+        aps: {
+          priority: 10  // For iOS, 10 is for high priority, 5 is for normal
+        }
+      }
+    }
   };
 
   if(notification) payload.notification = notification;
