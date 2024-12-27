@@ -61,7 +61,7 @@ async function updateIsEnabled(id: string, is_enabled: boolean, user_id: string,
 
     // Get enabled specializations
     const enabledDiagnostics = await Diagnostics.findAll({
-        attributes: ['name', 'key', 'uuid', 'is_mandatory'],
+        attributes: ['name', 'key', 'uuid', 'is_mandatory','is_enabled'],
         where: { is_enabled: true }
     });
 
@@ -94,8 +94,8 @@ async function updateIsMandatory(id: string, is_mandatory: boolean, user_id: str
 
     // Get enabled specializations
     const enabledDiagnostics = await Diagnostics.findAll({
-        attributes: ['name', 'key', 'uuid', 'is_mandatory'],
-        where: { is_mandatory: true }
+        attributes: ['name', 'key', 'uuid', 'is_mandatory','is_enabled'],
+        where: { is_enabled: true }
     });
 
     // Update dic_config specialization
