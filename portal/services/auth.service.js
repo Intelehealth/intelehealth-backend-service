@@ -566,8 +566,8 @@ module.exports = (function () {
         };
       }
     } catch (error) {
-      if (error.code === null || error.code === undefined) {
-        error.code = 500;
+      if (error.code === null || error.code === undefined || error.code === 'ERR_BAD_REQUEST') {
+        error.code = error.code === 'ERR_BAD_REQUEST' ? 400 : 500;
       }
       return {
         code: error.code,

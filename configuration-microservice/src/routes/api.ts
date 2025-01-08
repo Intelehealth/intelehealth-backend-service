@@ -19,7 +19,9 @@ import WebrtcRoutes from './WebrtcRoutes';
 import FeaturesRoutes from './FeaturesRoutes';
 import PatientVisitSummaryRoutes from './PatientVisitSummaryRoutes';
 import SidebarMenuRoutes from './SidebarMenuRoutes';
+import PatientDetailsRoutes from './PatientDetailsRoutes';
 import PatientVisitSectionsRoutes from './PatientVisitSectionsRoutes';
+import RoasterQuestionnaireRoutes from './RoasterQuestionnaireRoutes';
 
 // **** Variables **** //
 
@@ -392,7 +394,28 @@ pvsRouter.put(
 apiRouter.use(Paths.PatientVisitSummary.Base, authMw, pvsRouter);
 
 
-// **** Setup SiderbarMenuRouter **** //
+// **** Setup PatientDetailsRouter **** //
+
+const patientDetailsRouter = Router();
+
+// Get all patient details
+patientDetailsRouter.get(
+  Paths.PatientDetails.Get,
+  PatientDetailsRoutes.getAll,
+);
+
+// Update one patient detail status
+patientDetailsRouter.put(
+  Paths.PatientDetails.UpdateIsEnabled,
+  validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body']),
+  PatientVisitSummaryRoutes.updateIsEnabled,
+);
+
+// Add PatientDetailsRouter
+apiRouter.use(Paths.PatientDetails.Base, authMw, patientDetailsRouter);
+
+
+// **** Setup SpecializationRouter **** //
 
 const siderbarMenuRouter = Router();
 
@@ -449,6 +472,30 @@ patientVisitSectionsRouter.put(
   validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body'], ['sub_section', 'string', 'body']),
   PatientVisitSectionsRoutes.updateSubSectionIsEnabled,
 );
+
+/** Roster Questionnaire */
+const rosterQuestionnaire = Router();
+
+// Get all sidebar menus
+rosterQuestionnaire.get(
+  Paths.RosterQuestionnaire.Get,
+  RoasterQuestionnaireRoutes.getAll,
+);
+
+// Update one sidebar menus status
+rosterQuestionnaire.put(
+  Paths.SidebarMenus.UpdateIsEnabled,
+  validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body']),
+  RoasterQuestionnaireRoutes.updateIsEnabled
+)
+rosterQuestionnaire.get(
+  Paths.RosterQuestionnaire.GetByKey,
+  RoasterQuestionnaireRoutes.GetByKey,
+);
+
+apiRouter.use(Paths.RosterQuestionnaire.Base, authMw, rosterQuestionnaire);
+
+
 // Add SiderbarMenuRouter
 apiRouter.use(Paths.PatientVisitSections.Base, authMw, patientVisitSectionsRouter);
 

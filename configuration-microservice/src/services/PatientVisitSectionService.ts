@@ -55,7 +55,7 @@ async function updateIsEnabled(id: string, is_enabled: boolean, user_id: string,
 
     // Get enabled sections
     const enabledSections = await PatientVisitSection.findAll({
-        attributes: ['name', 'lang', 'key', 'is_enabled', 'order'],
+        attributes: ['name', 'lang', 'key', 'is_enabled', 'order', 'sub_sections'],
         where: { is_enabled: true },
         order: [['order', 'asc']]
     });
@@ -98,7 +98,7 @@ async function updateName(id: string, name: any, user_id: string, user_name: str
 
     // Get enabled sections
     const enabledSections = await PatientVisitSection.findAll({
-        attributes: ['name', 'lang', 'key', 'is_enabled', 'order'],
+        attributes: ['name', 'lang', 'key', 'is_enabled', 'order', 'sub_sections'],
         where: { is_enabled: true },
         order: [['order', 'asc']]
     });
@@ -139,7 +139,7 @@ async function updateOrder(order: any[], user_id: string, user_name: string): Pr
         await connection.query(query);
         // Get All sections
         const enabledSections = await PatientVisitSection.findAll({
-            attributes: ['name', 'lang', 'key', 'is_enabled', 'order'],
+            attributes: ['name', 'lang', 'key', 'is_enabled', 'order', 'sub_sections'],
             where: { is_enabled: true },
             order: [['order', 'asc']]
         });

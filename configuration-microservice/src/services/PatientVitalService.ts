@@ -104,7 +104,7 @@ async function updateIsEnabled(id: string, is_enabled: boolean, user_id: string,
 
     // Get enabled specializations
     const enabledVitals = await Vital.findAll({
-        attributes: ['name', 'key', 'uuid', 'is_mandatory', 'lang'],
+        attributes: ['name', 'key', 'uuid', 'is_mandatory', 'lang', 'is_enabled'],
         where: { is_enabled: true }
     });
 
@@ -164,8 +164,8 @@ async function updateIsMandatory(id: string, is_mandatory: boolean, user_id: str
 
     // Get enabled specializations
     const enabledVitals = await Vital.findAll({
-        attributes: ['name', 'key', 'uuid', 'is_mandatory', 'lang'],
-        where: { is_mandatory: true }
+        attributes: ['name', 'key', 'uuid', 'is_mandatory', 'lang', 'is_enabled'],
+        where: { is_enabled: true }
     });
 
     // Update dic_config specialization
@@ -199,7 +199,7 @@ async function updateVitalName(id: string, lang: any, user_id: string, user_name
 
     // Get enabled specializations
     const enabledVitals = await Vital.findAll({
-        attributes: ['name', 'key', 'uuid', 'is_mandatory', 'lang'],
+        attributes: ['name', 'key', 'uuid', 'is_mandatory', 'lang', 'is_enabled'],
         where: { is_enabled: true }
     });
 
