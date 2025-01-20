@@ -17,10 +17,10 @@ const {
 /**
  * Initialize firebase app with credentials
  */
-admin.initializeApp({
-  credential: admin.credential.cert(JSON.parse(FIREBASE_SERVICE_ACCOUNT_KEY)),
-  databaseURL: FIREBASE_DB_URL,
-});
+// admin.initializeApp({
+//   credential: admin.credential.cert(JSON.parse(FIREBASE_SERVICE_ACCOUNT_KEY)),
+//   databaseURL: FIREBASE_DB_URL,
+// });
 
 /**
  * Set vapid public and private keys for web push notification
@@ -48,7 +48,7 @@ const axiosInstance = axios.create({
 /**
  * Firebase messaging instance 
  */
-const messaging = admin.messaging();
+// const messaging = admin.messaging();
 
 /**
  * Send web pushnotification
@@ -129,8 +129,9 @@ const sendCloudNotification = async ({
   if(notification) payload.notification = notification;
 
   try {
-    const result = await messaging.sendEachForMulticast(payload);
-    return result;
+    // const result = await messaging.sendEachForMulticast(payload);
+    // return result;
+    return {};
   } catch (err) {
     console.error("Cloud notification error:", err);
   }
@@ -160,8 +161,8 @@ const sendCloudNotification = async ({
     };
 
     try {
-      const result = await messaging.sendEachForMulticast(payload);
-      return result;
+      // const result = await messaging.sendEachForMulticast(payload);
+      // return result;
     } catch (err) {
       console.error("Cloud notification error:", err);
     }

@@ -1,7 +1,47 @@
-const textToImage = require('text-to-image');
 const path = require("path");
 const fs = require("fs");
 const { logStream } = require("../logger/index");
+
+const {createCanvas, registerFont } = require('canvas'); // Import canvas functions
+
+// Function to generate an image from text using canvas
+const generateTextImage = async (text, options) => {
+  try {
+    const { fontPath, fontFamily, verticalAlign, maxWidth, fontSize, textAlign, lineHeight, customHeight } = options;
+    // Load the font
+    registerFont(fontPath, { family: fontFamily });
+    // Create a canvas with a max width and enough height to accommodate the text
+    const canvas = createCanvas(maxWidth, customHeight || 200); // Custom height can be set based on the line height
+    const ctx = canvas.getContext('2d');
+
+    
+    ctx.font = `${fontSize}px ${fontFamily}`;
+
+    // Set the text alignment properties
+    ctx.textAlign = textAlign || 'center';
+    ctx.textBaseline = verticalAlign || 'middle';
+
+    // Set the line height for multiline text
+    const lines = text.split('\n');
+    let y = customHeight / 2; // Start in the vertical middle
+    let x = maxWidth / 2; // Start in the horizontal middle
+
+    // Draw each line of text with the specified line height
+    lines.forEach((line) => {
+      ctx.fillText(line, x, y);
+      y += lineHeight; // Increment y for the next line
+    });
+
+    // Convert canvas to a Data URL (Base64 string)
+    const dataUri = canvas.toDataURL('image/png');
+
+    return dataUri;
+  } catch (error) {
+    console.error('Error generating text image:', error);
+    throw error;
+  }
+};
+
 
 module.exports = (function () {
     /**
@@ -43,10 +83,11 @@ module.exports = (function () {
                     fontPath = 'Youthness.ttf';
                     break;
             }
-            const dataUri = textToImage.generateSync(textOfSign, {
+
+            const dataUri = await generateTextImage(textOfSign, {
                 fontPath: path.join(...[__dirname, '../', 'fonts', fontPath]),
                 fontFamily: fontFamily,
-                verticalAlign: 'center',
+                verticalAlign: 'middle',
                 maxWidth,
                 fontSize,
                 textAlign: 'center',
@@ -55,7 +96,7 @@ module.exports = (function () {
             });
             fs.writeFileSync(path.join(...['/var', 'www', 'html', 'docsign',`${providerId}_sign.png`]), dataUri.replace('data:image/png;base64,',''),'base64');
             logStream('debug','Signature Created', 'Create Sign');
-            return { url: `https://${process.env.DOMAIN}/ds/${providerId}_sign.png` };
+            return { url: `http://${process.env.DOMAIN}/ds/${providerId}_sign.png` };
         } catch (error) {
             logStream("error", error.message);
             if (error.code === null || error.code === undefined) {
@@ -75,7 +116,7 @@ module.exports = (function () {
             logStream('debug','Signature Service', 'Upload Sign');
             fs.writeFileSync(path.join(...['/var', 'www', 'html', 'docsign',`${providerid}_sign.png`]), file.replace('data:image/png;base64,',''),'base64');  
             logStream('debug','Signature Uploaded', 'Upload Sign');
-            return { url: `https://${process.env.DOMAIN}/ds/${providerid}_sign.png` };
+            return { url: `http://${process.env.DOMAIN}/ds/${providerid}_sign.png` };
         } catch (error) {
             logStream("error", error.message);
             if (error.code === null || error.code === undefined) {

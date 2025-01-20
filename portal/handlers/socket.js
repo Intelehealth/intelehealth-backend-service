@@ -4,7 +4,7 @@ const { QueryTypes } = require("sequelize");
 const { getFirebaseAdmin, sendCloudNotification } = require("./helper");
 const { deliveredById } = require("../services/message.service");
 
-const admin = getFirebaseAdmin();
+// const admin = getFirebaseAdmin();
 
 const CALL_STATUSES = {
   CALLING: "calling",
@@ -17,9 +17,9 @@ const CALL_STATUSES = {
 };
 
 module.exports = function (server) {
-  const db = admin.database();
-  const DB_NAME = `${process.env.DOMAIN.replace(/\./g, "_")}/rtc_notify`;
-  const rtcNotifyRef = db.ref(DB_NAME);
+  // const db = admin.database();
+  // const DB_NAME = `${process.env.DOMAIN.replace(/\./g, "_")}/rtc_notify`;
+  // const rtcNotifyRef = db.ref(DB_NAME);
   const io = require("socket.io")(server);
   global.users = {};
 
