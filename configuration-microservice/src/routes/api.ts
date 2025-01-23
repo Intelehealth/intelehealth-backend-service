@@ -493,6 +493,13 @@ rosterQuestionnaire.get(
   RoasterQuestionnaireRoutes.GetByKey,
 );
 
+// Update one patient reg field validations
+patientRegistrationRouter.put(
+  Paths.PatientResgistration.UpdateValidations,
+  validate(['id', 'number', 'params'],['validations', 'object', 'body']),
+  PatientRegistrationRoutes.updateValidations,
+);
+
 apiRouter.use(Paths.RosterQuestionnaire.Base, authMw, rosterQuestionnaire);
 
 
