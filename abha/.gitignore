@@ -13,6 +13,7 @@ config/config.json
 /auth-gateway/.env
 /web-rtc/.env
 /portal/.env
+old.env
 
 #.pem
 /auth-gateway/.pem

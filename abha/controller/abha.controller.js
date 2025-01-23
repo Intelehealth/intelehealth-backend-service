@@ -400,7 +400,7 @@ module.exports = (function () {
 
       const accessToken = req.token
 
-      const encryptedText = await this.getEncryptedData(accessToken, otp, 'GET Login OTP Req');
+      const encryptedText = await this.getEncryptedData(accessToken, value, 'GET Login OTP Req');
 
       logStream("debug", 'Scope:' + scope + ' \n value: ' + value + ' \n authMethod:' + authMethod + ' Encrypted', 'GET Login OTP Req');
 
@@ -440,9 +440,18 @@ module.exports = (function () {
 
       if (scope === 'abha-address') {
         url = process.env.ABHA_ADDRESS_OTP_URL;
+        // payload = {
+        //   authMethod: authMethod,
+        //   // healthid: value
+        // }
         payload = {
-          authMethod: authMethod,
-          healthid: value
+          "scope": [
+            "abha-address-login",
+            authMethod == 'AADHAAR_OTP' ? "aadhaar-verify" : "mobile-verify"
+          ],
+          "loginHint": scope,
+          "loginId": encryptedText,
+          "otpSystem": authMethod == 'AADHAAR_OTP' ? "aadhaar" : "abdm"
         }
       }
 
@@ -464,6 +473,7 @@ module.exports = (function () {
       })
 
     } catch (error) {
+      console.log("error?.data",JSON.stringify(error, null, 4))
       logStream("error", JSON.stringify(error));
       next(error);
     }
@@ -517,9 +527,24 @@ module.exports = (function () {
 
       if (scope === 'abha-address') {
         url = process.env.ABHA_ADDRESS_OTP_VERIFY;
+        // payload = {
+        //   "txnId": txnId,
+        //   "otp": otp
+        // }
         payload = {
-          "txnId": txnId,
-          "otp": otp
+          "scope": [
+            "abha-address-login",
+            "mobile-verify"
+          ],
+          "authData": {
+            "authMethods": [
+              "otp"
+            ],
+            "otp": {
+              "txnId": txnId,
+              "otpValue": encryptedText
+            }
+          }
         }
       }
 
