@@ -34,6 +34,7 @@ export default {
     updateIsMandatory: '/updateIsMandatory/:id',
     updateIsEditable: '/updateIsEditable/:id',
     UpdateIsEnabled: '/updateIsEnabled/:id',
+    UpdateValidations: '/updateValidations/:id',
   },
   PatientVital: {
     Base: '/vitals',
