@@ -558,7 +558,14 @@ module.exports = (function () {
         }
       );
       logStream("debug", apiResponse.data, 'Enroll By Aadhar - Response');
-
+      if(apiResponse?.data?.tokens?.token) {
+        const tokenData = apiResponse.data.tokens;
+        delete apiResponse.data.tokens;
+        apiResponse.data = {
+          ...apiResponse.data,
+          ...tokenData
+        }
+      }
       return res.json(apiResponse.data)
 
     } catch (error) {
