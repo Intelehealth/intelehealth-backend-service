@@ -3,6 +3,7 @@ const { sequelize } = require("../models");
 const { QueryTypes } = require("sequelize");
 const { getFirebaseAdmin, sendCloudNotification } = require("./helper");
 const { deliveredById } = require("../services/message.service");
+const { createCallRecordOfWebrtc, updateCallRecordOfWebrtc } = require("../services/call_data.service")
 
 const admin = getFirebaseAdmin();
 
@@ -14,6 +15,8 @@ const CALL_STATUSES = {
   DR_CANCELLED: "dr_cancelled",
   HW_CANCELLED: "hw_cancelled",
   IDLE: "available",
+  SUCCESS: "success",
+  UNSUCCESS: "unsuccess",
 };
 
 module.exports = function (server) {
@@ -71,7 +74,10 @@ module.exports = function (server) {
 
     emitAllUserStatus();
 
-    socket.on("disconnect", () => {
+    socket.on("disconnect", async (data) => {      
+      const { doctorId, nurseId, roomId } = data;
+      const callStatus = CALL_STATUSES.UNSUCCESS;
+      await updateCallRecordOfWebrtc(doctorId, nurseId, roomId, callStatus);
       delete users[socket.id];
       emitAllUserStatus();
     });
@@ -152,15 +158,18 @@ module.exports = function (server) {
       callInRoom(room, hwData);
     });
 
-    socket.on("bye", function (data) {
+    socket.on("bye", async function (data) {
+      const { doctorId, nurseId, roomId } = data;
       if (data?.socketId) {
         users[data?.socketId].callStatus = CALL_STATUSES.IDLE;
         users[data?.socketId].room = null;
+        await updateCallRecordOfWebrtc(doctorId, nurseId, roomId);
       }
 
       if (data?.appSocketId) {
         users[data?.appSocketId].callStatus = CALL_STATUSES.IDLE;
         users[data?.appSocketId].room = null;
+        await updateCallRecordOfWebrtc(doctorId, nurseId, roomId);
       }
 
       for (const id in users) {
@@ -177,7 +186,10 @@ module.exports = function (server) {
       deliveredById(data?.messageId);
     });
 
-    socket.on("call-connected", function (data) {
+    socket.on("call-connected", async function (data) {
+      const { visitId, doctorId, nurseId, roomId } = data;
+      const callStatus = CALL_STATUSES.SUCCESS;
+      await createCallRecordOfWebrtc(doctorId, nurseId, roomId, visitId, callStatus);
       markConnected(data);
     });
 
