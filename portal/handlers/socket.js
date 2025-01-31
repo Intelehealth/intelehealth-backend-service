@@ -75,9 +75,15 @@ module.exports = function (server) {
     emitAllUserStatus();
 
     socket.on("disconnect", async (data) => {      
-      const { doctorId, nurseId, roomId } = data;
-      const callStatus = CALL_STATUSES.UNSUCCESS;
-      await updateCallRecordOfWebrtc(doctorId, nurseId, roomId, callStatus);
+      if(users[socket.id].callStatus === 'calling'){
+        const callStatus = CALL_STATUSES.UNSUCCESS;
+        const usersRecord = {
+          doctorId: users[socket.id].uuid,
+          roomId: users[socket.id].room,
+          callStatus: callStatus
+        }
+        await updateCallRecordOfWebrtc(usersRecord);
+      }
       delete users[socket.id];
       emitAllUserStatus();
     });
@@ -159,17 +165,21 @@ module.exports = function (server) {
     });
 
     socket.on("bye", async function (data) {
-      const { doctorId, nurseId, roomId } = data;
+      const usersRecord = {
+        doctorId: doctorId,
+        nurseId: nurseId,
+        roomId: roomId,
+      }
+      await updateCallRecordOfWebrtc(usersRecord);
+      
       if (data?.socketId) {
         users[data?.socketId].callStatus = CALL_STATUSES.IDLE;
         users[data?.socketId].room = null;
-        await updateCallRecordOfWebrtc(doctorId, nurseId, roomId);
       }
 
       if (data?.appSocketId) {
         users[data?.appSocketId].callStatus = CALL_STATUSES.IDLE;
         users[data?.appSocketId].room = null;
-        await updateCallRecordOfWebrtc(doctorId, nurseId, roomId);
       }
 
       for (const id in users) {
