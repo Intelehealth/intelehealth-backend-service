@@ -103,5 +103,10 @@ export default {
     Get: '/all',
     GetByKey: '/getByKey/:key',
     UpdateIsEnabled: '/updateIsEnabled/:id',
-  }
+  },
+  Dropdown: {
+    Base: '/dropdown',
+    Get: '/all',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+  },
 } as const;
