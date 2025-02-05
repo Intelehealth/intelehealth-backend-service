@@ -16,8 +16,10 @@ exports.otpSchema = Joi.object()
 exports.loginOTPSchema = Joi.object()
   .keys({
     value: Joi.string().required(),
-    scope: Joi.string().valid('aadhar', 'mobile', 'abha-number', 'abha-address').required(),
-    authMethod: Joi.optional()
+    scope: Joi.string().valid('aadhar', 'mobile', 'abha-number', 'abha-address', 'index').required(),
+    authMethod: Joi.optional(),
+    txnId: Joi.string()
+      .optional(),
   });
 
 
@@ -91,4 +93,11 @@ exports.getCardSchema = Joi.object()
     scope: Joi.optional().valid('mobile'),
     txnId: Joi.any().when('scope', { is: 'mobile', then: Joi.string().required(), otherwise: Joi.optional() }),
     abhaNumber: Joi.any().when('scope', { is: 'mobile', then: Joi.string().required(), otherwise: Joi.optional() })
+  });
+
+exports.searchAbhaProfilesSchema = Joi.object()
+  .keys({
+    value: Joi.string().min(10)
+      .max(10)
+      .required()
   });

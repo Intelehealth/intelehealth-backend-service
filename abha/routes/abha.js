@@ -13,7 +13,8 @@ const {
     postLinkCareContext,
     patientDiscover,
     getVisitCareContext,
-    enrollByAbdm
+    enrollByAbdm,
+    searchAbhaProfiles
 } = require("../controller/abha.controller");
 
 const {
@@ -26,7 +27,8 @@ const {
     getProfileSchema,
     postLinkCareContextSchema,
     enrollByAbdmSchema,
-    getCardSchema
+    getCardSchema,
+    searchAbhaProfilesSchema
 } = require("../schema/index");
 
 const { authMiddleware, xTokenMiddleware } = require("../middleware/auth");
@@ -49,6 +51,8 @@ router.post("/enrollByAbdm", [authMiddleware, validate(enrollByAbdmSchema), enro
 router.post("/enrollSuggestion", [authMiddleware, validate(addressSchema), getEnrollSuggestion]);
 
 router.post("/setPreferredAddress", [authMiddleware, validate(preferAddressSchema), setPreferredAddress]);
+
+router.post("/searchAbhaProfiles", [authMiddleware, validate(searchAbhaProfilesSchema), searchAbhaProfiles]);
 
 router.post("/loginOTPReq", [authMiddleware, validate(loginOTPSchema), getLoginOTPReq]);
 

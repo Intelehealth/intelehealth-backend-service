@@ -1,4 +1,5 @@
 const axios = require("axios");
+const { logStream } = require("../logger");
 const {
   DOMAIN,
   OPENMRS_USERNAME,
@@ -15,6 +16,16 @@ module.exports = (function () {
   this.axiosInstance = axios.create({
     timeout: 50000,
   });
+
+  this.axiosInstance.interceptors.request.use(
+    (config) => {
+      logStream("debug", config.headers, "ABDM Request Header");
+      return config;  // Ensure the request continues
+    },
+    (error) => {
+      return Promise.reject(error);  // In case of request error
+    }
+  );
 
   /**
    * Axios instance to ftech openmrs api
