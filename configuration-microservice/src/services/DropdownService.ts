@@ -44,14 +44,24 @@ async function updateIsEnabled(id: string, is_enabled: boolean, user_id: string,
     // Update is_enabled status
     await Dropdown.update({ is_enabled }, { where: { id } });
 
-    // Get all dropdown config
+    // Get all dropdown fields
     const dropdowns = await Dropdown.findAll({
-        attributes: ['name', 'key', 'type', 'is_enabled'],
+        attributes: ['id', 'name', 'key', 'type', 'is_enabled'],
         raw: true
     });
 
+    const groupedDropdowns: any = {}; 
+    dropdowns.map((item: Dropdown) => {
+        item.is_enabled = Boolean(item.is_enabled);
+        if (!groupedDropdowns[item.type.toLowerCase()]) {
+            groupedDropdowns[item.type.toLowerCase()] = []
+        }
+        // Push the dropdown option to the corresponding type group
+        groupedDropdowns[item.type.toLowerCase()].push((({ type, ...rest }) => rest)(item));
+    });
+
     // Update dic_config patient_registration key
-    const configRes = await Config.update({ value: JSON.stringify(dropdowns), published: false }, { where: { key: 'dropdown_values' } });
+    const configRes = await Config.update({ value: JSON.stringify(groupedDropdowns), published: false }, { where: { key: 'dropdown_values' } });
     
     // Insert audit trail entry
     const auditRes = await AuditTrail.create({ user_id, user_name, activity_type: 'DROPDOWN CONFIG UPDATED', description: `${is_enabled ? 'Enabled' : 'Disabled'} "${dropdown.name}" dropdown config.` });
