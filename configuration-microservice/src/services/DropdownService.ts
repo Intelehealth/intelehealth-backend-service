@@ -14,14 +14,20 @@ export const DROPDOWN_NOT_FOUND_ERR = 'Dropdown field not found';
  * Get all dropdown fields.
  */
 async function getAll(): Promise<any> {
-    try {
-        return await Dropdown.findAll({
-            attributes: ['id', 'name', 'key', 'type', 'is_enabled', 'createdAt', 'updatedAt'],
-            raw: true
-        });
-    } catch (error) {
-        console.error( error);
-    }
+    const dropdowns = await Dropdown.findAll({
+        attributes: ['id', 'name', 'key', 'type', 'is_enabled', 'createdAt', 'updatedAt'],
+        raw: true
+    });
+    const groupedDropdowns: any = {}; 
+    dropdowns.map((item: Dropdown) => {
+        item.is_enabled = Boolean(item.is_enabled);
+        if (!groupedDropdowns[item.type.toLowerCase()]) {
+            groupedDropdowns[item.type.toLowerCase()] = []
+        }
+        // Push the dropdown option to the corresponding type group
+        groupedDropdowns[item.type.toLowerCase()].push((({ type, ...rest }) => rest)(item));
+    });
+    return groupedDropdowns;
 }
 
 /**
