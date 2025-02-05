@@ -388,6 +388,51 @@ module.exports = (function () {
   };
 
   /**
+   * Search Abha Profile By Mobile Number
+   * @param {req} object
+   * @param {res} object
+   * @param {next} function
+   */
+  this.searchAbhaProfiles = async (req, res, next) => {
+    try {
+
+      const { value, scope = "search" } = req.body;
+
+      const accessToken = req.token
+
+      const encryptedText = await this.getEncryptedData(accessToken, value, 'Search Abha Profile Req');
+
+      logStream("debug", 'Scope:' + scope + ' \n value: ' + value + ' Encrypted', 'Search Abha Profile Req');
+
+      const payload = {
+        "scope": ["search-abha"],
+        "mobile": encryptedText
+      }
+      
+      logStream("debug", process.env.SEARCH_ABHA_NUMBER_BY_MOBILE, 'Search Abha Profile - URL');
+      logStream("debug", payload, 'Search Abha Profile - Payload');
+
+      const apiResponse = await axiosInstance.post(
+        process.env.SEARCH_ABHA_NUMBER_BY_MOBILE,
+        payload,
+        {
+          headers: this.getInitialHeaderrs(accessToken)
+        }
+      );
+
+      logStream("debug", apiResponse.data, 'Search Abha Profile - Response');
+
+      return res.json({
+        ...apiResponse.data,
+      })
+
+    } catch (error) {
+      logStream("error", JSON.stringify(error));
+      next(error);
+    }
+  };
+
+  /**
  * Get OTP
  * @param {req} object
  * @param {res} object
@@ -396,7 +441,7 @@ module.exports = (function () {
   this.getLoginOTPReq = async (req, res, next) => {
     try {
 
-      const { value, scope, authMethod = 'AADHAAR_OTP' } = req.body;
+      const { value, scope, authMethod = 'AADHAAR_OTP', txnId='' } = req.body;
 
       const accessToken = req.token
 
@@ -414,45 +459,40 @@ module.exports = (function () {
         "otpSystem": "abdm"
       }, url = process.env.MOBILE_OTP_URL
 
+      if (scope === 'index') {
+        payload.scope = [
+          "abha-login",
+          "search-abha",
+        ];
+        payload.loginHint = "index";
+        payload.txnId = txnId;
+      }
+
       if (scope === 'aadhar') {
-        payload = {
-          "scope": [
-            "abha-login",
-            "aadhaar-verify"
-          ],
-          "loginHint": "aadhaar",
-          "loginId": encryptedText,
-          "otpSystem": "aadhaar"
-        }
+        payload.scope = [
+          "abha-login",
+          "aadhaar-verify"
+        ];
+        payload.loginHint = "aadhaar";
+        payload.otpSystem = "aadhaar"
       }
 
       if (scope === 'abha-number') {
-        payload = {
-          "scope": [
-            "abha-login",
-            authMethod == 'AADHAAR_OTP' ? "aadhaar-verify" : "mobile-verify"
-          ],
-          "loginHint": "abha-number",
-          "loginId": encryptedText,
-          "otpSystem": authMethod == 'AADHAAR_OTP' ? "aadhaar" : "abdm"
-        }
+        payload.scope = [
+          "abha-login",
+        ];
+        payload.loginHint = "abha-number";
       }
 
       if (scope === 'abha-address') {
         url = process.env.ABHA_ADDRESS_OTP_URL;
-        // payload = {
-        //   authMethod: authMethod,
-        //   // healthid: value
-        // }
-        payload = {
-          "scope": [
-            "abha-address-login",
-            authMethod == 'AADHAAR_OTP' ? "aadhaar-verify" : "mobile-verify"
-          ],
-          "loginHint": scope,
-          "loginId": encryptedText,
-          "otpSystem": authMethod == 'AADHAAR_OTP' ? "aadhaar" : "abdm"
-        }
+        payload.scope = ["abha-address-login"];
+        payload.loginHint = scope;
+      }
+
+      if(['abha-address', 'abha-number', 'index'].includes(scope)) {
+        payload.otpSystem = authMethod == 'AADHAAR_OTP' ? "aadhaar" : "abdm"
+        payload.scope.push(authMethod == 'AADHAAR_OTP' ? "aadhaar-verify" : "mobile-verify")
       }
 
       logStream("debug", url, 'GET Login OTP Req - URL');
@@ -473,7 +513,6 @@ module.exports = (function () {
       })
 
     } catch (error) {
-      console.log("error?.data",JSON.stringify(error, null, 4))
       logStream("error", JSON.stringify(error));
       next(error);
     }
@@ -527,10 +566,6 @@ module.exports = (function () {
 
       if (scope === 'abha-address') {
         url = process.env.ABHA_ADDRESS_OTP_VERIFY;
-        // payload = {
-        //   "txnId": txnId,
-        //   "otp": otp
-        // }
         payload = {
           "scope": [
             "abha-address-login",
