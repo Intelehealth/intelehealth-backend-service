@@ -17,7 +17,8 @@ module.exports = (sequelize, DataTypes) => {
     keyName: DataTypes.STRING,
     expiry: DataTypes.DATE,
     imageValue: DataTypes.TEXT,
-    imageName: DataTypes.STRING
+    imageName: DataTypes.STRING,
+    isActive: DataTypes.BOOLEAN
   }, {
     sequelize,
     modelName: 'licences',

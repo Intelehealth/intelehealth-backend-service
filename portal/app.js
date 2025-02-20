@@ -6,6 +6,7 @@ const session = require("express-session");
 const SequelizeStore = require("connect-session-sequelize")(session.Store);
 const db = require("./models");
 const morganMiddleware = require("./middleware/morgan");
+const path =   require('path');
 
 const app = express();
 
@@ -61,6 +62,9 @@ app.use(
     saveUninitialized: true,
   })
 );
+
+const staticDir = path.join(__dirname, 'public');
+app.use(express.static(staticDir));
 
 app.use("/api", require("./routes/index"));
 app.use("/notification", require("./routes/pushNotification"));
