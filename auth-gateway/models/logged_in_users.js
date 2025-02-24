@@ -14,7 +14,7 @@ module.exports = (sequelize, DataTypes) => {
     }
   };
   logged_in_users.init({
-    token: DataTypes.STRING,
+    token: DataTypes.TEXT,
     userId: DataTypes.STRING,
     loggedAt: DataTypes.DATE
   }, {
