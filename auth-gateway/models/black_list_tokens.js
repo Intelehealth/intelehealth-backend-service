@@ -14,7 +14,7 @@ module.exports = (sequelize, DataTypes) => {
     }
   };
   black_list_tokens.init({
-    token: DataTypes.STRING,
+    token: DataTypes.TEXT,
     userId: DataTypes.STRING,
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE
