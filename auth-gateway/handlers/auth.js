@@ -6,8 +6,11 @@ const publicKey  = fs.readFileSync(path.join(__dirname, '../', '.pem', 'public_k
 { encoding: 'utf8', flag: 'r' }
 )
 
-const authMiddleware = (req, res, next) => {
-    const authorizationHeader = req.header("Authorization")
+const { black_list_tokens } = require('../models');
+const { logStream } = require("../logger/index");
+
+const authMiddleware = async (req, res, next) => {
+    const authorizationHeader = req.header("Authorization");
 
     let ignoredRoute = false;
     ignoredRoutes.forEach((route) => {
@@ -32,6 +35,14 @@ const authMiddleware = (req, res, next) => {
     }
     try {
         const decoded = jwt.verify(token, publicKey);
+
+        // // Check if the token is blacklisted
+        const blacklistedToken = await black_list_tokens.findOne({ where: { userId: decoded.data.userId } });
+        if (blacklistedToken) {
+          logStream("warn", `Attempted login with blacklisted token for userId ${decoded.data.userId}`, "Login");
+          return res.status(403).json({ message: "Token is blacklisted. Access denied." });
+        }
+
         req.user = decoded;
         next();
     } catch (err) {
