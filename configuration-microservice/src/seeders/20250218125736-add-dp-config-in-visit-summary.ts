@@ -13,6 +13,11 @@ module.exports = {
         { name: 'DP Referral Secondary', is_enabled: false },
         { name: 'DP Discussion Summary', is_enabled: false }
       ]);
+      await queryInterface.bulkUpdate('mst_patient_visit_sections', [
+        {sub_sections: JSON.stringify([{"name": "HW", "is_enabled": true},{"name": "Patient", "is_enabled": true},{"name": "Comment", "is_enabled": true}])},
+      ], {
+        key: 'patient_interaction'
+      });
     }),
 
   down: (queryInterface: QueryInterface): Promise<void> => queryInterface.sequelize.transaction(
@@ -27,5 +32,10 @@ module.exports = {
               'DP Referral Secondary',
               'DP Discussion Summary'
             ] }, { transaction });
+      await queryInterface.bulkUpdate('mst_patient_visit_sections', [
+        {sub_sections: JSON.stringify([{"name": "HW", "is_enabled": true},{"name": "Patient", "is_enabled": true}])},
+      ], {
+        key: 'patient_interaction'
+      });
     })
 };
