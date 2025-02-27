@@ -8,7 +8,7 @@ export class WebRTCService {
     egressSvc: any;
 
     constructor() {
-        this.initLiveSvc()
+        // this.initLiveSvc()
     }
 
     startWebSocketServer({
@@ -34,11 +34,11 @@ export class WebRTCService {
 
     initLiveSvc() {
         const {
-            LIVEKIT_API_KEY,
-            LIVEKIT_API_SECRET,
+            API_KEY,
+            SECRET,
             LIVEHOST
         } = process.env;
-        this.liveSvc = new RoomServiceClient(LIVEHOST as string, LIVEKIT_API_KEY, LIVEKIT_API_SECRET);
+        this.liveSvc = new RoomServiceClient(LIVEHOST as string, API_KEY, SECRET);
         return this.liveSvc;
     }
 
@@ -83,14 +83,25 @@ export class WebRTCService {
     async startRecording(roomName: string) {
         try {
             const {
-                LIVEKIT_API_KEY,
-                LIVEKIT_API_SECRET,
+                API_KEY,
+                SECRET,
                 LIVEHOST
             } = process.env;
-            this.egressSvc = new EgressClient(LIVEHOST as string, LIVEKIT_API_KEY, LIVEKIT_API_SECRET);
+            this.egressSvc = new EgressClient(LIVEHOST as string, API_KEY, SECRET);
+            const activeRooms = await this.egressSvc.listEgress(roomName).catch(() => {});
+
+            const activeEgresses = activeRooms?.filter(
+                (info: { status: number; }) => info.status < 2,
+            );
+
+            if (activeEgresses.length > 0) {
+                await Promise.all(activeEgresses.map((info: { egressId: any; }) => this.egressSvc.stopEgress(info.egressId))).catch(() => {});
+            }
+
+
             const egressData = {
                 layout: 'grid',  // Layout for video streams (e.g., grid, speaker, etc.)
-                encodingOptions: 'H264_1080P_30', // H264 video encoding preset (1080p at 30fps)
+                // encodingOptions: 'H264_1080P_30', // H264 video encoding preset (1080p at 30fps)
             };
 
             const startEgressResponse = await this.egressSvc
@@ -115,18 +126,18 @@ export class WebRTCService {
                 success: true
             }
         } catch (err: any) {
-            throw new Error(err.message)
+            throw new Error(err?.message ?? 'Something went wrong.')
         }
     }
 
     async stopRecording(roomName: string) {
         try {
             const {
-                LIVEKIT_API_KEY,
-                LIVEKIT_API_SECRET,
+                API_KEY,
+                SECRET,
                 LIVEHOST
             } = process.env;
-            this.egressSvc = new EgressClient(LIVEHOST as string, LIVEKIT_API_KEY, LIVEKIT_API_SECRET);
+            this.egressSvc = new EgressClient(LIVEHOST as string, API_KEY, SECRET);
             const activeRooms = await this.egressSvc.listEgress(roomName);
 
             const activeEgresses = activeRooms?.filter(
@@ -149,7 +160,7 @@ export class WebRTCService {
                 success: true
             };
         } catch (err: any) {
-            throw new Error(err.message)
+            throw new Error(err?.message ?? 'Something went wrong!')
         }
     }
 }
