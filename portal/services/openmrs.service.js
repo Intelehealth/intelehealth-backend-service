@@ -3,7 +3,7 @@ const openMrsDB = require("../handlers/mysql/mysqlOpenMrs");
 const { user_settings, appointments: Appointment } = require("../models");
 const { axiosInstance } = require("../handlers/helper");
 const { QueryTypes } = require("sequelize");
-const { getVisitCountV3 } = require("../controllers/queries");
+const { getVisitCountV3,getVisitsByDoctorId } = require("../controllers/queries");
 const {
   visit,
   encounter,
@@ -592,6 +592,108 @@ module.exports = (function () {
 
     return states;
   };
+
+    /**
+  * Get visits by type
+  * @param { string } userId - Doctor userId
+  * @param { number } page - Page number
+  * @param { number } limit - Limit
+  */
+    this._getDoctorsVisit = async (
+      userId,
+      page = 1,
+      limit = 1000
+    ) => {
+      try {
+        logStream('debug','Openmrs Service', 'Get visit completed by doctor');
+        let offset = limit * (Number(page) - 1);
+        if (limit > 5000) limit = 5000;
+        const visitIds = await sequelize.query(getVisitsByDoctorId(userId),{raw: true, type: QueryTypes.SELECT});
+        const visitIdArray = Array.isArray(visitIds)
+        ? visitIds.map(v => v?.visit_id)
+        : [];
+        const visits = await visit.findAll({
+          where: {
+            visit_id: { [Op.in]:   visitIdArray,
+           },
+          },
+          attributes: ["uuid","date_stopped","date_created"],
+          include: [
+            {
+              model: encounter,
+              as: "encounters",
+              attributes: ["encounter_datetime"],
+              include: [
+                {
+                  model: obs,
+                  as: "obs",
+                  attributes: ["value_text", "concept_id", "value_numeric"]
+                },
+                {
+                  model: encounter_type,
+                  as: "type",
+                  attributes: ["name"],
+                },
+                {
+                  model: encounter_provider,
+                  as: "encounter_provider",
+                  attributes: ["uuid"],
+                  include: [
+                    {
+                      model: provider,
+                      as: "provider",
+                      attributes: ["identifier", "uuid"],
+                      include: [
+                        {
+                          model: person,
+                          as: "person",
+                          attributes: ["gender"],
+                          include: [
+                            {
+                              model: person_name,
+                              as: "person_name",
+                              attributes: ["given_name", "family_name", "middle_name"],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              model: patient_identifier,
+              as: "patient",
+              attributes: ["identifier"],
+            },
+            {
+              model: person_name,
+              as: "patient_name",
+              attributes: ["given_name", "family_name", "middle_name"],
+            },
+            {
+              model: person,
+              as: "person",
+              attributes: ["uuid", "gender", "birthdate"],
+            },
+            {
+              model: location,
+              as: "location",
+              attributes: ["name"],
+            },
+          ],
+          order: [["visit_id", "DESC"]],
+          limit,
+          offset,
+        });
+  
+        return {  totalCount: visitIds.length, currentCount: visits.length, visits: visits};
+      } catch (error) {
+        logStream("error", error.message);
+        throw error;
+      }
+    };
 
   return this;
 })();

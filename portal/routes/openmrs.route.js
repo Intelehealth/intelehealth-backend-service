@@ -11,11 +11,12 @@ const {
   getCompletedVisits,
   getEndedVisits,
   getLocations,
+  getDoctorsVisit,
   updateLocationAttributes
 } = require("../controllers/openMrs.controller");
 const authMiddleware = require("../middleware/auth");
 
-router.get("/getVisitCounts", [authMiddleware, getVisitCounts]);
+router.get("/getVisitCounts/:userId", [authMiddleware, getVisitCounts]);
 router.get("/getFollowUpVisit/:providerId", [authMiddleware, getFollowUpVisit]);
 router.post("/forgetPassword/requestOtp", forgetPasswordSendOtp);
 router.post(
@@ -31,6 +32,7 @@ router.get("/getPriorityVisits", [authMiddleware, getPriorityVisits]);
 router.get("/getInProgressVisits", [authMiddleware, getInProgressVisits]);
 router.get("/getCompletedVisits", [authMiddleware, getCompletedVisits]);
 router.get("/getEndedVisits", [authMiddleware, getEndedVisits]);
+router.get("/getDoctorsVisit/:userId", [authMiddleware, getDoctorsVisit]);
 
 
 /**

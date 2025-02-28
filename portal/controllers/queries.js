@@ -242,6 +242,10 @@ module.exports = (function () {
         ) as t1
     where
         encounter_id = max_enc
+         and (
+          speciality is null
+          or speciality = 'General Physician'
+      )  
     `;
     };
 
@@ -299,7 +303,7 @@ module.exports = (function () {
             where
                 v.voided = 0
                 and e.voided = 0
-                ${visitIds.length ? "and v.uuid IN('"+ visitIds.join("','")+"')": ''}
+                ${visitIds.length ? "and v.uuid IN('" + visitIds.join("','") + "')" : ''}
             group by
                 v.visit_id,
                 v.patient_id
@@ -449,6 +453,22 @@ module.exports = (function () {
   pi.patient_id,
   Patient_name,
   pi.location_id ;`;
+    };
+
+    this.getVisitsByDoctorId = (userId) => {
+       return `select  
+       v.uuid as id,
+       v.visit_id as visit_id
+        from visit v,
+		encounter e,
+		users u
+        where v.voided = 0
+        and   e.visit_id = v.visit_id
+        and   u.uuid = '${userId}'
+        and   e.encounter_type = 14
+        and   e.voided = 0
+        and	  e.creator = u.user_id
+        order by 1 ;`;
     };
     return this;
 })();
