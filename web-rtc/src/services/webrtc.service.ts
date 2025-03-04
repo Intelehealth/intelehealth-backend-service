@@ -101,7 +101,12 @@ export class WebRTCService {
 
             const egressData = {
                 layout: 'grid',  // Layout for video streams (e.g., grid, speaker, etc.)
-                // encodingOptions: 'H264_1080P_30', // H264 video encoding preset (1080p at 30fps)
+                encodingOptions: 'H264_1080P_30', // H264 video encoding preset (1080p at 30fps)
+                type: 'video',
+                grid: {
+                    rows: 2, // Number of rows for grid
+                    columns: 2, // Number of columns for grid
+                },
             };
 
             const startEgressResponse = await this.egressSvc
