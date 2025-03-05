@@ -9,6 +9,7 @@ const {
   _getCompletedVisits,
   _getEndedVisits,
   _getDoctorsVisit,
+  _getFollowUpLogVisits,
   _updateLocationAttributes,
   _setLocationTree,
 } = require("../services/openmrs.service");
@@ -388,6 +389,25 @@ const getDoctorsVisit = async (req, res, next) => {
     res.json({ status: false, message: error.message });
   }
 };
+
+const getFollowUpLogVisits = async (req, res, next) => {
+  try {
+    logStream('debug', 'API call', 'Get Doctors Visit ');
+    const { page } = req.query;
+    const data = await _getFollowUpLogVisits(page);
+    logStream('debug', 'Success', 'Get Doctors Visits');
+    res.json({
+      count: data.currentCount,
+      totalCount: data.totalCount,
+      data: data.visits,
+      success: true,
+    });
+  } catch (error) {
+    logStream("error", error.message);
+    res.statusCode = 422;
+    res.json({ status: false, message: error.message });
+  }
+};
 /**
  * Get location hierarchy 
  * @param {*} req
@@ -448,5 +468,6 @@ module.exports = {
   getEndedVisits,
   getLocations,
   getDoctorsVisit,
+  getFollowUpLogVisits,
   updateLocationAttributes
 };

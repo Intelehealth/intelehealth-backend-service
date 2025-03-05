@@ -456,7 +456,7 @@ module.exports = (function () {
     };
 
     this.getVisitsByDoctorId = (userId) => {
-       return `select  
+        return `select  
        v.uuid as id,
        v.visit_id as visit_id
         from visit v,
@@ -489,6 +489,26 @@ module.exports = (function () {
       )
       group by v.visit_id
     `;
+    };
+
+    this.getVisitsForFollowUpVisits = () => {
+        return `select  v.visit_id as visit_id,
+      max(value_text) as followup_text
+from    visit v,
+  encounter e,
+      obs o
+where   v.voided = 0
+and     e.visit_id = v.visit_id
+and     e.encounter_type = 9
+and     e.voided = 0
+and     o.encounter_id = e.encounter_id
+and     o.concept_id = 163345
+and (
+          value_text is not null
+          and value_text != 'No'
+      )
+group by v.visit_id
+order by 1 `;
     };
     return this;
 })();

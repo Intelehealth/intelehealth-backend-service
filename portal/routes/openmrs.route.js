@@ -12,6 +12,7 @@ const {
   getEndedVisits,
   getLocations,
   getDoctorsVisit,
+  getFollowUpLogVisits,
   updateLocationAttributes
 } = require("../controllers/openMrs.controller");
 const authMiddleware = require("../middleware/auth");
@@ -33,6 +34,7 @@ router.get("/getInProgressVisits", [authMiddleware, getInProgressVisits]);
 router.get("/getCompletedVisits", [authMiddleware, getCompletedVisits]);
 router.get("/getEndedVisits", [authMiddleware, getEndedVisits]);
 router.get("/getDoctorsVisit/:userId", [authMiddleware, getDoctorsVisit]);
+router.get("/getFollowUpLogVisits", [authMiddleware, getFollowUpLogVisits]);
 
 
 /**
