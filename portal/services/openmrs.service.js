@@ -3,7 +3,7 @@ const openMrsDB = require("../handlers/mysql/mysqlOpenMrs");
 const { user_settings, appointments: Appointment } = require("../models");
 const { axiosInstance } = require("../handlers/helper");
 const { QueryTypes } = require("sequelize");
-const { getVisitCountV3,getVisitsByDoctorId } = require("../controllers/queries");
+const { getVisitCountForDashboard,getVisitCountForEndedVisits, getVisitsByDoctorId } = require("../controllers/queries");
 const {
   visit,
   encounter,
@@ -222,9 +222,16 @@ module.exports = (function () {
     if (!type) {
       return [];
     } else {
-      const visits = await sequelize.query(getVisitCountV3(), {
-        type: QueryTypes.SELECT,
-      });
+      let visits = [];
+      if(type === "Ended Visit") {
+        visits = await sequelize.query(getVisitCountForEndedVisits(), {
+          type: QueryTypes.SELECT,
+        });
+      } else {
+         visits = await sequelize.query(getVisitCountForDashboard(), {
+          type: QueryTypes.SELECT,
+        });
+      }
       let appointmentVisitIds = [];
       if(type === "Awaiting Consult"){
         const data = await Appointment.findAll({
@@ -268,7 +275,7 @@ module.exports = (function () {
   this.getVisitsByType = async (
     speciality,
     page = 1,
-    limit = 1000,
+    limit = 100,
     type
   ) => {
     try {
@@ -369,7 +376,7 @@ module.exports = (function () {
   this._getPriorityVisits = async (
     speciality,
     page = 1,
-    limit = 1000
+    limit = 100
   ) => {
     try {
       logStream('debug','Openmrs Service', 'Get Priority Visits');
@@ -392,8 +399,8 @@ module.exports = (function () {
   */
   this._getAwaitingVisits = async (
     speciality,
-    page = 1,
-    limit = 1000
+    page,
+    limit = 100
   ) => {
     try {
       logStream('debug','Openmrs Service', 'Get Awaiting Visits');
@@ -418,7 +425,7 @@ module.exports = (function () {
   this._getInProgressVisits = async (
     speciality,
     page = 1,
-    limit = 1000
+    limit = 100
   ) => {
     try {
       logStream('debug','Openmrs Service', 'Get In Progress Visits');
@@ -443,7 +450,7 @@ module.exports = (function () {
   this._getCompletedVisits = async (
     speciality,
     page = 1,
-    limit = 1000
+    limit = 100
   ) => {
     try {
       logStream('debug','Openmrs Service', 'Get Completed Visits');
@@ -468,7 +475,7 @@ module.exports = (function () {
   this._getEndedVisits = async (
     speciality,
     page = 1,
-    limit = 1000
+    limit = 100
   ) => {
     try {
       logStream('debug','Openmrs Service', 'Get Ended Visits');
@@ -602,7 +609,7 @@ module.exports = (function () {
     this._getDoctorsVisit = async (
       userId,
       page = 1,
-      limit = 1000
+      limit = 100
     ) => {
       try {
         logStream('debug','Openmrs Service', 'Get visit completed by doctor');

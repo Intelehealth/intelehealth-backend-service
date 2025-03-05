@@ -12,7 +12,7 @@ const {
   _updateLocationAttributes,
   _setLocationTree,
 } = require("../services/openmrs.service");
-const { getVisitCountV3, getVisitsByDoctorId } = require("../controllers/queries");
+const { getVisitCountForDashboard,getVisitCountForEndedVisits, getVisitsByDoctorId } = require("../controllers/queries");
 
 const getVisitCountQuery = ({ speciality = "General Physician" }) => {
   return `select count(t1.visit_id) as Total,
@@ -129,7 +129,7 @@ const getVisitCounts = async (req, res, next) => {
   try {
     logStream('debug', 'API call', 'Get Visit Counts');
     const data = await new Promise((resolve, reject) => {
-      openMrsDB.query(getVisitCountV3(), (err, results) => {
+      openMrsDB.query(getVisitCountForDashboard(), (err, results) => {
         if (err) reject(err);
         resolve(results);
       });
@@ -144,14 +144,19 @@ const getVisitCounts = async (req, res, next) => {
     }).catch((err) => {
       throw err;
     });
+    const data2 = await new Promise((resolve, reject) => {
+      openMrsDB.query(getVisitCountForEndedVisits(), (err, results) => {
+        if (err) reject(err);
+        resolve(results);
+      });
+    }).catch((err) => {
+      throw err;
+    });
     logStream('debug', 'Success', 'Get Visit Counts');
     res.json({
       data: {
-        awaitingConsult: getTotal(data, "Awaiting Consult"),
-        visitInProgress: getTotal(data, "Visit In Progress"),
-        priority: getTotal(data, "Priority"),
         completedVisit: getTotal(data, "Completed Visit"),
-        endedVisits: getTotal(data, "Ended Visit"),
+        endedVisits: getTotal(data2, "Ended Visit"),
         followUpVisits: data1.length
       },
       message: MESSAGE.OPENMRS.VISIT_COUNT_FETCHED_SUCCESSFULLY,

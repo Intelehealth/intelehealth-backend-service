@@ -182,13 +182,12 @@ module.exports = (function () {
   `;
     };
 
-    this.getVisitCountV3 = () => {
+    this.getVisitCountForDashboard = () => {
         return `select
         t1.visit_id,
         t1.uuid,
         case
-          when (ended = 1) then "Ended Visit"
-            when (
+          when (
                 encounter_type = 14
                 or encounter_type = 12
                 or com_enc = 1
@@ -236,6 +235,7 @@ module.exports = (function () {
             where
                 v.voided = 0
                 and e.voided = 0
+				and v.date_stopped is null
             group by
                 v.visit_id,
                 v.patient_id
@@ -245,7 +245,7 @@ module.exports = (function () {
          and (
           speciality is null
           or speciality = 'General Physician'
-      )  
+      ) 
     `;
     };
 
@@ -469,6 +469,26 @@ module.exports = (function () {
         and   e.voided = 0
         and	  e.creator = u.user_id
         order by 1 ;`;
+    };
+
+    this.getVisitCountForEndedVisits = () => {
+        return `select
+        v.visit_id,
+        v.uuid,
+       "Ended Visit" as "Status",
+        max(va.value_reference) as speciality
+    from
+                visit v
+                JOIN visit_attribute va on (va.visit_id= v.visit_id and va.voided = 0 and va.attribute_type_id = 5)
+            where
+                v.voided = 0
+        		and v.date_stopped is not null
+            and (
+          value_reference is null
+          or value_reference = 'General Physician'
+      )
+      group by v.visit_id
+    `;
     };
     return this;
 })();
