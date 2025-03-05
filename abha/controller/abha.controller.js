@@ -333,7 +333,8 @@ module.exports = (function () {
             'Content-Type': 'application/json',
             'REQUEST-ID': uuid(),
             'TRANSACTION_ID': txnId,
-            'Accept-Language': 'en-us'
+            'Accept-Language': 'en-us',
+            'TIMESTAMP': this.getTimestamp(),
           }
         }
       );
@@ -451,10 +452,10 @@ module.exports = (function () {
 
       let payload = {
         "scope": [
-          "abha-login",
-          "mobile-verify"
+          "abha-profile",
+          "delete"
         ],
-        "loginHint": "mobile",
+        "loginHint": "abha-number",
         "loginId": encryptedText,
         "otpSystem": "abdm"
       }, url = process.env.MOBILE_OTP_URL
@@ -527,18 +528,19 @@ module.exports = (function () {
   this.getLoginOTPVerify = async (req, res, next) => {
     try {
 
-      const { otp, txnId, scope, authMethod = "AADHAAR_OTP" } = req.body
+      const { otp, txnId, scope, authMethod = "AADHAAR_OTP", abhaNumber, password } = req.body
 
       const accessToken = req.token
+      const plainText = password ?? otp;
 
-      const encryptedText = await this.getEncryptedData(accessToken, otp, 'Get Login OTP Verify');
+      const encryptedText = await this.getEncryptedData(accessToken, plainText, 'Get Login OTP Verify');
 
-      logStream("debug", 'Scope:' + scope + ' \n txnId: ' + txnId + ' \n value: ' + otp + ' \n authMethod:' + authMethod + ' Encrypted', 'Get Login OTP Verify');
+      logStream("debug", 'Scope:' + scope + ' \n txnId: ' + txnId + ' \n value: ' + plainText + ' \n authMethod:' + authMethod + ' Encrypted', 'Get Login OTP Verify');
 
       let payload = {
         "scope": [
-          "abha-login",
-          "mobile-verify"
+          "abha-profile",
+          "delete"
         ]
       }, url = process.env.LOGIN_VERIFY_URL
 
@@ -561,7 +563,8 @@ module.exports = (function () {
             "txnId": txnId,
             "otpValue": encryptedText
           }
-        }
+        },
+        "reasons": ["asdla"]
       }
 
       if (scope === 'abha-address') {
@@ -578,6 +581,24 @@ module.exports = (function () {
             "otp": {
               "txnId": txnId,
               "otpValue": encryptedText
+            }
+          }
+        }
+      }
+
+      if (scope === 'password') {
+        payload = {
+          "scope": [
+            "abha-login",
+            "password-verify"
+          ],
+          "authData": {
+            "authMethods": [
+              "password"
+            ],
+            "password": {
+              "ABHANumber": abhaNumber,
+              "password": encryptedText
             }
           }
         }
