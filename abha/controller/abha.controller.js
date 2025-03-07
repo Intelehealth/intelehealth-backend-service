@@ -452,10 +452,10 @@ module.exports = (function () {
 
       let payload = {
         "scope": [
-          "abha-profile",
-          "delete"
+          "abha-login",
+          "mobile-verify"
         ],
-        "loginHint": "abha-number",
+        "loginHint": "mobile",
         "loginId": encryptedText,
         "otpSystem": "abdm"
       }, url = process.env.MOBILE_OTP_URL
@@ -528,10 +528,10 @@ module.exports = (function () {
   this.getLoginOTPVerify = async (req, res, next) => {
     try {
 
-      const { otp, txnId, scope, authMethod = "AADHAAR_OTP", abhaNumber, password } = req.body
+      const { otp, txnId, scope, authMethod = "AADHAAR_OTP" } = req.body
 
       const accessToken = req.token
-      const plainText = password ?? otp;
+      const plainText = otp;
 
       const encryptedText = await this.getEncryptedData(accessToken, plainText, 'Get Login OTP Verify');
 
@@ -539,8 +539,8 @@ module.exports = (function () {
 
       let payload = {
         "scope": [
-          "abha-profile",
-          "delete"
+          "abha-login",
+          "mobile-verify"
         ]
       }, url = process.env.LOGIN_VERIFY_URL
 
@@ -563,8 +563,7 @@ module.exports = (function () {
             "txnId": txnId,
             "otpValue": encryptedText
           }
-        },
-        "reasons": ["asdla"]
+        }
       }
 
       if (scope === 'abha-address') {
@@ -586,23 +585,6 @@ module.exports = (function () {
         }
       }
 
-      if (scope === 'password') {
-        payload = {
-          "scope": [
-            "abha-login",
-            "password-verify"
-          ],
-          "authData": {
-            "authMethods": [
-              "password"
-            ],
-            "password": {
-              "ABHANumber": abhaNumber,
-              "password": encryptedText
-            }
-          }
-        }
-      }
 
       logStream("debug", url, 'Get Login OTP Verify - URL');
       logStream("debug", payload, 'Get Login OTP Verify - Payload');
@@ -719,7 +701,7 @@ module.exports = (function () {
 
       const scope = req.query.scope;
 
-      const url = ['mobile', 'abha-address'].includes(scope) ? process.env.ABHA_ADDRESS_GET_CARD_URL : process.env.GET_CARD_URL
+      const url = ['abha-address'].includes(scope) ? process.env.ABHA_ADDRESS_GET_CARD_URL : process.env.GET_CARD_URL
 
       logStream("debug", 'Calling API to Get Card', 'Get Card');
       logStream("debug", url, 'Get Card - URL');
@@ -769,18 +751,16 @@ module.exports = (function () {
         "abhaNumber": abhaNumber,
         "abhaAddress": abhaAddress,
         'authMode': 'DEMOGRAPHICS',
-        "patient": {
+        "patient": [{
           "referenceNumber": openMRSID,
-          "display": `${personDisplay}`,
-          "careContexts": [
-            {
-              "referenceNumber": visitUUID,
-              "display": `${personDisplay} OpConsult-1 on ${convertDateToDDMMYYYY(startDateTime)}`
-            }
-          ],
+          "display": `${personDisplay}`
+        }],
+        "careContexts": [{
+          "referenceNumber": visitUUID,
+          "display": `${personDisplay} OpConsult-1 on ${convertDateToDDMMYYYY(startDateTime)}`,
           "hiType": "OPConsultation",
-          "count": 1
-        }
+        }],
+        "count": 1
       }
       const isRecordExist = await abdm_visit_status.findOne({ where: { visitUuid: visitUUID } });
       if (isRecordExist) {
