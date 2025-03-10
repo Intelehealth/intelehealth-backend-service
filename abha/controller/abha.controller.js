@@ -848,7 +848,7 @@ module.exports = (function () {
 
       // Verify care context status
       logStream("debug", `${process.env.POST_LINK_CARE_CONTEXT_STATUS_URL}/${visitUUID}`, 'Verifying link status');
-      const careContexts = await callABDMApi(`${process.env.POST_LINK_CARE_CONTEXT_STATUS_URL}/${visitUUID}`);
+      const careContexts = await callABDMWrapperApi(`${process.env.POST_LINK_CARE_CONTEXT_STATUS_URL}/${visitUUID}`);
 
       const linkStatus = careContexts?.data?.status ?? 
         (careContexts?.status ?? careContexts?.response?.status) === 202;
