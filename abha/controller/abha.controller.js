@@ -729,9 +729,47 @@ module.exports = (function () {
   };
 
   /**
+   * Update ABDM visit status record
+   * @param {Object} abdmVisitStatus - The status record to update
+   * @param {Object} updates - The fields to update
+   */
+  const updateABDMVisitStatus = async (abdmVisitStatus, updates) => {
+    try {
+      await abdmVisitStatus.update(updates);
+    } catch (err) {
+      logStream("error", `Failed to update ABDM visit status: ${JSON.stringify(err)}`);
+    }
+  };
+
+  /**
+   * Make API call to ABDM and handle response
+   * @param {string} url - API endpoint
+   * @param {Object} requestData - Request payload
+   * @param {Object} options - Additional options
+   * @returns {Promise} API response
+   */
+  const callABDMWrapperApi = async (url, requestData = null, options = {}) => {
+    const method = requestData ? 'post' : 'get';
+    try {
+      const response = await axiosInstance[method](
+        url,
+        requestData,
+        {
+          headers: this.getInitialHeaderrs(),
+          ...options
+        }
+      );
+      return response;
+    } catch (err) {
+      logStream("error", JSON.stringify(err));
+      return err;
+    }
+  };
+
+  /**
    * Post care context to abdm which patient having abha details
    * @param {Object} reqParams 
-   * @returns 
+   * @returns {Promise}
    */
   this.linkCareContextByAbhaDetail = async (reqParams) => {
     try {
@@ -744,114 +782,123 @@ module.exports = (function () {
         openMRSID,
       } = reqParams;
 
+      // Check for existing record
+      const isRecordExist = await abdm_visit_status.findOne({ 
+        where: { visitUuid: visitUUID } 
+      });
+
+      if (isRecordExist) {
+        return { 
+          success: true, 
+          data: null, 
+          message: `Care context already requested for ${visitUUID}!` 
+        };
+      }
+
+      // Prepare request object
       const uniquId = uuid();
       const requestObj = {
-        'requestId': visitUUID,
-        'requesterId': process.env.ABDM_INTELEHEALTH_ID,
-        "abhaNumber": abhaNumber,
-        "abhaAddress": abhaAddress,
-        'authMode': 'DEMOGRAPHICS',
-        "patient": [{
-          "referenceNumber": openMRSID,
-          "display": `${personDisplay}`
+        requestId: visitUUID,
+        requesterId: process.env.ABDM_INTELEHEALTH_ID,
+        abhaNumber,
+        abhaAddress,
+        authMode: 'DEMOGRAPHICS',
+        patient: [{
+          referenceNumber: openMRSID,
+          display: personDisplay
         }],
-        "careContexts": [{
-          "referenceNumber": visitUUID,
-          "display": `${personDisplay} OpConsult-1 on ${convertDateToDDMMYYYY(startDateTime)}`,
-          "hiType": "OPConsultation",
+        careContexts: [{
+          referenceNumber: visitUUID,
+          display: `${personDisplay} OpConsult-1 on ${convertDateToDDMMYYYY(startDateTime)}`,
+          hiType: 'OPConsultation',
         }],
-        "count": 1
-      }
-      const isRecordExist = await abdm_visit_status.findOne({ where: { visitUuid: visitUUID } });
-      if (isRecordExist) {
-        return { success: true, data: null, message: `Care context already requested for ${visitUUID}!` };
-      }
+        count: 1
+      };
 
-      logStream("debug", process.env.POST_LINK_CARE_CONTEXT_URL, 'Calling the Link care context API -> linkCareContextByAbhaDetail - URL');
-      logStream("debug", requestObj, `Calling the Link care context API -> linkCareContextByAbhaDetail - Payload`);
+      logStream("debug", process.env.POST_LINK_CARE_CONTEXT_URL, 'Calling the Link care context API');
+      logStream("debug", requestObj, 'Link care context request payload');
 
-      // Create the table entry to store from ABDM post care context
+      // Create status record
       const abdmVisitStatus = await abdm_visit_status.create({
         requestData: requestObj,
         requestId: uniquId,
         visitUuid: visitUUID
       });
 
-      // Call the post request to link carecontext to abdm
-      const abdmResponse = await axiosInstance.post(
-        process.env.POST_LINK_CARE_CONTEXT_URL,
-        requestObj,
-        {
-          headers: {
-            ...this.getInitialHeaderrs(),
-          },
-        }
-      ).catch((err) => {
-        logStream("error", JSON.stringify(err));
-        return err;
-      });
-
-      // Store the error of getting from link care context API call to abdmVisitStatus table
-      if (abdmResponse?.data?.code !== 202) {
-        const error = handleError(abdmResponse)
-        abdmVisitStatus.error = error;
-        abdmVisitStatus.isInvalid = true;
-        await abdmVisitStatus.save();
+      // Link care context
+      const abdmResponse = await callABDMWrapperApi(process.env.POST_LINK_CARE_CONTEXT_URL, requestObj);
+      
+      // Only store response if it's successful (status 202 and ACCEPTED)
+      if (abdmResponse.status === 202 && abdmResponse?.data?.httpStatusCode === 'ACCEPTED') {
+        await updateABDMVisitStatus(abdmVisitStatus, {
+          response: abdmResponse?.data
+        });
+      } else {
+        const error = handleError(abdmResponse);
+        await updateABDMVisitStatus(abdmVisitStatus, {
+          error,
+          isInvalid: true
+        });
+        
         throw {
-          status: abdmResponse?.response?.status,
-          message: abdmResponse?.message ?? error?.message ?? error
+          status: abdmResponse?.status ?? abdmResponse?.response?.status,
+          message: error?.message ?? abdmResponse?.message
         };
       }
 
-      // Store the response getting from link care context API call to abdmVisitStatus table
-      abdmVisitStatus.response = abdmResponse?.response?.data ?? abdmResponse?.data;
+      // Verify care context status
+      logStream("debug", `${process.env.POST_LINK_CARE_CONTEXT_STATUS_URL}/${visitUUID}`, 'Verifying link status');
+      const careContexts = await callABDMApi(`${process.env.POST_LINK_CARE_CONTEXT_STATUS_URL}/${visitUUID}`);
 
-      logStream("debug", process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + visitUUID, 'Verify the link care context status - URL');
+      const linkStatus = careContexts?.data?.status ?? 
+        (careContexts?.status ?? careContexts?.response?.status) === 202;
 
-      // Call get request to verify the care context link status
-      const careContexts = await axiosInstance.get(
-        process.env.POST_LINK_CARE_CONTEXT_STATUS_URL + '/' + visitUUID, {
-        headers: {
-          ...this.getInitialHeaderrs(),
-        },
-      }).catch((err) => {
-        logStream("error", JSON.stringify(err));
-        return err;
-      });
+      if (!careContexts?.data?.error && linkStatus) {
+        logStream("debug", careContexts?.data, 'Verify the link care context status - Response');
 
-      // Update the abdmVisitStatus table after getting response/error from link care context status
-      if (careContexts?.data?.error === null && careContexts?.data?.status) {
-        abdmVisitStatus.isLinked = true;
-        abdmVisitStatus.link_status_response = careContexts?.data;
-
-        logStream("debug", careContexts?.data, `Verify the link care context status - Response`);
-
-        // Call the post request to update the isABDMLinked attribute to true.
-        await openmrsService.postAttribute(visitUUID,
-          {
-            attributeType: '8ac6b1c7-c781-494a-b4ef-fb7d7632874f', /** Visit Attribute Type for isABDMLinked */
+        try {
+          await openmrsService.postAttribute(visitUUID, {
+            attributeType: '8ac6b1c7-c781-494a-b4ef-fb7d7632874f',
             value: true
-          }
-        ).catch((err) => {
-          abdmVisitStatus.isLinked = false;
-          abdmVisitStatus.link_status_error = err;
-        });
+          });
 
+          await updateABDMVisitStatus(abdmVisitStatus, {
+            isLinked: true,
+            link_status_response: careContexts?.data
+          });
+        } catch (err) {
+          await updateABDMVisitStatus(abdmVisitStatus, {
+            isLinked: false,
+            link_status_error: err
+          });
+        }
       } else {
-        const error = handleError(careContexts)
-        abdmVisitStatus.link_status_error = error;
-        abdmVisitStatus.isLinked = error?.message?.includes('Duplicate HIP link request') ?? false;
-        abdmVisitStatus.isInvalid = abdmVisitStatus.isLinked;
+        const error = handleError(careContexts);
+        const isDuplicateRequest = error?.message?.includes('Duplicate HIP link request');
+        
+        await updateABDMVisitStatus(abdmVisitStatus, {
+          link_status_error: error,
+          isLinked: isDuplicateRequest,
+          isInvalid: isDuplicateRequest
+        });
       }
 
-      await abdmVisitStatus.save()
-
-      return { success: true, data: null, message: "Care context shared successfully!" };
+      return { 
+        success: true, 
+        data: {
+          ...(abdmResponse?.data ?? careContexts?.data ?? {})
+        }, 
+        message: "Care context shared successfully!" 
+      };
 
     } catch (error) {
       logStream("error", JSON.stringify(error));
-      return { success: false, status: error.status ?? 500, data: null, message: error?.message ?? error }
-
+      return { 
+        success: false, 
+        status: error.status ?? 500, 
+        data: null, 
+        message: error?.message ?? error 
+      };
     }
   }
 
