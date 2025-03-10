@@ -333,7 +333,8 @@ module.exports = (function () {
             'Content-Type': 'application/json',
             'REQUEST-ID': uuid(),
             'TRANSACTION_ID': txnId,
-            'Accept-Language': 'en-us'
+            'Accept-Language': 'en-us',
+            'TIMESTAMP': this.getTimestamp(),
           }
         }
       );
@@ -530,10 +531,11 @@ module.exports = (function () {
       const { otp, txnId, scope, authMethod = "AADHAAR_OTP" } = req.body
 
       const accessToken = req.token
+      const plainText = otp;
 
-      const encryptedText = await this.getEncryptedData(accessToken, otp, 'Get Login OTP Verify');
+      const encryptedText = await this.getEncryptedData(accessToken, plainText, 'Get Login OTP Verify');
 
-      logStream("debug", 'Scope:' + scope + ' \n txnId: ' + txnId + ' \n value: ' + otp + ' \n authMethod:' + authMethod + ' Encrypted', 'Get Login OTP Verify');
+      logStream("debug", 'Scope:' + scope + ' \n txnId: ' + txnId + ' \n value: ' + plainText + ' \n authMethod:' + authMethod + ' Encrypted', 'Get Login OTP Verify');
 
       let payload = {
         "scope": [
@@ -582,6 +584,7 @@ module.exports = (function () {
           }
         }
       }
+
 
       logStream("debug", url, 'Get Login OTP Verify - URL');
       logStream("debug", payload, 'Get Login OTP Verify - Payload');
@@ -698,7 +701,7 @@ module.exports = (function () {
 
       const scope = req.query.scope;
 
-      const url = ['mobile', 'abha-address'].includes(scope) ? process.env.ABHA_ADDRESS_GET_CARD_URL : process.env.GET_CARD_URL
+      const url = ['abha-address'].includes(scope) ? process.env.ABHA_ADDRESS_GET_CARD_URL : process.env.GET_CARD_URL
 
       logStream("debug", 'Calling API to Get Card', 'Get Card');
       logStream("debug", url, 'Get Card - URL');
@@ -748,18 +751,16 @@ module.exports = (function () {
         "abhaNumber": abhaNumber,
         "abhaAddress": abhaAddress,
         'authMode': 'DEMOGRAPHICS',
-        "patient": {
+        "patient": [{
           "referenceNumber": openMRSID,
-          "display": `${personDisplay}`,
-          "careContexts": [
-            {
-              "referenceNumber": visitUUID,
-              "display": `${personDisplay} OpConsult-1 on ${convertDateToDDMMYYYY(startDateTime)}`
-            }
-          ],
+          "display": `${personDisplay}`
+        }],
+        "careContexts": [{
+          "referenceNumber": visitUUID,
+          "display": `${personDisplay} OpConsult-1 on ${convertDateToDDMMYYYY(startDateTime)}`,
           "hiType": "OPConsultation",
-          "count": 1
-        }
+        }],
+        "count": 1
       }
       const isRecordExist = await abdm_visit_status.findOne({ where: { visitUuid: visitUUID } });
       if (isRecordExist) {
