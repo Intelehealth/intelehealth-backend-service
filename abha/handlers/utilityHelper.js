@@ -47,21 +47,47 @@ function getGender(gender) {
 }
 
 function handleError(error) {
+    // Check for the error message in various possible locations
     if (error?.data?.message) {
         return error.data;
-    } else if ((error?.data?.error && typeof error?.data?.error === 'string')) {
-        return { message: error.data.error }
-    } else if (error?.data?.error && typeof error?.data?.error !== 'string') {
-        return error.data.error;
-    } else if (error?.response?.data?.error && typeof error?.response?.data?.error != 'string') {
-        return error.response.data.error;
-    } else if (error?.response?.data) {
-        return (typeof error?.response?.data == 'string') ? { message: error.response.data } : error.response.data;
-    } else if (error?.message) {
-        return { message: error.message }
     }
+
+    if (error?.data?.error) {
+        if (typeof error?.data?.error === 'string') {
+            return { message: error.data.error };
+        }
+
+        return error.data.error;
+    }
+
+    if (error?.response?.data?.error) {
+        // Check for error inside response and if it's a string or object
+        if (typeof error.response.data.error === 'string') {
+            return { message: error.response.data.error };
+        }
+        return error.response.data.error;
+    }
+
+    if (error?.data?.errors?.[0]?.error?.message) {
+        return error.data.errors[0].error;
+    }
+    
+    if (error?.response?.data) {
+        // Return the data as message or as-is depending on its type
+        if (typeof error.response.data === 'string') {
+            return { message: error.response.data };
+        }
+        return error.response.data;
+    }
+
+    if (error?.message) {
+        return { message: error.message };
+    }
+
+    // Default error handling
     return new Error('Something went wrong!');
 }
+
 
 // Get the doctor details
 function getDoctorDetail(encounters) {
