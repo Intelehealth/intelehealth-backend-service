@@ -160,7 +160,7 @@ function getPatientRegField(patient, fieldName) {
         case 'ABHA Address': 
             value = getIdentifierByName(patient?.identifiers, 'Abha Address') ?? getIdentifierByName(patient?.identifiers, 'Abha Number');
             if(value && !value.includes('@') && !value.includes(process.env.ABHA_ADDRESS_SUFFIX)) {
-                value = `${value}${ABHA_ADDRESS_SUFFIX}`
+                value = `${value}${process.env.ABHA_ADDRESS_SUFFIX}`
             }
             break;
         case 'ABHA Number': 
