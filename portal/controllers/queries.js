@@ -311,6 +311,26 @@ module.exports = (function () {
     `;
     };
 
+    this.getVisitCountForEndedVisits = () => {
+      return `select
+        v.visit_id,
+        v.uuid,
+       "Ended Visit" as "Status",
+        max(va.value_reference) as speciality
+    from
+                visit v
+                JOIN visit_attribute va on (va.visit_id= v.visit_id and va.voided = 0 and va.attribute_type_id = 5)
+            where
+                v.voided = 0
+        		and v.date_stopped is not null
+            and (
+          value_reference is null
+          or value_reference = 'General Physician'
+      )
+      group by v.visit_id
+    `;
+    };
+
     this.getDoctorVisitsData = () => {
         return `SELECT
       v.visit_id AS visit_id,

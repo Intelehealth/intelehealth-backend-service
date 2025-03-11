@@ -3,7 +3,7 @@ const openMrsDB = require("../handlers/mysql/mysqlOpenMrs");
 const { user_settings, appointments: Appointment } = require("../models");
 const { axiosInstance } = require("../handlers/helper");
 const { QueryTypes } = require("sequelize");
-const { getVisitCountV3 } = require("../controllers/queries");
+const { getVisitCountV3, getVisitCountForEndedVisits } = require("../controllers/queries");
 const {
   visit,
   encounter,
@@ -240,9 +240,15 @@ module.exports = (function () {
           type: QueryTypes.SELECT,
         });
       } else {
-        visits = await sequelize.query(getVisitCountV3(), {
-          type: QueryTypes.SELECT,
-        });
+        if(type === "Ended Visit") {
+          visits = await sequelize.query(getVisitCountForEndedVisits(), {
+            type: QueryTypes.SELECT,
+          });
+        } else {
+           visits = await sequelize.query(getVisitCountV3(), {
+            type: QueryTypes.SELECT,
+          });
+        }
       }
       let appointmentVisitIds = [];
       if(type === "Awaiting Consult"){
@@ -308,7 +314,7 @@ module.exports = (function () {
         };
         type = "Completed Visit";
       }
-      if (limit > 5000) limit = 5000;
+      if (limit > 200) limit = 200;
       const visitIds = await this.getVisits(type, speciality);
 
       if (!countOnly) {
