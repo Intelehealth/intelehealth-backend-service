@@ -59,7 +59,8 @@ export class AuditTrail extends Model<AuditTrailAttributes, AuditTrailCreationAt
             'PATIENT VISIT SECTION ENABLED STATUS UPDATED',
             'PATIENT VISIT SECTION NAME UPDATED',
             'PATIENT VISIT SECTION ORDER UPDATED',
-            'VITAL NAME UPDATED'
+            'VITAL NAME UPDATED',
+            "ROSTER QUESTIONNAIRE CONFIG UPDATED"
         ],
         allowNull: false
     })

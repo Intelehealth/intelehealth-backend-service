@@ -97,4 +97,10 @@ export default {
     Get: '/all',
     UpdateIsEnabled: '/updateIsEnabled/:id',
   },
+  RosterQuestionnaire: {
+    Base: '/roster-questionnaire',
+    Get: '/all',
+    GetByKey: '/getByKey/:key',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+  }
 } as const;
