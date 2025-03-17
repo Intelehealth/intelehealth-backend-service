@@ -6,7 +6,7 @@ export class MainController {
     constructor(
     ) { }
 
-    getToken(req: Request, res: Response) {
+    async getToken(req: Request, res: Response) {
         logStream('debug', 'API calling', 'Get Token');
         if (!req.query.roomId) {
             res.json({ message: "Missing roomId.", success: false });
@@ -21,8 +21,8 @@ export class MainController {
             return;
         }
 
-        const token = new WebRTCService().getToken((req.query.roomId as string), (req.query.name as string));
-        const appToken = new WebRTCService().getToken((req.query.roomId as string), (req.query.nurseName as string));
+        const token = await new WebRTCService().getToken((req.query.roomId as string), (req.query.name as string));
+        const appToken = await new WebRTCService().getToken((req.query.roomId as string), (req.query.nurseName as string));
 
         logStream('debug', 'Success', 'Get Token');
         res.json({
