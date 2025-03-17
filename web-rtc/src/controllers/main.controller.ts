@@ -35,12 +35,32 @@ export class MainController {
     async startRecording(req: Request, res: Response) {
         logStream('debug', 'API calling', 'Get Token');
         try {
-            const roomName = req.query.roomId;
-            if (!roomName) {
-                res.json({ message: "Missing roomId.", success: false });
-                return;
+            if (!req.body.roomId) {
+                return res.json({ message: "Missing roomId.", success: false });
             }
-            const response = await new WebRTCService().startRecording((req.query.roomId as string));
+            if (!req.body.doctorId) {
+                return res.json({ message: "Missing doctorId.", success: false });
+            }
+            if (!req.body.patientId) {
+                return res.json({ message: "Missing patientId.", success: false });
+            }
+            if (!req.body.visitId) {
+                return res.json({ message: "Missing visitId.", success: false });
+            }
+            if (!req.body.chwId) {
+                return res.json({ message: "Missing chwId.", success: false });
+            }
+
+            const recordingParams = {
+                roomId: req.body.roomId,
+                doctorId: req.body.doctorId,
+                patientId: req.body.patientId,
+                visitId: req.body.visitId,
+                chwId: req.body.chwId,
+                nurseName: req.body.nurseName
+            };
+
+            const response = await new WebRTCService().startRecording(req.body.roomId as string, recordingParams);
             logStream('debug', 'Success', 'Get Token');
             return res.json(response);
         } catch (error) {
@@ -65,10 +85,8 @@ export class MainController {
     async stopRecording(req: Request, res: Response) {
         logStream('debug', 'API calling', 'Get Token');
         try {
-            const roomName = req.query.roomId;
-            if (!roomName) {
-                res.json({ message: "Missing roomId.", success: false });
-                return;
+            if (!req.query.roomId) {
+                return res.json({ message: "Missing roomId.", success: false });
             }
             const response = await new WebRTCService().stopRecording((req.query.roomId as string));
             if (response?.success === false) {
