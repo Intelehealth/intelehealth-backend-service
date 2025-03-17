@@ -21,10 +21,6 @@ module.exports = {
         type: Sequelize.STRING,
         allowNull: false,
       },
-      duration: {
-        type: Sequelize.FLOAT,
-        allowNull: true,
-      },
       s3_url: {
         type: Sequelize.STRING,
         allowNull: false,

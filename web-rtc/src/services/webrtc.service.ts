@@ -1,5 +1,4 @@
 import { WebSocketServer } from 'ws';
-import { getVideoDurationInSeconds } from 'get-video-duration';
 import { RoomServiceClient, Room, AccessToken, EgressClient, EncodedFileOutput, VideoGrant, EncodingOptionsPreset, EncodedFileType } from 'livekit-server-sdk';
 const { logStream } = require("../logger/index");
 const { call_recordings } = require("../models");
@@ -89,31 +88,6 @@ export class WebRTCService {
         //     console.log('room deleted');
         // });
     }
-
-    /**
-     * Gets the duration of a video from its URL and updates the database
-     * @param {string} url - URL of the video
-     * @param {string} egressId - ID of the recording in database
-     * @returns {Promise<number>} - Duration in seconds
-     */
-    async getVideoDurationAndUpdate(url: string, egressId: string): Promise<number | null> {
-        try {
-            const duration = await getVideoDurationInSeconds(url);
-            const durationInSeconds = Math.round(duration * 100) / 100; // Round to 2 decimal places
-
-            // Update the recording with the duration
-            await call_recordings.update(
-                { duration: durationInSeconds },
-                { where: { id: egressId } }
-            );
-
-            return durationInSeconds;
-        } catch (error) {
-            console.error('Error getting video duration:', error);
-            return null;
-        }
-    }
-
 
     async startRecording(roomName: string, params?: {
         roomId?: string;
@@ -215,8 +189,9 @@ export class WebRTCService {
             logStream('debug', `Recording started successfully with egressId: ${startEgressResponse.egressId}`, 'startRecording');
 
             // Construct the S3 URL
-            const s3Url = `https://${S3_BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com/${fileName}`;
             const fileName = startEgressResponse?.fileResults?.[0]?.filename;
+            const s3Url = `https://${S3_BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com/${fileName}`;
+
             // Store recording in call_recordings table with all required fields
             const recordingData = {
                 room_id: params?.roomId,
@@ -227,7 +202,6 @@ export class WebRTCService {
                 egress_id: startEgressResponse.egressId,
                 file_path: fileName,
                 s3_url: s3Url,
-                duration: null,
                 start_time: timestamp,
                 end_time: null,
                 nurse_name: params?.nurseName

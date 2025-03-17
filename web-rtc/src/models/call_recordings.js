@@ -21,7 +21,6 @@ module.exports = (sequelize, DataTypes) => {
     chw_id: DataTypes.STRING,
     room_id: DataTypes.STRING,
     egress_id: DataTypes.STRING,
-    duration: DataTypes.FLOAT,
     s3_url: DataTypes.STRING,
     start_time: DataTypes.DATE,
     end_time: DataTypes.DATE,
