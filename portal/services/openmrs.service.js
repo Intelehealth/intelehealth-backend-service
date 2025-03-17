@@ -295,6 +295,13 @@ module.exports = (function () {
         model: obs,
         as: "obs",
         attributes: ["value_text", "concept_id", "value_numeric"],
+        where: {
+          voided: 0,
+        }
+      }
+      const {IN_PROGRESS,FOLLOW_UP} = Constant.VISIT_TYPES;
+      if(![IN_PROGRESS,FOLLOW_UP].includes(type)){
+         obsCondition.where.concept_id = 163212;
       }
       if(type === 'Follow-Up'){
         obsCondition.where = {
@@ -366,18 +373,6 @@ module.exports = (function () {
               model: person_name,
               as: "patient_name",
               attributes: ["given_name", "family_name", "middle_name"],
-            },
-            {
-              model: person_attribute,
-              as: "person_attribute",
-              attributes: ["value"],
-              include: [
-                {
-                  model: person_attribute_type,
-                  as: "person_attribute_type",
-                  attributes: ["name"],
-                }
-              ],
             },
             {
               model: person,

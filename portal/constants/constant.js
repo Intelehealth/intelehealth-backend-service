@@ -48,5 +48,12 @@ module.exports = {
     VERIFICATON: "verificaton",
     PHONE_NUMBER: "phoneNumber",
     COUNTRY_CODE: "countryCode",
-    EMAIL_ID: "emailId"
+    EMAIL_ID: "emailId",
+    VISIT_TYPES: {
+        PRIORITY: 'Priority',
+        AWAITING:'Awaiting Consult',
+        IN_PROGRESS:'Visit In Progress',
+        ENDED: 'Ended Visit',
+        FOLLOW_UP:'Follow-Up'
+    }
 }
