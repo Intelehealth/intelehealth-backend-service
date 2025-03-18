@@ -7,7 +7,7 @@ module.exports = {
      * @param {*} result - content
      */
     wrMindmap: (mindmap, result) => {
-        if (mindmap.match('famHist') || mindmap.match('patHist') || mindmap.match('physExam') || mindmap.match('config') !== null) {
+        if (mindmap.match('famHist') || mindmap.match('patHist') || mindmap.match('physExam') || mindmap.match('config') !== null || mindmap.match('state_district_tehsil') !== null) {
             path = `./public/key/${mindmap}`;
             fs.writeFileSync(path, result);
         }
