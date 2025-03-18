@@ -281,7 +281,7 @@ module.exports = (function () {
   this.getVisitsByType = async (
     speciality,
     page = 1,
-    limit = 1000,
+    limit = 100,
     type,
     countOnly = false
   ) => {
@@ -295,9 +295,8 @@ module.exports = (function () {
         model: obs,
         as: "obs",
         attributes: ["value_text", "concept_id", "value_numeric"],
-        where: {
-          voided: 0,
-        }
+        where: { voided: 0 },
+        required: false,
       }
       const {IN_PROGRESS,FOLLOW_UP} = Constant.VISIT_TYPES;
       if(![IN_PROGRESS,FOLLOW_UP].includes(type)){
@@ -311,7 +310,7 @@ module.exports = (function () {
         };
         type = "Completed Visit";
       }
-      if (limit > 5000) limit = 5000;
+      if (limit > 200) limit = 200;
       const visitIds = await this.getVisits(type, speciality);
 
       if (!countOnly) {
@@ -410,7 +409,7 @@ module.exports = (function () {
   this._getPriorityVisits = async (
     speciality,
     page = 1,
-    limit = 1000
+    limit = 100
   ) => {
     try {
       logStream('debug','Openmrs Service', 'Get Priority Visits');
@@ -434,7 +433,7 @@ module.exports = (function () {
   this._getAwaitingVisits = async (
     speciality,
     page = 1,
-    limit = 1000
+    limit = 100
   ) => {
     try {
       logStream('debug','Openmrs Service', 'Get Awaiting Visits');
@@ -459,7 +458,7 @@ module.exports = (function () {
   this._getInProgressVisits = async (
     speciality,
     page = 1,
-    limit = 1000
+    limit = 100
   ) => {
     try {
       logStream('debug','Openmrs Service', 'Get In Progress Visits');
@@ -484,7 +483,7 @@ module.exports = (function () {
   this._getCompletedVisits = async (
     speciality,
     page = 1,
-    limit = 1000,
+    limit = 100,
     countOnly
   ) => {
     try {
@@ -511,7 +510,7 @@ module.exports = (function () {
 this._getFollowUpVisits = async (
   speciality,
   page = 1,
-  limit = 1000,
+  limit = 100,
   countOnly
 ) => {
   try {
@@ -538,7 +537,7 @@ this._getFollowUpVisits = async (
   this._getEndedVisits = async (
     speciality,
     page = 1,
-    limit = 1000
+    limit = 100
   ) => {
     try {
       logStream('debug','Openmrs Service', 'Get Ended Visits');
