@@ -3,7 +3,7 @@ const {
   Model
 } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
-  class licences extends Model {
+  class black_list_tokens extends Model {
     /**
      * Helper method for defining associations.
      * This method is not a part of Sequelize lifecycle.
@@ -13,15 +13,14 @@ module.exports = (sequelize, DataTypes) => {
       // define association here
     }
   };
-  licences.init({
-    keyName: DataTypes.STRING,
-    expiry: DataTypes.DATE,
-    imageValue: DataTypes.TEXT,
-    imageName: DataTypes.STRING,
-    isActive: DataTypes.BOOLEAN
+  black_list_tokens.init({
+    token: DataTypes.TEXT,
+    userId: DataTypes.STRING,
+    createdAt: DataTypes.DATE,
+    updatedAt: DataTypes.DATE
   }, {
     sequelize,
-    modelName: 'licences',
+    modelName: 'black_list_tokens',
   });
-  return licences;
+  return black_list_tokens;
 };

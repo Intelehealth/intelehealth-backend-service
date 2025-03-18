@@ -13,6 +13,7 @@ export interface PatientRegistrationAttributes {
   createdAt?: Date;
   updatedAt?: Date;
   deletedAt?: Date;
+  validations?: object;
 }
 
 export interface PatientRegistrationCreationAttributes extends Optional<PatientRegistrationAttributes, 'id'> {}
@@ -75,6 +76,12 @@ export class PatientRegistration extends Model<PatientRegistrationAttributes, Pa
         defaultValue: false
     })
     is_locked!: boolean;
+
+    @Column({
+        type: DataTypes.JSON,
+        allowNull: true
+    })
+    validations!: object;
 
     @CreatedAt
     @Column

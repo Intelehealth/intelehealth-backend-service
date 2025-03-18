@@ -22,6 +22,7 @@ import SidebarMenuRoutes from './SidebarMenuRoutes';
 import PatientDetailsRoutes from './PatientDetailsRoutes';
 import PatientVisitSectionsRoutes from './PatientVisitSectionsRoutes';
 import RoasterQuestionnaireRoutes from './RoasterQuestionnaireRoutes';
+import DropdownRoutes from './DropdownRoutes';
 
 // **** Variables **** //
 
@@ -493,11 +494,40 @@ rosterQuestionnaire.get(
   RoasterQuestionnaireRoutes.GetByKey,
 );
 
+// Update one patient reg field validations
+patientRegistrationRouter.put(
+  Paths.PatientResgistration.UpdateValidations,
+  validate(['id', 'number', 'params'],['validations', 'object', 'body']),
+  PatientRegistrationRoutes.updateValidations,
+);
+
 apiRouter.use(Paths.RosterQuestionnaire.Base, authMw, rosterQuestionnaire);
 
 
 // Add SiderbarMenuRouter
 apiRouter.use(Paths.PatientVisitSections.Base, authMw, patientVisitSectionsRouter);
+
+
+// **** Setup WebrtcRouter **** //
+
+const DropdownRouter = Router();
+
+// Get all webrtcs
+DropdownRouter.get(
+  Paths.Dropdown.Get,
+  DropdownRoutes.getAll,
+);
+
+// Update webrtc config status
+DropdownRouter.put(
+  Paths.Dropdown.UpdateIsEnabled,
+  validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body']),
+  DropdownRoutes.updateIsEnabled,
+);
+
+// Add DropdownRouter
+apiRouter.use(Paths.Dropdown.Base, authMw, DropdownRouter);
+
 
 // **** Export default **** //
 

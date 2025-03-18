@@ -3,7 +3,7 @@ const openMrsDB = require("../handlers/mysql/mysqlOpenMrs");
 const { user_settings, appointments: Appointment } = require("../models");
 const { axiosInstance } = require("../handlers/helper");
 const { QueryTypes } = require("sequelize");
-const { getVisitCountV3 } = require("../controllers/queries");
+const { getVisitCountV3, getVisitCountForEndedVisits } = require("../controllers/queries");
 const {
   visit,
   encounter,
@@ -240,9 +240,15 @@ module.exports = (function () {
           type: QueryTypes.SELECT,
         });
       } else {
-        visits = await sequelize.query(getVisitCountV3(), {
-          type: QueryTypes.SELECT,
-        });
+        if(type === "Ended Visit") {
+          visits = await sequelize.query(getVisitCountForEndedVisits(), {
+            type: QueryTypes.SELECT,
+          });
+        } else {
+           visits = await sequelize.query(getVisitCountV3(), {
+            type: QueryTypes.SELECT,
+          });
+        }
       }
       let appointmentVisitIds = [];
       if(type === "Awaiting Consult"){
@@ -317,6 +323,7 @@ module.exports = (function () {
         visits = await visit.findAll({
           where: {
             visit_id: { [Op.in]: visitIds },
+            voided: 0,
           },
           attributes: ["uuid", "date_stopped", "date_created"],
           include: [
@@ -331,37 +338,10 @@ module.exports = (function () {
                   as: "type",
                   attributes: ["name"],
                 },
-                {
-                  model: encounter_provider,
-                  as: "encounter_provider",
-                  attributes: ["uuid"],
-                  include: [
-                    {
-                      model: provider,
-                      as: "provider",
-                      attributes: ["identifier", "uuid"],
-                      include: [
-                        {
-                          model: person,
-                          as: "person",
-                          attributes: ["gender"],
-                          include: [
-                            {
-                              model: person_name,
-                              as: "person_name",
-                              attributes: [
-                                "given_name",
-                                "family_name",
-                                "middle_name",
-                              ],
-                            },
-                          ],
-                        },
-                      ],
-                    },
-                  ],
-                },
               ],
+              where: {
+                voided: 0,
+              }
             },
             {
               model: patient_identifier,

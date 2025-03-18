@@ -10,11 +10,23 @@ const indexRouter = require("./routes/index");
 const authRouter = require("./routes/auth");
 const { errorHandler } = require("./handlers/errorHandller");
 const cors = require("cors");
+const Sequelize = require("sequelize");
+const db = require("./models");
 
 const app = express();
 app.set("view engine", "html");
 
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS && JSON.parse(process.env.ALLOWED_ORIGINS) || [];
+
+db.sequelize.define("Session", {
+  sid: {
+    type: Sequelize.STRING,
+    primaryKey: true,
+  },
+  rememberme: Sequelize.BOOLEAN,
+  expires: Sequelize.DATE,
+  data: Sequelize.TEXT,
+});
 
 app.use(cors({
   origin: (origin, callback) => {

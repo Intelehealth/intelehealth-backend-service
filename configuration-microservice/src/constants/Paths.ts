@@ -34,6 +34,7 @@ export default {
     updateIsMandatory: '/updateIsMandatory/:id',
     updateIsEditable: '/updateIsEditable/:id',
     UpdateIsEnabled: '/updateIsEnabled/:id',
+    UpdateValidations: '/updateValidations/:id',
   },
   PatientVital: {
     Base: '/vitals',
@@ -102,5 +103,10 @@ export default {
     Get: '/all',
     GetByKey: '/getByKey/:key',
     UpdateIsEnabled: '/updateIsEnabled/:id',
-  }
+  },
+  Dropdown: {
+    Base: '/dropdown',
+    Get: '/all',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+  },
 } as const;
