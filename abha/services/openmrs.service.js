@@ -23,8 +23,8 @@ function getFormatedResponse({ visits, patientInfo }) {
   });
 
   return {
+    "hipId": process.env.ABDM_INTELEHEALTH_ID,
     "abhaAddress": abhaAddress,
-    "name": `${patient_name?.given_name ?? ''} ${patient_name?.family_name ?? ''}`,
     "name": `${patient_name?.given_name ?? ''} ${patient_name?.family_name ?? ''}`,
     "gender": person?.gender,
     "dateOfBirth": person?.birthdate,
