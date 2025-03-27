@@ -26,7 +26,9 @@ const {
   location,
   obs,
   sequelize,
-  person_attribute_type
+  person_attribute_type,
+  visit_attribute,
+  visit_attribute_type
 } = require("../openmrs_models");
 const { QueryTypes } = require("sequelize");
 const { getVisitCountV4 } = require("../controllers/queries");
@@ -286,7 +288,7 @@ WHERE
      * @param { string } fromDate - From date
      * @param { string } toDate - To date
      */
-  this.getUserSlots = async ({ userUuid, fromDate, toDate, speciality = null }) => {
+  this.getUserSlots = async ({ userUuid, fromDate, toDate, speciality = null, pending_visits = null}) => {
     try {
       logStream('debug','Appointment Service', 'Get User Slots');
       const $where = {
@@ -318,6 +320,19 @@ WHERE
         },
         attributes: ["uuid"],
         include: [
+          {
+            model: visit_attribute,
+            as: "attributes",
+            attributes: [["value_reference","value"]],
+            required: false,
+            include: [
+              {
+                model: visit_attribute_type,
+                as: "attribute_type",
+                attributes: ["name", "uuid"],
+              }
+            ]
+          },
           {
             model: encounter,
             as: "encounters",
@@ -379,7 +394,27 @@ WHERE
           },
         ]
       });
-      const mergedArray = data.map(x => ({ ...x, visit: visits.find(y => y.uuid == x.visitUuid)?.dataValues, visitStatus: visitStatus.find(z => z.uuid == x.visitUuid)?.Status }));
+      let mergedArray = []
+      if(pending_visits !== null) {
+        pending_visits = (pending_visits === 'true');
+        mergedArray = data.map(x => ({ ...x, visit: visits.find(y => y.uuid == x.visitUuid)?.dataValues, visitStatus: visitStatus.find(z => z.uuid == x.visitUuid)?.Status }));
+        mergedArray = mergedArray.filter(obj=>{
+          try {
+            let callStatusList = obj.visit.attributes.filter(attr=>attr.attribute_type.name === "Call Status");
+            if(callStatusList && callStatusList.length > 0){
+              let callStatus = JSON.parse(callStatusList[0].dataValues?.value)
+              return (callStatus.callStatus && callStatus.callStatus == "Reschedule/Repeat Internally") ? pending_visits : !pending_visits
+            } else {
+              return !pending_visits
+            }
+          } catch (error) {
+             logStream("error", error.message)
+             return false
+          }
+        })
+      }
+      else
+        mergedArray = data.map(x => ({ ...x, visit: visits.find(y => y.uuid == x.visitUuid)?.dataValues, visitStatus: visitStatus.find(z => z.uuid == x.visitUuid)?.Status }));
       logStream('debug','Success', 'Get User Slots');
       return mergedArray;
     } catch (error) {
