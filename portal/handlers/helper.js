@@ -144,24 +144,21 @@ const sendCloudNotification = async ({
   const sendPrescriptionCloudNotification = async ({
     title,
     body,
-    //icon = "ic_launcher",
+    icon = "ic_launcher",
     data = {},
     regTokens,
     click_action = "FCM_PLUGIN_HOME_ACTIVITY",
   }) => {
     const payload = {
-      data,
-      notification: {
+      data: {
+        ...data,
         title,
-        //icon,
+        icon,
         body,
-        //click_action,
+        click_action,
       },
       tokens: regTokens,
-      android:{ priority : 'high'}
     };
-
-    data.click_action=click_action;
 
     try {
       const result = await messaging.sendEachForMulticast(payload);
