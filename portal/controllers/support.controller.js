@@ -93,10 +93,16 @@ module.exports = (function () {
                     });
                     if (us && us?.notification) {
                         if ((us?.snooze_till) ? (new Date().valueOf() > us?.snooze_till) : true) {
-                            const subscriptions = await getSubscriptions(us.user_uuid);
+                            const subscriptions = await pushnotification.findAll({
+                                where: { user_uuid: us.user_uuid },
+                            });
                             if (subscriptions.length) {
                                 subscriptions.forEach(async (sub) => {
-                                    await sendNotification(JSON.parse(sub.notification_object), MESSAGE.SUPPORT.HEY_YOU_GOT_NEW_CHAT_MESSAGE_FROM_SUPPORT, message);
+                                    await sendWebPushNotification({
+                                        webpush_obj: sub.notification_object, 
+                                        title: MESSAGE.SUPPORT.HEY_YOU_GOT_NEW_CHAT_MESSAGE_FROM_SUPPORT, 
+                                        body: message
+                                    });
                                 });
                             }
                         }
