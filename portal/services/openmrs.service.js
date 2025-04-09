@@ -3,7 +3,8 @@ const openMrsDB = require("../handlers/mysql/mysqlOpenMrs");
 const { user_settings, appointments: Appointment } = require("../models");
 const { axiosInstance } = require("../handlers/helper");
 const { QueryTypes } = require("sequelize");
-const { getVisitCountForDashboard,getVisitCountForEndedVisits, getVisitsByDoctorId, getVisitsForFollowUpVisits } = require("../controllers/queries");
+const { getVisitCountForDashboard,getVisitCountForEndedVisits, getVisitsByDoctorId,
+   getVisitsForFollowUpVisits, locationQuery } = require("../controllers/queries");
 const {
   visit,
   encounter,
@@ -352,15 +353,15 @@ module.exports = (function () {
           {
             model: location,
             as: "location",
-            attributes: ["name"],
+            attributes: ["name", ["parent_location", "parent"]],
           },
         ],
         order: [["visit_id", "DESC"]],
         limit,
         offset,
       });
-
-      return {  totalCount: visitIds.length, currentCount: visits.length, visits: visits};
+      const visitsBySanch = await this.setSanchForVisits(visits);
+      return {  totalCount: visitIds.length, currentCount: visits.length, visits: visitsBySanch};
     } catch (error) {
       logStream("error", error.message);
       throw error;
@@ -687,15 +688,15 @@ module.exports = (function () {
             {
               model: location,
               as: "location",
-              attributes: ["name"],
+               attributes: ["name", ["parent_location", "parent"]],
             },
           ],
           order: [["visit_id", "DESC"]],
           limit,
           offset,
         });
-  
-        return {  totalCount: visitIds.length, currentCount: visits.length, visits: visits};
+        const visitsBySanch = await this.setSanchForVisits(visits);
+        return {  totalCount: visitIds.length, currentCount: visits.length, visits: visitsBySanch};
       } catch (error) {
         logStream("error", error.message);
         throw error;
@@ -792,13 +793,30 @@ module.exports = (function () {
           limit,
           offset,
         });
-  
-        return {  totalCount: visitIdArray.length, currentCount: visits.length, visits: visits};
+        const visitsBySanch = await this.setSanchForVisits(visits);
+        return {  totalCount: visitIds.length, currentCount: visits.length, visits: visitsBySanch};
       } catch (error) {
         logStream("error", error.message);
         throw error;
       }
     };
 
+    this.setSanchForVisits = async (data) => {
+      const visits = [];
+      locations = await sequelize.query(locationQuery(), {
+        type: QueryTypes.SELECT,
+      });
+      for (let idx = 0; idx < data.length; idx++) {
+        let vst = data[idx].toJSON();
+        if (vst?.location?.parent) {
+          vst.sanch = locations.find(
+            (l) => l?.id === vst?.location?.parent && l?.tag === "Sanch"
+          )?.name;
+        }
+        visits.push(vst);
+      }
+
+    return visits;
+  };
   return this;
 })();

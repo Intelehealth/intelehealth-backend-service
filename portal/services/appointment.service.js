@@ -28,7 +28,7 @@ const {
   sequelize,
 } = require("../openmrs_models");
 const { QueryTypes } = require("sequelize");
-const { getVisitCountV4 } = require("../controllers/queries");
+const { getVisitCountV4,locationQuery } = require("../controllers/queries");
 const { MESSAGE } = require("../constants/messages");
 const { logStream } = require("../logger/index");
 const Constant = require("../constants/constant");
@@ -336,11 +336,12 @@ WHERE
           {
             model: location,
             as: "location",
-            attributes: ["name"],
+            attributes: ["name", ["parent_location", "parent"]],
           },
         ]
       });
-      const mergedArray = data.map(x => ({ ...x, visit: visits.find(y => y.uuid == x.visitUuid)?.dataValues, visitStatus: visitStatus.find(z => z.uuid == x.visitUuid)?.Status }));
+      const visitsBySanch = await this.setSanchForVisits(visits);
+      const mergedArray = data.map(x => ({ ...x, visit: visitsBySanch.find(y => y.uuid == x.visitUuid), visitStatus: visitStatus.find(z => z.uuid == x.visitUuid)?.Status }));
       logStream('debug','Success', 'Get User Slots');
       return mergedArray;
     } catch (error) {
@@ -1295,6 +1296,24 @@ WHERE
       throw error;
     }
   };
+
+  this.setSanchForVisits = async (data) => {
+    const visits = [];
+    const locations = await sequelize.query(locationQuery(), {
+      type: QueryTypes.SELECT,
+    });
+    for (let idx = 0; idx < data.length; idx++) {
+      let vst = data[idx].toJSON();
+      if (vst?.location?.parent) {
+        vst.sanch = locations.find(
+          (l) => l?.id === vst?.location?.parent && l?.tag === "Sanch"
+        )?.name;
+      }
+      visits.push(vst);
+    }
+
+  return visits;
+};
 
   return this;
 })();
