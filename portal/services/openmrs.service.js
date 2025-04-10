@@ -276,7 +276,7 @@ module.exports = (function () {
   this.getVisitsByType = async (
     speciality,
     page = 1,
-    limit = 100,
+    limit = 25,
     type
   ) => {
     try {
@@ -377,7 +377,7 @@ module.exports = (function () {
   this._getPriorityVisits = async (
     speciality,
     page = 1,
-    limit = 100
+    limit = 25
   ) => {
     try {
       logStream('debug','Openmrs Service', 'Get Priority Visits');
@@ -401,7 +401,7 @@ module.exports = (function () {
   this._getAwaitingVisits = async (
     speciality,
     page,
-    limit = 100
+    limit = 25
   ) => {
     try {
       logStream('debug','Openmrs Service', 'Get Awaiting Visits');
@@ -426,7 +426,7 @@ module.exports = (function () {
   this._getInProgressVisits = async (
     speciality,
     page = 1,
-    limit = 100
+    limit = 25
   ) => {
     try {
       logStream('debug','Openmrs Service', 'Get In Progress Visits');
@@ -451,7 +451,7 @@ module.exports = (function () {
   this._getCompletedVisits = async (
     speciality,
     page = 1,
-    limit = 100
+    limit = 25
   ) => {
     try {
       logStream('debug','Openmrs Service', 'Get Completed Visits');
@@ -476,7 +476,7 @@ module.exports = (function () {
   this._getEndedVisits = async (
     speciality,
     page = 1,
-    limit = 100
+    limit = 25
   ) => {
     try {
       logStream('debug','Openmrs Service', 'Get Ended Visits');
@@ -610,7 +610,7 @@ module.exports = (function () {
     this._getDoctorsVisit = async (
       userId,
       page = 1,
-      limit = 100
+      limit = 25
     ) => {
       try {
         logStream('debug','Openmrs Service', 'Get visit completed by doctor');
@@ -705,7 +705,7 @@ module.exports = (function () {
 
     this._getFollowUpLogVisits = async (
       page = 1,
-      limit = 100
+      limit = 25
     ) => {
       try {
         logStream('debug','Openmrs Service', 'Get visit completed by doctor');
