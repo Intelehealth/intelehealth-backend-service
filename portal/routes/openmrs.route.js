@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const {
   getVisitCounts,
+  getVisitCountsForDashboard,
   getFollowUpVisit,
   forgetPasswordSendOtp,
   forgetPasswordResetPassword,
@@ -13,11 +14,13 @@ const {
   getLocations,
   getDoctorsVisit,
   getFollowUpLogVisits,
+  getFollowUpLogVisitsByDoctor,
   updateLocationAttributes
 } = require("../controllers/openMrs.controller");
 const authMiddleware = require("../middleware/auth");
 
 router.get("/getVisitCounts/:userId", [authMiddleware, getVisitCounts]);
+router.get("/getVisitCountsForDashboard", [authMiddleware, getVisitCountsForDashboard]);
 router.get("/getFollowUpVisit/:providerId", [authMiddleware, getFollowUpVisit]);
 router.post("/forgetPassword/requestOtp", forgetPasswordSendOtp);
 router.post(
@@ -35,7 +38,7 @@ router.get("/getCompletedVisits", [authMiddleware, getCompletedVisits]);
 router.get("/getEndedVisits", [authMiddleware, getEndedVisits]);
 router.get("/getDoctorsVisit/:userId", [authMiddleware, getDoctorsVisit]);
 router.get("/getFollowUpLogVisits", [authMiddleware, getFollowUpLogVisits]);
-
+router.get("/getFollowUpLogVisits/:userId", [authMiddleware, getFollowUpLogVisitsByDoctor]);
 
 /**
  * Location API

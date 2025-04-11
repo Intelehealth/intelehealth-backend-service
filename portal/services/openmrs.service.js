@@ -4,7 +4,7 @@ const { user_settings, appointments: Appointment } = require("../models");
 const { axiosInstance } = require("../handlers/helper");
 const { QueryTypes } = require("sequelize");
 const { getVisitCountForDashboard,getVisitCountForEndedVisits, getVisitsByDoctorId,
-   getVisitsForFollowUpVisits, locationQuery } = require("../controllers/queries");
+   getVisitsForFollowUpVisits, locationQuery, getFollowUpVisitsByDoctor } = require("../controllers/queries");
 const {
   visit,
   encounter,
@@ -334,6 +334,9 @@ module.exports = (function () {
                 ],
               },
             ],
+            where: {
+              voided: 0,
+            }
           },
           {
             model: patient_identifier,
@@ -669,6 +672,9 @@ module.exports = (function () {
                   ],
                 },
               ],
+              where: {
+                voided: 0,
+              }
             },
             {
               model: patient_identifier,
@@ -767,6 +773,112 @@ module.exports = (function () {
                   ],
                 },
               ],
+              where: {
+                voided: 0,
+              }
+            },
+            {
+              model: patient_identifier,
+              as: "patient",
+              attributes: ["identifier"],
+            },
+            {
+              model: person_name,
+              as: "patient_name",
+              attributes: ["given_name", "family_name", "middle_name"],
+            },
+            {
+              model: person,
+              as: "person",
+              attributes: ["uuid", "gender", "birthdate"],
+            },
+            {
+              model: location,
+              as: "location",
+              attributes: ["name"],
+            },
+          ],
+          order: [["visit_id", "DESC"]],
+          limit,
+          offset,
+        });
+        const visitsBySanch = await this.setSanchForVisits(visits);
+        return {  totalCount: visitIds.length, currentCount: visits.length, visits: visitsBySanch};
+      } catch (error) {
+        logStream("error", error.message);
+        throw error;
+      }
+    };
+
+    this._getFollowUpLogVisitsByDoctor =  async (
+      userId,
+      page = 1,
+      limit = 25
+    ) => {
+      try {
+        logStream('debug','Openmrs Service', 'Get visit completed by doctor');
+        let offset = limit * (Number(page) - 1);
+        if (limit > 5000) limit = 5000;
+        let visitIds = [];
+        visitIds = await sequelize.query(getFollowUpVisitsByDoctor(userId), {
+            type: QueryTypes.SELECT,
+          });
+        const visitIdArray = Array.isArray(visitIds)
+        ? visitIds.map((v) => v?.visit_id)
+        : [];
+
+        const visits = await visit.findAll({
+          where: {
+            visit_id: { [Op.in]:   visitIdArray,
+           },
+          },
+          attributes: ["uuid","date_stopped","date_created"],
+          include: [
+            {
+              model: encounter,
+              as: "encounters",
+              attributes: ["encounter_datetime"],
+              include: [
+                {
+                  model: obs,
+                  as: "obs",
+                  attributes: ["value_text", "concept_id", "value_numeric"]
+                },
+                {
+                  model: encounter_type,
+                  as: "type",
+                  attributes: ["name"],
+                },
+                {
+                  model: encounter_provider,
+                  as: "encounter_provider",
+                  attributes: ["uuid"],
+                  include: [
+                    {
+                      model: provider,
+                      as: "provider",
+                      attributes: ["identifier", "uuid"],
+                      include: [
+                        {
+                          model: person,
+                          as: "person",
+                          attributes: ["gender"],
+                          include: [
+                            {
+                              model: person_name,
+                              as: "person_name",
+                              attributes: ["given_name", "family_name", "middle_name"],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+              where: {
+                voided: 0,
+              }
             },
             {
               model: patient_identifier,

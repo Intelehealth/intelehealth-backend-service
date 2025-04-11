@@ -10,6 +10,7 @@ const {
   _getEndedVisits,
   _getDoctorsVisit,
   _getFollowUpLogVisits,
+  _getFollowUpLogVisitsByDoctor,
   _updateLocationAttributes,
   _setLocationTree,
 } = require("../services/openmrs.service");
@@ -174,6 +175,34 @@ const getTotal = (visits, type) => {
   ? visits.filter((v) => (v?.Status === type))
   : [])?.length;
 }
+
+
+const getVisitCountsForDashboard= async (req, res, next) => {
+  try {
+    logStream('debug', 'API call', 'Get Visit Counts');
+    const data = await new Promise((resolve, reject) => {
+      openMrsDB.query(getVisitCountForDashboard(), (err, results) => {
+        if (err) reject(err);
+        resolve(results);
+      });
+    }).catch((err) => {
+      throw err;
+    });
+    logStream('debug', 'Success', 'Get Visit Counts');
+    res.json({
+      data: {
+        awaitingVisit: getTotal(data, "Awaiting Consult"),
+        priorityVisit: getTotal(data, "Priority"),
+        inProgressVisit: getTotal(data, "Visit In Progress"),
+      },
+      message: MESSAGE.OPENMRS.VISIT_COUNT_FETCHED_SUCCESSFULLY,
+    });
+  } catch (error) {
+    logStream("error", error.message);
+    res.statusCode = 422;
+    res.json({ status: false, message: err.message });
+  }
+};
 
 /**
  * To return the FollowUp Visits from the openmrs db using custom query
@@ -408,6 +437,26 @@ const getFollowUpLogVisits = async (req, res, next) => {
     res.json({ status: false, message: error.message });
   }
 };
+
+  const getFollowUpLogVisitsByDoctor = async (req, res, next) => {
+    try {
+      logStream('debug', 'API call', 'Get Doctors Visit ');
+      const { userId } = req.params;
+      const { page } = req.query;
+      const data = await _getFollowUpLogVisitsByDoctor(userId,page);
+      logStream('debug', 'Success', 'Get Doctors Visits');
+      res.json({
+        count: data.currentCount,
+        totalCount: data.totalCount,
+        data: data.visits,
+        success: true,
+      });
+    } catch (error) {
+      logStream("error", error.message);
+      res.statusCode = 422;
+      res.json({ status: false, message: error.message });
+    }
+  };
 /**
  * Get location hierarchy 
  * @param {*} req
@@ -469,5 +518,7 @@ module.exports = {
   getLocations,
   getDoctorsVisit,
   getFollowUpLogVisits,
+  getFollowUpLogVisitsByDoctor,
+  getVisitCountsForDashboard,
   updateLocationAttributes
 };
