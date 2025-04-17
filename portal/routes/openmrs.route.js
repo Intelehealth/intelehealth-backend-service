@@ -20,7 +20,7 @@ const {
 const authMiddleware = require("../middleware/auth");
 
 router.get("/getVisitCounts/:userId", [authMiddleware, getVisitCounts]);
-router.get("/getVisitCountsForDashboard", [authMiddleware, getVisitCountsForDashboard]);
+router.get("/getVisitCountsForDashboard/:userUuid", [authMiddleware, getVisitCountsForDashboard]);
 router.get("/getFollowUpVisit/:providerId", [authMiddleware, getFollowUpVisit]);
 router.post("/forgetPassword/requestOtp", forgetPasswordSendOtp);
 router.post(

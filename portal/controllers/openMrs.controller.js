@@ -1,6 +1,7 @@
 const { MESSAGE } = require("../constants/messages");
 const openMrsDB = require("../handlers/mysql/mysqlOpenMrs");
 const { sendOtp, resetPassword } = require("../services/openmrs.service");
+const { getUserSlots } = require("../services/appointment.service");
 const { logStream } = require("../logger/index");
 const {
   _getAwaitingVisits,
@@ -15,6 +16,7 @@ const {
   _setLocationTree,
 } = require("../services/openmrs.service");
 const { getVisitCountForDashboard,getVisitCountForEndedVisits, getVisitsByDoctorId } = require("../controllers/queries");
+const moment = require("moment");
 
 const getVisitCountQuery = ({ speciality = "General Physician" }) => {
   return `select count(t1.visit_id) as Total,
@@ -166,7 +168,7 @@ const getVisitCounts = async (req, res, next) => {
   } catch (error) {
     logStream("error", error.message);
     res.statusCode = 422;
-    res.json({ status: false, message: err.message });
+    res.json({ status: false, message: error.message });
   }
 };
 
@@ -178,6 +180,7 @@ const getTotal = (visits, type) => {
 
 
 const getVisitCountsForDashboard= async (req, res, next) => {
+  const { userUuid } = req.params;
   try {
     logStream('debug', 'API call', 'Get Visit Counts');
     const data = await new Promise((resolve, reject) => {
@@ -188,19 +191,21 @@ const getVisitCountsForDashboard= async (req, res, next) => {
     }).catch((err) => {
       throw err;
     });
+    const data2 = await getUserSlots({userUuid, fromDate:moment().startOf('year').format('DD/MM/YYYY'), toDate:moment().endOf('year').format('DD/MM/YYYY')})
     logStream('debug', 'Success', 'Get Visit Counts');
     res.json({
       data: {
         awaitingVisit: getTotal(data, "Awaiting Consult"),
         priorityVisit: getTotal(data, "Priority"),
         inProgressVisit: getTotal(data, "Visit In Progress"),
+        appointmentVisit: data2.length
       },
       message: MESSAGE.OPENMRS.VISIT_COUNT_FETCHED_SUCCESSFULLY,
     });
   } catch (error) {
     logStream("error", error.message);
     res.statusCode = 422;
-    res.json({ status: false, message: err.message });
+    res.json({ status: false, message: error.message });
   }
 };
 
