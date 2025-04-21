@@ -1133,29 +1133,39 @@ WHERE
 
     if (cancelled && cancelled.status) {
       logStream('debug','Success', 'Reschedule Appointment');
+      const appointment = await createAppointment({
+        openMrsId,
+        patientName,
+        locationUuid,
+        hwUUID,
+        slotDay,
+        slotDate,
+        slotDuration,
+        slotDurationUnit,
+        slotTime,
+        speciality,
+        userUuid,
+        drName,
+        visitUuid,
+        patientId,
+        patientAge,
+        patientGender,
+        patientPic,
+        hwName,
+        hwAge,
+        hwGender
+      });
+
+      if(appointment && visitUuid) {
+        try{
+          await this.removeCallStatus(visitUuid);
+        } catch (err) {
+          logStream('error', err);
+        }
+      }
+      
       return {
-        data: await createAppointment({
-          openMrsId,
-          patientName,
-          locationUuid,
-          hwUUID,
-          slotDay,
-          slotDate,
-          slotDuration,
-          slotDurationUnit,
-          slotTime,
-          speciality,
-          userUuid,
-          drName,
-          visitUuid,
-          patientId,
-          patientAge,
-          patientGender,
-          patientPic,
-          hwName,
-          hwAge,
-          hwGender
-        }),
+        data: appointment,
       };
     } else {
       return cancelled;
@@ -1369,6 +1379,48 @@ WHERE
       throw error;
     }
   };
+
+  /**
+   * remove the call status from visit attributes.
+   * @param {visitUuid} visitUuid 
+   */
+  this.removeCallStatus = async (visitUuid) => {
+    const currentVisit = await visit.findOne({
+      where: {
+        uuid: { [Op.eq]: visitUuid },
+      },
+      attributes: ["uuid"],
+      include: [
+        {
+          model: visit_attribute,
+          as: "attributes",
+          attributes: [["value_reference","value"], 'uuid'],
+          required: false,
+          include: [
+            {
+              model: visit_attribute_type,
+              as: "attribute_type",
+              attributes: ["name", "uuid"],
+            }
+          ]
+        }
+      ]
+    });
+    if(currentVisit) {
+      const callStatusList = currentVisit.attributes.filter(attr=>attr.attribute_type.name === "Call Status")
+      if(callStatusList && callStatusList.length > 0){
+        try {
+          const dataValues = callStatusList[0].dataValues;
+          let callStatus = JSON.parse(dataValues?.value ?? '{}')
+          if(callStatus?.callStatus == "Reschedule/Repeat Internally") {
+            await visit_attribute.destroy({
+              where: { uuid: dataValues.uuid }
+            }); 
+          }
+        } catch (error) { console.error("Unable to delete the call status visit attribute")}
+      }
+    }
+  }
 
   return this;
 })();
