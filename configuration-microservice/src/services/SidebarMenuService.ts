@@ -17,7 +17,7 @@ export const CANT_UPDATE_MANDATORY_STATUS_IF_LOCKED = 'Can not update mandatory 
  */
 function getAll(): Promise<SidebarMenu[]> {
     return SidebarMenu.findAll({
-        attributes: ['id', 'name', 'is_enabled', 'is_locked', 'createdAt', 'updatedAt'],
+        attributes: ['id', 'name', 'is_enabled', 'is_locked', 'createdAt', 'updatedAt', 'platform'],
         raw: true
     });
 }

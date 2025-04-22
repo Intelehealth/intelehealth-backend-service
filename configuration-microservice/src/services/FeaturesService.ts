@@ -15,7 +15,7 @@ export const FEATURE_FIELD_NOT_FOUND_ERR = 'Feature field not found';
  */
 async function getAll(): Promise<any> {
     const features = await Features.findAll({
-        attributes: ['id', 'key', 'name', 'is_enabled', 'createdAt', 'updatedAt'],
+        attributes: ['id', 'key', 'name', 'is_enabled', 'createdAt', 'updatedAt', 'platform'],
         raw: true
     });
     return features;

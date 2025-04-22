@@ -18,7 +18,7 @@ export const CANT_UPDATE_NAME_IF_EDITABLE_FALSE = 'Can update the name, because 
  */
 function getAll(): Promise<HomeScreen[]> {
     return HomeScreen.findAll({
-        attributes: ['id', 'name', 'lang', 'key', 'is_editable', 'is_enabled', 'is_locked', 'createdAt', 'updatedAt', 'label'],
+        attributes: ['id', 'name', 'lang', 'key', 'is_editable', 'is_enabled', 'is_locked', 'createdAt', 'updatedAt', 'label', 'platform'],
         raw: true,
     });
 }

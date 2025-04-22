@@ -21,7 +21,7 @@ export const DOCTOR_ASSIGNED_SPECIALIZATION = 'Doctor assigned for this speciali
  */
 function getAll(): Promise<Specialization[]> {
   return Specialization.findAll({
-    attributes: ['id', 'name', 'key', 'is_enabled', 'createdAt', 'updatedAt'],
+    attributes: ['id', 'name', 'key', 'is_enabled', 'createdAt', 'updatedAt', 'platform'],
     raw: true
   });
 }

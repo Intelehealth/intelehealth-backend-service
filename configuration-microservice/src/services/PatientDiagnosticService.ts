@@ -23,7 +23,7 @@ export const CANT_CHANGE_MANDATORY_STATUS = "Can't update, diagnostic must be al
  */
 function getAll(): Promise<Diagnostics[]> {
     return Diagnostics.findAll({
-        attributes: ['id', 'name', 'key', 'uuid', 'is_enabled', 'is_mandatory', 'createdAt', 'updatedAt'],
+        attributes: ['id', 'name', 'key', 'uuid', 'is_enabled', 'is_mandatory', 'createdAt', 'updatedAt', 'platform'],
         raw: true
     });
 }
