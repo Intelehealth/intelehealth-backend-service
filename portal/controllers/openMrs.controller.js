@@ -198,7 +198,7 @@ const getVisitCountsForDashboard= async (req, res, next) => {
         awaitingVisit: getTotal(data, "Awaiting Consult"),
         priorityVisit: getTotal(data, "Priority"),
         inProgressVisit: getTotal(data, "Visit In Progress"),
-        appointmentVisit: data2.length
+        appointmentVisit: getTotalVisits(data2)
       },
       message: MESSAGE.OPENMRS.VISIT_COUNT_FETCHED_SUCCESSFULLY,
     });
@@ -209,6 +209,12 @@ const getVisitCountsForDashboard= async (req, res, next) => {
   }
 };
 
+  const getTotalVisits = (visits) => {
+    return (Array.isArray(visits)
+    ? visits.filter((v) => (v?.visitStatus === 'Awaiting Consult' || v?.visitStatus === 'Visit In Progress'))
+    : [])?.length;
+  }
+  
 /**
  * To return the FollowUp Visits from the openmrs db using custom query
  * @param {*} req
