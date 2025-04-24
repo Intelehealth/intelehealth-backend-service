@@ -20,7 +20,7 @@ dotenv.config({ path: path.resolve(__dirname, 'env/development.env') });
     });
 
     for (const sheetName of workbook.SheetNames) {
-      const sheet = workbook.Sheets[sheetName.trim()];
+      const sheet = workbook.Sheets[sheetName];
       const rows = XLSX.utils.sheet_to_json(sheet);
 
       // Proceed only if data exists and contains the 'platform' field
@@ -31,8 +31,20 @@ dotenv.config({ path: path.resolve(__dirname, 'env/development.env') });
 
           if (name && platform) {
             try {
+              // Check if platform is already set
+              const [existingRows] = await db.execute(
+                `SELECT platform FROM \`${sheetName}\` WHERE name = ?`,
+                [name]
+              );
+              
+              if (existingRows.length > 0 && existingRows[0].platform) {
+                console.log(`Skipped update for '${sheetName}' table, name='${name}' - platform already set.`);
+                continue; // Skip update if platform already has a value
+              }
+
+              // Perform the update
               await db.execute(
-                `UPDATE \`${sheetName.trim()}\` SET \`platform\` = ? WHERE \`name\` = ?`,
+                `UPDATE \`${sheetName}\` SET platform = ? WHERE name = ?`,
                 [platform, name]
               );
               console.log(`Updated '${sheetName}' table for name='${name}'`);
