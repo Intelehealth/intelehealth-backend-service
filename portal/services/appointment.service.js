@@ -401,12 +401,11 @@ WHERE
         mergedArray = mergedArray.filter(obj=>{
           try {
             let callStatusList = obj.visit.attributes.filter(attr=>attr.attribute_type.name === "Call Status");
-            if(callStatusList && callStatusList.length > 0){
-              let callStatus = JSON.parse(callStatusList[0].dataValues?.value)
-              return (callStatus.callStatus && callStatus.callStatus == "Reschedule/Repeat Internally") ? pending_visits : !pending_visits
-            } else {
-              return !pending_visits
-            }
+            let callStatus = JSON.parse(callStatusList?.[0]?.dataValues?.value ?? '{}')
+            if(Constant.PENDING_VISIT_BY_CALL_STATUS.includes(callStatus?.callStatus)){
+              return  pending_visits
+            } 
+            return !pending_visits
           } catch (error) {
              logStream("error", error.message)
              return false
@@ -1412,7 +1411,7 @@ WHERE
         try {
           const dataValues = callStatusList[0].dataValues;
           let callStatus = JSON.parse(dataValues?.value ?? '{}')
-          if(callStatus?.callStatus == "Reschedule/Repeat Internally") {
+          if(Constant.PENDING_VISIT_BY_CALL_STATUS.includes(callStatus?.callStatus)) {
             await visit_attribute.destroy({
               where: { uuid: dataValues.uuid }
             }); 
