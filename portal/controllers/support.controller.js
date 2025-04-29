@@ -55,7 +55,7 @@ module.exports = (function () {
                             if (us && us?.notification) {
                                 if ((us?.snooze_till) ? (new Date().valueOf() > us?.snooze_till) : true) {
                                     const subscriptions = await pushnotification.findAll({
-                                        where: { user_uuid: toUser },
+                                        where: { user_uuid: us.user_uuid },
                                     });
                                     if (subscriptions.length) {
                                         subscriptions.forEach((sub) => {
@@ -80,7 +80,7 @@ module.exports = (function () {
                             data.data.dataValues.createdAt = new Date(data.data.dataValues.createdAt).toGMTString();
                             data.data.dataValues.allMessages = messages.data;
                             io.to(key).emit("supportMessage", data.data);
-                            io.to(key).emit("drUnreadCount", unreadcount[0].unread);
+                            io.to(key).emit("doctorAdminUnreadCount", unreadcount[0].unread);
                           }
                         }
                     }
