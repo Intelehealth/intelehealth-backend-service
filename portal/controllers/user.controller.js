@@ -1,6 +1,7 @@
 const {
   _createUpdateStatus,
   _getStatuses,
+  _getWebrtcStatuses
 } = require("../services/user.service");
 const { validateParams, log } = require("../handlers/helper");
 const { logStream } = require("../logger/index");
@@ -50,6 +51,21 @@ module.exports = (function () {
       res.json({
         status: true,
         data: await _getStatuses(null, req.query),
+      });
+    } catch (error) {
+      logStream("error", error.message);
+      res.json({
+        status: false,
+        message: error.message,
+      });
+    }
+  };
+
+  this.getWebrtcStatuses = async (req, res) => {
+    try {
+      res.json({
+        status: true,
+        data: await _getWebrtcStatuses(),
       });
     } catch (error) {
       logStream("error", error.message);

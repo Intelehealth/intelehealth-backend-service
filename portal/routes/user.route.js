@@ -4,11 +4,13 @@ const router = express.Router();
 const {
   getStatuses,
   createUpdateStatus,
-  getAllStatuses
+  getAllStatuses,
+  getWebrtcStatuses
 } = require("../controllers/user.controller");
 
 router.post("/createUpdateStatus", [authMiddleware, createUpdateStatus]);
 router.get("/getStatuses/:userUuid", [authMiddleware, getStatuses]);
 router.get("/getAllStatuses", [authMiddleware, getAllStatuses]);
+router.get("/getWebrtcStatuses", [authMiddleware, getWebrtcStatuses]);
 
 module.exports = router;
