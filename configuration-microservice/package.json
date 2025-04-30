@@ -52,7 +52,8 @@
     "sequelize": "^6.37.1",
     "sequelize-typescript": "^2.1.6",
     "tmp": "^0.2.3",
-    "ts-command-line-args": "^2.5.1"
+    "ts-command-line-args": "^2.5.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",

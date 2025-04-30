@@ -23,6 +23,7 @@ import PatientDetailsRoutes from './PatientDetailsRoutes';
 import PatientVisitSectionsRoutes from './PatientVisitSectionsRoutes';
 import RoasterQuestionnaireRoutes from './RoasterQuestionnaireRoutes';
 import DropdownRoutes from './DropdownRoutes';
+import HomeScreenRoutes from './HomeScreenRoutes';
 
 // **** Variables **** //
 
@@ -528,6 +529,33 @@ DropdownRouter.put(
 // Add DropdownRouter
 apiRouter.use(Paths.Dropdown.Base, authMw, DropdownRouter);
 
+
+// **** Setup homeScreenSectionsRouter **** //
+
+const homeScreenSectionsRouter = Router();
+
+// Get all home screen sections
+homeScreenSectionsRouter.get(
+  Paths.HomeScreen.Get,
+  HomeScreenRoutes.getAll,
+);
+
+// Update one home screen sections status
+homeScreenSectionsRouter.put(
+  Paths.HomeScreen.UpdateIsEnabled,
+  validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body']),
+  HomeScreenRoutes.updateIsEnabled,
+);
+
+// Update one home screen sections name
+homeScreenSectionsRouter.put(
+  Paths.HomeScreen.updateHomeScreenName,
+  validate(['id', 'number', 'params'],['lang', 'object', 'body']),
+  HomeScreenRoutes.updateHomeScreenName,
+);
+
+// Add HomeScreenRouter
+apiRouter.use(Paths.HomeScreen.Base, authMw, homeScreenSectionsRouter);
 
 // **** Export default **** //
 

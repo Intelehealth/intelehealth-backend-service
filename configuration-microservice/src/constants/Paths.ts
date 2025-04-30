@@ -109,4 +109,10 @@ export default {
     Get: '/all',
     UpdateIsEnabled: '/updateIsEnabled/:id',
   },
+  HomeScreen: {
+    Base: '/home-screen',
+    Get: '/all',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+    updateHomeScreenName: '/updateHomeScreenName/:id',
+  },
 } as const;
