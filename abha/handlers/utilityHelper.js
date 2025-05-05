@@ -1,4 +1,4 @@
-const { OBSERVATION_TYPE, VISIT_TYPES, RELATIONS } = require("../constants/abha.constants");
+const { OBSERVATION_TYPE, VISIT_TYPES, RELATIONS, FHIR_BASE_URL } = require("../constants/abha.constants");
 const { uuid } = require('uuidv4');
 const { logStream } = require("../logger");
 const { downloadPrescription } = require("./pdfHelper");
@@ -186,30 +186,46 @@ function cheifComplaintStructure(obs, cheifComplaints, practitioner, patient) {
 }
 
 // Vitals
-function physicalExaminationVitalStructure(obs, physicalExaminationData) {
+function physicalExaminationVitalStructure(obs, physicalExaminationData, practitioner, patient) {
+    const valueQuantity = {
+        unit: OBSERVATION_TYPE[obs.concept?.display]?.unit,
+        value: obs.value
+    }
+    const observationId = `${OBSERVATION_TYPE[obs.concept?.display]?.type}${obs.uuid}`
+    const observationText = OBSERVATION_TYPE[obs.concept?.display]?.name ?? obs.concept?.display
+
     physicalExaminationData.section.entry.push({
-        reference: `Observation/${OBSERVATION_TYPE[obs.concept?.display]?.type}${obs.uuid}`
+        reference: `Observation/${observationId}`
     });
     physicalExaminationData.observations.push(
         createFHIRResource({
             code: {
-                text: OBSERVATION_TYPE[obs.concept?.display]?.name ?? obs.concept?.display
+                text: observationText
             },
             effectiveDateTime: convertDataToISO(obs.obsDatetime),
-            id: `${OBSERVATION_TYPE[obs.concept?.display]?.type}${obs.uuid}`,
+            id: observationId,
             resourceType: "Observation",
             status: "final",
-            valueQuantity: {
-                unit: OBSERVATION_TYPE[obs.concept?.display]?.unit,
-                value: obs.value
-            }
+            valueQuantity: valueQuantity,
+            subject: {
+                reference: `Patient/${patient?.uuid}`,
+                display: patient?.person?.display
+            },
+            performer: [{
+                reference: `Practitioner/${practitioner?.practitioner_id}`,
+                display: practitioner?.name
+            }],
+            text: {
+                status: "generated",
+                div: `<div xmlns="http://www.w3.org/1999/xhtml">${observationText}: ${valueQuantity.value} ${valueQuantity.unit}</div>`
+            },
         })
     )
     return physicalExaminationData
 }
 
 // Physical Examination of others
-function physicalExaminationStructure(obs, physicalExaminationData) {
+function physicalExaminationStructure(obs, physicalExaminationData, practitioner, patient) {
     const physicalExam = getData(obs)?.value.replace(new RegExp('<br/>►', 'g'), '').split('<b>');
     if (!physicalExam.length) return;
     const pyshicalExaminate = []
@@ -236,22 +252,33 @@ function physicalExaminationStructure(obs, physicalExaminationData) {
             }
         }
     }
+
+    const observationText = pyshicalExaminate.join(', ')
     physicalExaminationData.section.entry.push({
         reference: `Observation/${obs.uuid}`
     });
     physicalExaminationData.observations.push(
-        {
-            "resource": {
-                "code": {
-                    "text": pyshicalExaminate.join(', ')
-                },
-                "effectiveDateTime": convertDataToISO(obs.obsDatetime),
-                "id": `${obs.uuid}`,
-                "resourceType": "Observation",
-                "status": "final"
+        createFHIRResource({
+            code: {
+                text: observationText
             },
-            "fullUrl": `Observation/${obs.uuid}`
-        },
+            effectiveDateTime: convertDataToISO(obs.obsDatetime),
+            id: `${obs.uuid}`,
+            resourceType: "Observation",
+            status: "final",
+            subject: {
+                reference: `Patient/${patient?.uuid}`,
+                display: patient?.person?.display
+            },
+            performer: [{
+                reference: `Practitioner/${practitioner?.practitioner_id}`,
+                display: practitioner?.name
+            }],
+            text: {
+                status: "generated",
+                div: `<div xmlns="http://www.w3.org/1999/xhtml">${observationText}</div>`
+            },
+        })
     )
     return physicalExaminationData
 }
@@ -404,7 +431,7 @@ function medicalFamilyHistoryStructure(obs, familyHistoryData, practitioner, pat
                 },
                 "resourceType": "FamilyMemberHistory"
             },
-            "fullUrl": `FamilyMemberHistory/${uniquId}`
+            "fullUrl": `${FHIR_BASE_URL}/FamilyMemberHistory/${uniquId}`
         })
     }
 }
@@ -482,7 +509,7 @@ function followUPStructure(obs, folloupVisit, practitioner, patient) {
                     }
                 ]
             },
-            "fullUrl": `Appointment/${obs.uuid}`
+            "fullUrl": `${FHIR_BASE_URL}/Appointment/${obs.uuid}`
         });
     } catch (err) {
         logStream("error", err?.message);
@@ -501,7 +528,8 @@ function medicationStructure(obs, medications, practitioner, patient, prescripti
     const resource = {
         "resource": {
             "requester": {
-                "reference": `Practitioner/${practitioner?.practitioner_id}`
+                "reference": `Practitioner/${practitioner?.practitioner_id}`,
+                "display": practitioner?.name
             },
             "medicationCodeableConcept": {
                 "text": obsValue?.[0]
@@ -513,14 +541,15 @@ function medicationStructure(obs, medications, practitioner, patient, prescripti
                 }
             ],
             "subject": {
-                "reference": `Patient/${patient?.uuid}`
+                "reference": `Patient/${patient?.uuid}`,
+                "display": patient?.person?.display
             },
             "id": obs.uuid,
             "intent": "order",
             "resourceType": "MedicationRequest",
             "status": "active"
         },
-        "fullUrl": `MedicationRequest/${obs.uuid}`
+        "fullUrl": `${FHIR_BASE_URL}/MedicationRequest/${obs.uuid}`
     }
 
     medications.section.entry.push({
@@ -529,17 +558,18 @@ function medicationStructure(obs, medications, practitioner, patient, prescripti
 
     medications.medicationRequest.push(resource)
 
-    if(prescriptionMedications) {
+    if (prescriptionMedications) {
         prescriptionMedications.section.entry.push({
-            "reference": `MedicationRequest/prescription-${obs.uuid}`
+            "reference": `MedicationRequest/prescription-${obs.uuid}`,
+            "type": "MedicationRequest"
         })
-    
+
         prescriptionMedications.medicationRequest.push({
             resource: {
-                ...resource,
-                "id":`prescription-${obs.uuid}`,
+                ...resource?.resource,
+                "id": `prescription-${obs.uuid}`,
             },
-            "fullUrl": `MedicationRequest/prescription-${obs.uuid}`
+            "fullUrl": `${FHIR_BASE_URL}/MedicationRequest/prescription-${obs.uuid}`
         })
     }
 }
@@ -577,7 +607,7 @@ function investigationAdviceStructure(obs, serviceRequest, practitioner, patient
             "resourceType": "ServiceRequest",
             "status": "active"
         },
-        "fullUrl": `ServiceRequest/${obs.uuid}`
+        "fullUrl": `${FHIR_BASE_URL}/ServiceRequest/${obs.uuid}`
     })
 }
 
@@ -615,7 +645,7 @@ function referalStructure(obs, serviceRequest, practitioner, patient) {
             "resourceType": "ServiceRequest",
             "status": "active"
         },
-        "fullUrl": `ServiceRequest/${obs.uuid}`
+        "fullUrl": `${FHIR_BASE_URL}/ServiceRequest/${obs.uuid}`
     })
 }
 
@@ -801,7 +831,7 @@ const processObservation = (obs, sections, practitioner, patient) => {
             cheifComplaintStructure(obs, cheifComplaints, practitioner, patient);
             break;
         case VISIT_TYPES.PHYSICAL_EXAMINATION:
-            physicalExaminationStructure(obs, physicalExaminationData);
+            physicalExaminationStructure(obs, physicalExaminationData, practitioner, patient);
             break;
         case VISIT_TYPES.MEDICAL_HISTORY:
             medicalHistoryStructure(obs, medicalHistoryData, practitioner, patient);
@@ -829,7 +859,7 @@ const processObservation = (obs, sections, practitioner, patient) => {
                     "resourceType": "Observation",
                     "status": "final"
                 },
-                "fullUrl": `Observation/${obs.uuid}`
+                "fullUrl": `${FHIR_BASE_URL}/Observation/${obs.uuid}`
             });
             break;
         case VISIT_TYPES.MEDICAL_ADVICE:
@@ -855,7 +885,7 @@ const processEncounterObservations = (encounter, sections, practitioner, patient
             encounter.obs.forEach(obs => processObservation(obs, sections, practitioner, patient));
         } else if (encounter.encounterType.display === VISIT_TYPES.VITALS) {
             encounter.obs.forEach(obs => {
-                physicalExaminationVitalStructure(obs, sections.physicalExaminationData)
+                physicalExaminationVitalStructure(obs, sections.physicalExaminationData, practitioner, patient)
                 vitalWellnessRecordStructure(obs, sections.wellnessRecord.vitalSigns, practitioner, patient)
             });
         } else if (encounter.encounterType.display === VISIT_TYPES.VISIT_NOTE) {
@@ -890,7 +920,8 @@ function getEncountersFHIBundle(encounters, practitioner, patient) {
             serviceRequest: sections.serviceRequest?.requests.length ? sections.serviceRequest : {},
             followUp: sections.folloupVisit?.followUp?.length ? sections.folloupVisit : {},
             referrals: sections.referrals?.requests?.length ? sections.referrals : {},
-            wellnessRecord: sections.wellnessRecord
+            wellnessRecord: sections.wellnessRecord,
+            prescriptionRecord: sections.prescriptionRecord
         };
     } catch (error) {
         logStream("error", `Error in getEncountersFHIBundle: ${error.message}`);
@@ -937,12 +968,12 @@ const createFHIRResource = ({ id, resourceType, meta, timestamp, ...otherFields 
                         display: "very restricted"
                     }
                 ],
-                ...meta  // Spread the additional meta fields here
+                ...meta
             }
         } : {}),
         ...otherFields
     },
-    fullUrl: `${resourceType}/${id}`
+    fullUrl: `${FHIR_BASE_URL}/${resourceType}/${id}`
 });
 
 /**
@@ -1002,10 +1033,12 @@ const createPatientResource = (patientData) => {
         }],
         gender: getGender(patientData?.person?.gender)?.toLowerCase(),
         name: [{ text: patientData?.person?.display }],
-        telecom: [{
-            system: "phone",
-            use: "home",
-            value: patientTelecom?.value ?? 'N/A'
+        contact: [{
+            telecom: [{
+                system: "phone",
+                use: "home",
+                value: patientTelecom?.value ?? 'N/A'
+            }]
         }],
         birthDate: patientData?.person?.birthdate ? patientData?.person?.birthdate?.slice(0, 10) : null
     });
@@ -1034,18 +1067,20 @@ const createOrganizationResource = () => {
             value: "IN2710001275"
         }],
         name: "Intelehealth Telemedicine, Maharashtra",
-        telecom: [
-            {
-                system: "phone",
-                use: "work",
-                value: "+91 8657621331"
-            },
-            {
-                system: "email",
-                use: "work",
-                value: "support@intelehealth.org"
-            }
-        ]
+        contact: [{
+            telecom: [
+                {
+                    system: "phone",
+                    use: "work",
+                    value: "+91 8657621331"
+                },
+                {
+                    system: "email",
+                    use: "work",
+                    value: "support@intelehealth.org"
+                }
+            ]
+        }]
     });
 };
 
@@ -1124,7 +1159,6 @@ const createOpConsultationResource = (response, patient, practitioner, sections)
             text: "Clinical Consultation report"
         },
         title: "Consultation Report",
-        resourceType: "Composition",
         status: "final"
     })
 }
@@ -1139,6 +1173,10 @@ const createEncounterResource = (encounter, patientId) => {
     return createFHIRResource({
         id: encounter?.uuid,
         resourceType: "Encounter",
+        text: {
+            status: "generated",
+            div: `<div xmlns="http://www.w3.org/1999/xhtml">Encounter for patient ${patientId}</div>`
+        },
         meta: {
             lastUpdated: convertDataToISO(encounter?.encounterDatetime),
             profile: ["https://nrces.in/ndhm/fhir/r4/StructureDefinition/Encounter"]
@@ -1165,10 +1203,12 @@ const createEncounterResource = (encounter, patientId) => {
  * @param {Object} doctorDetail - Doctor detail
  * @returns {Object} Prescription document reference object
  */
-async function prescriptionDocumentReferenceStructure(response, doctorDetail) {
+async function prescriptionDocumentReferenceStructure(response, doctorDetail, prescriptionRecord) {
     const result = await downloadPrescription(response, doctorDetail);
-    if (!result || !result?.success || !result?.content) return null;
+    if (!result?.success || !result?.content) return null;
+
     const uniqueId = uuid();
+    
     return {
         section: createFHIRSection({
             code: {
@@ -1181,46 +1221,73 @@ async function prescriptionDocumentReferenceStructure(response, doctorDetail) {
             }]
         }),
         content: createFHIRResource({
-            "resourceType": "DocumentReference",
-            "id": uniqueId,
-            "meta": {
-                "profile": [
-                    "https://nrces.in/ndhm/fhir/r4/StructureDefinition/DocumentReference"
-                ]
+            resourceType: "DocumentReference",
+            id: uniqueId,
+            meta: {
+                profile: ["https://nrces.in/ndhm/fhir/r4/StructureDefinition/DocumentReference"]
             },
-            "text": {
-                "status": "generated",
-                "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p><b>Generated Narrative: DocumentReference</b></p></div>"
+            text: {
+                status: "generated",
+                div: "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p><b>Generated Narrative: DocumentReference</b></p></div>"
             },
-            "status": "current",
-            "docStatus": "final",
-            "type": {
-                "coding": [
-                    {
-                        "system": "http://snomed.info/sct",
-                        "code": "371530004",
-                        "display": "Clinical consultation report"
-                    }
-                ],
-                "text": "Clinical consultation report"
+            status: "current",
+            docStatus: "final",
+            type: {
+                coding: [{
+                    system: "http://snomed.info/sct",
+                    code: "371530004",
+                    display: "Clinical consultation report"
+                }],
+                text: "Clinical consultation report"
             },
-            "subject": {
-                "reference": `Patient/${response?.patient?.uuid}`,
-                "display": "Patient"
+            subject: {
+                reference: `Patient/${response?.patient?.uuid}`,
+                display: "Patient"
             },
-            "content": [
-                {
-                    "attachment": {
-                        "contentType": "application/pdf",
-                        "language": "en-IN",
-                        "data": result?.content,
-                        "title": "OP Record",
-                        "creation": convertDataToISO(response?.startDatetime)
-                    }
+            content: [{
+                attachment: {
+                    contentType: "application/pdf",
+                    language: "en-IN",
+                    data: result.content,
+                    title: "OP Record",
+                    creation: convertDataToISO(response?.startDatetime)
                 }
-            ]
+            }]
         })
+    };
+}
+
+async function prescriptionRecordBinaryStructure(pdfContent, prescriptionRecord) {
+    if(!pdfContent) return prescriptionRecord;
+    const uniqueIdBinary = uuid();
+   
+    // Create Binary resource
+    const binaryResource = {
+        resourceType: "Binary",
+        id: uniqueIdBinary,
+        meta: {
+            profile: ["https://nrces.in/ndhm/fhir/r4/StructureDefinition/Binary"]
+        },
+        contentType: "application/pdf",
+        data: pdfContent
+    };
+
+    // Add Binary reference to prescription record section
+    if (prescriptionRecord?.medications?.section?.entry) {
+        prescriptionRecord.medications.section.entry.push({
+            reference: `Binary/${uniqueIdBinary}`,
+            type: "Binary"
+        });
     }
+
+    // Add Binary resource to prescription record
+    if (prescriptionRecord?.medications?.medicationRequest) {
+        prescriptionRecord.medications.medicationRequest.push({
+            fullUrl: `${FHIR_BASE_URL}/Binary/${uniqueIdBinary}`,
+            resource: binaryResource
+        });
+    }
+    return prescriptionRecord;
 }
 
 
@@ -1247,7 +1314,8 @@ async function formatCareContextFHIBundle(response) {
             prescriptionRecord,
             wellnessRecord
         } = getEncountersFHIBundle(response?.encounters, practitioner, patient, response?.startDatetime);
-        const prescriptionDocumentReference = await prescriptionDocumentReferenceStructure(response, practitioner);
+        const prescriptionDocumentReference = await prescriptionDocumentReferenceStructure(response, practitioner, prescriptionRecord);
+        await prescriptionRecordBinaryStructure(prescriptionDocumentReference?.content?.resource?.content?.[0]?.attachment?.data, prescriptionRecord);
 
         // Collect all sections
         const sections = [
@@ -1291,7 +1359,7 @@ async function formatCareContextFHIBundle(response) {
                 profile: ["https://nrces.in/ndhm/fhir/r4/StructureDefinition/DocumentBundle"]
             },
             identifier: {
-                system: "http://hip.in",
+                system: FHIR_BASE_URL,
                 value: response?.uuid
             },
         });
@@ -1302,75 +1370,81 @@ async function formatCareContextFHIBundle(response) {
     }
 }
 
-function formatPrescriptionFHIBundle(medications, response, patient, practitioner) {
+function formatPrescriptionFHIBundle({medications}, response, patient, practitioner) {
     if (!medications) return [];
     const sharedPrescription = response?.encounters?.find(encounter => encounter.encounterType.display === 'Visit Complete');
     if (!sharedPrescription) return [];
     return [
-            createFHIRResource({
-                id: sharedPrescription?.uuid,
-                date: convertDataToISO(sharedPrescription?.encounterDatetime),
-                custodian: {
-                    reference: "Organization/10371",
-                    display: "Intelehealth Telemedicine"
-                },
-                meta: {
-                    lastUpdated: convertDataToISO(sharedPrescription?.encounterDatetime),
-                    versionId: "1",
-                    profile: [
-                        "https://nrces.in/ndhm/fhir/r4/StructureDefinition/PrescriptionRecord"
-                    ]
-                },
-                subject: {
-                    reference: "Patient/" + patient?.uuid,
-                    display: patient?.person?.display
-                },
-                author: [{
-                    reference: "Practitioner/" + practitioner?.practitioner_id,
-                    display: practitioner?.name
-                }],
-                section: [
-                    createFHIRSection({
-                        entries: prescriptionMedications?.section?.entry,
-                        code: {
-                            code: "440545006",
-                            display: "Prescription record"
-                        },
-                        title: "Prescription"
-                    })
+        createFHIRResource({
+            id: uuid(),
+            date: convertDataToISO(sharedPrescription?.encounterDatetime),
+            custodian: {
+                reference: "Organization/10371",
+                display: "Intelehealth Telemedicine"
+            },
+            meta: {
+                lastUpdated: convertDataToISO(sharedPrescription?.encounterDatetime),
+                versionId: "1",
+                profile: [
+                    "https://nrces.in/ndhm/fhir/r4/StructureDefinition/PrescriptionRecord"
+                ]
+            },
+            subject: {
+                reference: "Patient/" + patient?.uuid,
+                display: patient?.person?.display
+            },
+            author: [{
+                reference: "Practitioner/" + practitioner?.practitioner_id,
+                display: practitioner?.name
+            }],
+            section: [
+                createFHIRSection({
+                    entries: medications?.section?.entry,
+                    code: {
+                        code: "440545006",
+                        display: "Prescription record"
+                    },
+                    title: "Prescription"
+                })
+            ],
+            encounter: {
+                reference: "Encounter/" + sharedPrescription?.uuid
+            },
+            type: {
+                coding: [
+                    {
+                        system: "http://snomed.info/sct",
+                        code: "440545006",
+                        display: "Prescription record"
+                    }
                 ],
-                encounter: {
-                    reference: "Encounter/" + sharedPrescription?.uuid
-                },
-                type: {
-                    coding: [
-                        {
-                            system: "http://snomed.info/sct",
-                            code: "440545006",
-                            display: "Prescription record"
-                        }
-                    ],
-                    text: "Prescription record"
-                },
-                title: "Prescription",
-                resourceType: "Composition",
-                status: "final"
-            }),
-            ...(prescriptionMedications?.medicationRequest ?? [])
-        ];
+                text: "Prescription record"
+            },
+            title: "Prescription",
+            resourceType: "Composition",
+            status: "final"
+        }),
+        ...(medications?.medicationRequest ?? [])
+    ];
 }
 
-function formatWellnessFHIBundle(wellnessRecord, patient, practitioner, startDatetime) {
-    const { vitalSigns } = wellnessRecord
-    if (!vitalSigns?.entry?.length) return [];
+
+
+/**
+ * Create wellness record resource structure for FHIR bundle
+ * @param {Object} wellnessRecord - Wellness record data
+ * @param {Object} patient - Patient data
+ * @param {Object} practitioner - Practitioner data
+ * @param {string} startDatetime - Start datetime
+ * @returns {Object} Wellness record resource object
+ */
+const createWellnessRecordResource = (wellnessRecord, patient, practitioner, startDatetime) => {
     const uniqueId = uuid();
-    return [createFHIRResource({
+    return createFHIRResource({
         resourceType: "Composition",
         id: uniqueId,
         meta: {
-            profile: [
-                "https://nrces.in/ndhm/fhir/r4/StructureDefinition/WellnessRecord"
-            ]
+            profile: ["https://nrces.in/ndhm/fhir/r4/StructureDefinition/WellnessRecord"]
         },
         language: "en-IN",
         identifier: {
@@ -1379,6 +1453,11 @@ function formatWellnessFHIBundle(wellnessRecord, patient, practitioner, startDat
         },
         status: "final",
         type: {
+            coding: [{
+                system: "http://loinc.org",
+                code: "11502-2",
+                display: "Laboratory report"
+            }],
             text: "Wellness Record"
         },
         subject: {
@@ -1393,12 +1472,19 @@ function formatWellnessFHIBundle(wellnessRecord, patient, practitioner, startDat
         title: "Wellness Record",
         section: [
             {
-                title: vitalSigns?.title,
-                entry: vitalSigns?.entry
+                title: wellnessRecord?.vitalSigns?.title,
+                entry: wellnessRecord?.vitalSigns?.entry
             }
         ]
-    }),
-    ...vitalSigns?.observations
+    })
+}
+
+function formatWellnessFHIBundle(wellnessRecord, patient, practitioner, startDatetime) {
+    const { vitalSigns } = wellnessRecord
+    if (!vitalSigns?.entry?.length) return [];
+    return [
+        createWellnessRecordResource(wellnessRecord, patient, practitioner, startDatetime),
+        ...vitalSigns?.observations
     ]
 }
 

@@ -126,8 +126,11 @@ const RELATIONS = {
     } 
 }
 
+const FHIR_BASE_URL = 'http://hip.in';
+
 module.exports = {
     VISIT_TYPES,
     OBSERVATION_TYPE,
-    RELATIONS
+    RELATIONS,
+    FHIR_BASE_URL
 }

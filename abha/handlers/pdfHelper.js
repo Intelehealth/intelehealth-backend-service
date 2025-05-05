@@ -708,7 +708,7 @@ function getEncountersRecords(encounters = [], doctorDetail = null) {
 async function downloadPrescription(visit, doctorDetail = null) {
     return new Promise((resolve, reject) => {
         try {
-            pdfMake.vfs = pdfFonts.pdfMake.vfs
+            pdfMake.vfs = pdfFonts?.pdfMake?.vfs
             const encountersRecords = getEncountersRecords(visit?.encounters, doctorDetail);
             const consultedDoctor = doctorDetail ? doctorDetail : encountersRecords[VISIT_TYPES.DOCTOR_DETIALS];
 
