@@ -7,7 +7,7 @@ module.exports = (function () {
       try {
         const startTime = new Date();
         await call_data.create(
-          { doctor_id: doctorId, chw_id: nurseId, room_id: roomId, visit_id: visitId, call_status: callStatus, call_duration: 0, start_time: startTime, end_time: null }
+          { doctor_id: doctorId, chw_id: nurseId, room_id: roomId, visit_id: visitId, call_status: callStatus, reason:null, call_duration: 0, start_time: startTime, end_time: null }
         );
     
         return {
@@ -35,9 +35,9 @@ module.exports = (function () {
           if (callRecord) {
             const callDuration = Math.floor((endTime - callRecord.start_time) / 1000); // Duration in seconds
 
-            if(usersRecord.callStatus){
+            if(usersRecord.callStatus || usersRecord.reason){
               await call_data.update(
-                { call_status: usersRecord.callStatus, call_duration: callDuration, end_time: endTime },
+                { call_status: usersRecord.callStatus, reason: usersRecord.reason, call_duration: callDuration, end_time: endTime },
                 { where: { id: callRecord.id } }
               );
             }else{

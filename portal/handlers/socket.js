@@ -16,7 +16,7 @@ const CALL_STATUSES = {
   HW_CANCELLED: "hw_cancelled",
   IDLE: "available",
   SUCCESS: "success",
-  UNSUCCESS: "unsuccess"
+  UNSUCCESS: "failure"
 };
 
 module.exports = function (server) {
@@ -203,11 +203,18 @@ module.exports = function (server) {
       markConnected(data);
     });
 
-    socket.on("cancel_hw", function (data) {
+    socket.on("cancel_hw", async function (data) {
       for (const id in users) {
         if (users[id].uuid === data?.connectToDrId) {
           users[id].callStatus = CALL_STATUSES.HW_CANCELLED;
           users[id].room = null;
+          const usersRecord = {
+            doctorId: data?.connectToDrId,
+            roomId: users[socket.id].room,
+            callStatus: CALL_STATUSES.UNSUCCESS,
+            reason: 'Sevika cancelled the call'
+          }
+          await updateCallRecordOfWebrtc(usersRecord);
           emitAllUserStatus();
           setTimeout(() => {
             users[id].callStatus = CALL_STATUSES.IDLE;
@@ -218,11 +225,18 @@ module.exports = function (server) {
       }
     });
 
-    socket.on("cancel_dr", function (data) {
+    socket.on("cancel_dr", async function (data) {
       for (const id in users) {
         if (users[id].uuid === data?.nurseId) {
           users[id].callStatus = CALL_STATUSES.DR_CANCELLED;
           users[id].room = null;
+          const usersRecord = {
+            doctorId: data?.connectToDrId,
+            roomId: users[socket.id].room,
+            callStatus: CALL_STATUSES.UNSUCCESS,
+            reason: 'Doctor cancelled the call'
+          }
+          await updateCallRecordOfWebrtc(usersRecord);
           emitAllUserStatus();
           setTimeout(() => {
             users[id].callStatus = CALL_STATUSES.IDLE;
@@ -233,11 +247,18 @@ module.exports = function (server) {
       }
     });
 
-    socket.on("call_time_up", function (toUserUuid) {
+    socket.on("call_time_up", async function (toUserUuid) {
       for (const id in users) {
         if (users[id].uuid === toUserUuid) {
           users[id].callStatus = CALL_STATUSES.IDLE;
           users[id].room = null;
+          const usersRecord = {
+            doctorId: data?.toUserUuid,
+            roomId: users[socket.id].room,
+            callStatus: CALL_STATUSES.UNSUCCESS,
+            reason: 'Call time up'
+          }
+          await updateCallRecordOfWebrtc(usersRecord);
           emitAllUserStatus();
           setTimeout(() => {
             users[id].callStatus = CALL_STATUSES.IDLE;
@@ -248,11 +269,18 @@ module.exports = function (server) {
       }
     });
 
-    socket.on("hw_call_reject", function (toUserUuid) {
+    socket.on("hw_call_reject", async function (toUserUuid) {
       for (const id in users) {
         if (users[id].uuid === toUserUuid) {
           users[id].callStatus = CALL_STATUSES.HW_REJECTED;
           users[id].room = null;
+          const usersRecord = {
+            doctorId: data?.toUserUuid,
+            roomId: users[socket.id].room,
+            callStatus: CALL_STATUSES.UNSUCCESS,
+            reason: 'Sevika rejected the call'
+          }
+          await updateCallRecordOfWebrtc(usersRecord);
           emitAllUserStatus();
           setTimeout(() => {
             users[id].callStatus = CALL_STATUSES.IDLE;
@@ -263,11 +291,18 @@ module.exports = function (server) {
       }
     });
 
-    socket.on("dr_call_reject", function (toUserUuid) {
+    socket.on("dr_call_reject", async function (toUserUuid) {
       for (const id in users) {
         if (users[id].uuid === toUserUuid) {
           users[id].callStatus = CALL_STATUSES.DR_REJECTED;
           users[id].room = null;
+          const usersRecord = {
+            doctorId: toUserUuid,
+            roomId: users[socket.id].room,
+            callStatus: CALL_STATUSES.UNSUCCESS,
+            reason: 'Doctor rejected the call'
+          }
+          await updateCallRecordOfWebrtc(usersRecord);
           emitAllUserStatus();
           setTimeout(() => {
             users[id].callStatus = CALL_STATUSES.IDLE;
