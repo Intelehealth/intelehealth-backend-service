@@ -23,6 +23,7 @@ import PatientDetailsRoutes from './PatientDetailsRoutes';
 import PatientVisitSectionsRoutes from './PatientVisitSectionsRoutes';
 import RoasterQuestionnaireRoutes from './RoasterQuestionnaireRoutes';
 import DropdownRoutes from './DropdownRoutes';
+import AILLMRoutes from './AILLMRoutes';
 
 // **** Variables **** //
 
@@ -508,17 +509,17 @@ apiRouter.use(Paths.RosterQuestionnaire.Base, authMw, rosterQuestionnaire);
 apiRouter.use(Paths.PatientVisitSections.Base, authMw, patientVisitSectionsRouter);
 
 
-// **** Setup WebrtcRouter **** //
+// **** Setup DropdownRouter **** //
 
 const DropdownRouter = Router();
 
-// Get all webrtcs
+// Get all Dropdowns
 DropdownRouter.get(
   Paths.Dropdown.Get,
   DropdownRoutes.getAll,
 );
 
-// Update webrtc config status
+// Update Dropdowns config status
 DropdownRouter.put(
   Paths.Dropdown.UpdateIsEnabled,
   validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body']),
@@ -527,6 +528,33 @@ DropdownRouter.put(
 
 // Add DropdownRouter
 apiRouter.use(Paths.Dropdown.Base, authMw, DropdownRouter);
+
+
+// **** Setup AILLMRouter **** //
+
+const aiLlm = Router();
+
+// Get all AILLM menus
+aiLlm.get(
+  Paths.AILLM.Get,
+  AILLMRoutes.getAll,
+);
+
+// Update one AILLM menus status
+aiLlm.put(
+  Paths.SidebarMenus.UpdateIsEnabled,
+  validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body']),
+  AILLMRoutes.updateIsEnabled
+)
+
+// get one AILLM by key
+aiLlm.get(
+  Paths.AILLM.GetByKey,
+  AILLMRoutes.GetByKey,
+);
+
+// Add AILLMRouter
+apiRouter.use(Paths.AILLM.Base, authMw, aiLlm);
 
 
 // **** Export default **** //
