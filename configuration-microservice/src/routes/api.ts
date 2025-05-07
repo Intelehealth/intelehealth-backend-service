@@ -24,6 +24,7 @@ import PatientVisitSectionsRoutes from './PatientVisitSectionsRoutes';
 import RoasterQuestionnaireRoutes from './RoasterQuestionnaireRoutes';
 import DropdownRoutes from './DropdownRoutes';
 import AILLMRoutes from './AILLMRoutes';
+import HomeScreenRoutes from './HomeScreenRoutes';
 
 // **** Variables **** //
 
@@ -556,6 +557,33 @@ aiLlm.get(
 // Add AILLMRouter
 apiRouter.use(Paths.AILLM.Base, authMw, aiLlm);
 
+
+// **** Setup homeScreenSectionsRouter **** //
+
+const homeScreenSectionsRouter = Router();
+
+// Get all home screen sections
+homeScreenSectionsRouter.get(
+  Paths.HomeScreen.Get,
+  HomeScreenRoutes.getAll,
+);
+
+// Update one home screen sections status
+homeScreenSectionsRouter.put(
+  Paths.HomeScreen.UpdateIsEnabled,
+  validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body']),
+  HomeScreenRoutes.updateIsEnabled,
+);
+
+// Update one home screen sections name
+homeScreenSectionsRouter.put(
+  Paths.HomeScreen.updateHomeScreenName,
+  validate(['id', 'number', 'params'],['lang', 'object', 'body']),
+  HomeScreenRoutes.updateHomeScreenName,
+);
+
+// Add HomeScreenRouter
+apiRouter.use(Paths.HomeScreen.Base, authMw, homeScreenSectionsRouter);
 
 // **** Export default **** //
 

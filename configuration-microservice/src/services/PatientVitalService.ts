@@ -24,7 +24,7 @@ export const CANT_CHANGE_MANDATORY_STATUS = "Can't update, vital must be always 
  */
 function getAll(): Promise<Vital[]> {
     return Vital.findAll({
-        attributes: ['id', 'name', 'key', 'uuid', 'is_enabled', 'is_mandatory', 'createdAt', 'updatedAt', 'lang'],
+        attributes: ['id', 'name', 'key', 'uuid', 'is_enabled', 'is_mandatory', 'createdAt', 'updatedAt', 'lang', 'platform'],
         raw: true
     });
 }

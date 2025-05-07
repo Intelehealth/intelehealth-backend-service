@@ -15,7 +15,7 @@ export const DROPDOWN_NOT_FOUND_ERR = 'Dropdown field not found';
  */
 async function getAll(): Promise<any> {
     const dropdowns = await Dropdown.findAll({
-        attributes: ['id', 'name', 'key', 'type', 'is_enabled', 'createdAt', 'updatedAt'],
+        attributes: ['id', 'name', 'key', 'type', 'is_enabled', 'createdAt', 'updatedAt', 'platform'],
         raw: true
     });
     const groupedDropdowns: any = {}; 

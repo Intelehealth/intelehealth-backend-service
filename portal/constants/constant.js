@@ -55,5 +55,12 @@ module.exports = {
         IN_PROGRESS:'Visit In Progress',
         ENDED: 'Ended Visit',
         FOLLOW_UP:'Follow-Up'
-    }
+    },
+    PENDING_VISIT_BY_CALL_STATUS: [
+        "Review of Imaging", 
+        "Review with Reports",
+        "Referral", 
+        "Close Call without Completion", 
+        "Reschedule/Repeat Internally"
+    ]
 }
