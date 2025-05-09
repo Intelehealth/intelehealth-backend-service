@@ -71,7 +71,8 @@ const VISIT_TYPES = {
     VISIT_COMPLETE: "Visit Complete",
     DOCTOR_DETIALS: "Doctor details",
     ADDITIONAL_INSTURCTION: 'additionalInstruction',
-    ABDOMEN_EXAMINATION: 'abdomen_examination'
+    ABDOMEN_EXAMINATION: 'abdomen_examination',
+    DOCROT_UPLOADED_DOC: 'Doc_Upld_Document'
 };
 
 
