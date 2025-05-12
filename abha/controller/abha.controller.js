@@ -5,8 +5,9 @@ const { logStream } = require("./../logger/index");
 
 const { uuid } = require('uuidv4');
 const openmrsService = require("../services/openmrs.service");
-const { convertDateToDDMMYYYY, handleError, formatCareContextFHIBundle } = require("../handlers/utilityHelper");
+const { convertDateToDDMMYYYY, handleError } = require("../handlers/utilityHelper");
 const { abdm_visit_status } = require("../models");
+const { formatCareContextFHIBundle } = require("../handlers/fhirBundleHelper");
 
 module.exports = (function () {
 

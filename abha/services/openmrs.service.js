@@ -1,5 +1,5 @@
 const { openmrsAxiosInstance } = require('../handlers/axiosHelper');
-const { convertDateToDDMMYYYY } = require('../handlers/utilityHelper');
+const { convertDateToDDMMYYYY, convertToBase64 } = require('../handlers/utilityHelper');
 const { logStream } = require('../logger');
 const { patient_identifier, visit, Sequelize, encounter, person_name, person, person_attribute, visit_attribute, patient } = require('../openmrs_models');
 const { Op } = Sequelize;
@@ -328,5 +328,14 @@ module.exports = (function () {
     const visits = await visit.findAll(query);
     return { visits: visits?.length ? visits : null, patientInfo: patientInfo };
   };
+
+  this.getDocument = async (documentUUID) => {
+    try {
+      const document = await openmrsAxiosInstance.get(`/ws/rest/v1/obs/${documentUUID}/value`).then(res => convertToBase64(res.data));
+      return document;
+    } catch (error) {
+      return null;
+    }
+  }
   return this;
 })();
