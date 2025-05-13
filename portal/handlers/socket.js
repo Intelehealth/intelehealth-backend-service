@@ -74,13 +74,15 @@ module.exports = function (server) {
 
     emitAllUserStatus();
 
-    socket.on("disconnect",  async (data) => {
-      if(users[socket.id].callStatus === 'calling'){
+    socket.on("disconnect", async (data) => {
+      if (users[socket.id].callStatus === 'calling') {
         const callStatus = CALL_STATUSES.UNSUCCESS;
         const usersRecord = {
+          recordId: users[socket.id].recordId,
           doctorId: users[socket.id].uuid,
           roomId: users[socket.id].room,
-          callStatus: callStatus
+          callStatus: callStatus,
+          reason: data === "ping timeout" ? 'No internet/Low bandwidth': data
         }
         await updateCallRecordOfWebrtc(usersRecord);
       }
@@ -128,6 +130,7 @@ module.exports = function (server) {
       if (initiator === "dr") {
         users[socketId].callStatus = CALL_STATUSES.IN_CALL;
         users[socketId].room = roomId;
+        users[socketId].nurseId = nurseId;
         for (const id in users) {
           if (users[id].uuid === nurseId) {
             users[id].callStatus = CALL_STATUSES.IN_CALL;
@@ -165,30 +168,55 @@ module.exports = function (server) {
     });
 
     socket.on("bye", async function (data) {
-      const usersRecord = {
-        doctorId: data.doctorId,
-        nurseId: data.nurseId,
-        roomId: data.roomId,
-      }
-      await updateCallRecordOfWebrtc(usersRecord);
-      
-      if (data?.socketId) {
-        users[data?.socketId].callStatus = CALL_STATUSES.IDLE;
-        users[data?.socketId].room = null;
-      }
+      const socketUser = users[data?.socketId];
 
-      if (data?.appSocketId) {
-        users[data?.appSocketId].callStatus = CALL_STATUSES.IDLE;
-        users[data?.appSocketId].room = null;
-      }
-
-      for (const id in users) {
-        if (users[id].uuid === data?.nurseId) {
-          users[id].callStatus = CALL_STATUSES.IDLE;
-          users[id].room = null;
+      // ✅ If call was already handled in cancel_dr
+      if (socketUser && socketUser.callTerminated) {
+        console.log("Skipping bye: already handled by cancel_dr");
+        return;
+      } else {
+        if (data.doctorId) {
+          const usersRecord = {
+            recordId: socketUser.recordId,
+            doctorId: data.doctorId,
+            nurseId: data.nurseId,
+            roomId: data.roomId,
+            callStatus: CALL_STATUSES.SUCCESS,
+          }
+          await updateCallRecordOfWebrtc(usersRecord);
+        } else {
+          for (const id in users) {
+            if (id === data?.socketId) {
+              const usersRecord = {
+                recordId: users[id].recordId,
+                doctorId: users[id].uuid,
+                nurseId: data.nurseId,
+                roomId: users[id].room,
+                callStatus: CALL_STATUSES.SUCCESS,
+              }
+              await updateCallRecordOfWebrtc(usersRecord);
+            }
+          }
         }
+        if (data?.socketId) {
+          users[data?.socketId].callStatus = CALL_STATUSES.IDLE;
+          users[data?.socketId].room = null;
+        }
+
+        if (data?.appSocketId) {
+          users[data?.appSocketId].callStatus = CALL_STATUSES.IDLE;
+          users[data?.appSocketId].room = null;
+        }
+
+        for (const id in users) {
+          if (users[id].uuid === data?.nurseId) {
+            users[id].callStatus = CALL_STATUSES.IDLE;
+            users[id].room = null;
+          }
+        }
+        emitAllUserStatus();
       }
-      emitAllUserStatus();
+
     });
 
     socket.on("ack_msg_received", function (data) {
@@ -199,7 +227,7 @@ module.exports = function (server) {
     socket.on("call-connected", async function (data) {
       const { visitId, doctorId, nurseId, roomId } = data;
       const callStatus = CALL_STATUSES.SUCCESS;
-      await createCallRecordOfWebrtc(doctorId, nurseId, roomId, visitId, callStatus);
+      //  await createCallRecordOfWebrtc(doctorId, nurseId, roomId, visitId, callStatus);
       markConnected(data);
     });
 
@@ -207,12 +235,12 @@ module.exports = function (server) {
       for (const id in users) {
         if (users[id].uuid === data?.connectToDrId) {
           users[id].callStatus = CALL_STATUSES.HW_CANCELLED;
-          users[id].room = null;
           const usersRecord = {
-            doctorId: data?.connectToDrId,
-            roomId: users[socket.id].room,
+            recordId: users[id].recordId,
+            doctorId: users[id]?.uuid,
+            roomId: users[id]?.room,
             callStatus: CALL_STATUSES.UNSUCCESS,
-            reason: 'Sevika cancelled the call'
+            reason: 'Sevika disconnected the call'
           }
           await updateCallRecordOfWebrtc(usersRecord);
           emitAllUserStatus();
@@ -227,19 +255,21 @@ module.exports = function (server) {
 
     socket.on("cancel_dr", async function (data) {
       for (const id in users) {
-        if (users[id].uuid === data?.nurseId) {
+        if (users[id].nurseId === data?.nurseId) {
           users[id].callStatus = CALL_STATUSES.DR_CANCELLED;
-          users[id].room = null;
+          users[id].callTerminated = true;
           const usersRecord = {
-            doctorId: data?.connectToDrId,
-            roomId: users[socket.id].room,
+            recordId: users[id].recordId,
+            doctorId: users[id].uuid,
+            roomId: users[id]?.room,
             callStatus: CALL_STATUSES.UNSUCCESS,
-            reason: 'Doctor cancelled the call'
+            reason: 'Doctor disconnected the call'
           }
           await updateCallRecordOfWebrtc(usersRecord);
           emitAllUserStatus();
           setTimeout(() => {
             users[id].callStatus = CALL_STATUSES.IDLE;
+            users[id].callTerminated = false;
             emitAllUserStatus();
           }, 2000);
           io.to(id).emit("cancel_dr", "webapp");
@@ -249,19 +279,21 @@ module.exports = function (server) {
 
     socket.on("call_time_up", async function (toUserUuid) {
       for (const id in users) {
-        if (users[id].uuid === toUserUuid) {
+        if (users[id].nurseId === toUserUuid) {
           users[id].callStatus = CALL_STATUSES.IDLE;
-          users[id].room = null;
+          users[id].callTerminated = true;
           const usersRecord = {
-            doctorId: data?.toUserUuid,
-            roomId: users[socket.id].room,
+            recordId: users[id].recordId,
+            doctorId: users[id].uuid,
+            roomId: users[id].room,
             callStatus: CALL_STATUSES.UNSUCCESS,
-            reason: 'Call time up'
+            reason: 'Sevika not available to pick the call'
           }
           await updateCallRecordOfWebrtc(usersRecord);
           emitAllUserStatus();
           setTimeout(() => {
             users[id].callStatus = CALL_STATUSES.IDLE;
+            users[id].callTerminated = false;
             emitAllUserStatus();
           }, 2000);
           io.to(id).emit("call_time_up", toUserUuid);
@@ -275,7 +307,8 @@ module.exports = function (server) {
           users[id].callStatus = CALL_STATUSES.HW_REJECTED;
           users[id].room = null;
           const usersRecord = {
-            doctorId: data?.toUserUuid,
+            recordId: users[id].recordId,
+            doctorId: users[id].uuid,
             roomId: users[socket.id].room,
             callStatus: CALL_STATUSES.UNSUCCESS,
             reason: 'Sevika rejected the call'
@@ -297,7 +330,8 @@ module.exports = function (server) {
           users[id].callStatus = CALL_STATUSES.DR_REJECTED;
           users[id].room = null;
           const usersRecord = {
-            doctorId: toUserUuid,
+            recordId: users[id].recordId,
+            doctorId: users[id].uuid,
             roomId: users[socket.id].room,
             callStatus: CALL_STATUSES.UNSUCCESS,
             reason: 'Doctor rejected the call'
@@ -343,7 +377,11 @@ module.exports = function (server) {
       let isCalling = false;
       users[socket.id].callStatus = CALL_STATUSES.CALLING;
       users[socket.id].room = roomId;
-
+      users[socket.id].nurseId = nurseId;
+      const { visitId, doctorId } = dataIds;
+      const callStatus = CALL_STATUSES.CALLING;
+      let record = await createCallRecordOfWebrtc(doctorId, nurseId, roomId, visitId, callStatus);
+      users[socket.id].recordId = record?.data?.id;
       for (const id in users) {
         const userObj = users[id];
         if (userObj.uuid === nurseId) {
@@ -393,7 +431,7 @@ module.exports = function (server) {
         data = await user_settings.findOne({
           where: { user_uuid: nurseId },
         });
-      } catch (error) {}
+      } catch (error) { }
 
       sendCloudNotification({
         title: "",

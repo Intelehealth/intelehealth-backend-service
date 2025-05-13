@@ -178,7 +178,7 @@ module.exports = (function () {
           doctorName: item2?.doctorName
         };
       });
-      return { callData: merged };
+      return { callData: merged, totalCount: merged.length };
     } catch (error) {
       throw error;
     }
@@ -194,6 +194,7 @@ module.exports = (function () {
         call_duration: item1.call_duration,
         start_time: item1.start_time,
         end_time: item1.end_time,
+        reason: item1.reason,
         patientId: item2?.patient?.identifier,
         patientName: `${item2?.patient_name?.given_name} ${item2?.patient_name?.family_name}`,
         location: item2?.location?.name,
