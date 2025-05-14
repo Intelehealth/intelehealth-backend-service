@@ -40,7 +40,12 @@ module.exports = (function () {
             } else {
               usersRecord.reason = null;
             }
-            if(usersRecord.callStatus || usersRecord.reason){
+            if(usersRecord?.startTime) {
+              await call_data.update(
+                { start_time: usersRecord?.startTime },
+                { where: { id: callRecord.id } }
+              );
+            } else if(usersRecord.callStatus || usersRecord.reason){
               await call_data.update(
                 { call_status: usersRecord.callStatus, reason: usersRecord.reason, call_duration: callDuration, end_time: endTime },
                 { where: { id: callRecord.id } }

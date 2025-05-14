@@ -82,7 +82,7 @@ module.exports = function (server) {
           doctorId: users[socket.id].uuid,
           roomId: users[socket.id].room,
           callStatus: callStatus,
-          reason: data === "ping timeout" ? 'No internet/Low bandwidth': data
+          reason: data === "transport error" ? "Internet disconnected/Weak network": 'No internet'
         }
         await updateCallRecordOfWebrtc(usersRecord);
       }
@@ -225,9 +225,18 @@ module.exports = function (server) {
     });
 
     socket.on("call-connected", async function (data) {
-      const { visitId, doctorId, nurseId, roomId } = data;
-      const callStatus = CALL_STATUSES.SUCCESS;
-      //  await createCallRecordOfWebrtc(doctorId, nurseId, roomId, visitId, callStatus);
+      for (const id in users) {
+        if (id === data?.socketId) {
+          const startTime = new Date();
+          const usersRecord = {
+            recordId: users[id].recordId,
+            doctorId: users[id]?.uuid,
+            roomId: users[id]?.room,
+            startTime: startTime
+          }
+          await updateCallRecordOfWebrtc(usersRecord);
+        }
+      }
       markConnected(data);
     });
 
