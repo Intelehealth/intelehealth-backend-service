@@ -5,6 +5,7 @@ const {
   requestPresctionOtp,
   verfifyPresctionOtp,
 } = require("../services/prescriptionLink.service");
+const { getObsValue } = require("../services/openmrs.service");
 
 module.exports = (function () {
   /**
@@ -106,6 +107,20 @@ module.exports = (function () {
       RES(res, { success: false, message: error.message }, 422);
     }
   };
+
+  this.getDoctorDocument = async (req, res) => {
+    try {
+      const hash = req.params.hash; 
+      const data = await getObsValue(hash);
+      if (!data?.success) {
+        throw new Error(MESSAGE.COMMON.INVALID_LINK);
+      }
+      res.setHeader('Content-Type', 'application/pdf');
+      res.send(data?.data);
+    } catch (error) {
+      RES(res, { success: false, message: error.message }, 422);
+    }
+  };  
 
   return this;
 })();
