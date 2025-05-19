@@ -8,7 +8,7 @@ const {
   getFacilityContacts,
   getFacilityContactById
 } = require("../services/prescriptionLink.service");
-const { getObsValue } = require("../../auth-gateway/services/openmrs.service");
+const { getObsValue } = require("../services/openmrs.service");
 
 module.exports = (function () {
   /**
