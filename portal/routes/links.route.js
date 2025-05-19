@@ -8,7 +8,8 @@ const {
   requestOtp,
   verifyOtp,
   getFacilityContactsList,
-  getFacilityContactById
+  getFacilityContactById,
+  getDoctorDocument
 } = require("../controllers/links.controller");
 
 router.post("/shortLink", shortLink);
@@ -17,5 +18,6 @@ router.post("/requestOtp", requestOtp);
 router.post("/verifyOtp", verifyOtp);
 router.get("/getFacilityContacts", [authMiddleware, getFacilityContactsList]);
 router.get("/getFacilityContacts/:id", [authMiddleware, getFacilityContactById]);
+router.get("/getDoctorDocument/:hash", getDoctorDocument);
 
 module.exports = router;

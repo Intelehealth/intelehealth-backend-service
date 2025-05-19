@@ -260,5 +260,29 @@ module.exports = (function () {
       throw error;
     }
   };
+
+  /**
+   * Get doctor document
+   * @param { string } userUuid - User uuid
+   */
+  this.getObsValue = async (obsUuid) => {
+    const url = `/openmrs/ws/rest/v1/obs/${obsUuid}/value`;
+    const data = await axiosInstance.get(url, { responseType: 'arraybuffer' }).catch((err) => {
+      console.log(err);
+      return null;
+    });
+
+    if (!data) {
+      return {
+        success: false,
+        message: MESSAGE.COMMON.INVALID_LINK
+      };
+    }
+
+    return {
+      success: true,
+      data: data?.data
+    };
+  };
   return this;
 })();
