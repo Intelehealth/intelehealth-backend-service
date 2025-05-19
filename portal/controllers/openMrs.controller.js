@@ -130,10 +130,11 @@ order by 4 ;`;
  */
 const getVisitCounts = async (req, res, next) => {
   const { userId } = req.params;
+  const { speciality } = req.query;
   try {
     logStream('debug', 'API call', 'Get Visit Counts');
     const data = await new Promise((resolve, reject) => {
-      openMrsDB.query(getVisitCountForDashboard(), (err, results) => {
+      openMrsDB.query(getVisitCountForDashboard(speciality), (err, results) => {
         if (err) reject(err);
         resolve(results);
       });
@@ -149,7 +150,7 @@ const getVisitCounts = async (req, res, next) => {
       throw err;
     });
     const data2 = await new Promise((resolve, reject) => {
-      openMrsDB.query(getVisitCountForEndedVisits(), (err, results) => {
+      openMrsDB.query(getVisitCountForEndedVisits(speciality), (err, results) => {
         if (err) reject(err);
         resolve(results);
       });
@@ -181,10 +182,11 @@ const getTotal = (visits, type) => {
 
 const getVisitCountsForDashboard= async (req, res, next) => {
   const { userUuid } = req.params;
+  const { speciality } = req.query;
   try {
     logStream('debug', 'API call', 'Get Visit Counts');
     const data = await new Promise((resolve, reject) => {
-      openMrsDB.query(getVisitCountForDashboard(), (err, results) => {
+      openMrsDB.query(getVisitCountForDashboard(speciality), (err, results) => {
         if (err) reject(err);
         resolve(results);
       });

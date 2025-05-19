@@ -182,7 +182,7 @@ module.exports = (function () {
   `;
     };
 
-    this.getVisitCountForDashboard = () => {
+    this.getVisitCountForDashboard = (speciality) => {
         return `select
         t1.visit_id,
         t1.uuid,
@@ -244,7 +244,7 @@ module.exports = (function () {
         encounter_id = max_enc
          and (
           speciality is null
-          or speciality = 'General Physician'
+          or speciality = "${speciality}"
       ) 
     `;
     };
@@ -471,7 +471,7 @@ module.exports = (function () {
         order by 1 ;`;
     };
 
-    this.getVisitCountForEndedVisits = () => {
+    this.getVisitCountForEndedVisits = (speciality) => {
         return `select
         v.visit_id,
         v.uuid,
@@ -485,7 +485,7 @@ module.exports = (function () {
         		and v.date_stopped is not null
             and (
           value_reference is null
-          or value_reference = 'General Physician'
+          or value_reference = "${speciality}"
       )
       group by v.visit_id
     `;
