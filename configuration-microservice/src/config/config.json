@@ -1,0 +1,23 @@
+{
+  "development": {
+    "username": "root",
+    "password": "Anurag@007",
+    "database": "mindmap_server",
+    "host": "127.0.0.1",
+    "dialect": "mysql"
+  },
+  "test": {
+    "username": "root",
+    "password": null,
+    "database": "database_test",
+    "host": "127.0.0.1",
+    "dialect": "mysql"
+  },
+  "production": {
+    "username": "root",
+    "password": null,
+    "database": "mindmap_server",
+    "host": "127.0.0.1",
+    "dialect": "mysql"
+  }
+}
