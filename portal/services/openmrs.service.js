@@ -225,11 +225,11 @@ module.exports = (function () {
     } else {
       let visits = [];
       if(type === "Ended Visit") {
-        visits = await sequelize.query(getVisitCountForEndedVisits(), {
+        visits = await sequelize.query(getVisitCountForEndedVisits(speciality), {
           type: QueryTypes.SELECT,
         });
       } else {
-         visits = await sequelize.query(getVisitCountForDashboard(), {
+         visits = await sequelize.query(getVisitCountForDashboard(speciality), {
           type: QueryTypes.SELECT,
         });
       }
