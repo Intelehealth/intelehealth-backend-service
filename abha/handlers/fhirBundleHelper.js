@@ -690,7 +690,7 @@ async function healthRecordStructure({ obs = [], ...healthRecord }, patient) {
         const response = await openmrsService.getDocument(obs.uuid);
         return { content: response, uuid: obs.uuid, obsDatetime: obs.obsDatetime };
     }));
-    
+
     for (const response of responses) {
         if (!response?.content) return;
         try {
@@ -988,8 +988,8 @@ const createFHIRSection = ({ code, title, entries = [] }) => ({
             coding: [
                 {
                     system: "http://snomed.info/sct",
-                code: code.code,
-                display: code.display
+                    code: code.code,
+                    display: code.display
                 }
             ]
         },
@@ -1386,7 +1386,6 @@ async function formatCareContextFHIBundle(response) {
         const presctiptionPDFContent = prescriptionDocumentReference?.content?.resource?.content?.[0]?.attachment?.data;
         await prescriptionRecordBinaryStructure(presctiptionPDFContent, prescriptionRecord);
         await healthRecordStructure(healthRecord, patient);
-        console.log("healthRecord", healthRecord)
         // Collect all sections
         const sections = [
             medications?.section,
@@ -1401,7 +1400,7 @@ async function formatCareContextFHIBundle(response) {
         ].filter(Boolean);
 
         // Collect all entries
-        const entries = [
+        const OPConsultRecordEntries = [
             createOpConsultationResource(response, patient, practitioner, sections),
             createPractitionerResource(practitioner),
             createOrganizationResource(),
@@ -1416,25 +1415,116 @@ async function formatCareContextFHIBundle(response) {
             ...(referrals?.requests ?? []),
             createEncounterResource(response?.encounters[0], patient?.uuid),
             prescriptionDocumentReference?.content,
-            ...formatPrescriptionFHIBundle(prescriptionRecord, response, patient, practitioner),
-            ...formatWellnessFHIBundle(wellnessRecord, patient, practitioner, response?.startDatetime),
-            ...formatHealthRecordFHIBundle(healthRecord, patient, practitioner, response?.startDatetime)
         ].filter(Boolean);
 
-        return createFHIRBundle({
-            id: response?.uuid,
-            type: "document",
-            entries,
-            timestamp: response?.encounters[0]?.encounterDatetime ?? response?.startDatetime,
-            meta: {
-                profile: ["https://nrces.in/ndhm/fhir/r4/StructureDefinition/DocumentBundle"]
-            },
-            identifier: {
-                system: FHIR_BASE_URL,
-                value: response?.uuid
-            },
-        });
 
+        const prescriptionRecordEntries = [
+            createPractitionerResource(practitioner),
+            createOrganizationResource(),
+            createPatientResource(patient),
+            ...formatPrescriptionFHIBundle(prescriptionRecord, response, patient, practitioner),
+        ].filter(Boolean);
+
+        const wellnessRecordEntries = [
+            createPractitionerResource(practitioner),
+            createOrganizationResource(),
+            createPatientResource(patient),
+            ...formatWellnessFHIBundle(wellnessRecord, patient, practitioner, response?.startDatetime),
+        ].filter(Boolean);
+
+        const healthRecordEntries = [
+            createPractitionerResource(practitioner),
+            createOrganizationResource(),
+            createPatientResource(patient),
+            ...formatHealthRecordFHIBundle(healthRecord, patient, practitioner, response?.startDatetime),
+        ].filter(Boolean);
+
+        const healthInformationBundle = [];
+
+        if(OPConsultRecordEntries.length) {
+            const OPConsultRecordBundle = createFHIRBundle({
+                id: uuid(),
+                type: "document",
+                entries: OPConsultRecordEntries,
+                timestamp: response?.encounters[0]?.encounterDatetime ?? response?.startDatetime,
+                meta: {
+                        profile: ["https://nrces.in/ndhm/fhir/r4/StructureDefinition/DocumentBundle"]
+                    },
+                    identifier: {
+                        system: FHIR_BASE_URL,
+                        value: response?.uuid
+                },
+            })
+            healthInformationBundle.push({
+                careContextReference : response?.uuid,
+                bundleContent : OPConsultRecordBundle
+            })
+        }
+
+        if(prescriptionRecordEntries.length) {
+            const PrescriptionRecordBundle = createFHIRBundle({
+                id: uuid(),
+                type: "document",
+                entries: prescriptionRecordEntries,
+                timestamp: response?.encounters[0]?.encounterDatetime ?? response?.startDatetime,
+                meta: {
+                    profile: ["https://nrces.in/ndhm/fhir/r4/StructureDefinition/DocumentBundle"]
+                },
+                identifier: {
+                    system: FHIR_BASE_URL,
+                    value: response?.uuid
+                },
+            })
+            healthInformationBundle.push({
+                careContextReference : response?.uuid,
+                bundleContent : PrescriptionRecordBundle
+            })
+        }
+
+        if(wellnessRecordEntries.length) {
+            const WellnessRecordBundle = createFHIRBundle({
+                id: uuid(),
+                type: "document",
+                entries: wellnessRecordEntries,
+                timestamp: response?.encounters[0]?.encounterDatetime ?? response?.startDatetime,
+                meta: {
+                    profile: ["https://nrces.in/ndhm/fhir/r4/StructureDefinition/DocumentBundle"]
+                },
+                identifier: {
+                    system: FHIR_BASE_URL,
+                    value: response?.uuid
+                },
+            })
+            healthInformationBundle.push({
+                careContextReference : response?.uuid,
+                bundleContent : WellnessRecordBundle
+            })
+        }
+
+        if(healthRecordEntries.length) {
+            const HealthRecordBundle = createFHIRBundle({
+                id: uuid(),
+                type: "document",
+                entries: healthRecordEntries,
+                timestamp: response?.encounters[0]?.encounterDatetime ?? response?.startDatetime,
+                meta: {
+                    profile: ["https://nrces.in/ndhm/fhir/r4/StructureDefinition/DocumentBundle"]
+                },
+                identifier: {
+                    system: FHIR_BASE_URL,
+                    value: response?.uuid
+                },
+            })
+    
+            healthInformationBundle.push({
+                careContextReference : response?.uuid,
+                bundleContent : HealthRecordBundle
+            })
+        }
+
+        return {
+            healthInformationBundle : healthInformationBundle
+        };
     } catch (error) {
         logStream("error", `Error formatting care context FHIR bundle: ${JSON.stringify(error)}`);
         throw error;
@@ -1608,15 +1698,15 @@ const createHealthRecordResource = (healthRecord, patient, practitioner, startDa
             value: uniqueId
         },
         status: "final",
-        type : {
-          coding : [
-            {
-              system : "http://snomed.info/sct",
-              code : "419891008",
-              display : "Record artifact"
-            }
-          ],
-          text : "Record artifact"
+        type: {
+            coding: [
+                {
+                    system: "http://snomed.info/sct",
+                    code: "419891008",
+                    display: "Record artifact"
+                }
+            ],
+            text: "Record artifact"
         },
         subject: {
             reference: `Patient/${patient?.uuid}`,
