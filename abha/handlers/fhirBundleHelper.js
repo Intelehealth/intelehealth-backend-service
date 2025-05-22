@@ -1419,24 +1419,24 @@ async function formatCareContextFHIBundle(response) {
 
 
         const prescriptionRecordEntries = [
+            ...formatPrescriptionFHIBundle(prescriptionRecord, response, patient, practitioner),
             createPractitionerResource(practitioner),
             createOrganizationResource(),
             createPatientResource(patient),
-            ...formatPrescriptionFHIBundle(prescriptionRecord, response, patient, practitioner),
         ].filter(Boolean);
 
         const wellnessRecordEntries = [
+            ...formatWellnessFHIBundle(wellnessRecord, patient, practitioner, response?.startDatetime),
             createPractitionerResource(practitioner),
             createOrganizationResource(),
             createPatientResource(patient),
-            ...formatWellnessFHIBundle(wellnessRecord, patient, practitioner, response?.startDatetime),
         ].filter(Boolean);
 
         const healthRecordEntries = [
+            ...formatHealthRecordFHIBundle(healthRecord, patient, practitioner, response?.startDatetime),
             createPractitionerResource(practitioner),
             createOrganizationResource(),
             createPatientResource(patient),
-            ...formatHealthRecordFHIBundle(healthRecord, patient, practitioner, response?.startDatetime),
         ].filter(Boolean);
 
         const healthInformationBundle = [];
@@ -1577,9 +1577,6 @@ function formatPrescriptionFHIBundle({ medications }, response, patient, practit
                     title: "Prescription"
                 })
             ],
-            encounter: {
-                reference: "Encounter/" + sharedPrescription?.uuid
-            },
             type: {
                 coding: [
                     {
@@ -1611,6 +1608,10 @@ const createWellnessRecordResource = (wellnessRecord, patient, practitioner, sta
     return createFHIRResource({
         resourceType: "Composition",
         id: uniqueId,
+        custodian: {
+            reference: `Organization/10371`,
+            display: 'Intelehealth Telemedicine'
+        },
         meta: {
             versionId: "1",
             lastUpdated: convertDataToISO(startDatetime),
@@ -1683,6 +1684,10 @@ const createHealthRecordResource = (healthRecord, patient, practitioner, startDa
     return createFHIRResource({
         resourceType: "Composition",
         id: uniqueId,
+        custodian: {
+            reference: `Organization/10371`,
+            display: 'Intelehealth Telemedicine'
+        },
         meta: {
             versionId: "1",
             lastUpdated: convertDataToISO(startDatetime),
