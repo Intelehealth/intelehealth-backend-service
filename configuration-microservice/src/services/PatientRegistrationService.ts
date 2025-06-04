@@ -18,7 +18,7 @@ export const CANT_UPDATE_ENABLED_STATUS_IF_LOCKED = 'Can not update enable statu
  */
 async function getAll(): Promise<any> {
     const prf = await PatientRegistration.findAll({
-        attributes: ['id', 'name', 'key', 'section', 'is_mandatory', 'is_editable', 'is_enabled', 'is_locked', 'createdAt', 'updatedAt','validations'],
+        attributes: ['id', 'name', 'key', 'section', 'is_mandatory', 'is_editable', 'is_enabled', 'is_locked', 'createdAt', 'updatedAt','validations', 'platform'],
         raw: true
     });
     const grouped: any = {};

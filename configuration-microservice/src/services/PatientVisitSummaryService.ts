@@ -18,7 +18,7 @@ export const PRIORITY_VISIT_PENDING = 'Priority visits pending';
  */
 function getAll(): Promise<PatientVisitSummary[]> {
     return PatientVisitSummary.findAll({
-        attributes: ['id', 'name', 'is_enabled', 'createdAt', 'updatedAt'],
+        attributes: ['id', 'name', 'is_enabled', 'createdAt', 'updatedAt', 'platform'],
         raw: true
     });
 }

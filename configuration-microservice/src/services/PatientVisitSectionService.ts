@@ -19,7 +19,7 @@ export const CANT_UPDATE_NAME_IF_EDITABLE_FALSE = 'Can update the name, because 
  */
 function getAll(): Promise<PatientVisitSection[]> {
     return PatientVisitSection.findAll({
-        attributes: ['id', 'name', 'lang', 'key', 'is_editable', 'is_enabled', 'is_locked', 'order', 'createdAt', 'updatedAt', 'sub_sections'],
+        attributes: ['id', 'name', 'lang', 'key', 'is_editable', 'is_enabled', 'is_locked', 'order', 'createdAt', 'updatedAt', 'sub_sections', 'platform'],
         raw: true,
         order: [['order', 'asc']]
     });

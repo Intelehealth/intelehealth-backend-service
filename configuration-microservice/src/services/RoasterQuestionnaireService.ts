@@ -15,7 +15,7 @@ export const ROSTER_QUESTIONNAIRE_NOT_FOUND_ERR =
  */
 async function getAll(): Promise<any> {
   const rosterQuestionnaire = await RosterQuestionnaire.findAll({
-    attributes: ["id", "key", "name", "is_enabled", "createdAt", "updatedAt"],
+    attributes: ["id", "key", "name", "is_enabled", "createdAt", "updatedAt", "platform"],
     raw: true,
   });
   return rosterQuestionnaire;
