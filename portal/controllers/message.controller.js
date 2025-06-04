@@ -242,11 +242,14 @@ module.exports = (function () {
    */
   this.getVisits = async (req, res) => {
     const { patientId } = req.params;
+    console.log("patientid===",patientId);
     const keysAndTypeToCheck = [{ key: Constant.PATIENT_ID, type: "string" }];
     try {
       logStream('debug', 'API call', 'Get Visits');
       if (validateParams(req.params, keysAndTypeToCheck)) {
         const data = await getVisits(patientId);
+        console.log("response from service==",data);
+        
         logStream('debug', 'Success', 'Get Visits');
         res.json(data);
       }

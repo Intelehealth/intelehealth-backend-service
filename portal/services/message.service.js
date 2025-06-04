@@ -357,12 +357,17 @@ module.exports = (function () {
           ],
           "visitId"
         ],
-        where: { patientId },
+        where: { patientId: patientId }, //  key-value pair
         group: ["visitId"],
         order: [[Sequelize.col("createdAt"), "DESC"]],
+        logging: (sql) => {
+        console.log('Generated SQL Query:', sql);
+      },
       });
+      console.log('Returned Data:', data);
       return { success: true, data };
     } catch (error) {
+      console.error('Error fetching visits:', error);
       return {
         success: false,
         data: [],
