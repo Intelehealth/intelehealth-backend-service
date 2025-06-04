@@ -1457,7 +1457,7 @@ async function formatCareContextFHIBundle(response) {
             })
             healthInformationBundle.push({
                 careContextReference : response?.uuid,
-                bundleContent : OPConsultRecordBundle
+                bundleContent : JSON.stringify(OPConsultRecordBundle)
             })
         }
 
@@ -1477,7 +1477,7 @@ async function formatCareContextFHIBundle(response) {
             })
             healthInformationBundle.push({
                 careContextReference : response?.uuid,
-                bundleContent : PrescriptionRecordBundle
+                bundleContent : JSON.stringify(PrescriptionRecordBundle)
             })
         }
 
@@ -1497,7 +1497,7 @@ async function formatCareContextFHIBundle(response) {
             })
             healthInformationBundle.push({
                 careContextReference : response?.uuid,
-                bundleContent : WellnessRecordBundle
+                bundleContent : JSON.stringify(WellnessRecordBundle)
             })
         }
 
@@ -1518,7 +1518,7 @@ async function formatCareContextFHIBundle(response) {
     
             healthInformationBundle.push({
                 careContextReference : response?.uuid,
-                bundleContent : HealthRecordBundle
+                bundleContent : JSON.stringify(HealthRecordBundle)
             })
         }
 
