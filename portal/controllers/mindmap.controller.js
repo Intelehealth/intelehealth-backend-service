@@ -9,6 +9,10 @@ const { logStream } = require("../logger/index");
 const { MESSAGE } = require("../constants/messages");
 const Sequelize = require('sequelize');
 const Constant = require("../constants/constant");
+const path = require('path');
+const fs = require('fs');
+const FILE_PATH = path.join(__dirname, '../constants/instructionRemarks.json');
+
 
 /**
  * Return mindmaps respect to key
@@ -292,6 +296,39 @@ const toggleMindmapActiveStatus = async (req, res) => {
   }
 };
 
+const getInstructionRemarks = async(req, res) => {
+  try {
+    const data = fs.readFileSync(FILE_PATH, 'utf-8');
+    const jsonData = JSON.parse(data);
+    res.json(jsonData);
+  } catch (err) {
+    res.status(500).json({ message: 'Error reading file', error: err });
+  }
+}
+
+const addInstructionRemarks = async(req, res) => {
+  const newInstruction = req.body;
+
+  try {
+    const data = fs.readFileSync(FILE_PATH, 'utf-8');
+    const jsonData = JSON.parse(data);
+
+    // 🔍 Check if text already exists
+    const exists = jsonData.some(item => item.name.trim().toLowerCase() === newInstruction.name.trim().toLowerCase());
+
+    if (exists) {
+      return res.status(200).json({ message: 'Instruction already exists' });
+    }
+
+    jsonData.push(newInstruction);
+
+    fs.writeFileSync(FILE_PATH, JSON.stringify(jsonData, null, 2), 'utf-8');
+    res.status(200).json({ message: 'Instruction added successfully.' });
+  } catch (err) {
+    res.status(500).json({ message: 'Error writing file', error: err });
+  }
+}
+
 module.exports = {
   getMindmapDetails,
   addUpdateLicenceKey,
@@ -299,5 +336,7 @@ module.exports = {
   addUpdateMindMap,
   deleteMindmapKey,
   downloadMindmaps,
-  toggleMindmapActiveStatus
+  toggleMindmapActiveStatus,
+  getInstructionRemarks,
+  addInstructionRemarks
 };
