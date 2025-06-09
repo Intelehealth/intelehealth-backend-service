@@ -427,10 +427,19 @@ module.exports = function (server) {
     });
 
     socket.on("getDrUnreadCount", async function (data) {
+   
+      console.log("Input data (toUser):", data);
+      const query = `
+      SELECT COUNT(m.message) AS unread
+      FROM messages m
+      WHERE m.toUser = '${data}' AND m.isRead = 0
+    `;
+      console.log("query====",query);
       const unreadcount = await sequelize.query(
         `SELECT COUNT(m.message) AS unread FROM messages m WHERE m.toUser = '${data}' AND m.isRead = 0`,
         { type: QueryTypes.SELECT }
       );
+       console.log("Query result:", unreadcount);
       socket.emit("drUnreadCount", unreadcount[0].unread);
     });
   });
