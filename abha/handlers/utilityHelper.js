@@ -171,13 +171,21 @@ function convertToDataURL(base64Data, mimeType = 'application/pdf') {
  * @param {string|Object} data - Data to convert
  * @returns {string} Base64 encoded string
  */
-function convertToBase64(data) {
+function convertToBase64(response) {
     try {
-        if (typeof data === 'string' && data.startsWith('data:')) {
+        if (typeof response === 'string' && response?.data?.startsWith('data:')) {
             // If already a data URL, extract the base64 part
-            return data.split(',')[1];
+            return {
+                data: response?.data,
+                contentType: response?.headers['content-type']
+            }
         }
-        return Buffer.from(JSON.stringify(data)).toString('base64');
+        const contentType = response.headers['content-type'];
+        const base64 = Buffer.from(response.data, 'binary').toString('base64');
+        return {
+            data: `data:${contentType};base64,${base64}`,
+            contentType: contentType
+        };
     } catch (error) {
         console.error('Error converting to base64:', error);
         return '';

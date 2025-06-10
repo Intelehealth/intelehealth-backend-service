@@ -687,8 +687,14 @@ function vitalWellnessRecordStructure(obs, wellnessRecordVitals, practitioner, p
  */
 async function healthRecordStructure({ obs = [], ...healthRecord }, patient) {
     const responses = await Promise.all(obs.map(async (obs) => {
-        const response = await openmrsService.getDocument(obs.uuid);
-        return { content: response, uuid: obs.uuid, obsDatetime: obs.obsDatetime };
+        const response = await openmrsService.getDocument(obs.uuid).catch(() => null);
+        return { 
+            content: response?.data, 
+            contentType: response?.contentType,
+            uuid: obs.uuid, 
+            title: obs.concept?.display,
+            obsDatetime: obs.obsDatetime 
+        };
     }));
 
     for (const response of responses) {
@@ -719,10 +725,10 @@ async function healthRecordStructure({ obs = [], ...healthRecord }, patient) {
                 },
                 content: [{
                     attachment: {
-                        contentType: "application/pdf",
+                        contentType: response.contentType,
                         language: "en-IN",
                         data: response.content,
-                        title: "Laboratory Report",
+                        title: response.title ?? "Laboratory Report",
                         creation: convertDataToISO(response.obsDatetime)
                     }
                 }]

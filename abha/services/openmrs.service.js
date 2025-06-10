@@ -331,7 +331,7 @@ module.exports = (function () {
 
   this.getDocument = async (documentUUID) => {
     try {
-      const document = await openmrsAxiosInstance.get(`/ws/rest/v1/obs/${documentUUID}/value`).then(res => convertToBase64(res.data));
+      const document = await openmrsAxiosInstance.get(`/ws/rest/v1/obs/${documentUUID}/value`, { responseType: 'arraybuffer' }).then(res => convertToBase64(res));
       return document;
     } catch (error) {
       return null;
