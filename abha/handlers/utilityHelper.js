@@ -177,7 +177,7 @@ function convertToBase64(response) {
         if (typeof response === 'string' && response?.data?.startsWith('data:')) {
             // If already a data URL, extract the base64 part
             return {
-                data:data.split(',')[1];
+                data: response?.data?.split(',')[1],
                 contentType: contentType
             }
         }
