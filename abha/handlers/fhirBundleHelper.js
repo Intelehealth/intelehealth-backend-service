@@ -688,6 +688,7 @@ function vitalWellnessRecordStructure(obs, wellnessRecordVitals, practitioner, p
 async function healthRecordStructure({ obs = [], ...healthRecord }, patient) {
     const responses = await Promise.all(obs.map(async (obs) => {
         const response = await openmrsService.getDocument(obs.uuid).catch(() => null);
+
         return { 
             content: response?.data, 
             contentType: response?.contentType,
