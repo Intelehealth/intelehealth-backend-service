@@ -89,6 +89,9 @@ const sendCloudNotification = async ({
   const payload = {
     data,
     tokens: regTokens,
+    android: {
+      priority: 'high'  // For Android, you can set 'high' or 'normal'
+    }
   };
 
   if(notification) payload.notification = notification;

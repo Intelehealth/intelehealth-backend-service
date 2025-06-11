@@ -149,8 +149,17 @@ router.post("/push", (req, res) => {
           snoozed.forEach((element) => {
             results.pop(element);
           });
+          // Create a Set to track unique notification objects to prevent duplicates
+          const processedNotifications = new Set();
           const allNotifications = results.map((sub) => {
-            if (!patient.provider.match(sub.doctor_name)) {
+            // Only send if this is the provider's speciality BUT not to the provider themselves
+            if (patient.provider !== sub.doctor_name) {
+              // Check if we've already processed this notification object
+              if (processedNotifications.has(sub.notification_object)) {
+                return;
+              }
+              processedNotifications.add(sub.notification_object);
+
               let payload;
               if (sub.locale === "en") {
                 payload = JSON.stringify({

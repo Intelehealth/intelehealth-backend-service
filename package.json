@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "start": "nodemon ./bin/www",
-    "dev": "NODE_ENV=development nodemon ./bin/www",
+    "dev": "nodemon ./bin/www",
     "debug": "NODE_ENV=development nodemon --inspect ./bin/www",
     "migrate": "sequelize-cli db:migrate"
   },
