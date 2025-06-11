@@ -369,7 +369,7 @@ function medicalFamilyHistoryStructure(obs, familyHistoryData, practitioner, pat
                 },
                 "resourceType": "FamilyMemberHistory"
             },
-            "fullUrl": `${FHIR_BASE_URL}/FamilyMemberHistory/${uniquId}`
+            "fullUrl": `FamilyMemberHistory/${uniquId}`
         })
     }
 }
@@ -454,7 +454,7 @@ function followUPStructure(obs, folloupVisit, practitioner, patient) {
                     }
                 ]
             },
-            "fullUrl": `${FHIR_BASE_URL}/Appointment/${obs.uuid}`
+            "fullUrl": `Appointment/${obs.uuid}`
         });
     } catch (err) {
         logStream("error", err?.message);
@@ -502,7 +502,7 @@ function medicationStructure(obs, medications, practitioner, patient, prescripti
             "resourceType": "MedicationRequest",
             "status": "active"
         },
-        "fullUrl": `${FHIR_BASE_URL}/MedicationRequest/${obs.uuid}`
+        "fullUrl": `MedicationRequest/${obs.uuid}`
     }
 
     medications.section.entry.push({
@@ -522,7 +522,7 @@ function medicationStructure(obs, medications, practitioner, patient, prescripti
                 ...resource?.resource,
                 "id": `prescription-${obs.uuid}`,
             },
-            "fullUrl": `${FHIR_BASE_URL}/MedicationRequest/prescription-${obs.uuid}`
+            "fullUrl": `MedicationRequest/prescription-${obs.uuid}`
         })
     }
 }
@@ -567,7 +567,7 @@ function investigationAdviceStructure(obs, serviceRequest, practitioner, patient
             "resourceType": "ServiceRequest",
             "status": "active"
         },
-        "fullUrl": `${FHIR_BASE_URL}/ServiceRequest/${obs.uuid}`
+        "fullUrl": `ServiceRequest/${obs.uuid}`
     })
 }
 
@@ -612,7 +612,7 @@ function referalStructure(obs, serviceRequest, practitioner, patient) {
             "resourceType": "ServiceRequest",
             "status": "active"
         },
-        "fullUrl": `${FHIR_BASE_URL}/ServiceRequest/${obs.uuid}`
+        "fullUrl": `ServiceRequest/${obs.uuid}`
     })
 }
 
@@ -907,7 +907,7 @@ const processObservation = (obs, sections, practitioner, patient) => {
                     "resourceType": "Observation",
                     "status": "final"
                 },
-                "fullUrl": `${FHIR_BASE_URL}/Observation/${obs.uuid}`
+                "fullUrl": `Observation/${obs.uuid}`
             });
             break;
         case VISIT_TYPES.MEDICAL_ADVICE:
@@ -1034,7 +1034,7 @@ const createFHIRResource = ({ id, resourceType, meta, timestamp, ...otherFields 
         } : {}),
         ...otherFields
     },
-    fullUrl: `${FHIR_BASE_URL}/${resourceType}/${id}`
+    fullUrl: `${resourceType}/${id}`
 });
 
 /**
@@ -1358,7 +1358,7 @@ async function prescriptionRecordBinaryStructure(pdfContent, prescriptionRecord)
     // Add Binary resource to prescription record
     if (prescriptionRecord?.medications?.medicationRequest) {
         prescriptionRecord.medications.medicationRequest.push({
-            fullUrl: `${FHIR_BASE_URL}/Binary/${uniqueIdBinary}`,
+            fullUrl: `Binary/${uniqueIdBinary}`,
             resource: binaryResource
         });
     }
