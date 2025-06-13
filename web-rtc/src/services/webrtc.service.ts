@@ -105,7 +105,8 @@ export class WebRTCService {
                 AWS_ACCESS_KEY_ID,
                 AWS_SECRET_ACCESS_KEY,
                 AWS_REGION,
-                S3_BUCKET_NAME
+                S3_BUCKET_NAME,
+                BRANDNAME
             } = process.env;
 
             // Log environment check
@@ -149,7 +150,7 @@ export class WebRTCService {
             const output = {
                 file: new EncodedFileOutput({
                     fileType: EncodedFileType.MP4,
-                    filepath: '{room_name}-{time}',
+                    filepath: `${params?.visitId}_${BRANDNAME}_{room_name}_{time}`,
                     output: {
                         case: "s3",
                         value: {
