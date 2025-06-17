@@ -147,10 +147,11 @@ export class WebRTCService {
             }
 
             const timestamp = new Date();
+            const formattedTime = timestamp.toISOString().replace('T', '_').slice(0, 19);
             const output = {
                 file: new EncodedFileOutput({
                     fileType: EncodedFileType.MP4,
-                    filepath: `${params?.visitId}_${BRANDNAME}_{room_name}_{time}`,
+                    filepath: `${params?.visitId}_${BRANDNAME}_{room_name}_${formattedTime}`,
                     output: {
                         case: "s3",
                         value: {
