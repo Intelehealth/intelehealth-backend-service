@@ -161,6 +161,15 @@ const sendCloudNotification = async ({
 
     try {
       const result = await messaging.sendEachForMulticast(payload);
+     console.log(`✅ FCM Notification Sent: Success - ${result.successCount}, Failure - ${result.failureCount}`);
+
+     result.responses.forEach((resp, idx) => {
+      if (!resp.success) {
+        console.error(` FCM Error for token [${payload.tokens[idx]}]: ${resp.error.code} - ${resp.error.message}`);
+      } else {
+        console.log(` FCM Success for token [${payload.tokens[idx]}]`);
+      }
+    });
       return result;
     } catch (err) {
       console.error("Cloud notification error:", err);
