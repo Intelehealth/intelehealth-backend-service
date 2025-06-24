@@ -185,8 +185,9 @@ module.exports = (function () {
   };
 
   this.setVisitsByCallData = async (callData, visits) => {
+    const data = await this.setSanchForVisits(visits)
     const merged = callData.map(item1 => {
-      const item2 = visits.find(item => item.uuid === item1.visit_id);
+      const item2 = data.find(item => item.uuid === item1.visit_id);
       return {
         doctor_id: item1.doctor_id,
         sevika_id: item1.chw_id,
@@ -198,10 +199,39 @@ module.exports = (function () {
         patientId: item2?.patient?.identifier,
         patientName: `${item2?.patient_name?.given_name} ${item2?.patient_name?.family_name}`,
         location: item2?.location?.name,
+        sanch : item2?.sanch,
+        district: item2?.district,
+        state: item2?.state,
         sevikaName: `${item2.encounters.find(e => e.type.name === 'Vitals')?.encounter_provider?.provider?.person?.person_name?.given_name} ${item2.encounters.find(e => e.type.name === 'Vitals')?.encounter_provider?.provider?.person?.person_name?.family_name}`
       };
     });
     return merged;
+  };
+
+    this.setSanchForVisits = async (data) => {
+      const visits = [];
+      const locations = await sequelize.query(locationQuery(), {
+        type: QueryTypes.SELECT,
+      });
+      for (let idx = 0; idx < data.length; idx++) {
+        let vst = data[idx].toJSON();
+        if (vst?.location?.parent) {
+         let sanch = locations.find(
+            (l) => l?.id === vst?.location?.parent && l?.tag === "Sanch"
+          );
+          let district = locations.find(
+          (l) => l?.id === sanch?.parent && l?.tag === "District"
+         );
+          let state = locations.find(
+            (l) => l?.id === district?.parent && l?.tag === "State"
+          );
+          vst.sanch = sanch?.name;
+          vst.district = district?.name;
+          vst.state = state.name;
+        }
+        visits.push(vst);
+      }
+    return visits;
   };
 
   this.getHourMins = (val = 0) => {
