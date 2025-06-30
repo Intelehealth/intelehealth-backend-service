@@ -60,34 +60,64 @@ const getPriorityFromId = (id) => {
 };
 
 const createTicket = async (req, res, next) => {
+    console.log("inside create tickt..............");
     try {
         const { title, description, priority='low' } = req.body;
         const { userId } = req.user?.data;
-        const incident = await pd.post('/incidents', {
-            data: {
-                incident: {
-                    type: "incident",
-                    title,
-                    service: {
-                        id: process.env.PAGERDUTY_JIRA_SERVICE_ID,
-                        type: "service_reference"
-                    },
-                    priority: {
-                        id: getPriorityId(priority),
-                        type: "priority"
-                    },
-                    urgency: "low",
-                    body: {
-                        type: "incident_body",
-                        details: description
-                    },
-                    escalation_policy: {
-                        id: process.env.PAGERDUTY_ESCALATION_POLICY_ID,
-                        type: "escalation_policy"
-                    }
-                }
+        const jiraServiceId = process.env.PAGERDUTY_JIRA_SERVICE_ID || null;
+        console.log("jiraServiceId==",jiraServiceId);
+
+        const incidentData = {
+            type: "incident",
+            title,
+            priority: {
+                id: getPriorityId(priority),
+                type: "priority"
+            },
+            urgency: "low",
+            body: {
+                type: "incident_body",
+                details: description
+            },
+            escalation_policy: {
+                id: process.env.PAGERDUTY_ESCALATION_POLICY_ID,
+                type: "escalation_policy"
             }
-        });
+            };
+        if (jiraServiceId) {
+          incidentData.service = {
+            id: jiraServiceId,
+            type: "service_reference",
+          };
+        }
+            
+        const payload = { data: { incident: incidentData } };
+        const incident = await pd.post('/incidents', payload);
+        // const incident = await pd.post('/incidents', {
+        //     data: {
+        //         incident: {
+        //             type: "incident",
+        //             title,
+        //             service: {
+        //                 id: process.env.PAGERDUTY_JIRA_SERVICE_ID,
+        //                 type: "service_reference"
+        //             },
+        //             priority: {
+        //                 id: getPriorityId(priority),
+        //                 type: "priority"
+        //             },
+        //             urgency: "low",
+        //             body: {
+        //                 type: "incident_body",
+        //                 details: description
+        //             },
+        //             escalation_policy: {
+        //                 id: process.env.PAGERDUTY_ESCALATION_POLICY_ID,
+        //                 type: "escalation_policy"
+        //             }
+        //         }
+        //     }
+        // });
         await new Promise(resolve => setTimeout(resolve, 2000));
         const incident_data = await pd.get(`/incidents/${incident.resource.id}?include[]=external_references&include[]=body`);
         await createTicketDatabase(incident_data.data.incident, userId, getPriorityFromId(incident_data.data?.incident?.priority?.id));
