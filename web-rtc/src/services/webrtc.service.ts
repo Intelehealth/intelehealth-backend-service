@@ -1,11 +1,12 @@
 import { WebSocketServer } from 'ws';
-import { RoomServiceClient, Room, AccessToken, EgressClient } from 'livekit-server-sdk';
+import { RoomServiceClient, Room, AccessToken, EgressClient, EncodedFileOutput, VideoGrant, EncodingOptionsPreset, EncodedFileType } from 'livekit-server-sdk';
 const { logStream } = require("../logger/index");
+const { call_recordings } = require("../models");
 
 export class WebRTCService {
     wss: WebSocketServer | null = null;
     liveSvc: any;
-    egressSvc: any;
+    egressSvc: EgressClient | null = null;
 
     constructor() {
         // this.initLiveSvc()
@@ -44,12 +45,20 @@ export class WebRTCService {
 
 
     getToken(roomName: string, participantName: string, opts = {}) {
-        let options = { roomJoin: true, room: roomName, canPublish: true, canSubscribe: true, exp: '10 days', roomRecord: true };
+        let options: VideoGrant = {
+            recorder: true,
+            roomJoin: true,
+            room: roomName,
+            canPublish: true,
+            canSubscribe: true,
+            roomRecord: true
+        };
 
         options = { ...options, ...opts };
 
         const at = new AccessToken(process.env.API_KEY, process.env.SECRET, {
             identity: participantName,
+            ttl: '10 days',
         });
         at.addGrant(options);
 
@@ -80,53 +89,138 @@ export class WebRTCService {
         // });
     }
 
-    async startRecording(roomName: string) {
+    async startRecording(roomName: string, params?: {
+        roomId?: string;
+        doctorId?: string;
+        patientId?: string;
+        visitId?: string;
+        chwId?: string;
+        nurseName?: string;
+    }) {
         try {
             const {
                 API_KEY,
                 SECRET,
-                LIVEHOST
+                LIVEHOST,
+                AWS_ACCESS_KEY_ID,
+                AWS_SECRET_ACCESS_KEY,
+                AWS_REGION,
+                S3_BUCKET_NAME,
+                BRANDNAME
             } = process.env;
-            this.egressSvc = new EgressClient(LIVEHOST as string, API_KEY, SECRET);
-            const activeRooms = await this.egressSvc.listEgress(roomName).catch(() => {});
+
+            // Log environment check
+            logStream('debug', 'Checking environment variables', 'startRecording');
+
+            // Validate environment variables
+            if (!API_KEY || !SECRET || !LIVEHOST) {
+                const error = 'Missing required environment variables (API_KEY, SECRET, or LIVEHOST)';
+                logStream('error', error, 'startRecording');
+                throw new Error(error);
+            }
+
+            if (!AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY || !AWS_REGION || !S3_BUCKET_NAME) {
+                const error = 'Missing required AWS environment variables';
+                logStream('error', error, 'startRecording');
+                throw new Error(error);
+            }
+
+            // Use existing egressSvc or initialize if not available
+            if (!this.egressSvc) {
+                logStream('debug', 'EgressClient not initialized, initializing now', 'startRecording');
+                this.egressSvc = new EgressClient(LIVEHOST as string, API_KEY, SECRET);
+            }
+
+            const activeRooms = await this.egressSvc.listEgress({ roomName: roomName }).catch(() => { });
 
             const activeEgresses = activeRooms?.filter(
                 (info: { status: number; }) => info.status < 2,
             );
 
-            if (activeEgresses.length > 0) {
-                await Promise.all(activeEgresses.map((info: { egressId: any; }) => this.egressSvc.stopEgress(info.egressId))).catch(() => {});
+            if (activeEgresses && activeEgresses.length > 0) {
+                await Promise.all(activeEgresses.map((info: { egressId: any; }) => {
+                    if (this.egressSvc) {
+                        return this.egressSvc.stopEgress(info.egressId);
+                    }
+                    return Promise.resolve();
+                })).catch(() => { });
             }
 
+            const timestamp = new Date();
+            const formattedTime = timestamp.toISOString().replace('T', '_').slice(0, 19);
+            const output = {
+                file: new EncodedFileOutput({
+                    fileType: EncodedFileType.MP4,
+                    filepath: `${params?.visitId}_${BRANDNAME}_{room_name}_${formattedTime}`,
+                    output: {
+                        case: "s3",
+                        value: {
+                            bucket: process.env.S3_BUCKET_NAME,
+                            region: process.env.AWS_REGION,
+                            accessKey: process.env.AWS_ACCESS_KEY_ID,
+                            secret: process.env.AWS_SECRET_ACCESS_KEY,
+                            metadata: {
+                                roomName,
+                                timestamp: timestamp.toISOString(),
+                                doctorId: params?.doctorId || '',
+                                patientId: params?.patientId || '',
+                                visitId: params?.visitId || ''
+                            }
+                        }
+                    }
+                }),
+            }
 
-            const egressData = {
+            const options = {
                 layout: 'grid',  // Layout for video streams (e.g., grid, speaker, etc.)
-                // encodingOptions: 'H264_1080P_30', // H264 video encoding preset (1080p at 30fps)
+                encodingOptions: EncodingOptionsPreset.H264_1080P_30 // H264 video encoding preset (1080p at 30fps)
             };
 
-            const startEgressResponse = await this.egressSvc
-                .startRoomCompositeEgress(roomName, {
-                    file: {
-                        fileType: 1,
-                        filepath: `/out/{room_name}_{time}`,
-                        output: {
-                            case: 'local',
-                            value: "/out",
-                        },
-                    }
-                }, egressData)
+            logStream('debug', `Starting egress with output: ${JSON.stringify(output)}`, 'startRecording');
+            logStream('debug', `Starting egress with options: ${JSON.stringify(options)}`, 'startRecording');
+
+            const startEgressResponse = await this.egressSvc.startRoomCompositeEgress(roomName, output, options)
+
 
             if (!startEgressResponse?.egressId) {
-                throw new Error("Recoding not started.")
+                const error = 'Recording not started - No egress ID received';
+                logStream('error', error, 'startRecording');
+                throw new Error(error);
             }
 
+            logStream('debug', `Recording started successfully with egressId: ${startEgressResponse.egressId}`, 'startRecording');
+
+            // Construct the S3 URL
+            const fileName = startEgressResponse?.fileResults?.[0]?.filename;
+            const s3Url = `https://${S3_BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com/${fileName}`;
+
+            // Store recording in call_recordings table with all required fields
+            const recordingData = {
+                room_id: params?.roomId,
+                doctor_id: params?.doctorId,
+                patient_id: params?.patientId,
+                visit_id: params?.visitId,
+                chw_id: params?.chwId,
+                egress_id: startEgressResponse.egressId,
+                file_path: fileName,
+                s3_url: s3Url,
+                start_time: timestamp,
+                end_time: null,
+                nurse_name: params?.nurseName
+            };
+
+            const recording = await call_recordings.create(recordingData);
             return {
-                egressId: startEgressResponse?.egressId,
-                filePath: startEgressResponse?.file?.filename,
+                egressId: startEgressResponse.egressId,
+                filePath: fileName,
+                recordingId: recording.id,
+                startTime: timestamp,
+                s3_url: s3Url,
                 success: true
-            }
+            };
         } catch (err: any) {
-            throw new Error(err?.message ?? 'Something went wrong.')
+            logStream('error', `Recording error: ${err.message}${err.stack ? '\n' + err.stack : ''}`, 'startRecording');
+            throw new Error(err?.message ?? 'Something went wrong.');
         }
     }
 
@@ -137,8 +231,14 @@ export class WebRTCService {
                 SECRET,
                 LIVEHOST
             } = process.env;
-            this.egressSvc = new EgressClient(LIVEHOST as string, API_KEY, SECRET);
-            const activeRooms = await this.egressSvc.listEgress(roomName);
+
+            // Use existing egressSvc or initialize if not available
+            if (!this.egressSvc) {
+                logStream('debug', 'EgressClient not initialized, initializing now', 'stopRecording');
+                this.egressSvc = new EgressClient(LIVEHOST as string, API_KEY, SECRET);
+            }
+
+            const activeRooms = await this.egressSvc.listEgress({ roomName });
 
             const activeEgresses = activeRooms?.filter(
                 (info: { status: number; }) => info.status < 2,
@@ -146,20 +246,36 @@ export class WebRTCService {
 
             if (activeEgresses.length === 0) {
                 return {
-                    status: 404,
+                    status: 200,
                     message: 'No active recording found',
-                    success: false
+                    success: true
                 };
             }
 
-            await Promise.all(activeEgresses.map((info: { egressId: any; }) => this.egressSvc.stopEgress(info.egressId)));
+            const endTime = new Date();
+
+            // Stop all active egresses
+            await Promise.all(activeEgresses.map(async (info: { egressId: any; }) => {
+                if (!this.egressSvc) {
+                    return Promise.resolve();
+                }
+                this.egressSvc.stopEgress(info.egressId);
+
+                // Update the recording end time in database
+                await call_recordings.update(
+                    { end_time: endTime },
+                    { where: { egress_id: info.egressId } }
+                );
+            })).catch(() => { });
 
             return {
                 activeEgresses,
-                message: 'Stop active recording',
+                endTime,
+                message: 'Recording stopped and database updated',
                 success: true
             };
         } catch (err: any) {
+            console.log('error', `Stop recording error: ${err.message}`, 'stopRecording');
             throw new Error(err?.message ?? 'Something went wrong!')
         }
     }

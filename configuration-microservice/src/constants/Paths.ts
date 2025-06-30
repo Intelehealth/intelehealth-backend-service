@@ -109,6 +109,12 @@ export default {
     Get: '/all',
     UpdateIsEnabled: '/updateIsEnabled/:id',
   },
+  AILLM: {
+    Base: '/ai-llm',
+    Get: '/all',
+    GetByKey: '/getByKey/:key',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+  },
   HomeScreen: {
     Base: '/home-screen',
     Get: '/all',

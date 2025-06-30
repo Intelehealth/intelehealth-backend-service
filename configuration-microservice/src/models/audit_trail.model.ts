@@ -65,6 +65,7 @@ export class AuditTrail extends Model<AuditTrailAttributes, AuditTrailCreationAt
             'DROPDOWN CONFIG UPDATED',
             'HOME SCREEN SECTION NAME UPDATED',
             'HOME SCREEN SECTION ENABLED STATUS UPDATED',
+            'AI LLM CONFIG UPDATED'
         ],
         allowNull: false
     })

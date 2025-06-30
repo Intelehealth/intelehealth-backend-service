@@ -56,5 +56,11 @@ module.exports = {
         ENDED: 'Ended Visit',
         FOLLOW_UP:'Follow-Up'
     },
-    PENDING_VISIT_BY_CALL_STATUS: ["Close Call without Completion", "Reschedule/Repeat Internally"]
+    PENDING_VISIT_BY_CALL_STATUS: [
+        "Review of Imaging", 
+        "Review with Reports",
+        "Referral", 
+        "Close Call without Completion", 
+        "Reschedule/Repeat Internally"
+    ]
 }

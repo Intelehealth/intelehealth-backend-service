@@ -74,16 +74,7 @@ module.exports = function (server) {
 
     emitAllUserStatus();
 
-    socket.on("disconnect", async (data) => {      
-      if(users[socket.id].callStatus === 'calling'){
-        const callStatus = CALL_STATUSES.UNSUCCESS;
-        const usersRecord = {
-          doctorId: users[socket.id].uuid,
-          roomId: users[socket.id].room,
-          callStatus: callStatus
-        }
-        await updateCallRecordOfWebrtc(usersRecord);
-      }
+    socket.on("disconnect", async (data) => {
       delete users[socket.id];
       emitAllUserStatus();
     });
@@ -165,13 +156,10 @@ module.exports = function (server) {
     });
 
     socket.on("bye", async function (data) {
-      const usersRecord = {
-        doctorId: doctorId,
-        nurseId: nurseId,
-        roomId: roomId,
-      }
-      await updateCallRecordOfWebrtc(usersRecord);
-      
+      console.log("bye event received with data:", data);
+      const { visitId, doctorId, nurseId, roomId } = data;
+      await updateCallRecordOfWebrtc({ doctorId, roomId});
+
       if (data?.socketId) {
         users[data?.socketId].callStatus = CALL_STATUSES.IDLE;
         users[data?.socketId].room = null;
@@ -197,9 +185,9 @@ module.exports = function (server) {
     });
 
     socket.on("call-connected", async function (data) {
-      const { visitId, doctorId, nurseId, roomId } = data;
+      const { visitId, nurseId, doctorName, roomId, doctorId, callType } = data;
       const callStatus = CALL_STATUSES.SUCCESS;
-      await createCallRecordOfWebrtc(doctorId, nurseId, roomId, visitId, callStatus);
+      await createCallRecordOfWebrtc(doctorId, nurseId, roomId, visitId, callStatus, callType);
       markConnected(data);
     });
 
