@@ -159,6 +159,11 @@ const sendCloudNotification = async ({
       tokens: regTokens,
     };
 console.log("payload for FCM==",payload);
+Object.entries(payload.data).forEach(([k, v]) => {
+  if (typeof v !== 'string') {
+    console.error(`Invalid payload: data.${k} is not a string =>`, v);
+  }
+});
     try {
       const result = await messaging.sendEachForMulticast(payload);
      console.log(`FCM Notification Sent: Success - ${result.successCount}, Failure - ${result.failureCount}`);
