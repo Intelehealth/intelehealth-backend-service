@@ -63,7 +63,42 @@ const uploadFile = async (data, filePath, type = "image") => {
   return `${AWS_URL}${Key}`;
 };
 
+/**
+ * Upload file data to aws
+ * @param {*} data - file data
+ * @param {string} filepath - file path
+ * @param {string} type - file type
+ */
+const uploadFileData = async (data, filePath, awsConfig = {}) => {
+  AWS.config.update({
+    accessKeyId: (awsConfig ? awsConfig.accessKey : AWS_ACCESS_KEY_ID),
+    secretAccessKey: (awsConfig ? awsConfig.secretAccessKey : AWS_SECRET_ACCESS_KEY),
+    region: (awsConfig ? awsConfig.region : AWS_REGION),
+  });
+
+  const s3 = new AWS.S3();
+
+  const params = {
+    Bucket: (awsConfig ? awsConfig.bucket : AWS_BUCKET_NAME),
+    Key: filePath,
+    Body: data,
+    ACL: "public-read",
+  };
+
+  await new Promise((res, rej) => {
+    s3.putObject(params, function (err, data) {
+      if (err) rej(err);
+      res(data);
+    });
+  }).catch((err) => {
+    throw err;
+  });
+
+  return `${awsConfig ? awsConfig.url : AWS_URL}${filePath}`;
+};
+
 module.exports = {
   fileParser,
   uploadFile,
+  uploadFileData
 };
