@@ -15,7 +15,7 @@ const {
   _updateLocationAttributes,
   _setLocationTree,
 } = require("../services/openmrs.service");
-const { getVisitCountForDashboard,getVisitCountForEndedVisits, getVisitsByDoctorId } = require("../controllers/queries");
+const { getVisitCountForDashboard,getVisitsForEndedVisitsForCurrentYear, getVisitsByDoctorId } = require("../controllers/queries");
 const moment = require("moment");
 
 const getVisitCountQuery = ({ speciality = "General Physician" }) => {
@@ -129,6 +129,7 @@ order by 4 ;`;
  * @param {*} next
  */
 const getVisitCounts = async (req, res, next) => {
+  const endedVisitsTillLastYear = 90226;
   const { userId } = req.params;
   const { speciality } = req.query;
   try {
@@ -150,7 +151,7 @@ const getVisitCounts = async (req, res, next) => {
       throw err;
     });
     const data2 = await new Promise((resolve, reject) => {
-      openMrsDB.query(getVisitCountForEndedVisits(speciality), (err, results) => {
+      openMrsDB.query(getVisitsForEndedVisitsForCurrentYear(speciality), (err, results) => {
         if (err) reject(err);
         resolve(results);
       });
@@ -161,7 +162,7 @@ const getVisitCounts = async (req, res, next) => {
     res.json({
       data: {
         completedVisit: getTotal(data, "Completed Visit"),
-        endedVisits: getTotal(data2, "Ended Visit"),
+        endedVisits: endedVisitsTillLastYear + getTotal(data2, "Ended Visit"),
         followUpVisits: data1.length
       },
       message: MESSAGE.OPENMRS.VISIT_COUNT_FETCHED_SUCCESSFULLY,
