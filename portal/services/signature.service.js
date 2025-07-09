@@ -11,6 +11,7 @@ module.exports = (function () {
         region: process.env.DR_SIGN_AWS_REGION,
         bucket: process.env.DR_SIGN_AWS_BUCKET_NAME,
         url: process.env.DR_SIGN_AWS_URL,
+        folderPath: (process.env.DR_SIGN_AWS_PATH_FOLDER ?? "")
     };
     /**
      * Create signature for a given provider with specified font and text
@@ -62,7 +63,7 @@ module.exports = (function () {
                 customHeight
             });
             //fs.writeFileSync(path.join(...['/var', 'www', 'html', 'docsign',`${providerId}_sign.png`]), dataUri.replace('data:image/png;base64,',''),'base64');
-            const signURL = await uploadFileData(Buffer.from(dataUri.replace('data:image/png;base64,',''),'base64'),`${providerId}_sign.png`,awsConfig);
+            const signURL = await uploadFileData(Buffer.from(dataUri.replace('data:image/png;base64,',''),'base64'),`${awsConfig.folderPath}${providerId}_sign.png`,awsConfig);
             logStream('debug','Signature Created', 'Create Sign');
             //return { url: `https://${process.env.DOMAIN}/ds/${providerId}_sign.png` };
             return { url: signURL };
@@ -84,7 +85,7 @@ module.exports = (function () {
         try {
             logStream('debug','Signature Service', 'Upload Sign');
             //fs.writeFileSync(path.join(...['/var', 'www', 'html', 'docsign',`${providerId}_sign.png`]), file.replace('data:image/png;base64,',''),'base64');  
-            const signURL = await uploadFileData(Buffer.from(file.replace('data:image/png;base64,',''),'base64'),`${providerId}_sign.png`,awsConfig);
+            const signURL = await uploadFileData(Buffer.from(file.replace('data:image/png;base64,',''),'base64'),`${awsConfig.folderPath}${providerId}_sign.png`,awsConfig);
             logStream('debug','Signature Uploaded', 'Upload Sign');
             //return { url: `https://${process.env.DOMAIN}/ds/${providerId}_sign.png` };
             return { url: signURL };
