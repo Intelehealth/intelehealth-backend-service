@@ -903,6 +903,7 @@ WHERE
 
       const data = await createAppointment(params);
       logStream('debug','Success', 'Book Appointment');
+      await sendCancelNotificationToWebappDoctor(data);
       return {
         data: data.toJSON(),
       };
@@ -1106,7 +1107,7 @@ WHERE
     hwName,
     hwAge,
     hwGender,
-    webApp,
+    webApp = false,
   }) => {
     logStream('debug','Appointment Service', 'Reschedule Appointment');
     const cancelled = await this._cancelAppointment(
@@ -1160,6 +1161,10 @@ WHERE
           await this.removeCallStatus(visitUuid);
         } catch (err) {
           logStream('error', err);
+        }
+
+        if(!webApp) {
+          await sendCancelNotificationToWebappDoctor(appointment);
         }
       }
       
