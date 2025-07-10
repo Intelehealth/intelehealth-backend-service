@@ -95,13 +95,14 @@ where
      * @param { string } slotTime - Slot time
      * @param { string } patientName - Patient name
      * @param { string } openMrsId - OpenMRS id
+     * @param { string } notificationType - Notification type
      */
-  const sendCancelNotificationToWebappDoctor = async ({
+  const sendNotificationToWebappDoctor = async ({
     id,
     slotTime,
     patientName,
     openMrsId,
-  }) => {
+  }, notificationType = Constant.CANCELLED) => {
     const query = `SELECT
     a.id,
     s.notification_object as webpush_obj,
@@ -112,15 +113,27 @@ FROM
 WHERE
     a.id = ${id}`;
     try {
-      logStream('debug','Appointment Service', 'Send Cancel Notification To Webapp Doctor');
+      logStream('debug','Appointment Service', `Send ${notificationType} Notification To Webapp Doctor`);
       const data = await getDataFromQuery(query);
       if (data && data.length) {
         asyncForEach(data, async (data) => {
           if (data.webpush_obj) {
-            const engTitle = `Appointment for ${patientName}(${slotTime}) has been cancelled.`;
-            const ruTitle = `Запись на прием за ${patientName}(${slotTime}) отменена.`;
+            let ruTranslatedNotificationType = '', engTranslatedNotificationType = '';
+            if(notificationType === Constant.CANCELLED) {
+              ruTranslatedNotificationType = "отменена";
+              engTranslatedNotificationType = "cancelled";
+            } else if(notificationType === Constant.RESCHEDULED) {
+              ruTranslatedNotificationType = "перенесена";
+              engTranslatedNotificationType = "rescheduled";
+            } else if(notificationType === Constant.BOOKED) {
+              ruTranslatedNotificationType = "забронирована";
+              engTranslatedNotificationType = "booked";
+            }
+
+            const engTitle = `Appointment for ${patientName}(${slotTime}) has been ${engTranslatedNotificationType}.`;
+            const ruTitle = `Запись на прием за ${patientName}(${slotTime}) ${ruTranslatedNotificationType}.`;
             const title = data.locale === "ru" ? ruTitle : engTitle;
-            logStream('debug','Success', 'Send Cancel Notification To Webapp Doctor');
+            logStream('debug','Success', `Send ${notificationType} Notification To Webapp Doctor`);
             sendWebPushNotification({
               webpush_obj: data.webpush_obj,
               title,
@@ -862,7 +875,7 @@ WHERE
      * @param { object } params - (slotDate, slotTime, speciality, visitUuid)
      */
   this._bookAppointment = async (params) => {
-    const { slotDate, slotTime, speciality, visitUuid } = params;
+    const { slotDate, slotTime, speciality, visitUuid, webApp = false } = params;
     try {
       logStream('debug','API calling', 'Book Appointment');
       const appntSlots = await this._getAppointmentSlots({
@@ -903,7 +916,9 @@ WHERE
 
       const data = await createAppointment(params);
       logStream('debug','Success', 'Book Appointment');
-      await sendCancelNotificationToWebappDoctor(data);
+      if(!webApp) {
+        await sendNotificationToWebappDoctor(data, Constant.BOOKED);
+      }
       return {
         data: data.toJSON(),
       };
@@ -944,7 +959,7 @@ WHERE
     if (appointment) {
       logStream('debug','Success', 'Cancel Appointment');
       appointment.update({ status, updatedBy: hwUUID, reason });
-      if (notify) sendCancelNotificationToWebappDoctor(appointment);
+      if (notify) sendNotificationToWebappDoctor(appointment, status);
       return {
         status: true,
         message: MESSAGE.APPOINTMENT.APPOINTMENT_CANCELLED_SUCCESSFULLY,
@@ -1068,12 +1083,12 @@ WHERE
             delete apnmtData[key];
           });
           await this._cancelAppointment(appointment, true, false, true);
-          await this._bookAppointment(apnmtData);
+          await this._bookAppointment({...apnmtData, webApp: true});
           logStream('debug','Success', 'Reschedule Or Cancel Appointment');
         } else {
           await this._cancelAppointment(appointment, true, false);
           await sendCancelNotification(apnmt);
-          await sendCancelNotificationToWebappDoctor(apnmt);
+          await sendNotificationToWebappDoctor(apnmt, Constant.CANCELLED);
           logStream('debug','Success', 'Reschedule Or Cancel Appointment');
         }
       });
@@ -1113,7 +1128,7 @@ WHERE
     const cancelled = await this._cancelAppointment(
       { id: appointmentId, userId: hwUUID, reason },
       false,
-      null,
+      !webApp,
       true
     );
 
@@ -1161,10 +1176,6 @@ WHERE
           await this.removeCallStatus(visitUuid);
         } catch (err) {
           logStream('error', err);
-        }
-
-        if(!webApp) {
-          await sendCancelNotificationToWebappDoctor(appointment);
         }
       }
       
