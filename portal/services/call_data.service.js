@@ -5,7 +5,7 @@ module.exports = (function () {
 
     this.createCallRecordOfWebrtc = async (doctorId, nurseId, roomId, visitId, callStatus) => {
       try {
-        const startTime = new Date();
+        const startTime = new Date(new Date().getTime() + (5.5 * 60 * 60 * 1000));
         const data = await call_data.create(
           { doctor_id: doctorId, chw_id: nurseId, room_id: roomId, visit_id: visitId, call_status: callStatus, reason:null, call_duration: 0, start_time: startTime, end_time: null }
         );
@@ -26,7 +26,7 @@ module.exports = (function () {
 
     this.updateCallRecordOfWebrtc = async (usersRecord) => {
         try {
-          let endTime = new Date();
+          let endTime = new Date(new Date().getTime() + (5.5 * 60 * 60 * 1000));
 
           const callRecord = await call_data.findOne({
             where: { id: usersRecord.recordId }
