@@ -28,11 +28,11 @@ async function updateIsEnabled(req: IReqUser<{ is_enabled: boolean }>, res: IRes
 /**
  * Update patient visit section name update.
  */
-async function updateName(req: IReqUser<{ name: any }>, res: IRes) {
+async function updateName(req: IReqUser<{ lang: any }>, res: IRes) {
     const { id } = req.params;
     const { userId, name } = req.user.data;
-    const { name: langNames } = req.body
-    await PatientVisitSectionService.updateName(id, langNames, userId, name);
+    const { lang } = req.body
+    await PatientVisitSectionService.updateName(id, lang, userId, name);
     return res.status(HttpStatusCodes.OK).json({ success: true, data: null });
 }
 
@@ -48,6 +48,18 @@ async function updateOrder(req: IReqUser<{ order:any }>, res: IRes) {
 }
 
 
+/**
+ * Update patient visit sub-section enabled status.
+ */
+async function updateSubSectionIsEnabled(req: IReqUser<{ is_enabled: boolean, sub_section: string }>, res: IRes) {
+    const { id } = req.params;
+    const { is_enabled, sub_section } = req.body;
+    const { userId, name } = req.user.data;
+    await PatientVisitSectionService.updateSubSectionIsEnabled(id, sub_section, is_enabled, userId, name);
+    return res.status(HttpStatusCodes.OK).json({ success: true, data: null });
+}
+
+
 // **** Export default **** //
 
 export default {
@@ -55,4 +67,5 @@ export default {
     updateIsEnabled,
     updateName,
     updateOrder,
+    updateSubSectionIsEnabled
 } as const;

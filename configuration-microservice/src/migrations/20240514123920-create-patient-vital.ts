@@ -48,6 +48,10 @@ module.exports = {
             deletedAt: {
               type: DataTypes.DATE,
             },
+            lang: {
+              type: DataTypes.JSON,
+              allowNull: true
+            }
           });
         }
     ),

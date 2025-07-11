@@ -62,14 +62,14 @@ module.exports = (function () {
             logStream('debug', 'API call', 'Upload Sign');
             const {
                 file,
-                providerid
+                providerId
             } = req.body;
             const keysAndTypeToCheck = [
                 { key: Constant.FILE, type: "string" },
                 { key: Constant.PROVIDER_ID, type: "string" }
             ];
             if (validateParams(req.body, keysAndTypeToCheck)) {
-                const data = await _uploadSign(file, providerid);
+                const data = await _uploadSign(file, providerId);
                 logStream('debug', 'Success', 'Upload Sign');
                 RES(
                     res,

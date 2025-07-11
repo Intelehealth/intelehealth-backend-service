@@ -3,6 +3,7 @@ const { sequelize } = require("../models");
 const { QueryTypes } = require("sequelize");
 const { getFirebaseAdmin, sendCloudNotification } = require("./helper");
 const { deliveredById } = require("../services/message.service");
+const { createCallRecordOfWebrtc, updateCallRecordOfWebrtc } = require("../services/call_data.service")
 
 const admin = getFirebaseAdmin();
 
@@ -14,6 +15,8 @@ const CALL_STATUSES = {
   DR_CANCELLED: "dr_cancelled",
   HW_CANCELLED: "hw_cancelled",
   IDLE: "available",
+  SUCCESS: "success",
+  UNSUCCESS: "unsuccess",
 };
 
 module.exports = function (server) {
@@ -71,7 +74,16 @@ module.exports = function (server) {
 
     emitAllUserStatus();
 
-    socket.on("disconnect", () => {
+    socket.on("disconnect", async (data) => {      
+      if(users[socket.id].callStatus === 'calling'){
+        const callStatus = CALL_STATUSES.UNSUCCESS;
+        const usersRecord = {
+          doctorId: users[socket.id].uuid,
+          roomId: users[socket.id].room,
+          callStatus: callStatus
+        }
+        await updateCallRecordOfWebrtc(usersRecord);
+      }
       delete users[socket.id];
       emitAllUserStatus();
     });
@@ -152,7 +164,14 @@ module.exports = function (server) {
       callInRoom(room, hwData);
     });
 
-    socket.on("bye", function (data) {
+    socket.on("bye", async function (data) {
+      const usersRecord = {
+        doctorId: doctorId,
+        nurseId: nurseId,
+        roomId: roomId,
+      }
+      await updateCallRecordOfWebrtc(usersRecord);
+      
       if (data?.socketId) {
         users[data?.socketId].callStatus = CALL_STATUSES.IDLE;
         users[data?.socketId].room = null;
@@ -177,7 +196,10 @@ module.exports = function (server) {
       deliveredById(data?.messageId);
     });
 
-    socket.on("call-connected", function (data) {
+    socket.on("call-connected", async function (data) {
+      const { visitId, doctorId, nurseId, roomId } = data;
+      const callStatus = CALL_STATUSES.SUCCESS;
+      await createCallRecordOfWebrtc(doctorId, nurseId, roomId, visitId, callStatus);
       markConnected(data);
     });
 
@@ -394,6 +416,14 @@ module.exports = function (server) {
         { type: QueryTypes.SELECT }
       );
       socket.emit("adminUnreadCount", unreadcount[0].unread);
+    });
+
+    socket.on("getDoctorAdminUnreadCount", async function (data) {      
+      const unreadcount = await sequelize.query(
+        `SELECT COUNT(sm.message) AS unread FROM supportmessages sm WHERE sm.to = '${data}' AND sm.isRead = 0`,
+        { type: QueryTypes.SELECT }
+      );
+      socket.emit("doctorAdminUnreadCount", unreadcount[0].unread);
     });
 
     socket.on("getDrUnreadCount", async function (data) {

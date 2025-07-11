@@ -114,6 +114,16 @@ const sendCloudNotification = async ({
   const payload = {
     data,
     tokens: regTokens,
+    android: {
+      priority: 'high'  // For Android, you can set 'high' or 'normal'
+    },
+    apns: {
+      payload: {
+        aps: {
+          priority: 10  // For iOS, 10 is for high priority, 5 is for normal
+        }
+      }
+    }
   };
 
   if(notification) payload.notification = notification;
@@ -148,9 +158,22 @@ const sendCloudNotification = async ({
       },
       tokens: regTokens,
     };
-
+console.log("payload for FCM==",payload);
+Object.entries(payload.data).forEach(([k, v]) => {
+  if (typeof v !== 'string') {
+    console.error(`Invalid payload: data.${k} is not a string =>`, v);
+  }
+});
     try {
       const result = await messaging.sendEachForMulticast(payload);
+     console.log(`FCM Notification Sent: Success - ${result.successCount}, Failure - ${result.failureCount}`);
+     result.responses.forEach((resp, idx) => {
+      if (!resp.success) {
+        console.error(` FCM Error for token [${payload.tokens[idx]}]: ${resp.error.code} - ${resp.error.message}`);
+      } else {
+        console.log(` FCM Success for token [${payload.tokens[idx]}]`);
+      }
+    });
       return result;
     } catch (err) {
       console.error("Cloud notification error:", err);

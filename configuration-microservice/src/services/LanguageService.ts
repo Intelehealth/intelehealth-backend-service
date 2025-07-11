@@ -21,7 +21,7 @@ export const CANT_SET_DEFAULT_LANGUAGE = 'Disabled language can not be set as de
  */
 function getAll(): Promise<Language[]> {
     return Language.findAll({
-        attributes: ['id', 'name', 'code', 'en_name', 'is_default', 'is_enabled', 'createdAt', 'updatedAt'],
+        attributes: ['id', 'name', 'code', 'en_name', 'is_default', 'is_enabled', 'createdAt', 'updatedAt', 'platform'],
         raw: true
     });
 }

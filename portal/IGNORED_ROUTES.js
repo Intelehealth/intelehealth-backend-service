@@ -1,6 +1,6 @@
 const ignoredRoutes = [
   "/getLocations",
-  "/download",
+  "/mindmap/download",
 ];
 
 module.exports = ignoredRoutes;

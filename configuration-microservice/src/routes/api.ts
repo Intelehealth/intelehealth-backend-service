@@ -19,7 +19,11 @@ import WebrtcRoutes from './WebrtcRoutes';
 import FeaturesRoutes from './FeaturesRoutes';
 import PatientVisitSummaryRoutes from './PatientVisitSummaryRoutes';
 import SidebarMenuRoutes from './SidebarMenuRoutes';
+import PatientDetailsRoutes from './PatientDetailsRoutes';
 import PatientVisitSectionsRoutes from './PatientVisitSectionsRoutes';
+import RoasterQuestionnaireRoutes from './RoasterQuestionnaireRoutes';
+import DropdownRoutes from './DropdownRoutes';
+import HomeScreenRoutes from './HomeScreenRoutes';
 
 // **** Variables **** //
 
@@ -247,6 +251,12 @@ themeConfigRouter.put(
   ThemeConfigRoutes.updateImagesText
 );
 
+// Update theme config
+themeConfigRouter.put(
+  Paths.ThemeConfig.updateHelpTour,
+  ThemeConfigRoutes.updateHelpTour
+);
+
 // Delete Image 
 themeConfigRouter.delete(
   Paths.ThemeConfig.deleteImage,
@@ -278,6 +288,13 @@ vitalRouter.put(
   Paths.PatientVital.updateIsMandatory,
   validate(['id', 'number', 'params'],['is_mandatory', 'boolean', 'body']),
   VitalRoutes.updateIsMandatory,
+);
+
+// Update one patient vital name
+vitalRouter.put(
+  Paths.PatientVital.updateVitalName,
+  validate(['id', 'number', 'params'],['lang', 'object', 'body']),
+  VitalRoutes.updateVitalName,
 );
 
 // Add PatientVitalRouter
@@ -379,7 +396,28 @@ pvsRouter.put(
 apiRouter.use(Paths.PatientVisitSummary.Base, authMw, pvsRouter);
 
 
-// **** Setup SiderbarMenuRouter **** //
+// **** Setup PatientDetailsRouter **** //
+
+const patientDetailsRouter = Router();
+
+// Get all patient details
+patientDetailsRouter.get(
+  Paths.PatientDetails.Get,
+  PatientDetailsRoutes.getAll,
+);
+
+// Update one patient detail status
+patientDetailsRouter.put(
+  Paths.PatientDetails.UpdateIsEnabled,
+  validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body']),
+  PatientVisitSummaryRoutes.updateIsEnabled,
+);
+
+// Add PatientDetailsRouter
+apiRouter.use(Paths.PatientDetails.Base, authMw, patientDetailsRouter);
+
+
+// **** Setup SpecializationRouter **** //
 
 const siderbarMenuRouter = Router();
 
@@ -419,7 +457,7 @@ patientVisitSectionsRouter.put(
 // Update one patient visit sections name
 patientVisitSectionsRouter.put(
   Paths.PatientVisitSections.UpdateName,
-  validate(['id', 'number', 'params'],['name', 'object', 'body']),
+  validate(['id', 'number', 'params'],['lang', 'object', 'body']),
   PatientVisitSectionsRoutes.updateName,
 );
 
@@ -429,8 +467,95 @@ patientVisitSectionsRouter.put(
   validate(['order', 'object', 'body']),
   PatientVisitSectionsRoutes.updateOrder,
 );
+
+// Update one patient visit sections status
+patientVisitSectionsRouter.put(
+  Paths.PatientVisitSections.UpdateSubSectionIsEnabled,
+  validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body'], ['sub_section', 'string', 'body']),
+  PatientVisitSectionsRoutes.updateSubSectionIsEnabled,
+);
+
+/** Roster Questionnaire */
+const rosterQuestionnaire = Router();
+
+// Get all sidebar menus
+rosterQuestionnaire.get(
+  Paths.RosterQuestionnaire.Get,
+  RoasterQuestionnaireRoutes.getAll,
+);
+
+// Update one sidebar menus status
+rosterQuestionnaire.put(
+  Paths.SidebarMenus.UpdateIsEnabled,
+  validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body']),
+  RoasterQuestionnaireRoutes.updateIsEnabled
+)
+rosterQuestionnaire.get(
+  Paths.RosterQuestionnaire.GetByKey,
+  RoasterQuestionnaireRoutes.GetByKey,
+);
+
+// Update one patient reg field validations
+patientRegistrationRouter.put(
+  Paths.PatientResgistration.UpdateValidations,
+  validate(['id', 'number', 'params'],['validations', 'object', 'body']),
+  PatientRegistrationRoutes.updateValidations,
+);
+
+apiRouter.use(Paths.RosterQuestionnaire.Base, authMw, rosterQuestionnaire);
+
+
 // Add SiderbarMenuRouter
 apiRouter.use(Paths.PatientVisitSections.Base, authMw, patientVisitSectionsRouter);
+
+
+// **** Setup WebrtcRouter **** //
+
+const DropdownRouter = Router();
+
+// Get all webrtcs
+DropdownRouter.get(
+  Paths.Dropdown.Get,
+  DropdownRoutes.getAll,
+);
+
+// Update webrtc config status
+DropdownRouter.put(
+  Paths.Dropdown.UpdateIsEnabled,
+  validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body']),
+  DropdownRoutes.updateIsEnabled,
+);
+
+// Add DropdownRouter
+apiRouter.use(Paths.Dropdown.Base, authMw, DropdownRouter);
+
+
+// **** Setup homeScreenSectionsRouter **** //
+
+const homeScreenSectionsRouter = Router();
+
+// Get all home screen sections
+homeScreenSectionsRouter.get(
+  Paths.HomeScreen.Get,
+  HomeScreenRoutes.getAll,
+);
+
+// Update one home screen sections status
+homeScreenSectionsRouter.put(
+  Paths.HomeScreen.UpdateIsEnabled,
+  validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body']),
+  HomeScreenRoutes.updateIsEnabled,
+);
+
+// Update one home screen sections name
+homeScreenSectionsRouter.put(
+  Paths.HomeScreen.updateHomeScreenName,
+  validate(['id', 'number', 'params'],['lang', 'object', 'body']),
+  HomeScreenRoutes.updateHomeScreenName,
+);
+
+// Add HomeScreenRouter
+apiRouter.use(Paths.HomeScreen.Base, authMw, homeScreenSectionsRouter);
 
 // **** Export default **** //
 

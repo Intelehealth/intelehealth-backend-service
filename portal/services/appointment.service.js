@@ -26,6 +26,9 @@ const {
   location,
   obs,
   sequelize,
+  person_attribute_type,
+  visit_attribute,
+  visit_attribute_type
 } = require("../openmrs_models");
 const { QueryTypes } = require("sequelize");
 const { getVisitCountV4 } = require("../controllers/queries");
@@ -285,7 +288,7 @@ WHERE
      * @param { string } fromDate - From date
      * @param { string } toDate - To date
      */
-  this.getUserSlots = async ({ userUuid, fromDate, toDate, speciality = null }) => {
+  this.getUserSlots = async ({ userUuid, fromDate, toDate, speciality = null, pending_visits = null}) => {
     try {
       logStream('debug','Appointment Service', 'Get User Slots');
       const $where = {
@@ -317,6 +320,19 @@ WHERE
         },
         attributes: ["uuid"],
         include: [
+          {
+            model: visit_attribute,
+            as: "attributes",
+            attributes: [["value_reference","value"]],
+            required: false,
+            include: [
+              {
+                model: visit_attribute_type,
+                as: "attribute_type",
+                attributes: ["name", "uuid"],
+              }
+            ]
+          },
           {
             model: encounter,
             as: "encounters",
@@ -360,13 +376,44 @@ WHERE
             ],
           },
           {
+            model: person_attribute,
+            as: "person_attribute",
+            attributes: ["value"],
+            include: [
+              {
+                model: person_attribute_type,
+                as: "person_attribute_type",
+                attributes: ["name"],
+              }
+            ],
+          },
+          {
             model: location,
             as: "location",
             attributes: ["name"],
           },
         ]
       });
-      const mergedArray = data.map(x => ({ ...x, visit: visits.find(y => y.uuid == x.visitUuid)?.dataValues, visitStatus: visitStatus.find(z => z.uuid == x.visitUuid)?.Status }));
+      let mergedArray = []
+      if(pending_visits !== null) {
+        pending_visits = (pending_visits === 'true');
+        mergedArray = data.map(x => ({ ...x, visit: visits.find(y => y.uuid == x.visitUuid)?.dataValues, visitStatus: visitStatus.find(z => z.uuid == x.visitUuid)?.Status }));
+        mergedArray = mergedArray.filter(obj=>{
+          try {
+            let callStatusList = obj.visit.attributes.filter(attr=>attr.attribute_type.name === "Call Status");
+            let callStatus = JSON.parse(callStatusList?.[0]?.dataValues?.value ?? '{}')
+            if(Constant.PENDING_VISIT_BY_CALL_STATUS.includes(callStatus?.callStatus)){
+              return  pending_visits
+            } 
+            return !pending_visits
+          } catch (error) {
+             logStream("error", error.message)
+             return false
+          }
+        })
+      }
+      else
+        mergedArray = data.map(x => ({ ...x, visit: visits.find(y => y.uuid == x.visitUuid)?.dataValues, visitStatus: visitStatus.find(z => z.uuid == x.visitUuid)?.Status }));
       logStream('debug','Success', 'Get User Slots');
       return mergedArray;
     } catch (error) {
@@ -1085,29 +1132,39 @@ WHERE
 
     if (cancelled && cancelled.status) {
       logStream('debug','Success', 'Reschedule Appointment');
+      const appointment = await createAppointment({
+        openMrsId,
+        patientName,
+        locationUuid,
+        hwUUID,
+        slotDay,
+        slotDate,
+        slotDuration,
+        slotDurationUnit,
+        slotTime,
+        speciality,
+        userUuid,
+        drName,
+        visitUuid,
+        patientId,
+        patientAge,
+        patientGender,
+        patientPic,
+        hwName,
+        hwAge,
+        hwGender
+      });
+
+      if(appointment && visitUuid) {
+        try{
+          await this.removeCallStatus(visitUuid);
+        } catch (err) {
+          logStream('error', err);
+        }
+      }
+      
       return {
-        data: await createAppointment({
-          openMrsId,
-          patientName,
-          locationUuid,
-          hwUUID,
-          slotDay,
-          slotDate,
-          slotDuration,
-          slotDurationUnit,
-          slotTime,
-          speciality,
-          userUuid,
-          drName,
-          visitUuid,
-          patientId,
-          patientAge,
-          patientGender,
-          patientPic,
-          hwName,
-          hwAge,
-          hwGender
-        }),
+        data: appointment,
       };
     } else {
       return cancelled;
@@ -1321,6 +1378,48 @@ WHERE
       throw error;
     }
   };
+
+  /**
+   * remove the call status from visit attributes.
+   * @param {visitUuid} visitUuid 
+   */
+  this.removeCallStatus = async (visitUuid) => {
+    const currentVisit = await visit.findOne({
+      where: {
+        uuid: { [Op.eq]: visitUuid },
+      },
+      attributes: ["uuid"],
+      include: [
+        {
+          model: visit_attribute,
+          as: "attributes",
+          attributes: [["value_reference","value"], 'uuid'],
+          required: false,
+          include: [
+            {
+              model: visit_attribute_type,
+              as: "attribute_type",
+              attributes: ["name", "uuid"],
+            }
+          ]
+        }
+      ]
+    });
+    if(currentVisit) {
+      const callStatusList = currentVisit.attributes.filter(attr=>attr.attribute_type.name === "Call Status")
+      if(callStatusList && callStatusList.length > 0){
+        try {
+          const dataValues = callStatusList[0].dataValues;
+          let callStatus = JSON.parse(dataValues?.value ?? '{}')
+          if(Constant.PENDING_VISIT_BY_CALL_STATUS.includes(callStatus?.callStatus)) {
+            await visit_attribute.destroy({
+              where: { uuid: dataValues.uuid }
+            }); 
+          }
+        } catch (error) { console.error("Unable to delete the call status visit attribute")}
+      }
+    }
+  }
 
   return this;
 })();

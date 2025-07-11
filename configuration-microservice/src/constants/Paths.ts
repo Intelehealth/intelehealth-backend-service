@@ -34,12 +34,14 @@ export default {
     updateIsMandatory: '/updateIsMandatory/:id',
     updateIsEditable: '/updateIsEditable/:id',
     UpdateIsEnabled: '/updateIsEnabled/:id',
+    UpdateValidations: '/updateValidations/:id',
   },
   PatientVital: {
     Base: '/vitals',
     Get: '/all',
     updateIsMandatory: '/updateIsMandatory/:id',
     UpdateIsEnabled: '/updateIsEnabled/:id',
+    updateVitalName: '/updateVitalName/:id',
   },
   PatientDiagnostics: {
     Base: '/diagnostics',
@@ -59,7 +61,8 @@ export default {
     uploadImage: '/uploadImage',
     updateThemeConfig: '/updateThemeConfig',
     updateImagesText: '/updateImagesText',
-    deleteImage: '/deleteImage'
+    deleteImage: '/deleteImage',
+    updateHelpTour: '/updateHelpTour'
   },
   Webrtc: {
     Base: '/webrtc',
@@ -87,6 +90,29 @@ export default {
     Get: '/all',
     UpdateIsEnabled: '/updateIsEnabled/:id',
     UpdateName: '/updateName/:id',
-    UpdateOrder: '/update-order'
+    UpdateOrder: '/update-order',
+    UpdateSubSectionIsEnabled: '/UpdateSubSectionIsEnabled/:id',
+  },
+  PatientDetails: {
+    Base: '/pds',
+    Get: '/all',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+  },
+  RosterQuestionnaire: {
+    Base: '/roster-questionnaire',
+    Get: '/all',
+    GetByKey: '/getByKey/:key',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+  },
+  Dropdown: {
+    Base: '/dropdown',
+    Get: '/all',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+  },
+  HomeScreen: {
+    Base: '/home-screen',
+    Get: '/all',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+    updateHomeScreenName: '/updateHomeScreenName/:id',
   },
 } as const;

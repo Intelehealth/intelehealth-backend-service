@@ -50,11 +50,23 @@ async function updateIsEnabled(req: IReqUser<{ is_enabled: boolean }>, res: IRes
     return res.status(HttpStatusCodes.OK).json({ success: true });
 }
 
+/**
+ * Update patient registration field validations.
+ */
+async function updateValidations(req: IReqUser<{ validations: object }>, res: IRes) {
+    const { id } = req.params;
+    const { validations } = req.body;
+    const { userId, name } = req.user.data;
+    await PatientRegistrationService.updateValidations(id, validations, userId, name);
+    return res.status(HttpStatusCodes.OK).json({ success: true });
+}
+
 // **** Export default **** //
 
 export default {
     getAll,
     updateIsMandatory,
     updateIsEditable,
-    updateIsEnabled
+    updateIsEnabled,
+    updateValidations
 } as const;
