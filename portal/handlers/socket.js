@@ -420,7 +420,7 @@ module.exports = function (server) {
 
     socket.on("getDoctorAdminUnreadCount", async function (data) {      
       const unreadcount = await sequelize.query(
-        `SELECT COUNT(sm.message) AS unread FROM supportmessages sm WHERE sm.to = '${data}' AND sm.isRead = 0`,
+        `SELECT COUNT(m.message) AS unread FROM messages m WHERE m.toUser = '${data}' AND m.isRead = 0`,
         { type: QueryTypes.SELECT }
       );
       socket.emit("doctorAdminUnreadCount", unreadcount[0].unread);
