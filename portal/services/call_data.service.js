@@ -11,7 +11,11 @@ const CALL_TYPES = {
   VIDEO: 'video',
   AUDIO: 'audio'
 };
-
+// Convert a local Date to a UTC-based ISO string that matches IST (+5:30)
+function toUtcIsoMatchingLocal(date) {
+  const corrected = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return corrected.toISOString();
+}
 module.exports = (function () {
   /**
    * Creates a new WebRTC call record
@@ -23,6 +27,7 @@ module.exports = (function () {
    * @param {string} [callType=video] - The type of call (video/audio)
    * @returns {Promise<{success: boolean, data: object}>}
    */
+  
   this.createCallRecordOfWebrtc = async (doctorId, nurseId, roomId, visitId, callStatus, callType = CALL_TYPES.VIDEO) => {
     const t = await sequelize.transaction();
     try {
@@ -33,6 +38,7 @@ module.exports = (function () {
       if (callType && !Object.values(CALL_TYPES).includes(callType)) {
           throw new Error('Invalid call type');
       }
+      const startTime = toUtcIsoMatchingLocal(new Date()); // convert into UTC
       const record = await call_data.create({
         doctor_id: doctorId,
         chw_id: nurseId,
@@ -40,7 +46,7 @@ module.exports = (function () {
         visit_id: visitId,
         call_status: callStatus,
         call_duration: 0,
-        start_time: new Date().toISOString(),
+        start_time:startTime,
         end_time: null,
         call_type: callType
       }, { transaction: t });
@@ -84,7 +90,8 @@ module.exports = (function () {
         return { success: true, data: callRecord.toJSON(), message: 'Call record already ended' };
       }
 
-            const endTime = new Date().toISOString();
+           // const endTime = new Date().toISOString();
+           const endTime = toUtcIsoMatchingLocal(new Date());// convert into UTC time
             const updateData = {
                 end_time: endTime
             };
