@@ -314,6 +314,7 @@ module.exports = (function () {
           value_text: { [Op.ne]: "No" },
           voided: 0,
         };
+        obsCondition.required = true;
         type = "Completed Visit";
       }
       if (limit > 200) limit = 200;
