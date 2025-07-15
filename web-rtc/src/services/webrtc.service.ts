@@ -1,5 +1,6 @@
 import { WebSocketServer } from 'ws';
 import { RoomServiceClient, Room, AccessToken, EgressClient, EncodedFileOutput, VideoGrant, EncodingOptionsPreset, EncodedFileType } from 'livekit-server-sdk';
+import moment from 'moment';
 const { logStream } = require("../logger/index");
 const { call_recordings } = require("../models");
 
@@ -147,11 +148,12 @@ export class WebRTCService {
             }
 
             const timestamp = new Date();
-            const formattedTime = timestamp.toISOString().replace('T', '_').slice(0, 19);
+            const formattedTime = moment().format('DD-MM-YYYY_HH:mm:ss');
             const output = {
                 file: new EncodedFileOutput({
                     fileType: EncodedFileType.MP4,
-                    filepath: `${params?.visitId}_${BRANDNAME}_{room_name}_${formattedTime}`,
+                    // filepath: `${params?.visitId}_${BRANDNAME}_{room_name}_{time}`,
+                    filepath: `${params?.visitId}_${BRANDNAME}_${roomName}_${formattedTime}`,
                     output: {
                         case: "s3",
                         value: {

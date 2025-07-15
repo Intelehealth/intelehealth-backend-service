@@ -84,24 +84,20 @@ module.exports = (function () {
         return { success: true, data: callRecord.toJSON(), message: 'Call record already ended' };
       }
 
-            const endTime = new Date().toISOString();
-            const updateData = {
-                end_time: endTime
-            };
+      const endTime = new Date().toISOString();
+      const updateData = { end_time: endTime };
 
-            if (callRecord.call_status === CALL_STATUSES.SUCCESS) {
-                const durationInSeconds = Math.round(
-                    (new Date(endTime) - new Date(callRecord.start_time)) / 1000
-                );
-                updateData.call_duration = durationInSeconds;
-            } else {
-                updateData.call_status = CALL_STATUSES.UNSUCCESS;
-                updateData.call_duration = 0;
-            }
-
-      await call_data.update(updateData, { where: { id: callRecord.id }, transaction: t });
-      await t.commit();
-
+      if (callRecord.call_status === CALL_STATUSES.SUCCESS) {
+        const durationInSeconds = Math.round((new Date(endTime) - new Date(callRecord.start_time)) / 1000);
+        updateData.call_duration = durationInSeconds;
+        await call_data.update(updateData, { where: { id: callRecord.id }, transaction: t });
+        await t.commit();
+      } else {
+        updateData.call_status = CALL_STATUSES.UNSUCCESS;
+        updateData.call_duration = 0;
+        await call_data.update(updateData, { where: { id: callRecord.id }, transaction: t });
+        await t.commit();
+      }
       return { success: true, data: { ...callRecord.toJSON(), ...updateData } };
     } catch (error) {
       await t.rollback();
