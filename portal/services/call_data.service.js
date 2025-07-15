@@ -11,11 +11,7 @@ const CALL_TYPES = {
   VIDEO: 'video',
   AUDIO: 'audio'
 };
-// Convert a local Date to a UTC-based ISO string that matches IST (+5:30)
-function toUtcIsoMatchingLocal(date) {
-  const corrected = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return corrected.toISOString();
-}
+
 module.exports = (function () {
   /**
    * Creates a new WebRTC call record
@@ -27,7 +23,6 @@ module.exports = (function () {
    * @param {string} [callType=video] - The type of call (video/audio)
    * @returns {Promise<{success: boolean, data: object}>}
    */
-  
   this.createCallRecordOfWebrtc = async (doctorId, nurseId, roomId, visitId, callStatus, callType = CALL_TYPES.VIDEO) => {
     const t = await sequelize.transaction();
     try {
@@ -38,7 +33,6 @@ module.exports = (function () {
       if (callType && !Object.values(CALL_TYPES).includes(callType)) {
           throw new Error('Invalid call type');
       }
-      const startTime = toUtcIsoMatchingLocal(new Date()); // convert into UTC
       const record = await call_data.create({
         doctor_id: doctorId,
         chw_id: nurseId,
@@ -46,7 +40,7 @@ module.exports = (function () {
         visit_id: visitId,
         call_status: callStatus,
         call_duration: 0,
-        start_time:startTime,
+        start_time: new Date().toISOString(),
         end_time: null,
         call_type: callType
       }, { transaction: t });
@@ -90,23 +84,24 @@ module.exports = (function () {
         return { success: true, data: callRecord.toJSON(), message: 'Call record already ended' };
       }
 
-           // const endTime = new Date().toISOString();
-           const endTime = toUtcIsoMatchingLocal(new Date());// convert into UTC time
+            const endTime = new Date().toISOString();
             const updateData = {
                 end_time: endTime
             };
 
-      if (callRecord.call_status === CALL_STATUSES.SUCCESS) {
-        const durationInSeconds = Math.round((new Date(endTime) - new Date(callRecord.start_time)) / 1000);
-        updateData.call_duration = durationInSeconds;
-        await call_data.update(updateData, { where: { id: callRecord.id }, transaction: t });
-        await t.commit();
-      } else {
-        updateData.call_status = CALL_STATUSES.UNSUCCESS;
-        updateData.call_duration = 0;
-        await call_data.update(updateData, { where: { id: callRecord.id }, transaction: t });
-        await t.commit();
-      }
+            if (callRecord.call_status === CALL_STATUSES.SUCCESS) {
+                const durationInSeconds = Math.round(
+                    (new Date(endTime) - new Date(callRecord.start_time)) / 1000
+                );
+                updateData.call_duration = durationInSeconds;
+            } else {
+                updateData.call_status = CALL_STATUSES.UNSUCCESS;
+                updateData.call_duration = 0;
+            }
+
+      await call_data.update(updateData, { where: { id: callRecord.id }, transaction: t });
+      await t.commit();
+
       return { success: true, data: { ...callRecord.toJSON(), ...updateData } };
     } catch (error) {
       await t.rollback();
