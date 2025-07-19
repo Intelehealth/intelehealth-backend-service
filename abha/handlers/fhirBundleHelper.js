@@ -6,7 +6,7 @@
 const { OBSERVATION_TYPE, VISIT_TYPES, RELATIONS, FHIR_BASE_URL } = require("../constants/abha.constants");
 const { uuid } = require('uuidv4');
 const { logStream } = require("../logger");
-const { downloadPrescription } = require("./pdfHelper");
+const { downloadPrescription, downloadMedication, downloadVitals } = require("./pdfHelper");
 const openmrsService = require("../services/openmrs.service");
 const { getDoctorDetail, getData, convertDataToISO, getAttributeByName, getIdentifierByName, getGender } = require("./utilityHelper");
 
@@ -1328,12 +1328,15 @@ async function prescriptionDocumentReferenceStructure(response, doctorDetail) {
 
 /**
  * Creates a prescription record binary structure for FHIR bundle
- * @param {string} pdfContent - PDF content
  * @param {Object} prescriptionRecord - Prescription record data
+ * @param {Object} response - Response data
+ * @param {Object} doctorDetail - Doctor detail
  * @returns {Promise<Object>} Updated prescription record
  */
-async function prescriptionRecordBinaryStructure(pdfContent, prescriptionRecord) {
-    if (!pdfContent) return prescriptionRecord;
+async function prescriptionRecordBinaryStructure(prescriptionRecord, response, doctorDetail) {
+    const result = await downloadMedication(response, doctorDetail);
+    if (!result?.success || !result?.content) return prescriptionRecord;
+
     const uniqueIdBinary = uuid();
 
     // Create Binary resource
@@ -1344,7 +1347,7 @@ async function prescriptionRecordBinaryStructure(pdfContent, prescriptionRecord)
             profile: ["https://nrces.in/ndhm/fhir/r4/StructureDefinition/Binary"]
         },
         contentType: "application/pdf",
-        data: pdfContent
+        data: result.content
     };
 
     // Add Binary reference to prescription record section
@@ -1363,6 +1366,49 @@ async function prescriptionRecordBinaryStructure(pdfContent, prescriptionRecord)
         });
     }
     return prescriptionRecord;
+}
+
+
+/**
+ * Creates a wellness record vital document reference structure for FHIR bundle
+ * @param {Object} wellnessRecord - Wellness record data
+ * @param {Object} response - Response data
+ * @param {Object} doctorDetail - Doctor detail
+ * @returns {Promise<Object>} Updated wellness record
+ */
+async function vitalsDocumentReferenceStructure(wellnessRecord, response, doctorDetail) {
+    const result = await downloadVitals(response, doctorDetail);
+    if (!result?.success || !result?.content) return wellnessRecord;
+
+    const uniqueIdDocumentReference = uuid();
+
+    // Create DocumentReference resource
+    const documentReferenceResource = {
+        resourceType: "DocumentReference",
+        id: uniqueIdDocumentReference,
+        meta: {
+            profile: ["https://nrces.in/ndhm/fhir/r4/StructureDefinition/DocumentReference"]
+        },
+        contentType: "application/pdf",
+        data: result.content
+    };
+
+    // Add Binary reference to prescription record section
+    if (wellnessRecord?.vitalSigns?.entry) {
+        wellnessRecord.vitalSigns.entry.push({
+            reference: `DocumentReference/${uniqueIdDocumentReference}`,
+            type: "DocumentReference"
+        });
+    }
+
+    // Add Binary resource to prescription record
+    if (wellnessRecord?.vitalSigns?.observations) {
+        wellnessRecord.vitalSigns.observations.push({
+            fullUrl: `DocumentReference/${uniqueIdDocumentReference}`,
+            resource: documentReferenceResource
+        });
+    }
+    return wellnessRecord;
 }
 
 /**
@@ -1389,10 +1435,11 @@ async function formatCareContextFHIBundle(response) {
             wellnessRecord,
             healthRecord
         } = getEncountersFHIBundle(response?.encounters, practitioner, patient);
-        const prescriptionDocumentReference = await prescriptionDocumentReferenceStructure(response, practitioner, prescriptionRecord);
-        const presctiptionPDFContent = prescriptionDocumentReference?.content?.resource?.content?.[0]?.attachment?.data;
-        await prescriptionRecordBinaryStructure(presctiptionPDFContent, prescriptionRecord);
+        const prescriptionDocumentReference = await prescriptionDocumentReferenceStructure(response, practitioner);
+        await prescriptionRecordBinaryStructure(prescriptionRecord, response, practitioner);
+        await vitalsDocumentReferenceStructure(wellnessRecord, response, practitioner);
         await healthRecordStructure(healthRecord, patient);
+        
         // Collect all sections
         const sections = [
             medications?.section,

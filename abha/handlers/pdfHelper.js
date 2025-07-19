@@ -704,428 +704,168 @@ function getEncountersRecords(encounters = [], doctorDetail = null) {
     return encounterType;
 }
 
+/**
+ * Create common PDF configuration
+ * @param {string} title - PDF title
+ * @returns {object} - Common PDF configuration
+ */
+function createCommonPdfConfig(title) {
+    return {
+        pageSize: 'A4',
+        pageOrientation: 'portrait',
+        pageMargins: [20, 50, 20, 40],
+        watermark: { text: 'INTELEHEALTH', color: '#cdcdcd', opacity: 0.1, bold: true, italics: false, angle: 0, fontSize: 50 },
+        header: {
+            columns: [
+                { text: '' },
+                { image: logo.logo }
+            ]
+        },
+        footer: (currentPage, pageCount) => {
+            return {
+                columns: [
+                    [{ text: (pageCount === currentPage ? '*The diagnosis and prescription is through telemedicine consultation conducted as per applicable telemedicine guideline\n\n' : '\n\n'), bold: true, fontSize: 9, margin: [10, 0, 0, 0] }, { text: 'Copyright ©2023 Intelehealth, a 501 (c)(3) & Section 8 non-profit organisation', fontSize: 8, margin: [5, 0, 0, 0] }],
+                    { text: '\n\n' + currentPage.toString() + ' of ' + pageCount, width: "7%", fontSize: 8, margin: [5, 5, 5, 5], alignment: 'right' }
+                ]
+            };
+        },
+        images: { ...precription, ...visitImage, ...logo },
+        styles: {
+            header: {
+                fontSize: 14,
+                bold: true,
+                margin: [0, 10, 0, 10]
+            },
+            subheader: {
+                fontSize: 12,
+                bold: true,
+                margin: [0, 2, 0, 2],
+            },
+            subsubheader: {
+                fontSize: 10,
+                bold: true,
+                margin: [0, 2, 0, 2]
+            },
+            pval: {
+                fontSize: 10,
+                margin: [0, 2, 0, 2]
+            },
+            tableExample: {
+                margin: [0, 5, 0, 5],
+                fontSize: 12
+            },
+            tableHeader: {
+                bold: true,
+                fontSize: 12,
+                color: 'black'
+            },
+            sectionheader: {
+                fontSize: 12,
+                bold: true,
+                margin: [0, 5, 0, 10]
+            }
+        }
+    };
+}
 
-async function downloadPrescription(visit, doctorDetail = null) {
+/**
+ * Create consultation details section
+ * @param {object} visit - Visit data
+ * @param {object} consultedDoctor - Doctor details
+ * @returns {array} - Consultation details section
+ */
+function createConsultationDetailsSection(visit, consultedDoctor) {
+    return [
+        {
+            colSpan: 4,
+            table: {
+                widths: [30, '*'],
+                headerRows: 1,
+                body: [
+                    [{ image: 'consultation', width: 25, height: 25, border: [false, false, false, true] }, { text: 'Consultation details', style: 'sectionheader', border: [false, false, false, true] }],
+                    [
+                        {
+                            colSpan: 2,
+                            ul: [
+                                { text: [{ text: 'Patient ID:', bold: true }, ` ${getIdentifierByName(visit?.patient?.identifiers, 'OpenMRS ID')}`], margin: [0, 5, 0, 5] },
+                                { text: [{ text: 'Visit Start Date:', bold: true }, ` ${moment(visit?.startDatetime).format('DD MMM yyyy')}`], margin: [0, 5, 0, 5] },
+                                { text: [{ text: 'Date of Consultation:', bold: true }, ` ${moment(consultedDoctor?.encounterDatetime).format('DD MMM yyyy')}`], margin: [0, 5, 0, 5] },
+                                { text: [{ text: 'Clinic Name:', bold: true }, 'Intelehealth Telemedicine, Maharashtra'], margin: [0, 5, 0, 5] },
+                            ]
+                        }
+                    ]
+                ]
+            },
+            layout: {
+                defaultBorder: false
+            }
+        },
+        '',
+        '',
+        ''
+    ];
+}
+
+/**
+ * Create doctor signature section
+ * @param {object} consultedDoctor - Doctor details
+ * @returns {array} - Doctor signature section
+ */
+function createDoctorSignatureSection(consultedDoctor) {
+    return [
+        {
+            colSpan: 4,
+            alignment: 'right',
+            stack: [
+                consultedDoctor?.signature ? { image: `${consultedDoctor.signature}`, width: 100, height: 100, margin: [0, 5, 0, 5] } : { text: ``, margin: [0, 5, 0, 5] },
+                consultedDoctor?.name ? { text: `Dr. ${consultedDoctor?.name}`, margin: [0, -30, 0, 0] } : { text: ``, margin: [0, 5, 0, 5] },
+                consultedDoctor?.typeOfProfession ? { text: `${consultedDoctor?.typeOfProfession}` } : { text: ``, margin: [0, 5, 0, 5] },
+                consultedDoctor?.registrationNumber ? { text: `Registration No. ${consultedDoctor?.registrationNumber}` } : { text: ``, margin: [0, 5, 0, 5] },
+            ]
+        },
+        '',
+        '',
+        ''
+    ];
+}
+
+/**
+ * Create section with icon and title
+ * @param {string} imageName - Image name
+ * @param {string} title - Section title
+ * @param {array} content - Section content
+ * @returns {array} - Section array
+ */
+function createSection(imageName, title, content) {
+    return [
+        {
+            colSpan: 4,
+            table: {
+                widths: [30, '*'],
+                headerRows: 1,
+                body: [
+                    [{ image: imageName, width: 25, height: 25, border: [false, false, false, true] }, { text: title, style: 'sectionheader', border: [false, false, false, true] }],
+                    ...content
+                ]
+            },
+            layout: {
+                defaultBorder: false
+            }
+        },
+        '',
+        '',
+        ''
+    ];
+}
+
+/**
+ * Generate PDF with error handling
+ * @param {object} pdfObj - PDF object
+ * @returns {Promise} - Promise resolving to PDF result
+ */
+function generatePdf(pdfObj) {
     return new Promise((resolve, reject) => {
         try {
-            pdfMake.vfs = pdfFonts?.pdfMake?.vfs
-            const encountersRecords = getEncountersRecords(visit?.encounters, doctorDetail);
-            const consultedDoctor = doctorDetail ? doctorDetail : encountersRecords[VISIT_TYPES.DOCTOR_DETIALS];
-
-            const pdfObj = {
-                pageSize: 'A4',
-                pageOrientation: 'portrait',
-                pageMargins: [20, 50, 20, 40],
-                watermark: { text: 'INTELEHEALTH', color: '#cdcdcd', opacity: 0.1, bold: true, italics: false, angle: 0, fontSize: 50 },
-                header: {
-                    columns: [
-                        { text: '' },
-                        { image: logo.logo }
-                    ]
-                },
-                footer: (currentPage, pageCount) => {
-                    return {
-                        columns: [
-                            [{ text: (pageCount === currentPage ? '*The diagnosis and prescription is through telemedicine consultation conducted as per applicable telemedicine guideline\n\n' : '\n\n'), bold: true, fontSize: 9, margin: [10, 0, 0, 0] }, { text: 'Copyright ©2023 Intelehealth, a 501 (c)(3) & Section 8 non-profit organisation', fontSize: 8, margin: [5, 0, 0, 0] }],
-                            { text: '\n\n' + currentPage.toString() + ' of ' + pageCount, width: "7%", fontSize: 8, margin: [5, 5, 5, 5], alignment: 'right' }
-                        ]
-                    };
-                },
-                content: [
-                    {
-                        style: 'tableExample',
-                        table: {
-                            widths: ['25%', '30%', '22%', '23%'],
-                            body: [
-                                [
-                                    {
-                                        colSpan: 4,
-                                        fillColor: '#E6FFF3',
-                                        text: 'Intelehealth e-Prescription',
-                                        alignment: 'center',
-                                        style: 'header'
-                                    },
-                                    '',
-                                    '',
-                                    ''
-                                ],
-                                [
-                                    getPersonalInfo(visit?.patient)
-                                ],
-                                [
-                                    getAddress(visit?.patient)
-                                ],
-                                [
-                                    getOtherInfo(visit?.patient)
-                                ],
-                                [
-                                    {
-                                        colSpan: 4,
-                                        table: {
-                                            widths: [30, '*'],
-                                            headerRows: 1,
-                                            body: [
-                                                [{ image: 'consultation', width: 25, height: 25, border: [false, false, false, true] }, { text: 'Consultation details', style: 'sectionheader', border: [false, false, false, true] }],
-                                                [
-                                                    {
-                                                        colSpan: 2,
-                                                        ul: [
-                                                            { text: [{ text: 'Patient ID:', bold: true }, ` ${getIdentifierByName(visit?.patient?.identifiers, 'OpenMRS ID')}`], margin: [0, 5, 0, 5] },
-                                                            { text: [{ text: 'Visit Start Date:', bold: true }, ` ${moment(visit?.startDatetime).format('DD MMM yyyy')}`], margin: [0, 5, 0, 5] },
-                                                            { text: [{ text: 'Date of Consultation:', bold: true }, ` ${moment(consultedDoctor?.encounterDatetime).format('DD MMM yyyy')}`], margin: [0, 5, 0, 5] },
-                                                            { text: [{ text: 'Clinic Name:', bold: true }, 'Intelehealth Telemedicine, Maharashtra'], margin: [0, 5, 0, 5] },
-                                                        ]
-                                                    }
-                                                ]
-                                            ]
-                                        },
-                                        layout: {
-                                            defaultBorder: false
-                                        }
-                                    },
-                                    '',
-                                    '',
-                                    ''
-                                ],
-                                [
-                                    {
-                                        colSpan: 4,
-                                        sectionName: 'vitals',
-                                        table: {
-                                            widths: [30, '*'],
-                                            headerRows: 1,
-                                            body: [
-                                                [{ image: 'vitals', width: 25, height: 25, border: [false, false, false, true] }, { text: 'Vitals', style: 'sectionheader', border: [false, false, false, true] }],
-                                                [
-                                                    {
-                                                        colSpan: 2,
-                                                        ul: [
-                                                            ...getRecords(encountersRecords, 'Vitals')
-                                                        ]
-                                                    }
-                                                ]
-                                            ]
-                                        },
-                                        layout: {
-                                            defaultBorder: false
-                                        }
-                                    },
-                                    '',
-                                    '',
-                                    ''
-                                ],
-                                [
-                                    {
-                                        colSpan: 4,
-                                        table: {
-                                            widths: [30, '*'],
-                                            headerRows: 1,
-                                            body: [
-                                                [{ image: 'cheifComplaint', width: 25, height: 25, border: [false, false, false, true] }, { text: 'Chief complaint', style: 'sectionheader', border: [false, false, false, true] }],
-                                                [
-                                                    {
-                                                        colSpan: 2,
-                                                        ul: [
-                                                            ...getRecords(encountersRecords, 'cheifComplaint')
-                                                        ]
-                                                    }
-                                                ],
-                                                ...getRecords(encountersRecords, 'associated_symptoms')
-                                            ]
-                                        },
-                                        layout: {
-                                            defaultBorder: false
-                                        }
-                                    },
-                                    '',
-                                    '',
-                                    ''
-                                ],
-                                [
-                                    {
-                                        colSpan: 4,
-                                        table: {
-                                            widths: [30, '*'],
-                                            headerRows: 1,
-                                            body: [
-                                                [{ image: 'physicalExamination', width: 25, height: 25, border: [false, false, false, true] }, { text: 'Physical examination', style: 'sectionheader', border: [false, false, false, true] }],
-                                                ...getRecords(encountersRecords, 'physical_examination'),
-                                                ...getRecords(encountersRecords, 'abdomen_examination')
-                                            ]
-                                        },
-                                        layout: {
-                                            defaultBorder: false
-                                        }
-                                    },
-                                    '',
-                                    '',
-                                    ''
-                                ],
-                                [
-                                    {
-                                        colSpan: 4,
-                                        table: {
-                                            widths: [30, '*'],
-                                            headerRows: 1,
-                                            body: [
-                                                [{ image: 'medicalHistory', width: 25, height: 25, border: [false, false, false, true] }, { text: 'Medical history', style: 'sectionheader', border: [false, false, false, true] }],
-                                                ...getRecords(encountersRecords, 'medical_history')
-                                            ]
-                                        },
-                                        layout: {
-                                            defaultBorder: false
-                                        }
-                                    },
-                                    '',
-                                    '',
-                                    ''
-                                ],
-                                [
-                                    {
-                                        colSpan: 4,
-                                        table: {
-                                            widths: [30, '*'],
-                                            headerRows: 1,
-                                            body: [
-                                                [{ image: 'diagnosis', width: 25, height: 25, border: [false, false, false, true] }, { text: 'Diagnosis', style: 'sectionheader', border: [false, false, false, true] }],
-                                                [
-                                                    {
-                                                        colSpan: 2,
-                                                        table: {
-                                                            widths: ['*', '*', '*'],
-                                                            headerRows: 1,
-                                                            body: [
-                                                                [{ text: 'Diagnosis', style: 'tableHeader' }, { text: 'Type', style: 'tableHeader' }, { text: 'Status', style: 'tableHeader' }],
-                                                                ...getRecords(encountersRecords, 'diagnosis')
-                                                            ]
-                                                        },
-                                                        layout: 'lightHorizontalLines'
-                                                    }
-                                                ]
-                                            ]
-                                        },
-                                        layout: {
-                                            defaultBorder: false
-                                        }
-                                    },
-                                    '',
-                                    '',
-                                    ''
-                                ],
-                                [
-                                    {
-                                        colSpan: 4,
-                                        table: {
-                                            widths: [30, '*'],
-                                            headerRows: 1,
-                                            body: [
-                                                [{ image: 'medication', width: 25, height: 25, border: [false, false, false, true] }, { text: 'Medication', style: 'sectionheader', border: [false, false, false, true] }],
-                                                [
-                                                    {
-                                                        colSpan: 2,
-                                                        table: {
-                                                            widths: ['*', 'auto', 'auto', 'auto', 'auto'],
-                                                            headerRows: 1,
-                                                            body: [
-                                                                [{ text: 'Drug name', style: 'tableHeader' }, { text: 'Strength', style: 'tableHeader' }, { text: 'No. of days', style: 'tableHeader' }, { text: 'Timing', style: 'tableHeader' }, { text: 'Remarks', style: 'tableHeader' }],
-                                                                ...getRecords(encountersRecords, 'medication')
-                                                            ]
-                                                        },
-                                                        layout: 'lightHorizontalLines'
-                                                    }
-                                                ],
-                                                [{ text: 'Additional Instructions:', style: 'sectionheader', colSpan: 2 }, ''],
-                                                [
-                                                    {
-                                                        colSpan: 2,
-                                                        ul: [
-                                                            ...getRecords(encountersRecords, 'additionalInstruction')
-                                                        ]
-                                                    }
-                                                ]
-                                            ]
-                                        },
-                                        layout: {
-                                            defaultBorder: false
-                                        }
-                                    },
-                                    '',
-                                    '',
-                                    ''
-                                ],
-                                [
-                                    {
-                                        colSpan: 4,
-                                        table: {
-                                            widths: [30, '*'],
-                                            headerRows: 1,
-                                            body: [
-                                                [{ image: 'advice', width: 25, height: 25, border: [false, false, false, true] }, { text: 'Advice', style: 'sectionheader', border: [false, false, false, true] }],
-                                                [
-                                                    {
-                                                        colSpan: 2,
-                                                        ul: [
-                                                            ...getRecords(encountersRecords, 'advice')
-                                                        ]
-                                                    }
-                                                ]
-                                            ]
-                                        },
-                                        layout: {
-                                            defaultBorder: false
-                                        }
-                                    },
-                                    '',
-                                    '',
-                                    ''
-                                ],
-                                [
-                                    {
-                                        colSpan: 4,
-                                        table: {
-                                            widths: [30, '*'],
-                                            headerRows: 1,
-                                            body: [
-                                                [{ image: 'test', width: 25, height: 25, border: [false, false, false, true] }, { text: 'Test', style: 'sectionheader', border: [false, false, false, true] }],
-                                                [
-                                                    {
-                                                        colSpan: 2,
-                                                        ul: [
-                                                            ...getRecords(encountersRecords, 'test')
-                                                        ]
-                                                    }
-                                                ]
-                                            ]
-                                        },
-                                        layout: {
-                                            defaultBorder: false
-                                        }
-                                    },
-                                    '',
-                                    '',
-                                    ''
-                                ],
-                                [
-                                    {
-                                        colSpan: 4,
-                                        table: {
-                                            widths: [30, '*'],
-                                            headerRows: 1,
-                                            body: [
-                                                [{ image: 'referral', width: 25, height: 25, border: [false, false, false, true] }, { text: 'Referral Out', style: 'sectionheader', border: [false, false, false, true] }],
-                                                [
-                                                    {
-                                                        colSpan: 2,
-                                                        table: {
-                                                            widths: ['30%', '30%', '10%', '30%'],
-                                                            headerRows: 1,
-                                                            body: [
-                                                                [{ text: 'Referral to', style: 'tableHeader' }, { text: 'Referral facility', style: 'tableHeader' }, { text: 'Priority', style: 'tableHeader' }, { text: 'Referral for (Reason)', style: 'tableHeader' }],
-                                                                ...getRecords(encountersRecords, 'referral')
-                                                            ]
-                                                        },
-                                                        layout: 'lightHorizontalLines'
-                                                    }
-                                                ]
-                                            ]
-                                        },
-                                        layout: {
-                                            defaultBorder: false
-                                        }
-                                    },
-                                    '',
-                                    '',
-                                    ''
-                                ],
-                                [
-                                    {
-                                        colSpan: 4,
-                                        table: {
-                                            widths: [30, '*'],
-                                            headerRows: 1,
-                                            body: [
-                                                [{ image: 'followUp', width: 25, height: 25, border: [false, false, false, true] }, { text: 'Follow-up', style: 'sectionheader', border: [false, false, false, true] }],
-                                                [
-                                                    {
-                                                        colSpan: 2,
-                                                        table: {
-                                                            widths: ['30%', '30%', '10%', '30%'],
-                                                            headerRows: 1,
-                                                            body: [
-                                                                [{ text: 'Follow-up Requested', style: 'tableHeader' }, { text: 'Date', style: 'tableHeader' }, { text: 'Time', style: 'tableHeader' }, { text: 'Reason', style: 'tableHeader' }],
-                                                                ...getRecords(encountersRecords, 'followUp')
-                                                            ]
-                                                        },
-                                                        layout: 'lightHorizontalLines'
-                                                    }
-                                                ]
-                                            ]
-                                        },
-                                        layout: {
-                                            defaultBorder: false
-                                        }
-                                    },
-                                    '',
-                                    '',
-                                    ''
-                                ],
-                                [
-                                    {
-                                        colSpan: 4,
-                                        alignment: 'right',
-                                        stack: [
-                                            consultedDoctor?.signature ? { image: `${consultedDoctor.signature}`, width: 100, height: 100, margin: [0, 5, 0, 5] } : { text: ``, margin: [0, 5, 0, 5] },
-                                            consultedDoctor?.name ? { text: `Dr. ${consultedDoctor?.name}`, margin: [0, -30, 0, 0] } : { text: ``, margin: [0, 5, 0, 5] },
-                                            consultedDoctor?.typeOfProfession ? { text: `${consultedDoctor?.typeOfProfession}` } : { text: ``, margin: [0, 5, 0, 5] },
-                                            consultedDoctor?.registrationNumber ? { text: `Registration No. ${consultedDoctor?.registrationNumber}` } : { text: ``, margin: [0, 5, 0, 5] },
-                                        ]
-                                    },
-                                    '',
-                                    '',
-                                    ''
-                                ]
-                            ]
-                        },
-                        layout: 'noBorders'
-                    }
-                ],
-                images: { ...precription, ...visitImage, ...logo },
-                styles: {
-                    header: {
-                        fontSize: 14,
-                        bold: true,
-                        margin: [0, 10, 0, 10]
-                    },
-                    subheader: {
-                        fontSize: 12,
-                        bold: true,
-                        margin: [0, 2, 0, 2],
-                    },
-                    subsubheader: {
-                        fontSize: 10,
-                        bold: true,
-                        margin: [0, 2, 0, 2]
-                    },
-                    pval: {
-                        fontSize: 10,
-                        margin: [0, 2, 0, 2]
-                    },
-                    tableExample: {
-                        margin: [0, 5, 0, 5],
-                        fontSize: 12
-                    },
-                    tableHeader: {
-                        bold: true,
-                        fontSize: 12,
-                        color: 'black'
-                    },
-                    sectionheader: {
-                        fontSize: 12,
-                        bold: true,
-                        margin: [0, 5, 0, 10]
-                    }
-                }
-            };
             pdfMake.createPdf(pdfObj).getBase64((result) => {
                 resolve({ success: true, content: result })
             })
@@ -1133,8 +873,302 @@ async function downloadPrescription(visit, doctorDetail = null) {
             logStream("error", err)
             resolve({ success: false, content: null, error: err })
         }
-    })
+    }).catch(err => {
+        logStream("error", err)
+        resolve({ success: false, content: null, error: err })
+    });
 }
+
+async function downloadPrescription(visit, doctorDetail = null) {
+    try {
+        pdfMake.vfs = pdfFonts?.pdfMake?.vfs
+        const encountersRecords = getEncountersRecords(visit?.encounters, doctorDetail);
+        const consultedDoctor = doctorDetail ? doctorDetail : encountersRecords[VISIT_TYPES.DOCTOR_DETIALS];
+
+        const pdfObj = createCommonPdfConfig('Intelehealth e-Prescription');
+
+        pdfObj.content = [
+            {
+                style: 'tableExample',
+                table: {
+                    widths: ['25%', '30%', '22%', '23%'],
+                    body: [
+                        [
+                            {
+                                colSpan: 4,
+                                fillColor: '#E6FFF3',
+                                text: 'Intelehealth e-Prescription',
+                                alignment: 'center',
+                                style: 'header'
+                            },
+                            '',
+                            '',
+                            ''
+                        ],
+                        [getPersonalInfo(visit?.patient)],
+                        [getAddress(visit?.patient)],
+                        [getOtherInfo(visit?.patient)],
+                        createConsultationDetailsSection(visit, consultedDoctor),
+                        createSection('vitals', 'Vitals', [
+                            [
+                                {
+                                    colSpan: 2,
+                                    ul: [
+                                        ...getRecords(encountersRecords, 'Vitals')
+                                    ]
+                                }
+                            ]
+                        ]),
+                        createSection('cheifComplaint', 'Chief complaint', [
+                            [
+                                {
+                                    colSpan: 2,
+                                    ul: [
+                                        ...getRecords(encountersRecords, 'cheifComplaint')
+                                    ]
+                                }
+                            ],
+                            ...getRecords(encountersRecords, 'associated_symptoms')
+                        ]),
+                        createSection('physicalExamination', 'Physical examination', [
+                            ...getRecords(encountersRecords, 'physical_examination'),
+                            ...getRecords(encountersRecords, 'abdomen_examination')
+                        ]),
+                        createSection('medicalHistory', 'Medical history', [
+                            ...getRecords(encountersRecords, 'medical_history')
+                        ]),
+                        createSection('diagnosis', 'Diagnosis', [
+                            [
+                                {
+                                    colSpan: 2,
+                                    table: {
+                                        widths: ['*', '*', '*'],
+                                        headerRows: 1,
+                                        body: [
+                                            [{ text: 'Diagnosis', style: 'tableHeader' }, { text: 'Type', style: 'tableHeader' }, { text: 'Status', style: 'tableHeader' }],
+                                            ...getRecords(encountersRecords, 'diagnosis')
+                                        ]
+                                    },
+                                    layout: 'lightHorizontalLines'
+                                }
+                            ]
+                        ]),
+                        createSection('medication', 'Medication', [
+                            [
+                                {
+                                    colSpan: 2,
+                                    table: {
+                                        widths: ['*', 'auto', 'auto', 'auto', 'auto'],
+                                        headerRows: 1,
+                                        body: [
+                                            [{ text: 'Drug name', style: 'tableHeader' }, { text: 'Strength', style: 'tableHeader' }, { text: 'No. of days', style: 'tableHeader' }, { text: 'Timing', style: 'tableHeader' }, { text: 'Remarks', style: 'tableHeader' }],
+                                            ...getRecords(encountersRecords, 'medication')
+                                        ]
+                                    },
+                                    layout: 'lightHorizontalLines'
+                                }
+                            ],
+                            [{ text: 'Additional Instructions:', style: 'sectionheader', colSpan: 2 }, ''],
+                            [
+                                {
+                                    colSpan: 2,
+                                    ul: [
+                                        ...getRecords(encountersRecords, 'additionalInstruction')
+                                    ]
+                                }
+                            ]
+                        ]),
+                        createSection('advice', 'Advice', [
+                            [
+                                {
+                                    colSpan: 2,
+                                    ul: [
+                                        ...getRecords(encountersRecords, 'advice')
+                                    ]
+                                }
+                            ]
+                        ]),
+                        createSection('test', 'Test', [
+                            [
+                                {
+                                    colSpan: 2,
+                                    ul: [
+                                        ...getRecords(encountersRecords, 'test')
+                                    ]
+                                }
+                            ]
+                        ]),
+                        createSection('referral', 'Referral Out', [
+                            [
+                                {
+                                    colSpan: 2,
+                                    table: {
+                                        widths: ['30%', '30%', '10%', '30%'],
+                                        headerRows: 1,
+                                        body: [
+                                            [{ text: 'Referral to', style: 'tableHeader' }, { text: 'Referral facility', style: 'tableHeader' }, { text: 'Priority', style: 'tableHeader' }, { text: 'Referral for (Reason)', style: 'tableHeader' }],
+                                            ...getRecords(encountersRecords, 'referral')
+                                        ]
+                                    },
+                                    layout: 'lightHorizontalLines'
+                                }
+                            ]
+                        ]),
+                        createSection('followUp', 'Follow-up', [
+                            [
+                                {
+                                    colSpan: 2,
+                                    table: {
+                                        widths: ['30%', '30%', '10%', '30%'],
+                                        headerRows: 1,
+                                        body: [
+                                            [{ text: 'Follow-up Requested', style: 'tableHeader' }, { text: 'Date', style: 'tableHeader' }, { text: 'Time', style: 'tableHeader' }, { text: 'Reason', style: 'tableHeader' }],
+                                            ...getRecords(encountersRecords, 'followUp')
+                                        ]
+                                    },
+                                    layout: 'lightHorizontalLines'
+                                }
+                            ]
+                        ]),
+                        createDoctorSignatureSection(consultedDoctor)
+                    ]
+                },
+                layout: 'noBorders'
+            }
+        ];
+
+        return await generatePdf(pdfObj);
+    } catch (err) {
+        logStream("error", err)
+        return { success: false, content: null, error: err };
+    }
+}
+
+async function downloadMedication(visit, doctorDetail = null) {
+    try {
+        pdfMake.vfs = pdfFonts?.pdfMake?.vfs
+        const encountersRecords = getEncountersRecords(visit?.encounters, doctorDetail);
+        const consultedDoctor = doctorDetail ? doctorDetail : encountersRecords[VISIT_TYPES.DOCTOR_DETIALS];
+
+        const pdfObj = createCommonPdfConfig('Intelehealth e-Medication');
+        
+        pdfObj.content = [
+            {
+                style: 'tableExample',
+                table: {
+                    widths: ['25%', '30%', '22%', '23%'],
+                    body: [
+                        [
+                            {
+                                colSpan: 4,
+                                fillColor: '#E6FFF3',
+                                text: 'Intelehealth e-Medication',
+                                alignment: 'center',
+                                style: 'header'
+                            },
+                            '',
+                            '',
+                            ''
+                        ],
+                        [getPersonalInfo(visit?.patient)],
+                        [getAddress(visit?.patient)],
+                        [getOtherInfo(visit?.patient)],
+                        createConsultationDetailsSection(visit, consultedDoctor),
+                        createSection('medication', 'Medication', [
+                            [
+                                {
+                                    colSpan: 2,
+                                    table: {
+                                        widths: ['*', 'auto', 'auto', 'auto', 'auto'],
+                                        headerRows: 1,
+                                        body: [
+                                            [{ text: 'Drug name', style: 'tableHeader' }, { text: 'Strength', style: 'tableHeader' }, { text: 'No. of days', style: 'tableHeader' }, { text: 'Timing', style: 'tableHeader' }, { text: 'Remarks', style: 'tableHeader' }],
+                                            ...getRecords(encountersRecords, 'medication')
+                                        ]
+                                    },
+                                    layout: 'lightHorizontalLines'
+                                }
+                            ],
+                            [{ text: 'Additional Instructions:', style: 'sectionheader', colSpan: 2 }, ''],
+                            [
+                                {
+                                    colSpan: 2,
+                                    ul: [
+                                        ...getRecords(encountersRecords, 'additionalInstruction')
+                                    ]
+                                }
+                            ]
+                        ]),
+                        createDoctorSignatureSection(consultedDoctor)
+                    ]
+                },
+                layout: 'noBorders'
+            }
+        ];
+
+        return await generatePdf(pdfObj);
+    } catch (err) {
+        logStream("error", err)
+        return { success: false, content: null, error: err };
+    }
+}
+
+async function downloadVitals(visit, doctorDetail = null) {
+    try {
+        pdfMake.vfs = pdfFonts?.pdfMake?.vfs
+        const encountersRecords = getEncountersRecords(visit?.encounters, doctorDetail);
+        const consultedDoctor = doctorDetail ? doctorDetail : encountersRecords[VISIT_TYPES.DOCTOR_DETIALS];
+
+        const pdfObj = createCommonPdfConfig('Intelehealth e-Vitals');
+        
+        pdfObj.content = [
+            {
+                style: 'tableExample',
+                table: {
+                    widths: ['25%', '30%', '22%', '23%'],
+                    body: [
+                        [
+                            {
+                                colSpan: 4,
+                                fillColor: '#E6FFF3',
+                                text: 'Intelehealth e-Vitals',
+                                alignment: 'center',
+                                style: 'header'
+                            },
+                            '',
+                            '',
+                            ''
+                        ],
+                        [getPersonalInfo(visit?.patient)],
+                        [getAddress(visit?.patient)],
+                        [getOtherInfo(visit?.patient)],
+                        createConsultationDetailsSection(visit, consultedDoctor),
+                        createSection('vitals', 'Vitals', [
+                            [
+                                {
+                                    colSpan: 2,
+                                    ul: [
+                                        ...getRecords(encountersRecords, 'Vitals')
+                                    ]
+                                }
+                            ]
+                        ]),
+                        createDoctorSignatureSection(consultedDoctor)
+                    ]
+                },
+                layout: 'noBorders'
+            }
+        ];
+
+        return await generatePdf(pdfObj);
+    } catch (err) {
+        logStream("error", err)
+        return { success: false, content: null, error: err };
+    }
+}
+
 module.exports = {
-    downloadPrescription
+    downloadPrescription,
+    downloadMedication,
+    downloadVitals
 }
