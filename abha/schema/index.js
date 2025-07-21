@@ -73,6 +73,12 @@ exports.getProfileSchema = Joi.object()
     abhaNumber: Joi.any().when('scope', { is: 'abha-address', then: Joi.optional(), otherwise: Joi.string().required() })
   });
 
+exports.fetchAuthModesSchema = Joi.object()
+  .keys({
+    abhaAddress: Joi.string()
+      .required(),
+  });
+
 exports.postLinkCareContextSchema = Joi.object({
   abhaAddress: Joi.optional(),
   abhaNumber: Joi.optional(),

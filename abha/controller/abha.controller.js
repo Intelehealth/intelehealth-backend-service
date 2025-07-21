@@ -680,6 +680,55 @@ module.exports = (function () {
     }
   };
 
+  /**
+   * Fetch Auth Modes
+   * @param {req} object
+   * @param {res} object
+   * @param {next} function
+   */
+  this.fetchAuthModes = async (req, res, next) => {
+    try {
+
+      const { abhaAddress } = req.body;
+
+      const accessToken = req.token
+
+      const payload = {
+        "abhaAddress": abhaAddress
+      }
+
+      logStream("debug", process.env.ABHA_FETCH_AUTH_MODE_URL, 'Fetch Auth Modes - URL');
+      logStream("debug", payload, 'Fetch Auth Modes - Payload');
+
+      const apiResponse = await axiosInstance.post(
+        process.env.ABHA_FETCH_AUTH_MODE_URL,
+        payload,
+        {
+          headers: this.getInitialHeaderrs(accessToken)
+        }
+      );
+      
+      if(apiResponse && apiResponse.data) {
+        logStream("debug", apiResponse.data, 'Fetch Auth Modes - Response');
+
+        return res.json(apiResponse.data)
+      }
+
+      return res.status(400).json({
+        message: "No auth modes found"
+      })
+    } catch (error) {
+      logStream("error", JSON.stringify(error));
+      next(error);
+    }
+  };
+
+
+  /**
+   * Get Base64
+   * @param {string} url
+   * @returns {Promise}
+   */
   this.getBase64 = (url) => {
     return axios
       .get(url, {
@@ -687,6 +736,7 @@ module.exports = (function () {
       })
       .then(response => Buffer.from(response.data, 'binary').toString('base64'))
   }
+
   /**
    * Get Card
    * @param {req} object
