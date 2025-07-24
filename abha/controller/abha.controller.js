@@ -1041,8 +1041,8 @@ module.exports = (function () {
   this.patientDiscover = async (req, res, next) => {
     try {
       logStream("debug", `Got Post Request - ${JSON.stringify(req.body)}`, 'patientDiscover');
-
-      if (!req.body?.patient) {
+      const params = req.body?.patient;
+      if (!params) {
         return res.status(422).json({
           "success": false,
           "code": "ERR_UNPROCESSABLE_ENTITY",
@@ -1050,7 +1050,7 @@ module.exports = (function () {
         });
       }
 
-      const patientInfo = await openmrsService.getVisitBySearch(req.body.patient)
+      const patientInfo = await openmrsService.getVisitBySearch(params)
       logStream("debug", 'Got Response of patient info', 'openmrsService.getVisitBySearch');
       if (patientInfo?.hasMultiplePatient) {
         throw {
@@ -1066,6 +1066,14 @@ module.exports = (function () {
           "message": 'Care context information is not found with provided details!.',
         });
       }
+      
+      // // Update the paitent abha address / abha number
+      // const abhaNumber = params?.verifiedIdentifiers.find((v) => v.type === 'NDHM_HEALTH_NUMBER')?.value;
+      // const abhaAddress = params?.id ?? params?.verifiedIdentifiers.find((v) => v.type === 'HEALTH_ID')?.value;
+      // await openmrsService.updatePatientAbhaDetails(patientInfo.patient_identifier, {
+      //   abhaAddress,
+      //   abhaNumber
+      // });
 
       logStream("debug", 'Got Response of patient info', 'patientDiscover');
       res.json(patientInfo);

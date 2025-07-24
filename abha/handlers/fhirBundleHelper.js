@@ -830,6 +830,11 @@ const initializeFHIRSections = () => ({
             title: "Vital Signs",
             entry: [],
             observations: []
+        },
+        documentReferences: {
+            title: "Vital Report",
+            sections: [],
+            entries: []
         }
     },
     prescriptionRecord: {
@@ -1389,21 +1394,46 @@ async function vitalsDocumentReferenceStructure(wellnessRecord, response, doctor
         meta: {
             profile: ["https://nrces.in/ndhm/fhir/r4/StructureDefinition/DocumentReference"]
         },
-        contentType: "application/pdf",
-        data: result.content
+        text: {
+            status: "generated",
+            div: "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p><b>Generated Narrative: DocumentReference</b></p></div>"
+        },
+        status: "current",
+        docStatus: "final",
+        type: {
+            coding: [{
+                system: "http://snomed.info/sct",
+                code: "371530004",
+                display: "Consultation report"
+            }],
+            text: "Vital Report"
+        },
+        subject: {
+            reference: `Patient/${response?.patient?.uuid}`,
+            display: "Patient"
+        },
+        content: [{
+            attachment: {
+                contentType: "application/pdf",
+                language: "en-IN",
+                data: result.content,
+                title: "Vital Report",
+                creation: convertDataToISO(response?.startDatetime)
+            }
+        }]
     };
 
     // Add Binary reference to prescription record section
     if (wellnessRecord?.vitalSigns?.entry) {
-        wellnessRecord.vitalSigns.entry.push({
+        wellnessRecord.documentReferences.sections.push({
             reference: `DocumentReference/${uniqueIdDocumentReference}`,
             type: "DocumentReference"
         });
     }
 
     // Add Binary resource to prescription record
-    if (wellnessRecord?.vitalSigns?.observations) {
-        wellnessRecord.vitalSigns.observations.push({
+    if (wellnessRecord?.vitalSigns?.entry) {
+        wellnessRecord.documentReferences.entries.push({
             fullUrl: `DocumentReference/${uniqueIdDocumentReference}`,
             resource: documentReferenceResource
         });
@@ -1598,7 +1628,7 @@ async function formatCareContextFHIBundle(response) {
  * @param {Object} practitioner - Practitioner data
  * @returns {Array} Formatted prescription FHIR bundle entries
  */
-function formatPrescriptionFHIBundle({ medications }, response, patient, practitioner) {
+function formatPrescriptionFHIBundle({ medications, documentReferences }, response, patient, practitioner) {
     if (!medications) return [];
     const sharedPrescription = response?.encounters?.find(encounter => encounter.encounterType.display === 'Visit Complete');
     if (!sharedPrescription) return [];
@@ -1707,6 +1737,10 @@ const createWellnessRecordResource = (wellnessRecord, patient, practitioner, sta
             {
                 title: wellnessRecord?.vitalSigns?.title,
                 entry: wellnessRecord?.vitalSigns?.entry
+            },
+            {
+                title: wellnessRecord?.documentReferences?.title,
+                entry: wellnessRecord?.documentReferences?.sections
             }
         ]
     })
@@ -1721,11 +1755,12 @@ const createWellnessRecordResource = (wellnessRecord, patient, practitioner, sta
  * @returns {Array} Formatted wellness FHIR bundle entries
  */
 function formatWellnessFHIBundle(wellnessRecord, patient, practitioner, startDatetime) {
-    const { vitalSigns } = wellnessRecord
+    const { vitalSigns, documentReferences } = wellnessRecord
     if (!vitalSigns?.entry?.length) return [];
     return [
         createWellnessRecordResource(wellnessRecord, patient, practitioner, startDatetime),
-        ...vitalSigns?.observations
+        ...vitalSigns?.observations,
+        ...documentReferences?.entries
     ]
 }
 
