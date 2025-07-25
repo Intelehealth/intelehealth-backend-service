@@ -23,7 +23,13 @@ import path from 'path';
     });
 
     await copy('./src/views', './dist/views', {});
-    await copy('./src/.pem', './dist/.pem', {});
+    if (await fs.pathExists('./src/.pem') && (await fs.stat('./src/.pem')).isDirectory()) {
+      // If it's a directory, copy it
+      await copy('./src/.pem', './dist/.pem', {});
+    } else {
+      // Otherwise, copy the file
+      await copy('./src/.pem', './dist/.pem', {});
+    }
     // Copy back-end files
     await exec('tsc --build tsconfig.prod.json', './');
   } catch (err) {
