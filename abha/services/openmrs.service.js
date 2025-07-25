@@ -1,3 +1,4 @@
+const { uuid } = require('uuidv4');
 const { openmrsAxiosInstance } = require('../handlers/axiosHelper');
 const { convertDateToDDMMYYYY, convertToBase64 } = require('../handlers/utilityHelper');
 const { logStream } = require('../logger');
@@ -47,7 +48,10 @@ async function getVisitByAbhaDetails(whereParams) {
   });
   if (!patientIdentifier) return null;
   const data = await this.getVisitsByPatientId(patientIdentifier.patient_id, true);
-  return getFormatedResponse(data);
+  return {
+    data: getFormatedResponse(data),
+    patientInfo: data?.patientInfo
+  }
 
 }
 
@@ -65,30 +69,8 @@ async function getVisitByMobile({ mobileNumber, yearOfBirth, gender, name }) {
     where: {
       person_attribute_type_id: { [Op.eq]: 8 },
       value: { [Op.eq]: mobileNumber }
-    },
-    // include: [
-    //   {
-    //     model: person,
-    //     as: "person",
-    //     attributes: ["person_id", "gender", "birthdate"],
-    //     where: {
-    //       birthdate: {
-    //         [Op.between]: [startDate, endDate]
-    //       },
-    //       gender: { [Op.eq]: gender }
-    //     },
-    //     include: [
-    //       {
-    //         model: person_name,
-    //         as: "person_name",
-    //         attributes: ["given_name", "middle_name", "family_name"],
-    //       }
-    //     ]
-    //   }
-    // ],
-    // order: [["person_id", "DESC"]],
+    }
   });
-
   if (!personAttributes?.length) {
     logStream('debug', 'person_attribute.findAll no data not found based on mobile number', 'getVisitByMobile')
     return null;
@@ -141,7 +123,10 @@ async function getVisitByMobile({ mobileNumber, yearOfBirth, gender, name }) {
   };
 
   const data = await this.getVisitsByPatientId(patientIds[0]);
-  return getFormatedResponse(data);
+  return {
+    data: getFormatedResponse(data),
+    patientInfo: data?.patientInfo
+  }
 }
 
 /**
@@ -156,7 +141,7 @@ async function getPatientInfo(patientId) {
       {
         model: patient_identifier,
         as: "patient_identifier",
-        attributes: ["identifier", "identifier_type"],
+        attributes: ["identifier", "identifier_type", 'patient_identifier_id'],
       },
       {
         model: person,
@@ -256,24 +241,26 @@ module.exports = (function () {
         or.push(abhaAddress.replace(process.env.ABHA_ADDRESS_SUFFIX, ''));
         or.push(abhaAddress);
       }
-      let patientInfo = null;
+      let response = null;
       if (or.length) {
-        patientInfo = await getVisitByAbhaDetails({
+        response = await getVisitByAbhaDetails({
           identifier: {
             [Op.or]: or
           }
         })
-      } else if (mobileNumber) {
+      } 
+      
+      if (!response?.data && mobileNumber) {
         if (!mobileNumber.includes('+91')) {
           mobileNumber = `+91${mobileNumber}`;
         }
-        patientInfo = await getVisitByMobile({ ...params, mobileNumber });
-        if(patientInfo?.success === false) return {
-          ...patientInfo,
+        response = await getVisitByMobile({ ...params, mobileNumber });
+        if(response?.success === false) return {
+          ...response,
           hasMultiplePatient: true
         };
       }
-      return patientInfo;
+      return response;
     } catch (err) {
       throw err;
     }
@@ -335,6 +322,92 @@ module.exports = (function () {
       return document;
     } catch (error) {
       return null;
+    }
+  };
+
+  this.updatePatientAbhaDetails = async (patientInfo, abhaDetails) => {
+    const { abhaNumber, abhaAddress } = abhaDetails || {};
+    
+    if (!abhaNumber && !abhaAddress) {
+      logStream("warn", "No ABHA details provided for update", "updatePatientAbhaDetails");
+      return true;
+    }
+
+    // Extract existing identifiers
+    const existingIdentifiers = patientInfo?.patient_identifier || [];
+    const existingAbhaNumberIdentifier = existingIdentifiers.find(id => id.identifier_type === 6);
+    const existingAbhaAddressIdentifier = existingIdentifiers.find(id => id.identifier_type === 7);
+
+    try {
+      // Define identifier configurations
+      const identifierConfigs = [
+        {
+          type: 6,
+          value: abhaNumber,
+          existing: existingAbhaNumberIdentifier,
+          name: 'ABHA Number'
+        },
+        {
+          type: 7,
+          value: abhaAddress,
+          existing: existingAbhaAddressIdentifier,
+          name: 'ABHA Address'
+        }
+      ];
+
+      // Process each identifier
+      const updatePromises = identifierConfigs
+        .filter(config => config.value) // Only process if value exists
+        .map(async (config) => {
+          const { type, value, existing, name } = config;
+          
+          if (existing?.identifier === value) {
+            logStream("debug", `${name} already matches, skipping update`, "updatePatientAbhaDetails");
+            return;
+          }
+
+          try {
+            if (existing) {
+              // Update existing identifier
+              await patient_identifier.update({
+                identifier: value,
+                date_changed: new Date()
+              }, {
+                where: {
+                  patient_identifier_id: existing.patient_identifier_id
+                }
+              });
+              logStream("info", `${name} updated successfully`, "updatePatientAbhaDetails");
+            } else {
+              // Create new identifier
+              await patient_identifier.create({
+                patient_id: patientInfo.patient_id,
+                identifier: value,
+                identifier_type: type,
+                location_id: 1,
+                preferred: false,
+                date_created: new Date(),
+                date_changed: new Date(),
+                uuid: uuid(),
+                creator: 1
+              });
+              logStream("info", `${name} created successfully`, "updatePatientAbhaDetails");
+            }
+          } catch (error) {
+            logStream("error", `Failed to ${existing ? 'update' : 'create'} ${name}: ${error.message}`, "updatePatientAbhaDetails");
+            throw error;
+          }
+        });
+
+      // Wait for all updates to complete
+      await Promise.all(updatePromises);
+      
+      logStream("info", "ABHA details updated successfully", "updatePatientAbhaDetails");
+      return true;
+      
+    } catch (error) {
+      logStream("error", `Failed to update ABHA details: ${error.message}`, "updatePatientAbhaDetails");
+      return false;
     }
   }
   return this;

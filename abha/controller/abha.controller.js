@@ -1050,16 +1050,16 @@ module.exports = (function () {
         });
       }
 
-      const patientInfo = await openmrsService.getVisitBySearch(params)
+      const response = await openmrsService.getVisitBySearch(params)
       logStream("debug", 'Got Response of patient info', 'openmrsService.getVisitBySearch');
-      if (patientInfo?.hasMultiplePatient) {
+      if (response?.hasMultiplePatient) {
         throw {
           "code": "ERR_MULTIPLE_PATIENT_FOUND",
-          "message": patientInfo?.message,
+          "message": response?.message,
         }
       }
 
-      if (!patientInfo) {
+      if (!response?.data) {
         return res.status(404).json({
           "success": false,
           "code": "ERR_DATA_NOT_FOUND",
@@ -1067,16 +1067,21 @@ module.exports = (function () {
         });
       }
       
-      // // Update the paitent abha address / abha number
-      // const abhaNumber = params?.verifiedIdentifiers.find((v) => v.type === 'NDHM_HEALTH_NUMBER')?.value;
-      // const abhaAddress = params?.id ?? params?.verifiedIdentifiers.find((v) => v.type === 'HEALTH_ID')?.value;
-      // await openmrsService.updatePatientAbhaDetails(patientInfo.patient_identifier, {
-      //   abhaAddress,
-      //   abhaNumber
-      // });
+      // Update the paitent abha address / abha number
+      const patientUUID = response?.patientInfo?.patient_id;
+      if(patientUUID) {
+        const abhaNumber = params?.verifiedIdentifiers.find((v) => v.type === 'NDHM_HEALTH_NUMBER')?.value;
+        const abhaAddress = params?.id ?? params?.verifiedIdentifiers.find((v) => v.type === 'HEALTH_ID')?.value;
+        await openmrsService.updatePatientAbhaDetails(response?.patientInfo, {
+          abhaAddress,
+          abhaNumber
+        }).catch((err) => {
+          logStream("error", JSON.stringify(err));
+        });
+      }
 
       logStream("debug", 'Got Response of patient info', 'patientDiscover');
-      res.json(patientInfo);
+      res.json(response?.data);
       return;
     } catch (error) {
       logStream("error", JSON.stringify(error));
