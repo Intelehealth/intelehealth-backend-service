@@ -399,27 +399,48 @@ module.exports = function (server) {
      * Admin socket events below
      */
     socket.on("getAdminUnreadCount", async function () {
-      const unreadcount = await sequelize.query(
-        "SELECT COUNT(sm.message) AS unread FROM supportmessages sm WHERE sm.to = 'System Administrator' AND sm.isRead = 0",
-        { type: QueryTypes.SELECT }
-      );
-      socket.emit("adminUnreadCount", unreadcount[0].unread);
+      try {
+        const unreadcount = await sequelize.query(
+          "SELECT COUNT(sm.message) AS unread FROM supportmessages sm WHERE sm.to = 'System Administrator' AND sm.isRead = 0",
+          { type: QueryTypes.SELECT }
+        );
+        socket.emit("adminUnreadCount", unreadcount[0].unread);
+      } catch (err) {
+        console.error("getAdminUnreadCount error:", err.message);
+        socket.emit("adminUnreadCount", 0);
+      }
     });
 
     socket.on("getDoctorAdminUnreadCount", async function (data) {      
-      const unreadcount = await sequelize.query(
-        `SELECT COUNT(sm.message) AS unread FROM supportmessages sm WHERE sm.to = '${data}' AND sm.isRead = 0`,
-        { type: QueryTypes.SELECT }
-      );
-      socket.emit("doctorAdminUnreadCount", unreadcount[0].unread);
+      try {
+        const unreadcount = await sequelize.query(
+          "SELECT COUNT(sm.message) AS unread FROM supportmessages sm WHERE sm.to = :toUser AND sm.isRead = 0",
+          {
+            replacements: { toUser: data },
+            type: QueryTypes.SELECT,
+          }
+        );
+        socket.emit("doctorAdminUnreadCount", unreadcount[0].unread);
+      } catch (err) {
+        console.error("getDoctorAdminUnreadCount error:", err.message);
+        socket.emit("doctorAdminUnreadCount", 0);
+      }
     });
 
     socket.on("getDrUnreadCount", async function (data) {
-      const unreadcount = await sequelize.query(
-        `SELECT COUNT(m.message) AS unread FROM messages m WHERE m.toUser = '${data}' AND m.isRead = 0`,
-        { type: QueryTypes.SELECT }
-      );
-      socket.emit("drUnreadCount", unreadcount[0].unread);
+      try {
+        const unreadcount = await sequelize.query(
+          "SELECT COUNT(m.message) AS unread FROM messages m WHERE m.toUser = :toUser AND m.isRead = 0",
+          {
+            replacements: { toUser: data },
+            type: QueryTypes.SELECT,
+          }
+        );
+        socket.emit("drUnreadCount", unreadcount[0].unread);
+      } catch (err) {
+        console.error("getDrUnreadCount error:", err.message);
+        socket.emit("drUnreadCount", 0);
+      }
     });
   });
 
