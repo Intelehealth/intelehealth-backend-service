@@ -1717,9 +1717,9 @@ const createWellnessRecordResource = (wellnessRecord, patient, practitioner, sta
         status: "final",
         type: {
             coding: [{
-                system: "http://loinc.org",
-                code: "11502-2",
-                display: "Laboratory report"
+                system: "http://snomed.info/sct",
+                code: "1156871006",
+                display: "Wellness Record"
             }],
             text: "Wellness Record"
         },
