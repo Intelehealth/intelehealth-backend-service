@@ -30,6 +30,7 @@ async function updateIsEnabled(req: IReqUser<{ is_enabled: boolean }>, res: IRes
  */
 async function GetByKey(req: IReq, res: IRes) {
   const feature = await FeaturesService.getByKey(req.params.key);
+  console.log("feature key ai llm==",feature);
   return res.status(HttpStatusCodes.OK).json({ feature });
 }
 
