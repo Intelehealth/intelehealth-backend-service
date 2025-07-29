@@ -52,6 +52,6 @@ import { QueryInterface, DataTypes, QueryTypes, Sequelize } from "sequelize";
    down: (queryInterface: QueryInterface): Promise<void> =>
      queryInterface.sequelize.transaction(async (transaction) => {
        // here go all migration undo changes
-       await queryInterface.dropTable("mst_ai_llm");
+       await queryInterface.dropTable("mst_ai_llm_recording");
      }),
  };
