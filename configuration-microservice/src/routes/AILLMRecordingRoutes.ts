@@ -31,9 +31,7 @@ async function updateIsEnabled(req: IReqUser<{ is_enabled: boolean }>, res: IRes
  * Get all feature configs.
  */
 async function GetByKey(req: IReq, res: IRes) {
-  console.log("req.params.key==",req.params.key);
   const feature = await FeaturesService.getByKey(req.params.key);
- // console.log("feature==",feature);
   return res.status(HttpStatusCodes.OK).json({ feature });
 }
 
@@ -44,7 +42,6 @@ async function GetByKey(req: IReq, res: IRes) {
   const { id } = req.params;
   const { is_enabled } = req.body;
   const { userId, name } = req.user.data;
-  console.log("is_video==",is_enabled);
   await AILLMRecordingService.updateIsVideoEnabled(id,is_enabled, userId, name); 
   return res.status(HttpStatusCodes.OK).json({ success: true });
 }
