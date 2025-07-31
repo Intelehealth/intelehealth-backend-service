@@ -1049,8 +1049,17 @@ module.exports = (function () {
           "message": "Requested parameter is missing!",
         });
       }
-
-      const response = await openmrsService.getVisitBySearch(params)
+      const mobileNumber = params?.verifiedIdentifiers?.find((v) => v.type?.toUpperCase() === 'MOBILE')?.value;
+      const abhaNumber = params?.verifiedIdentifiers?.find((v) => ['ABHA_NUMBER', 'NDHM_HEALTH_NUMBER'].includes(v.type.toUpperCase()))?.value;
+      const abhaAddress = params?.verifiedIdentifiers?.find((v) => ['ABHA_ADDRESS','ABHAADDRESS', 'HEALTH_ID'].includes(v.type.toUpperCase()))?.value;
+      const unverifiedAbhaAddress = params?.unverifiedIdentifiers?.find((v) => ['ABHA_ADDRESS','ABHAADDRESS', 'HEALTH_ID'].includes(v.type.toUpperCase()))?.value;
+      
+      const response = await openmrsService.getVisitBySearch({
+        ...params,
+        mobileNumber,
+        abhaNumber,
+        abhaAddress: abhaAddress ?? unverifiedAbhaAddress ?? params?.id
+      })
       logStream("debug", 'Got Response of patient info', 'openmrsService.getVisitBySearch');
       if (response?.hasMultiplePatient) {
         throw {
@@ -1069,9 +1078,7 @@ module.exports = (function () {
       
       // Update the paitent abha address / abha number
       const patientUUID = response?.patientInfo?.patient_id;
-      if(patientUUID) {
-        const abhaNumber = params?.verifiedIdentifiers.find((v) => v.type === 'NDHM_HEALTH_NUMBER')?.value;
-        const abhaAddress = params?.id ?? params?.verifiedIdentifiers.find((v) => v.type === 'HEALTH_ID')?.value;
+      if(patientUUID && (Boolean(abhaAddress) || Boolean(abhaNumber))) {
         await openmrsService.updatePatientAbhaDetails(response?.patientInfo, {
           abhaAddress,
           abhaNumber
