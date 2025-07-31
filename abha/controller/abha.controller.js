@@ -572,7 +572,7 @@ module.exports = (function () {
         payload = {
           "scope": [
             "abha-address-login",
-            "mobile-verify"
+            authMethod == 'AADHAAR_OTP' ? "aadhaar-verify" : "mobile-verify"
           ],
           "authData": {
             "authMethods": [
