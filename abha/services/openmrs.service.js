@@ -60,35 +60,132 @@ async function getVisitByAbhaDetails(whereParams) {
  * @param {object} param 
  * @returns visits array
  */
-async function getVisitByMobile({ mobileNumber, yearOfBirth, gender, name }) {
-  const currentDate = new Date();
-  const startDate = currentDate.setFullYear(yearOfBirth - 5)
-  const endDate = yearOfBirth ? currentDate.setFullYear(Number(yearOfBirth) + 5) : currentDate.setFullYear((new Date()).getFullYear() + 5)
-  const personAttributes = await person_attribute.findAll({
-    attributes: ["person_id"],
-    where: {
-      person_attribute_type_id: { [Op.eq]: 8 },
-      value: { [Op.eq]: mobileNumber }
-    }
-  });
+async function getVisitByMobile(params) {
+  
+  const { mobileNumber, yearOfBirth, gender, name } = params;
+  
+  // Get mobile number formats for flexible searching
+  const mobileFormats = getMobileNumberFormats(mobileNumber);
+  
+  // Find person attributes by mobile number
+  const personAttributes = await findPersonAttributesByMobile(mobileFormats);
   if (!personAttributes?.length) {
-    logStream('debug', 'person_attribute.findAll no data not found based on mobile number', 'getVisitByMobile')
+    logStream('debug', 'No person attributes found for mobile number', 'getVisitByMobile');
     return null;
   }
+  
+  // Get birth date range if year of birth is provided
+  const birthDateRange = yearOfBirth ? getBirthDateRange(yearOfBirth) : null;
+  
+  // Find persons matching criteria
+  const persons = await findPersonsByCriteria({
+    personIds: personAttributes.map(p => p.person_id),
+    gender,
+    birthDateRange
+  });
+  
+  if (!persons?.length) {
+    logStream('debug', 'No persons found matching criteria', 'getVisitByMobile');
+    return null;
+  }
+  
+  // Filter persons by name match
+  const matchingPatientIds = filterPersonsByName(persons, name);
+  
+  if (!matchingPatientIds.length) {
+    return null;
+  }
+  
+  if (matchingPatientIds.length > 1) {
+    return {
+      success: false,
+      message: 'Mobile number having multiple patient after matched with all date of birth, gender, family_name and given_name'
+    };
+  }
+  
+  // Get visits for the matching patient
+  const data = await this.getVisitsByPatientId(matchingPatientIds[0]);
+  return {
+    data: getFormatedResponse(data),
+    patientInfo: data?.patientInfo
+  };
+}
 
+/**
+ * Helper function to get mobile number formats (with and without country code)
+ * @param {string} mobileNumber 
+ * @returns {object} mobile number formats
+ */
+function getMobileNumberFormats(mobileNumber) {
+  let withCountryCode = mobileNumber;
+  let withoutCountryCode = mobileNumber;
+  
+  if (mobileNumber.includes('+91')) {
+    withoutCountryCode = mobileNumber.replace('+91', '');
+  } else if (!mobileNumber.includes('91')) {
+    withCountryCode = `+91${mobileNumber}`;
+  }
+  
+  return { withCountryCode, withoutCountryCode };
+}
+
+/**
+ * Helper function to find person attributes by mobile number
+ * @param {object} mobileFormats 
+ * @returns {Array} person attributes
+ */
+async function findPersonAttributesByMobile(mobileFormats) {
+  const queryParams = {
+    person_attribute_type_id: 8,
+    value: { 
+      [Op.or]: [
+        { [Op.eq]: mobileFormats.withoutCountryCode },
+        { [Op.eq]: mobileFormats.withCountryCode }
+      ]
+    }
+  };
+  
+  return await person_attribute.findAll({
+    attributes: ["person_id"],
+    where: queryParams
+  });
+}
+
+/**
+ * Helper function to get birth date range
+ * @param {number} yearOfBirth 
+ * @returns {object} date range
+ */
+function getBirthDateRange(yearOfBirth) {
+  const currentDate = new Date();
+  const startDate = new Date(currentDate.setFullYear(yearOfBirth - 5));
+  const endDate = new Date(currentDate.setFullYear(Number(yearOfBirth) + 5));
+  
+  return {
+    [Op.between]: [startDate, endDate]
+  };
+}
+
+/**
+ * Helper function to find persons by criteria
+ * @param {object} criteria 
+ * @returns {Array} persons
+ */
+async function findPersonsByCriteria(criteria) {
+  const { personIds, gender, birthDateRange } = criteria;
+  
   const where = {
     person_id: {
-      [Op.in]: personAttributes?.map((p) => p.person_id)
+      [Op.in]: personIds
     },
     gender: { [Op.eq]: gender }
   };
-
-  if (yearOfBirth) {
-    where.birthdate = {
-      [Op.between]: [startDate, endDate]
-    }
+  
+  if (birthDateRange) {
+    where.birthdate = birthDateRange;
   }
-  const persons = await person.findAll({
+  
+  return await person.findAll({
     attributes: ['person_id'],
     where: where,
     include: [
@@ -100,33 +197,25 @@ async function getVisitByMobile({ mobileNumber, yearOfBirth, gender, name }) {
           preferred: { [Op.eq]: 1 }
         }
       }
-    ],
-  })
+    ]
+  });
+}
 
-  if (!persons?.length) {
-    logStream('debug', 'person.findAll no data not found based on mobile number', 'getVisitByMobile')
-    return null;
-  }
-
-  const patientIds = [];
-  for (let i = 0; i < persons?.length; i++) {
-    const person = persons[i];
-    if (name.includes(person?.person_name?.given_name) && name.includes(person?.person_name?.family_name)) {
-      patientIds.push(person.person_id);
-    }
-  }
-
-  if(!patientIds.length) return null;
-  if (patientIds.length > 1) return {
-    success: false,
-    message: 'Mobile number having multiple patient after matched with all date of birth, gender, family_name and given_name'
-  };
-
-  const data = await this.getVisitsByPatientId(patientIds[0]);
-  return {
-    data: getFormatedResponse(data),
-    patientInfo: data?.patientInfo
-  }
+/**
+ * Helper function to filter persons by name match
+ * @param {Array} persons 
+ * @param {string} name 
+ * @returns {Array} matching patient IDs
+ */
+function filterPersonsByName(persons, name) {
+  return persons
+    .filter(person => {
+      const personName = person?.person_name;
+      return personName && 
+             name.includes(personName.given_name) && 
+             name.includes(personName.family_name);
+    })
+    .map(person => person.person_id);
 }
 
 /**
@@ -230,9 +319,8 @@ module.exports = (function () {
    */
   this.getVisitBySearch = async (params) => {
     try {
-      let mobileNumber = params?.verifiedIdentifiers.find((v) => v.type?.toUpperCase() === 'MOBILE')?.value;
-      const abhaNumber = params?.verifiedIdentifiers.find((v) => v.type === 'NDHM_HEALTH_NUMBER')?.value;
-      const abhaAddress = params?.id ?? params?.verifiedIdentifiers.find((v) => v.type === 'HEALTH_ID')?.value;
+      const { mobileNumber, abhaNumber, abhaAddress } = params;
+     
       const or = []
       if (abhaNumber) {
         or.push(abhaNumber);
@@ -249,12 +337,8 @@ module.exports = (function () {
           }
         })
       } 
-      
       if (!response?.data && mobileNumber) {
-        if (!mobileNumber.includes('+91')) {
-          mobileNumber = `+91${mobileNumber}`;
-        }
-        response = await getVisitByMobile({ ...params, mobileNumber });
+        response = await getVisitByMobile(params);
         if(response?.success === false) return {
           ...response,
           hasMultiplePatient: true
