@@ -33,6 +33,21 @@ module.exports = (function () {
       if (callType && !Object.values(CALL_TYPES).includes(callType)) {
           throw new Error('Invalid call type');
       }
+      const lastCall = await call_data.findOne({
+        where: { visit_id: visitId },
+        order: [['start_time', 'DESC']],
+        transaction: t
+      });
+      const currentTime = new Date();
+    if (lastCall && lastCall.end_time) {
+      const lastCallEndTime = new Date(lastCall.end_time);
+      if (currentTime < lastCallEndTime) {
+        await t.rollback();
+        logStream('warn', `Call blocked: current time ${currentTime.toISOString()} is before last call's end time ${lastCallEndTime.toISOString()}`);
+        return { success: false, warning: 'Call cannot start before the previous call has ended' };
+      }
+    }
+      
       const record = await call_data.create({
         doctor_id: doctorId,
         chw_id: nurseId,

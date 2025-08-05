@@ -25,6 +25,7 @@ import RoasterQuestionnaireRoutes from './RoasterQuestionnaireRoutes';
 import DropdownRoutes from './DropdownRoutes';
 import AILLMRoutes from './AILLMRoutes';
 import HomeScreenRoutes from './HomeScreenRoutes';
+import AILLMRecordingRoutes from './AILLMRecordingRoutes';
 
 // **** Variables **** //
 
@@ -557,6 +558,44 @@ aiLlm.get(
 // Add AILLMRouter
 apiRouter.use(Paths.AILLM.Base, authMw, aiLlm);
 
+
+// **** Setup AILLMRecording Router **** //
+
+const aiLlmRecording = Router();
+
+// Get all AILLMRecording menus
+aiLlmRecording.get(
+  Paths.AILLM.Get,
+  AILLMRecordingRoutes.getAll,
+);
+
+// Update one AILLMRecording menus status
+aiLlmRecording.put(
+  Paths.SidebarMenus.UpdateIsEnabled,
+  validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body']),
+  AILLMRecordingRoutes.updateIsEnabled
+)
+
+
+// Update one AILLMRecording flags status
+aiLlmRecording.put(
+  Paths.AILLMRecording.UpdateIsAudioEnabled,
+  AILLMRecordingRoutes.updateIsAudioEnabled
+)
+// Update one AILLMRecording flags status
+aiLlmRecording.put(
+  Paths.AILLMRecording.UpdateIsVideoEnabled,
+  AILLMRecordingRoutes.updateIsVideoEnabled
+)
+
+// get one AILLMRecording by key
+aiLlmRecording.get(
+  Paths.AILLM.GetByKey,
+  AILLMRecordingRoutes.GetByKey,
+);
+
+// Add AILLMRecording Router
+apiRouter.use(Paths.AILLMRecording.Base, authMw, aiLlmRecording);
 
 // **** Setup homeScreenSectionsRouter **** //
 

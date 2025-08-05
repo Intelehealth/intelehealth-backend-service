@@ -115,6 +115,14 @@ export default {
     GetByKey: '/getByKey/:key',
     UpdateIsEnabled: '/updateIsEnabled/:id',
   },
+  AILLMRecording: {
+    Base: '/ai-llm-recording',
+    Get: '/all',
+    GetByKey: '/getByKey/:key',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+    UpdateIsVideoEnabled: '/updateIsVideoEnabled/:id',
+    UpdateIsAudioEnabled: '/updateIsAudioEnabled/:id',
+  },
   HomeScreen: {
     Base: '/home-screen',
     Get: '/all',
