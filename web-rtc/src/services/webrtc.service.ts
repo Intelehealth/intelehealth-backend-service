@@ -97,6 +97,7 @@ export class WebRTCService {
         visitId?: string;
         chwId?: string;
         nurseName?: string;
+        location?: string;
     }) {
         try {
             const {
@@ -107,7 +108,8 @@ export class WebRTCService {
                 AWS_SECRET_ACCESS_KEY,
                 AWS_REGION,
                 S3_BUCKET_NAME,
-                BRANDNAME
+                BRANDNAME,
+                DOMAIN
             } = process.env;
 
             // Log environment check
@@ -146,14 +148,14 @@ export class WebRTCService {
                     return Promise.resolve();
                 })).catch(() => { });
             }
-
+            const strlocation = (params?.location) ? (params.location) : "Other";
             const timestamp = new Date();
             const formattedTime = moment().format('DD-MM-YYYY_HH:mm:ss');
             const output = {
                 file: new EncodedFileOutput({
                     fileType: EncodedFileType.MP4,
                     // filepath: `${params?.visitId}_${BRANDNAME}_{room_name}_{time}`,
-                    filepath: `${params?.visitId}_${BRANDNAME}_${roomName}_${formattedTime}`,
+                    filepath: `/${BRANDNAME}/${DOMAIN}/${strlocation}/recording-${formattedTime}`,
                     output: {
                         case: "s3",
                         value: {
