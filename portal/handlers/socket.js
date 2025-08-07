@@ -185,6 +185,7 @@ module.exports = function (server) {
     });
 
     socket.on("call-connected", async function (data) {
+      console.log("call-connected event received with data:", data);
       const { visitId, nurseId, doctorName, roomId, doctorId, callType } = data;
       const callStatus = CALL_STATUSES.SUCCESS;
       await createCallRecordOfWebrtc(doctorId, nurseId, roomId, visitId, callStatus, callType);

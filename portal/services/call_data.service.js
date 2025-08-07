@@ -23,7 +23,7 @@ module.exports = (function () {
    * @param {string} [callType=video] - The type of call (video/audio)
    * @returns {Promise<{success: boolean, data: object}>}
    */
-  this.createCallRecordOfWebrtc = async (doctorId, nurseId, roomId, visitId, callStatus, callType = CALL_TYPES.VIDEO) => {
+  this.createCallRecordOfWebrtc = async (doctorId, nurseId, roomId, visitId, callStatus, callType) => {
     const t = await sequelize.transaction();
     try {
       if (!doctorId || !nurseId || !roomId || !visitId || !callStatus) {
@@ -31,7 +31,7 @@ module.exports = (function () {
       }
 
       if (callType && !Object.values(CALL_TYPES).includes(callType)) {
-          throw new Error('Invalid call type');
+        throw new Error('Invalid call type');
       }
       const lastCall = await call_data.findOne({
         where: { visit_id: visitId },
@@ -53,7 +53,7 @@ module.exports = (function () {
         chw_id: nurseId,
         room_id: roomId,
         visit_id: visitId,
-        call_status: callStatus,
+        call_status: null,
         call_duration: 0,
         start_time: new Date().toISOString(),
         end_time: null,
@@ -99,21 +99,17 @@ module.exports = (function () {
         return { success: true, data: callRecord.toJSON(), message: 'Call record already ended' };
       }
 
-            const endTime = new Date().toISOString();
-            const updateData = {
-                end_time: endTime
-            };
+      const endTime = new Date().toISOString();
+      const updateData = { end_time: endTime };
 
-            if (callRecord.call_status === CALL_STATUSES.SUCCESS) {
-                const durationInSeconds = Math.round(
-                    (new Date(endTime) - new Date(callRecord.start_time)) / 1000
-                );
-                updateData.call_duration = durationInSeconds;
-            } else {
-                updateData.call_status = CALL_STATUSES.UNSUCCESS;
-                updateData.call_duration = 0;
-            }
-
+      if (callRecord.call_duration !== 0 && callRecord.call_duration !== null ) {
+        updateData.call_duration = Math.round((new Date(endTime) - new Date(callRecord.start_time)) / 1000);
+        updateData.call_status = CALL_STATUSES.SUCCESS;
+      } else {
+        updateData.call_status = CALL_STATUSES.UNSUCCESS;
+        updateData.call_duration = 0;
+      }
+    
       await call_data.update(updateData, { where: { id: callRecord.id }, transaction: t });
       await t.commit();
 
