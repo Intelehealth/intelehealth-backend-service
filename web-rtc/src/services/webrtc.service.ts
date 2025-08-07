@@ -155,7 +155,7 @@ export class WebRTCService {
                 file: new EncodedFileOutput({
                     fileType: EncodedFileType.MP4,
                     // filepath: `${params?.visitId}_${BRANDNAME}_{room_name}_{time}`,
-                    filepath: `/${BRANDNAME}/${DOMAIN}/${strlocation}/recording-${formattedTime}`,
+                    filepath: `${BRANDNAME}/${DOMAIN}/${strlocation}/recording-${formattedTime}`,
                     output: {
                         case: "s3",
                         value: {

@@ -57,7 +57,8 @@ export class MainController {
                 patientId: req.body.patientId,
                 visitId: req.body.visitId,
                 chwId: req.body.chwId,
-                nurseName: req.body.nurseName
+                nurseName: req.body.nurseName,
+                location: req.body.location
             };
 
             const response = await new WebRTCService().startRecording(req.body.roomId as string, recordingParams);
