@@ -119,11 +119,23 @@ async function setDefault(id: string, user_id: string, user_name: string): Promi
     // Insert audit trail entry
     await AuditTrail.create({ user_id, user_name, activity_type: 'LANGUAGE SET AS DEFAULT', description: `"${language.en_name}" set as default language.` });
 }
-
+async function getAllEnabledLanguage(): Promise<Language[]> {
+    return Language.findAll({
+        attributes: ['id', 'name', 'code', 'en_name', 'is_default', 'is_enabled','platform'],
+        where: { 
+                is_enabled: true,
+                platform: {
+                        [Op.in]: ['Webapp', 'Both']
+                    }         
+                },
+        raw: true
+    });
+}
 // **** Export default **** //
 
 export default {
     getAll,
     updateIsEnabled,
-    setDefault
+    setDefault,
+    getAllEnabledLanguage
 } as const;
