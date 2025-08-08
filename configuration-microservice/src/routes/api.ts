@@ -137,6 +137,7 @@ apiRouter.use(Paths.Config.Base, configRouter);
 // **** Setup LanguageRouter **** //
 
 const languageRouter = Router();
+const publicLanguageRouter = Router();
 
 // Get all languages
 languageRouter.get(
@@ -144,6 +145,10 @@ languageRouter.get(
   LanguageRoutes.getAll,
 );
 
+publicLanguageRouter.get(
+  Paths.Languages.GetEnabledLanguages,
+  LanguageRoutes.getallEnabledLanguages,
+)
 // Update language status
 languageRouter.put(
   Paths.Languages.UpdateIsEnabled,
@@ -160,7 +165,7 @@ languageRouter.put(
 
 // Add LanguageRouter
 apiRouter.use(Paths.Languages.Base, authMw, languageRouter);
-
+apiRouter.use(Paths.Languages.Base, publicLanguageRouter);
 
 // **** Setup PatientRegistrationRouter **** //
 
