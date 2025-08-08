@@ -164,8 +164,8 @@ languageRouter.put(
 );
 
 // Add LanguageRouter
-apiRouter.use(Paths.Languages.Base, authMw, languageRouter);
 apiRouter.use(Paths.Languages.Base, publicLanguageRouter);
+apiRouter.use(Paths.Languages.Base, authMw, languageRouter);
 
 // **** Setup PatientRegistrationRouter **** //
 
