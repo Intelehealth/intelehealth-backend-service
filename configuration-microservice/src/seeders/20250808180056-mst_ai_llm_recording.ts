@@ -7,8 +7,8 @@ module.exports = {
       await queryInterface.bulkInsert(
         "mst_ai_llm_recording",
         [
-          { key: "ai_video", name: "Video", is_enabled: true,is_video: true,is_audio: false},
-          { key: "ai_audio", name: "Audio", is_enabled: true,is_video: false,is_audio: true },
+          { key: "ai_video", name: "Video", is_enabled: true},
+          { key: "ai_audio", name: "Audio", is_enabled: true },
         ],
         { transaction }
       );

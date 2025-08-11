@@ -13,8 +13,6 @@ export interface AILLMRecordingAttributes {
   name: string;
   key: string;
   is_enabled: boolean;
-  is_video: boolean;
-  is_audio: boolean;
   createdAt?: Date;
   updatedAt?: Date;
   deletedAt?: Date;
@@ -57,18 +55,6 @@ export class AILLMRecording extends Model<
     defaultValue: true,
   })
   is_enabled!: boolean;
-  
-  @Column({
-    type: DataTypes.BOOLEAN,
-    defaultValue: true,
-  })
-  is_video!: boolean;
-  
-  @Column({
-    type: DataTypes.BOOLEAN,
-    defaultValue: true,
-  })
-  is_audio!: boolean;
 
   @CreatedAt
   @Column

@@ -25,14 +25,6 @@ import { QueryInterface, DataTypes, QueryTypes, Sequelize } from "sequelize";
            type: DataTypes.BOOLEAN,
            defaultValue: true,
          },
-        is_video: {
-          type: DataTypes.BOOLEAN,
-          defaultValue: false,
-        },
-        is_audio: {
-          type: DataTypes.BOOLEAN,
-          defaultValue: false,
-        },
          createdAt: {
            allowNull: false,
            type: DataTypes.DATE,

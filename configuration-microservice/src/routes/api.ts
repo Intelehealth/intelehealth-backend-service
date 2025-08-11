@@ -577,17 +577,6 @@ aiLlmRecording.put(
 )
 
 
-// Update one AILLMRecording flags status
-aiLlmRecording.put(
-  Paths.AILLMRecording.UpdateIsAudioEnabled,
-  AILLMRecordingRoutes.updateIsAudioEnabled
-)
-// Update one AILLMRecording flags status
-aiLlmRecording.put(
-  Paths.AILLMRecording.UpdateIsVideoEnabled,
-  AILLMRecordingRoutes.updateIsVideoEnabled
-)
-
 // get one AILLMRecording by key
 aiLlmRecording.get(
   Paths.AILLM.GetByKey,
