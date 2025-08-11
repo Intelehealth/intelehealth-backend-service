@@ -32,8 +32,10 @@ module.exports = {
             "ROSTER QUESTIONNAIRE CONFIG UPDATED",
             "PATIENT REGISTRATION FIELD VALIDATION UPDATED",
             "DROPDOWN CONFIG UPDATED",
+            "HOME SCREEN SECTION NAME UPDATED",
+            "HOME SCREEN SECTION ENABLED STATUS UPDATED",
             "AI LLM CONFIG UPDATED",
-            "AI LLM RECORDING CONFIG UPDATED",
+            "AI LLM RECORDING CONFIG UPDATED"
           ),
         },
         { transaction }
@@ -71,7 +73,8 @@ module.exports = {
             "ROSTER QUESTIONNAIRE CONFIG UPDATED",
             "PATIENT REGISTRATION FIELD VALIDATION UPDATED",
             "DROPDOWN CONFIG UPDATED",
-            "AI LLM CONFIG UPDATED"
+            "HOME SCREEN SECTION NAME UPDATED",
+            "HOME SCREEN SECTION ENABLED STATUS UPDATED"
           ),
         },
         { transaction }
