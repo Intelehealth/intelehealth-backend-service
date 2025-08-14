@@ -60,41 +60,71 @@ const getPriorityFromId = (id) => {
 };
 
 const createTicket = async (req, res, next) => {
-    try {
-        const { title, description, priority='low' } = req.body;
-        const { userId } = req.user?.data;
-        const incident = await pd.post('/incidents', {
-            data: {
-                incident: {
-                    type: "incident",
-                    title,
-                    service: {
-                        id: process.env.PAGERDUTY_JIRA_SERVICE_ID,
-                        type: "service_reference"
-                    },
-                    priority: {
-                        id: getPriorityId(priority),
-                        type: "priority"
-                    },
-                    urgency: "low",
-                    body: {
-                        type: "incident_body",
-                        details: description
-                    },
-                    escalation_policy: {
-                        id: process.env.PAGERDUTY_ESCALATION_POLICY_ID,
-                        type: "escalation_policy"
-                    }
-                }
-            }
-        });
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        const incident_data = await pd.get(`/incidents/${incident.resource.id}?include[]=external_references&include[]=body`);
-        await createTicketDatabase(incident_data.data.incident, userId, getPriorityFromId(incident_data.data?.incident?.priority?.id));
-        res.status(200).json(incident_data.data);
-    } catch (error) {
-        next(error);
+  try {
+    const { title, description, priority = "low" } = req.body;
+    const { userId } = req.user?.data;
+    const jiraServiceId = process.env.PAGERDUTY_JIRA_SERVICE_ID || null;
+
+    const incidentData = {
+      type: "incident",
+      title,
+      priority: {
+        id: getPriorityId(priority),
+        type: "priority",
+      },
+      urgency: "low",
+      body: {
+        type: "incident_body",
+        details: description,
+      },
+      escalation_policy: {
+        id: process.env.PAGERDUTY_ESCALATION_POLICY_ID,
+        type: "escalation_policy",
+      },
+    };
+    if (jiraServiceId) {
+      incidentData.service = {
+        id: jiraServiceId,
+        type: "service_reference",
+      };
     }
+
+    const payload = { data: { incident: incidentData } };
+    console.log("payload=====", payload);
+    if (jiraServiceId) {
+      const incident = await pd.post("/incidents", payload);
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const incident_data = await pd.get(
+        `/incidents/${incident.resource.id}?include[]=external_references&include[]=body`
+      );
+      await createTicketDatabase(
+        incident_data.data.incident,
+        userId,
+        getPriorityFromId(incident_data.data?.incident?.priority?.id)
+      );
+      return res.status(200).json(incident_data.data);
+    } else {
+      const localId = uuidv4();
+      const localIncident = {
+        id: localId,
+        incident_key: null,
+        external_references: [],
+        title,
+        priority: getPriorityFromId(getPriorityId(priority)),
+        urgency: "low",
+        status:"triggered",
+        resolvedAt: null,
+      };
+      console.log("localIncident==", localIncident);
+      await createTicketDatabase(localIncident, userId, localIncident.priority);
+      return res.status(200).json({
+        message: "Ticket saved  (PagerDuty disabled)",
+        incident: localIncident,
+      });
+    }
+  } catch (error) {
+    next(error);
+  }
 };
 
 const getTicket = async (req, res, next) => {

@@ -101,16 +101,18 @@ module.exports = (function () {
       });
 
       // Mark unread messages sent to 'fromUser' (i.e., received by them) as read
-      await messages.update(
-        { isRead: true },
+      await sequelize.query(
+        `UPDATE messages
+        SET isRead = TRUE
+        WHERE fromUser = :fromUser
+        AND toUser = :toUser
+        AND patientId = :patientId
+        AND visitId = :visitId
+        AND isRead = FALSE`,
         {
-          where: {
-            fromUser: toUser,
-            toUser: fromUser,
-            patientId,
-            visitId,
-            isRead: false,
-          },
+          replacements: { fromUser, toUser, patientId, visitId },
+          type: QueryTypes.UPDATE,
+          logging: console.log,
         }
       );
 
