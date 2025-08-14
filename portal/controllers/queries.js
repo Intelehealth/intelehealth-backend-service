@@ -163,7 +163,7 @@ module.exports = (function () {
               ) as "speciality"
           from
               visit v
-              LEFT JOIN encounter e using (visit_id)
+              LEFT JOIN encounter e on e.visit_id = v.visit_id and (e.encounter_type IN (1,6,9,12,14,15))
               LEFT JOIN visit_attribute va on (va.visit_id= v.visit_id and va.voided = 0 and va.attribute_type_id = 5)
           where
               v.voided = 0
@@ -232,7 +232,7 @@ module.exports = (function () {
               ) as ended
             from
                 visit v
-                LEFT JOIN encounter e using (visit_id)
+                LEFT JOIN encounter e on e.visit_id = v.visit_id and (e.encounter_type IN (1,6,9,12,14,15))
                 LEFT JOIN visit_attribute va on (va.visit_id= v.visit_id and va.voided = 0 and va.attribute_type_id = 5)
             where
                 v.voided = 0
@@ -296,7 +296,7 @@ module.exports = (function () {
               ) as ended
             from
                 visit v
-                LEFT JOIN encounter e using (visit_id)
+                LEFT JOIN encounter e on e.visit_id = v.visit_id and (e.encounter_type IN (1,6,9,12,14,15))
                 LEFT JOIN visit_attribute va on (va.visit_id= v.visit_id and va.voided = 0 and va.attribute_type_id = 5)
             where
                 v.voided = 0
