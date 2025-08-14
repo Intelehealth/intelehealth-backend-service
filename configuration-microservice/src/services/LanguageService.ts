@@ -131,11 +131,38 @@ async function getAllEnabledLanguage(): Promise<Language[]> {
         raw: true
     });
 }
+/**
+ * Update language enabled status.
+ */
+async function updatePlatform(id: string, platform: string, user_id: string, user_name: string): Promise<void> {
+  const language = await Language.findOne({ where: { id } });
+  if (!language) {
+    throw new RouteError(HttpStatusCodes.NOT_FOUND, LANGUAGE_NOT_FOUND_ERR);
+  }
+  if (!language.is_enabled) {
+    throw new RouteError(HttpStatusCodes.BAD_REQUEST, 'Language must be enabled to update platform.');
+  }
+  // Check if platform is already the same
+  if (language.platform === platform) {
+    return; 
+  }
+  // Perform update
+  await Language.update({ platform }, { where: { id } });
+  // Insert audit trail entry
+//   await AuditTrail.create({
+//     user_id,
+//     user_name,
+//     activity_type: 'PLATFORM UPDATED',
+//     description: `Updated platform for "${language.en_name}" to "${platform}".`
+//   });
+}
+
 // **** Export default **** //
 
 export default {
     getAll,
     updateIsEnabled,
+    updatePlatform,
     setDefault,
     getAllEnabledLanguage
 } as const;
