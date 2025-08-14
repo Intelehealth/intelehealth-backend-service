@@ -162,6 +162,11 @@ languageRouter.put(
   validate(['id', 'number', 'params']),
   LanguageRoutes.setDefault,
 );
+// Update platform 
+languageRouter.put(
+  Paths.Languages.UpdatePlatform,
+  LanguageRoutes.updatePlatform,
+);
 
 // Add LanguageRouter
 apiRouter.use(Paths.Languages.Base, publicLanguageRouter);

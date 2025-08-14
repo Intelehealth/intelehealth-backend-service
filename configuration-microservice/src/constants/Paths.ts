@@ -28,7 +28,7 @@ export default {
     Default: '/default/:id',
     UpdateIsEnabled: '/updateIsEnabled/:id',
     GetEnabledLanguages: '/getallEnabledLanguages',
-
+    UpdatePlatform : '/updatePlatform/:id'
   },
   PatientResgistration: {
     Base: '/pr',
