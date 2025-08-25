@@ -148,13 +148,19 @@ async function updatePlatform(id: string, platform: string, user_id: string, use
   }
   // Perform update
   await Language.update({ platform }, { where: { id } });
+  const enabledLanguages = await Language.findAll({
+        attributes: ['name', 'code', 'en_name', 'is_default', 'platform','is_enabled'],
+        where: { is_enabled: true }
+    });
+  await Config.update({ value: JSON.stringify(enabledLanguages), published: false }, { where: { key: 'language' } });
+
   // Insert audit trail entry
-//   await AuditTrail.create({
-//     user_id,
-//     user_name,
-//     activity_type: 'PLATFORM UPDATED',
-//     description: `Updated platform for "${language.en_name}" to "${platform}".`
-//   });
+  await AuditTrail.create({
+    user_id,
+    user_name,
+    activity_type: 'LANGUAGE PLATFORM UPDATED',
+    description: `Updated platform for "${language.en_name}" to "${platform}".`
+  });
 }
 
 // **** Export default **** //
