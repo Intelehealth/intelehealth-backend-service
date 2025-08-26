@@ -84,23 +84,29 @@ const sendCloudNotification = async ({
   notification = null,
   regTokens,
 }) => {
-  const messaging = admin.messaging();
-
   const payload = {
     data,
     tokens: regTokens,
+    android: {
+      priority: 'high'  // For Android, you can set 'high' or 'normal'
+    },
+    apns: {
+      payload: {
+        aps: {
+          priority: 10  // For iOS, 10 is for high priority, 5 is for normal
+        }
+      }
+    }
   };
 
   if(notification) payload.notification = notification;
 
-  return messaging
-    .sendEachForMulticast(payload)
-    .then((result) => {
-      console.log('Successfully sent message:', result);
-    })
-    .catch((error) => {
-      console.log('Error sending message:', error);
-    });
+  try {
+    const result = await messaging.sendEachForMulticast(payload);
+    return result;
+  } catch (err) {
+    console.error("Cloud notification error:", err);
+  }
 };
 
 const getFirebaseAdmin = () => admin;
