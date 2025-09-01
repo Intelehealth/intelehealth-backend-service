@@ -1,123 +1,73 @@
-const { logStream } = require("../logger");
-const { call_data, sequelize } = require("../models");
-const { Op } = require("sequelize");
-
-const CALL_STATUSES = {
-  SUCCESS: "success",
-  UNSUCCESS: "unsuccess",
-};
-
-const CALL_TYPES = {
-  VIDEO: 'video',
-  AUDIO: 'audio'
-};
+const { logStream } = require("../logger/index");
+const { call_data } = require("../models");
 
 module.exports = (function () {
-  /**
-   * Creates a new WebRTC call record
-   * @param {string} doctorId - The ID of the doctor
-   * @param {string} nurseId - The ID of the nurse
-   * @param {string} roomId - The room ID for the call
-   * @param {string} visitId - The visit ID
-   * @param {string} callStatus - The status of the call
-   * @param {string} [callType=video] - The type of call (video/audio)
-   * @returns {Promise<{success: boolean, data: object}>}
-   */
-  this.createCallRecordOfWebrtc = async (doctorId, nurseId, roomId, visitId, callStatus, callType) => {
-    const t = await sequelize.transaction();
-    try {
-      if (!doctorId || !nurseId || !roomId || !visitId || !callStatus) {
-        throw new Error('Missing required parameters');
-      }
 
-      if (callType && !Object.values(CALL_TYPES).includes(callType)) {
-        throw new Error('Invalid call type');
-      }
-      const lastCall = await call_data.findOne({
-        where: { visit_id: visitId },
-        order: [['start_time', 'DESC']],
-        transaction: t
-      });
-      const currentTime = new Date();
-    if (lastCall && lastCall.end_time) {
-      const lastCallEndTime = new Date(lastCall.end_time);
-      if (currentTime < lastCallEndTime) {
-        await t.rollback();
-        logStream('warn', `Call blocked: current time ${currentTime.toISOString()} is before last call's end time ${lastCallEndTime.toISOString()}`);
-        return { success: false, warning: 'Call cannot start before the previous call has ended' };
-      }
-    }
-      
-      const record = await call_data.create({
+  this.createCallRecordOfWebrtc = async (doctorId, nurseId, roomId, visitId, callStatus, callType) => {
+    try {
+      const startTime = new Date(new Date().getTime() + (5.5 * 60 * 60 * 1000));
+      console.log('startTime:', startTime);
+
+      const data = await call_data.create({ 
         doctor_id: doctorId,
         chw_id: nurseId,
         room_id: roomId,
         visit_id: visitId,
-        call_status: null,
+        call_status: callStatus,
+        reason: null,
         call_duration: 0,
-        start_time: new Date().toISOString(),
+        start_time: startTime,
         end_time: null,
         call_type: callType
-      }, { transaction: t });
-
-      await t.commit();
-      return { success: true, data: record };
+      }
+      );
+      console.log('Call Record Created:', data);
+      return { success: true, data: data };
     } catch (error) {
-      await t.rollback();
-      logStream("error", `Error creating call record: ${error.message}`, error);
-      return { success: false, data: null, error: error.message };
+      logStream("error", error);
+      return { success: false, data: null, error };
     }
   };
 
-  /**
-   * Updates an existing WebRTC call record
-   * @param {Object} usersRecord - The record to update
-   * @param {string} usersRecord.doctorId - The ID of the doctor
-   * @param {string} usersRecord.roomId - The room ID for the call
-   * @param {string} [usersRecord.callStatus] - Optional new call status
-   * @param {string} [usersRecord.callType] - Optional call type (video/audio)
-   * @returns {Promise<{success: boolean, data: object}>}
-   */
   this.updateCallRecordOfWebrtc = async (usersRecord) => {
-    const t = await sequelize.transaction();
     try {
-      if (!usersRecord.doctorId || !usersRecord.roomId) {
-        throw new Error('Missing required parameters: doctorId or roomId');
-      }
+      let endTime = new Date(new Date().getTime() + (5.5 * 60 * 60 * 1000));
+      console.log('endTime:', endTime);
 
       const callRecord = await call_data.findOne({
-        where: { doctor_id: usersRecord.doctorId, room_id: usersRecord.roomId },
-        order: [['createdAt', 'DESC']],
-        transaction: t
+        where: { id: usersRecord.recordId }
       });
 
-      if (!callRecord) {
-        throw new Error('No call record found for the given doctor and room');
+      if (callRecord) {
+        let callDuration = Math.floor((endTime - callRecord.start_time) / 1000); // Duration in seconds
+        if(usersRecord.callStatus === 'failure') {
+          endTime = null;
+          callDuration = 0;
+        } else {
+          usersRecord.reason = null;
+        }
+        
+        if(usersRecord?.startTime) {
+          await call_data.update(
+            { start_time: usersRecord?.startTime },
+            { where: { id: callRecord.id } }
+          );
+        } else if(usersRecord.callStatus || usersRecord.reason){
+          await call_data.update(
+            { call_status: usersRecord.callStatus, reason: usersRecord.reason, call_duration: callDuration, end_time: endTime },
+            { where: { id: callRecord.id } }
+          );
+        }else{
+          await call_data.update(
+            { call_duration: callDuration, end_time: endTime },
+            { where: { id: callRecord.id } }
+          );
+        }
       }
 
-      if (callRecord.end_time) {
-        return { success: true, data: callRecord.toJSON(), message: 'Call record already ended' };
-      }
-
-      const endTime = new Date().toISOString();
-      const updateData = { end_time: endTime };
-
-      if (callRecord.call_duration !== 0 && callRecord.call_duration !== null ) {
-        updateData.call_duration = Math.round((new Date(endTime) - new Date(callRecord.start_time)) / 1000);
-        updateData.call_status = CALL_STATUSES.SUCCESS;
-      } else {
-        updateData.call_status = CALL_STATUSES.UNSUCCESS;
-        updateData.call_duration = 0;
-      }
-    
-      await call_data.update(updateData, { where: { id: callRecord.id }, transaction: t });
-      await t.commit();
-
-      return { success: true, data: { ...callRecord.toJSON(), ...updateData } };
+      return { success: true, data: call_data };
     } catch (error) {
-      await t.rollback();
-      logStream("error", `Error updating call record: ${error.message}`, error);
-      return { success: false, data: null, error: error.message };
+      return { success: false, data: null, error };
     }
   };
 

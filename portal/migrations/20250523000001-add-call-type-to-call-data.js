@@ -11,6 +11,5 @@ module.exports = {
 
   down: async (queryInterface, Sequelize) => {
     await queryInterface.removeColumn('call_data', 'call_type');
-    await queryInterface.sequelize.query('DROP TYPE IF EXISTS "enum_call_data_call_type";');
   }
 }; 

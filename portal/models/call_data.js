@@ -19,6 +19,7 @@ module.exports = (sequelize, DataTypes) => {
     chw_id: DataTypes.STRING,
     room_id: DataTypes.STRING,
     call_status: DataTypes.STRING,
+    reason: DataTypes.STRING,
     call_duration: DataTypes.INTEGER,
     start_time: DataTypes.DATE,
     end_time: DataTypes.DATE,

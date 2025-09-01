@@ -22,7 +22,7 @@ const sequelize = new Sequelize({
   username: MYSQL_USERNAME || "root",
   password: MYSQL_PASS,
   database: MYSQL_DB || "mindmap_server",
-  logging: true,
+  logging: false,
   pool: {
     max: 20,
     min: 0,
