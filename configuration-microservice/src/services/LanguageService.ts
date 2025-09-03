@@ -119,11 +119,56 @@ async function setDefault(id: string, user_id: string, user_name: string): Promi
     // Insert audit trail entry
     await AuditTrail.create({ user_id, user_name, activity_type: 'LANGUAGE SET AS DEFAULT', description: `"${language.en_name}" set as default language.` });
 }
+async function getAllEnabledLanguage(): Promise<Language[]> {
+    return Language.findAll({
+        attributes: ['id', 'name', 'code', 'en_name', 'is_default', 'is_enabled','platform'],
+        where: { 
+                is_enabled: true,
+                platform: {
+                        [Op.in]: ['Webapp', 'Both']
+                    }         
+                },
+        raw: true
+    });
+}
+/**
+ * Update language enabled status.
+ */
+async function updatePlatform(id: string, platform: string, user_id: string, user_name: string): Promise<void> {
+  const language = await Language.findOne({ where: { id } });
+  if (!language) {
+    throw new RouteError(HttpStatusCodes.NOT_FOUND, LANGUAGE_NOT_FOUND_ERR);
+  }
+  if (!language.is_enabled) {
+    throw new RouteError(HttpStatusCodes.BAD_REQUEST, 'Language must be enabled to update platform.');
+  }
+  // Check if platform is already the same
+  if (language.platform === platform) {
+    return; 
+  }
+  // Perform update
+  await Language.update({ platform }, { where: { id } });
+  const enabledLanguages = await Language.findAll({
+        attributes: ['name', 'code', 'en_name', 'is_default', 'platform','is_enabled'],
+        where: { is_enabled: true }
+    });
+  await Config.update({ value: JSON.stringify(enabledLanguages), published: false }, { where: { key: 'language' } });
+
+  // Insert audit trail entry
+  await AuditTrail.create({
+    user_id,
+    user_name,
+    activity_type: 'LANGUAGE PLATFORM UPDATED',
+    description: `Updated platform for "${language.en_name}" to "${platform}".`
+  });
+}
 
 // **** Export default **** //
 
 export default {
     getAll,
     updateIsEnabled,
-    setDefault
+    updatePlatform,
+    setDefault,
+    getAllEnabledLanguage
 } as const;

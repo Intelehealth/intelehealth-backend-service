@@ -35,7 +35,9 @@ module.exports = {
             "HOME SCREEN SECTION NAME UPDATED",
             "HOME SCREEN SECTION ENABLED STATUS UPDATED",
             "AI LLM CONFIG UPDATED",
-            "AI LLM RECORDING CONFIG UPDATED"
+            "AI LLM RECORDING CONFIG UPDATED",
+            "PLATFORM UPDATED",
+            "LANGUAGE PLATFORM UPDATED"
           ),
         },
         { transaction }
@@ -74,7 +76,9 @@ module.exports = {
             "PATIENT REGISTRATION FIELD VALIDATION UPDATED",
             "DROPDOWN CONFIG UPDATED",
             "HOME SCREEN SECTION NAME UPDATED",
-            "HOME SCREEN SECTION ENABLED STATUS UPDATED"
+            "HOME SCREEN SECTION ENABLED STATUS UPDATED",
+            "AI LLM CONFIG UPDATED",
+            "AI LLM RECORDING CONFIG UPDATED"
           ),
         },
         { transaction }
