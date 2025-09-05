@@ -44,7 +44,8 @@ function getFormatedResponse({ visits, patientInfo }) {
 async function getVisitByAbhaDetails(whereParams) {
   const patientIdentifier = await patient_identifier.findOne({
     attributes: ['patient_id'],
-    where: whereParams
+    where: whereParams,
+    logging: console.log
   });
   if (!patientIdentifier) return null;
   const data = await this.getVisitsByPatientId(patientIdentifier.patient_id, true);
@@ -142,12 +143,14 @@ async function findPersonAttributesByMobile(mobileFormats) {
         { [Op.eq]: mobileFormats.withoutCountryCode },
         { [Op.eq]: mobileFormats.withCountryCode }
       ]
-    }
+    },
+    voided: { [Op.eq]: 0 }
   };
   
   return await person_attribute.findAll({
     attributes: ["person_id"],
-    where: queryParams
+    where: queryParams,
+    logging: console.log
   });
 }
 
@@ -178,7 +181,8 @@ async function findPersonsByCriteria(criteria) {
     person_id: {
       [Op.in]: personIds
     },
-    gender: { [Op.eq]: gender }
+    gender: { [Op.eq]: gender },
+    voided: { [Op.eq]: 0 }
   };
   
   if (birthDateRange) {
@@ -194,7 +198,8 @@ async function findPersonsByCriteria(criteria) {
         as: "person_name",
         attributes: ["given_name", "middle_name", "family_name"],
         where: {
-          preferred: { [Op.eq]: 1 }
+          preferred: { [Op.eq]: 1 },
+          voided: { [Op.eq]: 0 }
         }
       }
     ]
@@ -334,7 +339,8 @@ module.exports = (function () {
         response = await getVisitByAbhaDetails({
           identifier: {
             [Op.or]: or
-          }
+          },
+          voided: { [Op.eq]: 0 }
         })
       } 
       if (!response?.data && mobileNumber) {
