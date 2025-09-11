@@ -130,7 +130,7 @@ function getMobileNumberFormats(mobileNumber) {
   
   if (mobileNumber.includes('+91')) {
     withoutCountryCode = mobileNumber.replace('+91', '');
-  } else if (!mobileNumber.includes('91')) {
+  } else if (!mobileNumber.includes('+91')) {
     withCountryCode = `+91${mobileNumber}`;
   }
   
@@ -183,6 +183,7 @@ async function findPersonAttributesByMobile(mobileFormats, openMRSId = null) {
       },
       voided: { [Op.eq]: 0 }
     };
+    console.log("mobileFormats.withoutCountryCode, mobileFormats.withCountryCode", mobileFormats.withoutCountryCode, mobileFormats.withCountryCode);
     // Standard query without OpenMRS ID validation
     return await person_attribute.findAll({
       attributes: ["person_id"],
