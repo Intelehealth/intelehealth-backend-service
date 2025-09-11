@@ -183,7 +183,7 @@ async function findPersonAttributesByMobile(mobileFormats, openMRSId = null) {
       },
       voided: { [Op.eq]: 0 }
     };
-    console.log("mobileFormats.withoutCountryCode, mobileFormats.withCountryCode", mobileFormats.withoutCountryCode, mobileFormats.withCountryCode);
+
     // Standard query without OpenMRS ID validation
     return await person_attribute.findAll({
       attributes: ["person_id"],
@@ -527,7 +527,6 @@ module.exports = (function () {
    */
   this.updatePatientAndVisitData = async (response, abhaAddress, abhaNumber) => {
     try {
-      console.log(JSON.stringify(response, null, 2));
       const patientUUID = response?.patientInfo?.patient_id;
       const hasAbhaData = Boolean(abhaAddress) || Boolean(abhaNumber);
       
@@ -604,14 +603,13 @@ module.exports = (function () {
           creator: openMRSIdentifier?.creator ?? existingAbhaAddressIdentifier.creator ?? 1
         }
       ];
-
       // Process each identifier
       const updatePromises = identifierConfigs
         .filter(config => config.value) // Only process if value exists
         .map(async (config) => {
           const { type, value, existing, name, location_id, creator } = config;
           
-          if (existing?.identifier === value) {
+          if (existing?.identifier === value && existing?.location_id === location_id && existing?.creator === creator) {
             logStream("debug", `${name} already matches, skipping update`, "updatePatientAbhaDetails");
             return;
           }
@@ -627,7 +625,8 @@ module.exports = (function () {
               }, {
                 where: {
                   patient_identifier_id: existing.patient_identifier_id
-                }
+                },
+                logging: console.log
               });
               logStream("info", `${name} updated successfully`, "updatePatientAbhaDetails");
             } else {
