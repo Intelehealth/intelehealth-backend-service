@@ -183,7 +183,7 @@ async function findPersonAttributesByMobile(mobileFormats, openMRSId = null) {
       },
       voided: { [Op.eq]: 0 }
     };
-    console.log("mobileFormats.withoutCountryCode, mobileFormats.withCountryCode", mobileFormats.withoutCountryCode, mobileFormats.withCountryCode);
+
     // Standard query without OpenMRS ID validation
     return await person_attribute.findAll({
       attributes: ["person_id"],
@@ -334,7 +334,7 @@ async function getPatientInfo(patientId) {
       {
         model: patient_identifier,
         as: "patient_identifier",
-        attributes: ["identifier", "identifier_type", 'patient_identifier_id'],
+        attributes: ["identifier", "identifier_type", 'patient_identifier_id', 'location_id', 'creator'],
       },
       {
         model: person,
@@ -581,6 +581,7 @@ module.exports = (function () {
     const existingIdentifiers = patientInfo?.patient_identifier || [];
     const existingAbhaNumberIdentifier = existingIdentifiers.find(id => id.identifier_type === IDENTIFIER_TYPES.ABHA_NUMBER);
     const existingAbhaAddressIdentifier = existingIdentifiers.find(id => id.identifier_type === IDENTIFIER_TYPES.ABHA_ADDRESS);
+    const openMRSIdentifier = existingIdentifiers.find(id => id.identifier_type === IDENTIFIER_TYPES.OPENMRS_ID);
 
     try {
       // Define identifier configurations
@@ -589,23 +590,26 @@ module.exports = (function () {
           type: IDENTIFIER_TYPES.ABHA_NUMBER,
           value: abhaNumber,
           existing: existingAbhaNumberIdentifier,
-          name: 'ABHA Number'
+          name: 'ABHA Number',
+          location_id: openMRSIdentifier?.location_id ?? existingAbhaNumberIdentifier.location_id ?? 1,
+          creator: openMRSIdentifier?.creator ?? existingAbhaNumberIdentifier.creator ?? 1
         },
         {
           type: IDENTIFIER_TYPES.ABHA_ADDRESS,
           value: abhaAddress,
           existing: existingAbhaAddressIdentifier,
-          name: 'ABHA Address'
+          name: 'ABHA Address',
+          location_id: openMRSIdentifier?.location_id ?? existingAbhaAddressIdentifier.location_id ?? 1,
+          creator: openMRSIdentifier?.creator ?? existingAbhaAddressIdentifier.creator ?? 1
         }
       ];
-
       // Process each identifier
       const updatePromises = identifierConfigs
         .filter(config => config.value) // Only process if value exists
         .map(async (config) => {
-          const { type, value, existing, name } = config;
+          const { type, value, existing, name, location_id, creator } = config;
           
-          if (existing?.identifier === value) {
+          if (existing?.identifier === value && existing?.location_id === location_id && existing?.creator === creator) {
             logStream("debug", `${name} already matches, skipping update`, "updatePatientAbhaDetails");
             return;
           }
@@ -615,11 +619,14 @@ module.exports = (function () {
               // Update existing identifier
               await patient_identifier.update({
                 identifier: value,
+                creator: creator,
+                location_id: location_id,
                 date_changed: new Date()
               }, {
                 where: {
                   patient_identifier_id: existing.patient_identifier_id
-                }
+                },
+                logging: console.log
               });
               logStream("info", `${name} updated successfully`, "updatePatientAbhaDetails");
             } else {
@@ -628,12 +635,12 @@ module.exports = (function () {
                 patient_id: patientInfo.patient_id,
                 identifier: value,
                 identifier_type: type,
-                location_id: 1,
+                location_id: location_id,
                 preferred: false,
                 date_created: new Date(),
                 date_changed: new Date(),
                 uuid: uuid(),
-                creator: 1
+                creator: creator
               });
               logStream("info", `${name} created successfully`, "updatePatientAbhaDetails");
             }
