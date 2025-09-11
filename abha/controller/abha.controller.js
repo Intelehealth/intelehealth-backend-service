@@ -1064,13 +1064,16 @@ module.exports = (function () {
       })
       logStream("debug", 'Got Response of patient info', 'openmrsService.getVisitBySearch');
       if (response?.hasMultiplePatient) {
-        throw {
+        logStream("debug", response?.message, 'patientDiscover');
+        return res.status(404).json({
+          "success": false,
           "code": "ERR_MULTIPLE_PATIENT_FOUND",
           "message": response?.message,
-        }
+        });
       }
 
       if (!response?.data) {
+        logStream("debug", 'Care context information is not found with provided details!', 'patientDiscover');
         return res.status(404).json({
           "success": false,
           "code": "ERR_DATA_NOT_FOUND",
