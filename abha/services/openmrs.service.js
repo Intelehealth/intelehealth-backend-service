@@ -3,15 +3,9 @@ const { openmrsAxiosInstance } = require('../handlers/axiosHelper');
 const { convertDateToDDMMYYYY, convertToBase64 } = require('../handlers/utilityHelper');
 const { logStream } = require('../logger');
 const { patient_identifier, visit, Sequelize, encounter, person_name, person, person_attribute, visit_attribute, patient } = require('../openmrs_models');
+const { VISIT_ATTRIBUTE_TYPES, IDENTIFIER_TYPES } = require('../constants/openmrs.constants');
 const { Op } = Sequelize;
 
-// Constants for identifier types
-const IDENTIFIER_TYPES = {
-  OPENMRS_ID: 3,
-  ABHA_NUMBER: 6,
-  ABHA_ADDRESS: 7,
-  MOBILE_NUMBER: 8
-};
 /**
  * Function to get the visits with formated response.
  * @param {Array} visits 
@@ -505,7 +499,7 @@ module.exports = (function () {
         as: "attributes",
         attributes: ["attribute_type_id", "value_reference"],
         where: {
-          "attribute_type_id": { [Op.eq]: 10 },
+          "attribute_type_id": { [Op.eq]: VISIT_ATTRIBUTE_TYPES.IS_ABDM_LINKED },
           "value_reference": { [Op.eq]: false }
         }
       })
@@ -521,6 +515,56 @@ module.exports = (function () {
       return document;
     } catch (error) {
       return null;
+    }
+  };
+
+  /**
+   * Update patient ABHA details and visit attributes
+   * @param {Object} response - Patient discovery response
+   * @param {string} abhaAddress - ABHA address
+   * @param {string} abhaNumber - ABHA number
+   */
+  this.updatePatientAndVisitData = async (response, abhaAddress, abhaNumber) => {
+    try {
+      const patientUUID = response?.patientInfo?.patient_id;
+      const hasAbhaData = Boolean(abhaAddress) || Boolean(abhaNumber);
+      
+      // Update patient ABHA details (only if patient exists and has ABHA data)
+      if (patientUUID && hasAbhaData) {
+        const abhaUpdateResult = await this.updatePatientAbhaDetails(response.patientInfo, {
+          abhaAddress,
+          abhaNumber
+        });
+
+        if (!abhaUpdateResult) {
+          logStream("warn", "Failed to update patient ABHA details", "updatePatientAndVisitData");
+        } else {
+          logStream("info", "Patient ABHA details updated successfully", "updatePatientAndVisitData");
+        }
+      } else if (patientUUID && !hasAbhaData) {
+        logStream("debug", "Skipping ABHA details update - no ABHA data provided", "updatePatientAndVisitData");
+      }
+
+      // Update visit attributes for care contexts (always execute if care contexts exist)
+      // const careContexts = response?.data?.careContexts;
+      // if (careContexts?.length) {
+      //   const visitUpdateResult = await this.updateVisitAttributes(
+      //     careContexts, 
+      //     VISIT_ATTRIBUTE_TYPES.IS_ABDM_LINKED, 
+      //     true
+      //   );
+
+      //   if (visitUpdateResult?.success) {
+      //     logStream("info", `Visit attributes updated: ${visitUpdateResult.processed} updated, ${visitUpdateResult.skipped} skipped`, "updatePatientAndVisitData");
+      //   } else {
+      //     logStream("warn", `Visit attributes update failed: ${visitUpdateResult?.message}`, "updatePatientAndVisitData");
+      //   }
+      // } else {
+      //   logStream("debug", "No care contexts found - skipping visit attributes update", "updatePatientAndVisitData");
+      // }
+
+    } catch (error) {
+      logStream("error", `Failed to update patient and visit data: ${error.message}`, "updatePatientAndVisitData");
     }
   };
 
@@ -607,6 +651,133 @@ module.exports = (function () {
     } catch (error) {
       logStream("error", `Failed to update ABHA details: ${error.message}`, "updatePatientAbhaDetails");
       return false;
+    }
+  }
+
+  /**
+   * Update visit attributes for multiple visits from care contexts
+   * @param {Array} careContexts - Array of care context objects with referenceNumber
+   * @param {number} attributeTypeId - Attribute type ID to update
+   * @param {string|boolean|number} value - Value to set for the attribute
+   * @returns {Object} Result object with success status and details
+   */
+  this.updateVisitAttributes = async (careContexts, attributeTypeId, value) => {
+    try {
+      const visitUUIDs = careContexts.map(context => context.referenceNumber);
+      if (!visitUUIDs.length || !attributeTypeId || value === undefined) {
+        logStream("warn", "Missing required parameters: visitUUIDs, attributeTypeId, and value", "updateVisitAttributes"); 
+        return { success: false, message: "Missing required parameters" };
+      }
+
+      const stringValue = String(value);
+      const parsedAttributeTypeId = parseInt(attributeTypeId);
+      const now = new Date();
+
+      // Get all visit IDs in one query
+      const visitRecords = await visit.findAll({
+        where: { uuid: { [Op.in]: visitUUIDs } },
+        attributes: ['visit_id', 'uuid']
+      });
+
+      const foundVisitIds = visitRecords.map(v => v.visit_id);
+
+      // Check existing attributes in bulk
+      const existingAttributes = await visit_attribute.findAll({
+        where: {
+          visit_id: { [Op.in]: foundVisitIds },
+          attribute_type_id: parsedAttributeTypeId
+        },
+        attributes: ['visit_id', 'value_reference']
+      });
+
+      const existingMap = new Map(existingAttributes.map(attr => [attr.visit_id, attr.value_reference]));
+
+      // Separate visits that need updates vs those that are already correct
+      const visitsToUpdate = [];
+      const visitsToSkip = [];
+      const visitUuidMap = new Map(visitRecords.map(v => [v.visit_id, v.uuid]));
+
+      for (const visitRecord of visitRecords) {
+        const existingValue = existingMap.get(visitRecord.visit_id);
+        if (existingValue && String(existingValue) === stringValue) {
+          visitsToSkip.push(visitRecord.uuid);
+        } else {
+          visitsToUpdate.push(visitRecord.visit_id);
+        }
+      }
+
+      // Process updates in parallel if there are any
+      if (visitsToUpdate.length > 0) {
+        const updatePromises = [];
+        
+        // Get existing visit IDs that need updates
+        const existingVisitIds = existingAttributes
+          .filter(attr => visitsToUpdate.includes(attr.visit_id))
+          .map(attr => attr.visit_id);
+
+        // Bulk update existing attributes
+        if (existingVisitIds.length > 0) {
+          updatePromises.push(
+            visit_attribute.update(
+              { 
+                value_reference: stringValue,
+                date_changed: now
+              },
+              {
+                where: {
+                  visit_id: { [Op.in]: existingVisitIds },
+                  attribute_type_id: parsedAttributeTypeId
+                }
+              }
+            )
+          );
+        }
+
+        // Bulk create new attributes for visits that don't have them
+        const newVisitIds = visitsToUpdate.filter(id => !existingVisitIds.includes(id));
+        if (newVisitIds.length > 0) {
+          const newAttributes = newVisitIds.map(visitId => ({
+            visit_id: visitId,
+            attribute_type_id: parsedAttributeTypeId,
+            value_reference: stringValue,
+            uuid: uuid(),
+            creator: 1,
+            date_created: now,
+            date_changed: now
+          }));
+
+          updatePromises.push(visit_attribute.bulkCreate(newAttributes));
+        }
+
+        // Execute all updates in parallel
+        await Promise.all(updatePromises);
+      }
+
+      const results = {
+        success: true,
+        processed: visitsToUpdate.length,
+        skipped: visitsToSkip.length,
+        failed: 0,
+        details: [
+          ...visitsToUpdate.map(visitId => ({ 
+            visitUuid: visitUuidMap.get(visitId), 
+            status: 'updated', 
+            message: 'Successfully updated' 
+          })),
+          ...visitsToSkip.map(uuid => ({ 
+            visitUuid: uuid, 
+            status: 'skipped', 
+            message: 'Value already exists' 
+          }))
+        ]
+      };
+
+      logStream("info", `Visit attributes update completed: ${results.processed} updated, ${results.skipped} skipped`, "updateVisitAttributes");
+      return results;
+      
+    } catch (error) {
+      logStream("error", `Failed to update visit attributes: ${error.message}`, "updateVisitAttributes");
+      return { success: false, message: error.message };
     }
   }
   return this;

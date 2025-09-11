@@ -1078,16 +1078,8 @@ module.exports = (function () {
         });
       }
       
-      // Update the paitent abha address / abha number
-      const patientUUID = response?.patientInfo?.patient_id;
-      if(patientUUID && (Boolean(abhaAddress) || Boolean(abhaNumber))) {
-        await openmrsService.updatePatientAbhaDetails(response?.patientInfo, {
-          abhaAddress,
-          abhaNumber
-        }).catch((err) => {
-          logStream("error", JSON.stringify(err));
-        });
-      }
+      // Update patient ABHA details and visit attributes
+      await openmrsService.updatePatientAndVisitData(response, abhaAddress, abhaNumber);
 
       logStream("debug", 'Got Response of patient info', 'patientDiscover');
       res.json(response?.data);
