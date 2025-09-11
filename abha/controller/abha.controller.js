@@ -1053,12 +1053,14 @@ module.exports = (function () {
       const abhaNumber = params?.verifiedIdentifiers?.find((v) => ['ABHA_NUMBER', 'NDHM_HEALTH_NUMBER'].includes(v.type.toUpperCase()))?.value;
       const abhaAddress = params?.verifiedIdentifiers?.find((v) => ['ABHA_ADDRESS','ABHAADDRESS', 'HEALTH_ID'].includes(v.type.toUpperCase()))?.value;
       const unverifiedAbhaAddress = params?.unverifiedIdentifiers?.find((v) => ['ABHA_ADDRESS','ABHAADDRESS', 'HEALTH_ID'].includes(v.type.toUpperCase()))?.value;
+      const openMRSId = params?.unverifiedIdentifiers?.find((v) => ['MR'].includes(v.type.toUpperCase()))?.value;
       
       const response = await openmrsService.getVisitBySearch({
         ...params,
         mobileNumber,
         abhaNumber,
-        abhaAddress: abhaAddress ?? unverifiedAbhaAddress ?? params?.id
+        abhaAddress: abhaAddress ?? unverifiedAbhaAddress ?? params?.id,
+        openMRSId: openMRSId
       })
       logStream("debug", 'Got Response of patient info', 'openmrsService.getVisitBySearch');
       if (response?.hasMultiplePatient) {

@@ -4,6 +4,14 @@ const { convertDateToDDMMYYYY, convertToBase64 } = require('../handlers/utilityH
 const { logStream } = require('../logger');
 const { patient_identifier, visit, Sequelize, encounter, person_name, person, person_attribute, visit_attribute, patient } = require('../openmrs_models');
 const { Op } = Sequelize;
+
+// Constants for identifier types
+const IDENTIFIER_TYPES = {
+  OPENMRS_ID: 3,
+  ABHA_NUMBER: 6,
+  ABHA_ADDRESS: 7,
+  MOBILE_NUMBER: 8
+};
 /**
  * Function to get the visits with formated response.
  * @param {Array} visits 
@@ -14,8 +22,8 @@ function getFormatedResponse({ visits, patientInfo }) {
   const patient_identifier = patientInfo?.patient_identifier;
   const person = patientInfo?.person;
   const patient_name = patientInfo?.person?.person_name;
-  const abhaAddress = patient_identifier?.find((identifier) => identifier?.identifier_type === 7)?.identifier ?? '';
-  const openMRSId = patient_identifier?.find((identifier) => identifier?.identifier_type === 3)?.identifier ?? '';
+  const abhaAddress = patient_identifier?.find((identifier) => identifier?.identifier_type === IDENTIFIER_TYPES.ABHA_ADDRESS)?.identifier ?? '';
+  const openMRSId = patient_identifier?.find((identifier) => identifier?.identifier_type === IDENTIFIER_TYPES.OPENMRS_ID)?.identifier ?? '';
   const careContexts = visits?.map((visit) => {
     return {
       "referenceNumber": visit?.uuid,
@@ -58,18 +66,23 @@ async function getVisitByAbhaDetails(whereParams) {
 
 /**
  * Function to get the visit by mobile number with gender and name validation
- * @param {object} param 
+ * @param {object} params - Search parameters
+ * @param {string} params.mobileNumber - Mobile number
+ * @param {string} params.yearOfBirth - Year of birth
+ * @param {string} params.gender - Gender
+ * @param {string} params.name - Patient name
+ * @param {string} params.openMRSId - Optional OpenMRS ID for additional validation
  * @returns visits array
  */
 async function getVisitByMobile(params) {
   
-  const { mobileNumber, yearOfBirth, gender, name } = params;
+  const { mobileNumber, yearOfBirth, gender, name, openMRSId } = params;
   
   // Get mobile number formats for flexible searching
   const mobileFormats = getMobileNumberFormats(mobileNumber);
   
-  // Find person attributes by mobile number
-  const personAttributes = await findPersonAttributesByMobile(mobileFormats);
+  // Find person attributes by mobile number with optional OpenMRS ID validation
+  const personAttributes = await findPersonAttributesByMobile(mobileFormats, openMRSId);
   if (!personAttributes?.length) {
     logStream('debug', 'No person attributes found for mobile number', 'getVisitByMobile');
     return null;
@@ -84,7 +97,7 @@ async function getVisitByMobile(params) {
     gender,
     birthDateRange
   });
-  
+
   if (!persons?.length) {
     logStream('debug', 'No persons found matching criteria', 'getVisitByMobile');
     return null;
@@ -131,27 +144,61 @@ function getMobileNumberFormats(mobileNumber) {
 }
 
 /**
- * Helper function to find person attributes by mobile number
+ * Helper function to find person attributes by mobile number with optional OpenMRS ID validation
  * @param {object} mobileFormats 
+ * @param {string} openMRSId - Optional OpenMRS ID for additional validation
  * @returns {Array} person attributes
  */
-async function findPersonAttributesByMobile(mobileFormats) {
-  const queryParams = {
-    person_attribute_type_id: 8,
-    value: { 
-      [Op.or]: [
-        { [Op.eq]: mobileFormats.withoutCountryCode },
-        { [Op.eq]: mobileFormats.withCountryCode }
-      ]
-    },
-    voided: { [Op.eq]: 0 }
-  };
-  
-  return await person_attribute.findAll({
-    attributes: ["person_id"],
-    where: queryParams,
-    logging: console.log
-  });
+async function findPersonAttributesByMobile(mobileFormats, openMRSId = null) {
+  try {  // If OpenMRS ID is provided, use a more complex query with JOIN
+    if (openMRSId) {
+      const query = `
+        SELECT DISTINCT pa.person_id 
+        FROM person_attribute pa
+        INNER JOIN patient p ON pa.person_id = p.patient_id
+        INNER JOIN patient_identifier pi ON p.patient_id = pi.patient_id
+        WHERE pa.person_attribute_type_id = :mobileType
+          AND pa.value IN (:mobileValues)
+          AND pa.voided = 0
+          AND pi.identifier_type = :openmrsType
+          AND pi.identifier = :openmrsId
+          AND pi.voided = 0
+      `;
+      
+      const results = await person_attribute.sequelize.query(query, {
+        replacements: {
+          mobileType: IDENTIFIER_TYPES.MOBILE_NUMBER,
+          mobileValues: [mobileFormats.withoutCountryCode, mobileFormats.withCountryCode],
+          openmrsType: IDENTIFIER_TYPES.OPENMRS_ID,
+          openmrsId: openMRSId
+        },
+        type: person_attribute.sequelize.QueryTypes.SELECT,
+        logging: console.log
+      });
+          
+      return results.map(row => ({ person_id: row.person_id }));
+    }
+
+    const queryParams = {
+      person_attribute_type_id: IDENTIFIER_TYPES.MOBILE_NUMBER,
+      value: { 
+        [Op.or]: [
+          { [Op.eq]: mobileFormats.withoutCountryCode },
+          { [Op.eq]: mobileFormats.withCountryCode }
+        ]
+      },
+      voided: { [Op.eq]: 0 }
+    };
+    // Standard query without OpenMRS ID validation
+    return await person_attribute.findAll({
+      attributes: ["person_id"],
+      where: queryParams,
+      logging: console.log
+    });
+  } catch (error) {
+    logStream('error', `Error finding person attributes by mobile number: ${error.message}`, 'findPersonAttributesByMobile');
+    return [];
+  }
 }
 
 /**
@@ -188,7 +235,7 @@ async function findPersonsByCriteria(criteria) {
   if (birthDateRange) {
     where.birthdate = birthDateRange;
   }
-  
+
   return await person.findAll({
     attributes: ['person_id'],
     where: where,
@@ -224,6 +271,63 @@ function filterPersonsByName(persons, name) {
 }
 
 /**
+ * Helper function to build ABHA identifiers array for search
+ * @param {string} abhaNumber - ABHA number
+ * @param {string} abhaAddress - ABHA address
+ * @returns {Array} Array of ABHA identifiers to search
+ */
+function buildAbhaIdentifiersArray(abhaNumber, abhaAddress) {
+  const identifiers = [];
+  
+  if (abhaNumber) {
+    identifiers.push(abhaNumber);
+  }
+  
+  if (abhaAddress) {
+    // Add both with and without ABHA address suffix for flexible matching
+    identifiers.push(abhaAddress.replace(process.env.ABHA_ADDRESS_SUFFIX, ''));
+    identifiers.push(abhaAddress);
+  }
+  
+  return identifiers;
+}
+
+/**
+ * Helper function to build ABHA search query with optional OpenMRS ID validation
+ * @param {Array} abhaIdentifiers - Array of ABHA identifiers to search
+ * @param {string} openMRSId - Optional OpenMRS ID for additional validation
+ * @returns {Object} Sequelize where clause
+ */
+function buildAbhaSearchQuery(abhaIdentifiers, openMRSId) {
+  const baseQuery = {
+    identifier: {
+      [Op.or]: abhaIdentifiers
+    },
+    voided: { [Op.eq]: 0 }
+  };
+
+  // If OpenMRS ID is provided, add AND condition for additional validation
+  if (openMRSId) {
+    return {
+      [Op.and]: [
+        {
+          identifier: {
+            [Op.or]: abhaIdentifiers
+          }
+        },
+        {
+          identifier_type: { [Op.eq]: IDENTIFIER_TYPES.OPENMRS_ID },
+          identifier: { [Op.eq]: openMRSId }
+        }
+      ],
+      voided: { [Op.eq]: 0 }
+    };
+  }
+
+  return baseQuery;
+}
+
+/**
  * get patient information by patientId
  * @param {number} patientId
  * @returns patient
@@ -255,7 +359,7 @@ async function getPatientInfo(patientId) {
             as: "attributes",
             attributes: ["value", "person_attribute_type_id"],
             where: {
-              "person_attribute_type_id": { [Op.eq]: 8 }
+              "person_attribute_type_id": { [Op.eq]: IDENTIFIER_TYPES.MOBILE_NUMBER }
             },
             required: false,
           },
@@ -319,37 +423,42 @@ module.exports = (function () {
   };
 
   /**
-   * Get visits by abhaAddress and mobile numbers
-   * @param { object } params
+   * Get visits by ABHA details and/or mobile number with optional OpenMRS ID validation
+   * @param {Object} params - Search parameters
+   * @param {string} params.mobileNumber - Patient mobile number
+   * @param {string} params.abhaNumber - ABHA number
+   * @param {string} params.abhaAddress - ABHA address
+   * @param {string} params.openMRSId - OpenMRS ID for additional validation
+   * @returns {Object} Patient visit data or error response
    */
   this.getVisitBySearch = async (params) => {
     try {
-      const { mobileNumber, abhaNumber, abhaAddress } = params;
-     
-      const or = []
-      if (abhaNumber) {
-        or.push(abhaNumber);
-      }
-      if (abhaAddress) {
-        or.push(abhaAddress.replace(process.env.ABHA_ADDRESS_SUFFIX, ''));
-        or.push(abhaAddress);
-      }
+      const { mobileNumber, abhaNumber, abhaAddress, openMRSId } = params;
+      
+      // Build ABHA identifiers array for search
+      const abhaIdentifiers = buildAbhaIdentifiersArray(abhaNumber, abhaAddress);
+      
       let response = null;
-      if (or.length) {
-        response = await getVisitByAbhaDetails({
-          identifier: {
-            [Op.or]: or
-          },
-          voided: { [Op.eq]: 0 }
-        })
-      } 
+      
+      // Primary search: ABHA details (with optional OpenMRS ID validation)
+      if (abhaIdentifiers.length > 0) {
+        const whereParams = buildAbhaSearchQuery(abhaIdentifiers, openMRSId);
+        response = await getVisitByAbhaDetails(whereParams);
+      }
+      
+      // Fallback search: Mobile number if ABHA search didn't yield results
       if (!response?.data && mobileNumber) {
         response = await getVisitByMobile(params);
-        if(response?.success === false) return {
-          ...response,
-          hasMultiplePatient: true
-        };
+        
+        // Handle multiple patients found scenario
+        if (response?.success === false) {
+          return {
+            ...response,
+            hasMultiplePatient: true
+          };
+        }
       }
+      
       return response;
     } catch (err) {
       throw err;
@@ -425,20 +534,20 @@ module.exports = (function () {
 
     // Extract existing identifiers
     const existingIdentifiers = patientInfo?.patient_identifier || [];
-    const existingAbhaNumberIdentifier = existingIdentifiers.find(id => id.identifier_type === 6);
-    const existingAbhaAddressIdentifier = existingIdentifiers.find(id => id.identifier_type === 7);
+    const existingAbhaNumberIdentifier = existingIdentifiers.find(id => id.identifier_type === IDENTIFIER_TYPES.ABHA_NUMBER);
+    const existingAbhaAddressIdentifier = existingIdentifiers.find(id => id.identifier_type === IDENTIFIER_TYPES.ABHA_ADDRESS);
 
     try {
       // Define identifier configurations
       const identifierConfigs = [
         {
-          type: 6,
+          type: IDENTIFIER_TYPES.ABHA_NUMBER,
           value: abhaNumber,
           existing: existingAbhaNumberIdentifier,
           name: 'ABHA Number'
         },
         {
-          type: 7,
+          type: IDENTIFIER_TYPES.ABHA_ADDRESS,
           value: abhaAddress,
           existing: existingAbhaAddressIdentifier,
           name: 'ABHA Address'
