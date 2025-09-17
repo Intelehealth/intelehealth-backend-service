@@ -34,11 +34,23 @@ async function setDefault(req: IReqUser, res: IRes) {
     await LanguageService.setDefault(id, userId, name);
     return res.status(HttpStatusCodes.OK).json({ success: true });
 }
-
+async function updatePlatform(req: IReqUser<{ platform: string }>, res: IRes) {
+    const { id } = req.params;
+    const { platform } = req.body; 
+    const { userId, name } = req.user.data;
+    await LanguageService.updatePlatform(id, platform, userId, name);
+    return res.status(HttpStatusCodes.OK).json({ success: true });
+}
+async function getallEnabledLanguages(_: IReq, res: IRes) {
+    const languages = await LanguageService.getAllEnabledLanguage();    
+    return res.status(HttpStatusCodes.OK).json({ languages });
+}
 // **** Export default **** //
 
 export default {
     getAll,
     updateIsEnabled,
-    setDefault
+    setDefault,
+    updatePlatform,
+    getallEnabledLanguages
 } as const;

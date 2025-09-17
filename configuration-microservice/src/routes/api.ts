@@ -137,7 +137,7 @@ apiRouter.use(Paths.Config.Base, configRouter);
 // **** Setup LanguageRouter **** //
 
 const languageRouter = Router();
-
+const publicLanguageRouter = Router();
 // Get all languages
 languageRouter.get(
   Paths.Languages.Get,
@@ -158,7 +158,17 @@ languageRouter.put(
   LanguageRoutes.setDefault,
 );
 
+publicLanguageRouter.get(
+  Paths.Languages.GetEnabledLanguages,
+  LanguageRoutes.getallEnabledLanguages,
+);
+// Update platform 
+languageRouter.put(
+  Paths.Languages.UpdatePlatform,
+  LanguageRoutes.updatePlatform,
+);
 // Add LanguageRouter
+apiRouter.use(Paths.Languages.Base, publicLanguageRouter);
 apiRouter.use(Paths.Languages.Base, authMw, languageRouter);
 
 
