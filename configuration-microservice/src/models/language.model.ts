@@ -11,8 +11,7 @@ export interface LanguageAttributes {
   createdAt?: Date;
   updatedAt?: Date;
   deletedAt?: Date;
-  platform?: string; 
-
+  platform?: string;
 }
 
 export interface LanguageCreationAttributes extends Optional<LanguageAttributes, 'id'> {}
@@ -75,7 +74,7 @@ export class Language extends Model<LanguageAttributes, LanguageCreationAttribut
     @Column
     deletedAt!: Date;
 
-     @Column({
+    @Column({
     type: DataTypes.ENUM('Mobile', 'Webapp', 'Both'),
     allowNull: false,
     defaultValue: 'Mobile'

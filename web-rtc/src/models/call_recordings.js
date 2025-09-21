@@ -1,36 +1,34 @@
 'use strict';
-const {
-  Model
-} = require('sequelize');
+const { Model } = require('sequelize');
+
 module.exports = (sequelize, DataTypes) => {
-  class call_data extends Model {
+  class call_recordings extends Model {
     /**
      * Helper method for defining associations.
      * This method is not a part of Sequelize lifecycle.
      * The `models/index` file will call this method automatically.
      */
     static associate(models) {
-      // define association here
+      // Define associations if needed
     }
-  };
-  call_data.init({
+  }
+
+  call_recordings.init({
     doctor_id: DataTypes.STRING,
+    patient_id: DataTypes.STRING,
+    file_path: DataTypes.STRING,
     visit_id: DataTypes.STRING,
     chw_id: DataTypes.STRING,
     room_id: DataTypes.STRING,
-    call_status: DataTypes.STRING,
-    reason: DataTypes.STRING,
-    call_duration: DataTypes.INTEGER,
+    egress_id: DataTypes.STRING,
+    s3_url: DataTypes.STRING,
     start_time: DataTypes.DATE,
     end_time: DataTypes.DATE,
-    call_type: {
-      type: DataTypes.ENUM('video', 'audio'),
-      defaultValue: 'video',
-      allowNull: false
-    }
-  }, {
+  }, 
+  {
     sequelize,
-    modelName: 'call_data',
+    modelName: 'call_recordings',
   });
-  return call_data;
+
+  return call_recordings;
 };
