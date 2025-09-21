@@ -36,10 +36,10 @@ jobs:
 #        npm test
 #      continue-on-error: true
 
-    - name: Build application
-      run: |
-        cd portal
-        npm run build
+#   - name: Build application
+#    run: |
+#        cd portal
+#        npm run build
 
 
     - name: Copy files to production server
