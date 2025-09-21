@@ -2,7 +2,7 @@ name: Build and Deploy to Production
 
 on:
   push:
-    branches: [ main,development_master ]
+    branches: [ development_master ]
 
 env:
   REGISTRY: ghcr.io
