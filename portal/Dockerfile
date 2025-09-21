@@ -1,15 +1,20 @@
-# Use the official Node.js 18 Alpine image as base
+# Use the official Node.js 20 Alpine image as base
 FROM node:20-alpine
 
 # Set working directory
 WORKDIR /app
 
-# Install security updates and required packages
+# Install security updates and required packages for native module compilation
 RUN apk update && apk upgrade && \
     apk add --no-cache \
     dumb-init \
     curl \
     libc6-compat \
+    python3 \
+    make \
+    g++ \
+    gcc \
+    libc-dev \
     && rm -rf /var/cache/apk/*
 
 # Set production environment
