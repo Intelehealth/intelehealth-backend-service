@@ -12,6 +12,7 @@ services:
     volumes:
       # Mount .env file from host to container (optional)
       - /home/deploy/portal/.env:/app/.env:ro
+      - /home/deploy/portal/.pem:/app/.pem:ro
     restart: unless-stopped
     container_name: nodejs-app-prod
     networks:
