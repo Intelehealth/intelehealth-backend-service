@@ -15,6 +15,13 @@ RUN apk update && apk upgrade && \
     g++ \
     gcc \
     libc-dev \
+    pkgconfig \
+    pixman-dev \
+    cairo-dev \
+    pango-dev \
+    jpeg-dev \
+    giflib-dev \
+    librsvg-dev \
     && rm -rf /var/cache/apk/*
 
 # Set production environment
