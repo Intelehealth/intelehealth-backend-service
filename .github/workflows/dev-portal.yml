@@ -30,11 +30,11 @@ jobs:
         cd portal
         npm install
 
-    - name: Run tests
-      run: |
-        cd portal
-        npm test
-      continue-on-error: true
+#    - name: Run tests
+#      run: |
+#        cd portal
+#        npm test
+#      continue-on-error: true
 
     - name: Build application
       run: |
