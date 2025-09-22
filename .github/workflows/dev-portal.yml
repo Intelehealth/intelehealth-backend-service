@@ -12,6 +12,8 @@ env:
   REMOTE_PORT: 22
   ENV_FILE_PATH: /home/ubuntu/deploy/portal/.env
   PEM_FOLDER_PATH: /home/ubuntu/deploy/portal/.pem
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build-and-deploy:
