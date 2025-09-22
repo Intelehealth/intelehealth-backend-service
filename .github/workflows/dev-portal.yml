@@ -67,7 +67,13 @@ jobs:
         ssh -i ~/.ssh/deploy_key \
             -o StrictHostKeyChecking=no \
             -p $REMOTE_PORT \
-            $REMOTE_USER@$REMOTE_HOST << 'EOF'
+            $REMOTE_USER@$REMOTE_HOST \
+            "export DOCKER_IMAGE_NAME=\"$DOCKER_IMAGE_NAME\" && \
+             export ENV_FILE_PATH=\"$ENV_FILE_PATH\" && \
+             export PEM_FOLDER_PATH=\"$PEM_FOLDER_PATH\" && \
+             export GITHUB_SHA=\"${{ github.sha }}\" && \
+             
+            
             # Load Docker image
             docker load -i /tmp/app-image.tar
             rm /tmp/app-image.tar
