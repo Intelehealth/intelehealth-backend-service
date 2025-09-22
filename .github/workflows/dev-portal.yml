@@ -1,97 +1,138 @@
-name: Build and Deploy to Production
+name: Deploy Portal to Remote Host
 
 on:
   push:
-    branches: [ development_master ]
+    branches: [development_master]  # Specific branch name without wildcards
+    paths:
+      - 'portal/**'  # Only trigger when changes in portal folder
+  workflow_dispatch:  # Allow manual triggers
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  DOCKER_IMAGE_NAME: portal-app
+  REMOTE_HOST: ${{secrets.DEV_HOST}}
+  REMOTE_USER: ${{secrets.DEV_USER}}
+  REMOTE_PORT: 22
+  ENV_FILE_PATH: /home/ubuntu/deploy/portal/.env
+  PEM_FOLDER_PATH: /home/ubuntu/deploy/portal/.pem
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        ref: ${{ github.ref }}  # Use the actual branch that triggered the workflow
+        fetch-depth: 0
 
-    - name: Set up Node.js
+    - name: Verify we're on the correct branch
+      run: |
+        echo "Current branch: $(git branch --show-current)"
+        echo "Git ref: ${{ github.ref }}"
+        echo "Git SHA: ${{ github.sha }}"
+
+    - name: Verify portal directory exists
+      run: |
+        if [ ! -d "portal" ]; then
+          echo "Error: portal directory not found"
+          ls -la
+          exit 1
+        fi
+        echo "Portal directory contents:"
+        ls -la portal/
+
+    - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20'
+        node-version: '18'
         cache: 'npm'
+        cache-dependency-path: portal/package-lock.json
 
     - name: Install dependencies
+      run: npm ci
+      working-directory: portal
+
+    - name: Run tests
+      run: npm test
+      working-directory: portal
+      continue-on-error: true
+
+    - name: Build Docker image
       run: |
         cd portal
-        npm install
+        if [ ! -f "Dockerfile" ]; then
+          echo "Error: Dockerfile not found in portal directory"
+          exit 1
+        fi
+        docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} .
+        docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > ../app-image.tar
 
-#    - name: Run tests
-#      run: |
-#        cd portal
-#        npm test
-#      continue-on-error: true
+    - name: Deploy to remote host
+      env:
+        SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
+      run: |
+        mkdir -p ~/.ssh
+        chmod 700 ~/.ssh
+        echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+        
+        # Copy Docker image to remote host
+        scp -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -P $REMOTE_PORT \
+            app-image.tar \
+            $REMOTE_USER@$REMOTE_HOST:/tmp/
+        
+        # Deploy on remote host
+        ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -p $REMOTE_PORT \
+            $REMOTE_USER@$REMOTE_HOST << 'EOF'
+            export DOCKER_IMAGE_NAME="$DOCKER_IMAGE_NAME"
+            export ENV_FILE_PATH="$ENV_FILE_PATH"
+            export PEM_FOLDER_PATH="$PEM_FOLDER_PATH"
+            export GITHUB_SHA="${{ github.sha }}"
+            EOF
+            docker load -i /tmp/app-image.tar
+            rm /tmp/app-image.tar
+            
+            docker stop $DOCKER_IMAGE_NAME || true
+            docker rm $DOCKER_IMAGE_NAME || true
+            
+            if [ ! -f "$ENV_FILE_PATH" ]; then
+                echo "$PWD"
+                echo "Error: .env file not found at $ENV_FILE_PATH"
+                exit 1
+            fi
+            
+            if [ ! -d "$PEM_FOLDER_PATH" ]; then
+                echo "Error: .pem folder not found at $PEM_FOLDER_PATH"
+                exit 1
+            fi
+            
+            docker run -d \
+                --name $DOCKER_IMAGE_NAME \
+                --restart unless-stopped \
+                -p 3004:3004 \
+                --env-file $ENV_FILE_PATH \
+                -v $PEM_FOLDER_PATH:/app/.pem \
+                $DOCKER_IMAGE_NAME:${{ github.sha }}
+            
+            docker image prune -f
+            echo "Deployment completed successfully"
+        EOF
 
-#   - name: Build application
-#    run: |
-#        cd portal
-#        npm run build
-
-
-    - name: Copy files to production server
-      uses: appleboy/scp-action@v1
-      with:
-        host: ${{ secrets.DEV_HOST }}
-        username: ${{ secrets.DEV_USER }}
-        key: ${{ secrets.DEV_SSH_KEY }}
-        port: ${{ secrets.DEV_PORT || 22 }}
-        source: "portal/,docker-compose.portal.dev.yml"
-        target: "/tmp/deployment/"
-
-    - name: Deploy to production
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.DEV_HOST }}
-        username: ${{ secrets.DEV_USER }}
-        key: ${{ secrets.DEV_SSH_KEY }}
-        port: ${{ secrets.DEV_PORT || 22 }}
-        debug: true
-        timeout: 60s
-        command_timeout: 10m
-        script: |
-          # Set environment variables
-          export CONTAINER_NAME="portal"
-          export PORT="${{ secrets.DEV_APP_PORT || 3004 }}"
-          
-          # Navigate to deployment directory
-          cd /tmp/deployment
-          
-          # Update docker-compose.portal.dev.yml with production values
-          sed -i "s|nodejs-app-prod|$CONTAINER_NAME|g" docker-compose.portal.dev.yml
-          sed -i "s|3004:3004|$PORT:3004|g" docker-compose.portal.dev.yml
-          
-          # Stop and remove existing containers
-          docker-compose -f docker-compose.portal.dev.yml down 2>/dev/null || true
-          
-          # Build and start the service using docker-compose
-          docker-compose -f docker-compose.portal.dev.yml up -d --build
-          
-          # Wait for container to be healthy
-          sleep 10
-          
-          # Check if container is running
-          if docker ps | grep -q $CONTAINER_NAME; then
-            echo "Production deployment completed successfully!"
-            echo "Application is running on port $PORT"
-          else
-            echo "Production deployment failed - container is not running"
-            docker logs $CONTAINER_NAME
-            exit 1
-          fi
-          
-          # Clean up old images
-          docker image prune -f
+    - name: Verify deployment
+      env:
+        SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
+      run: |
+        mkdir -p ~/.ssh
+        echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+        
+        ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -p $REMOTE_PORT \
+            $REMOTE_USER@$REMOTE_HOST \
+            "docker ps | grep $DOCKER_IMAGE_NAME && echo 'Deployment successful!'"            
