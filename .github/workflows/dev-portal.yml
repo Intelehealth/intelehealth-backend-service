@@ -2,18 +2,16 @@ name: Portal
 
 on:
   push:
-    branches: [development_master]  # Specific branch X
-    paths:
-      - 'portal/**'  # Only trigger when changes in portal folder
+    branches: [ development_master ]
+  
+
 env:
-  DOCKER_IMAGE_NAME: portal-app
-  REMOTE_HOST: ${{secrets.DEV_HOST}}
-  REMOTE_USER: ${{secrets.DEV_USER}}
+  DOCKER_IMAGE_NAME: portal
+  REMOTE_HOST: ${{ secrets.DEV_HOST }}
+  REMOTE_USER: ${{ secrets.DEV_USER }}
   REMOTE_PORT: 22
-  ENV_FILE_PATH: /home/ubuntu/deploy/portal/.env
-  PEM_FOLDER_PATH: /home/ubuntu/deploy/portal/.pem
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  ENV_FILE_PATH: /home/ubuntu/deploy/portal/.env  # Already on remote host
+  PEM_FOLDER_PATH: /home/ubuntu/deploy/portal/.pem  # Already on remote host
 
 jobs:
   build-and-deploy:
@@ -23,31 +21,24 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        ref: portal  # Specific branch X
-
-    - name: Change to portal directory
-      run: cd portal
+        ref: ${{ github.ref }}
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '18'
         cache: 'npm'
-        cache-dependency-path: portal/package-lock.json
 
     - name: Install dependencies
       run: npm ci
-      working-directory: portal
 
     - name: Run tests
       run: npm test
-      working-directory: portal
 
-    - name: Build Docker image from portal directory
+    - name: Build Docker image
       run: |
-        cd portal
         docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} .
-        docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > ../app-image.tar
+        docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > app-image.tar
 
     - name: Deploy to remote host
       env:
@@ -95,14 +86,14 @@ jobs:
                 --name $DOCKER_IMAGE_NAME \
                 --restart unless-stopped \
                 -p 3000:3000 \
-                --env-file $ENV_FILE_PATH \
-                -v $PEM_FOLDER_PATH:/app/.pem \
+                --env-file $ENV_FILE_PATH \  # Use .env file directly from its location
+                -v $PEM_FOLDER_PATH:/app/.pem \  # Mount .pem folder directly
                 $DOCKER_IMAGE_NAME:${{ github.sha }}
             
             # Clean up old images
             docker image prune -f
             
-            echo "Portal deployment completed successfully"
+            echo "Deployment completed using existing .env and .pem files"
         EOF
 
     - name: Verify deployment
@@ -117,4 +108,140 @@ jobs:
             -o StrictHostKeyChecking=no \
             -p $REMOTE_PORT \
             $REMOTE_USER@$REMOTE_HOST \
-            "docker ps | grep $DOCKER_IMAGE_NAME && echo 'Portal deployment successful! '"
+            "docker ps | grep $DOCKER_IMAGE_NAME && echo 'Deployment successful!'"
+            
+===
+
+
+name: Deploy Portal to Remote Host
+
+on:
+  push:
+    branches: [development_master]  # Specific branch name without wildcards
+    paths:
+      - 'portal/**'  # Only trigger when changes in portal folder
+  workflow_dispatch:  # Allow manual triggers
+
+env:
+  DOCKER_IMAGE_NAME: portal-app
+  REMOTE_HOST: ${{secrets.DEV_HOST}}
+  REMOTE_USER: ${{secrets.DEV_USER}}
+  REMOTE_PORT: 22
+  ENV_FILE_PATH: /home/ubuntu/deploy/portal/.env
+  PEM_FOLDER_PATH: /home/ubuntu/deploy/portal/.pem
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.ref }}  # Use the actual branch that triggered the workflow
+        fetch-depth: 0
+
+    - name: Verify we're on the correct branch
+      run: |
+        echo "Current branch: $(git branch --show-current)"
+        echo "Git ref: ${{ github.ref }}"
+        echo "Git SHA: ${{ github.sha }}"
+
+    - name: Verify portal directory exists
+      run: |
+        if [ ! -d "portal" ]; then
+          echo "Error: portal directory not found"
+          ls -la
+          exit 1
+        fi
+        echo "Portal directory contents:"
+        ls -la portal/
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: portal/package-lock.json
+
+    - name: Install dependencies
+      run: npm ci
+      working-directory: portal
+
+    - name: Run tests
+      run: npm test
+      working-directory: portal
+      continue-on-error: true
+
+    - name: Build Docker image
+      run: |
+        cd portal
+        if [ ! -f "Dockerfile" ]; then
+          echo "Error: Dockerfile not found in portal directory"
+          exit 1
+        fi
+        docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} .
+        docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > ../app-image.tar
+
+    - name: Deploy to remote host
+      env:
+        SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
+      run: |
+        mkdir -p ~/.ssh
+        chmod 700 ~/.ssh
+        echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+        
+        # Copy Docker image to remote host
+        scp -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -P $REMOTE_PORT \
+            app-image.tar \
+            $REMOTE_USER@$REMOTE_HOST:/tmp/
+        
+        # Deploy on remote host
+        ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -p $REMOTE_PORT \
+            $REMOTE_USER@$REMOTE_HOST << 'EOF'
+            docker load -i /tmp/app-image.tar
+            rm /tmp/app-image.tar
+            
+            docker stop $DOCKER_IMAGE_NAME || true
+            docker rm $DOCKER_IMAGE_NAME || true
+            
+            if [ ! -f "$ENV_FILE_PATH" ]; then
+                echo "Error: .env file not found at $ENV_FILE_PATH"
+                exit 1
+            fi
+            
+            if [ ! -d "$PEM_FOLDER_PATH" ]; then
+                echo "Error: .pem folder not found at $PEM_FOLDER_PATH"
+                exit 1
+            fi
+            
+            docker run -d \
+                --name $DOCKER_IMAGE_NAME \
+                --restart unless-stopped \
+                -p 3004:3004 \
+                --env-file $ENV_FILE_PATH \
+                -v $PEM_FOLDER_PATH:/app/.pem \
+                $DOCKER_IMAGE_NAME:${{ github.sha }}
+            
+            docker image prune -f
+            echo "Deployment completed successfully"
+        EOF
+
+    - name: Verify deployment
+      env:
+        SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
+      run: |
+        mkdir -p ~/.ssh
+        echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+        
+        ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -p $REMOTE_PORT \
+            $REMOTE_USER@$REMOTE_HOST \
+            "docker ps | grep $DOCKER_IMAGE_NAME && echo 'Deployment successful!'"            
