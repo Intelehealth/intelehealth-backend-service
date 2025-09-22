@@ -96,6 +96,7 @@ jobs:
             docker rm $DOCKER_IMAGE_NAME || true
             
             if [ ! -f "$ENV_FILE_PATH" ]; then
+                echo "$PWD"
                 echo "Error: .env file not found at $ENV_FILE_PATH"
                 exit 1
             fi
