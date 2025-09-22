@@ -3,6 +3,9 @@ version: '3.8'
 services:
   app:
     build: ./portal
+    volumes:
+     - /home/deploy/portal/.env:/app/.env:ro
+     - /home/deploy/portal/.pem:/app/.pem:ro
     ports:
       - "3004:3004"
     environment:
