@@ -2,7 +2,7 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Copy package files
+# Copy package files first
 COPY package*.json ./
 
 # Install dependencies
@@ -15,4 +15,4 @@ COPY . .
 EXPOSE 3004
 
 # Start the application
-CMD ["npm", "bin/www"]
+CMD ["npm", "start"]
