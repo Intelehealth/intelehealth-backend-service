@@ -20,9 +20,7 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      with:
-        ref: portal  # Specific branch X
-
+       
     - name: Change to portal directory
       run: cd portal
 
