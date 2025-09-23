@@ -25,7 +25,7 @@ RUN apk update && apk upgrade && \
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci  
+RUN npm ci --legacy-bundling
 
 # Copy application code
 COPY . .
