@@ -12,7 +12,7 @@ const { errorHandler } = require("./handlers/errorHandller");
 const cors = require("cors");
 const Sequelize = require("sequelize");
 const db = require("./models");
-
+const c = 'A';
 const app = express();
 app.set("view engine", "html");
 
