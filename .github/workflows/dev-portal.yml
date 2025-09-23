@@ -2,7 +2,7 @@ name: Portal
 
 on:
   push:
-    branches: [development_master]  # Specific branch X
+    branches: [development_master]  
     paths:
       - 'portal/**'  # Only trigger when changes in portal folder
 env:
