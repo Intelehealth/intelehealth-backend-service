@@ -87,7 +87,7 @@ jobs:
         # Deploy on remote host
         ssh -i ~/.ssh/deploy_key \
             -o StrictHostKeyChecking=no \
-            -p $REMOTE_PORT \
+            -P $REMOTE_PORT \
             $REMOTE_USER@$REMOTE_HOST << EOF "$DOCKER_IMAGE_NAME" "$ENV_FILE_PATH" "$PEM_FOLDER_PATH" "$GITHUB_SHA"
          DOCKER_IMAGE_NAME="$1"
          ENV_FILE_PATH="$2"
@@ -118,7 +118,8 @@ jobs:
                 -p 3004:3004 \
                 --env-file $ENV_FILE_PATH \
                 -v $PEM_FOLDER_PATH:/app/.pem \
-                $DOCKER_IMAGE_NAME:${{ github.sha }}
+                --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
+                $DOCKER_IMAGE_NAME:${{ github.sha }} \ 
                  
             
             docker image prune -f
