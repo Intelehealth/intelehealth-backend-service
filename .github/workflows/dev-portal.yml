@@ -88,11 +88,12 @@ jobs:
         ssh -i ~/.ssh/deploy_key \
             -o StrictHostKeyChecking=no \
             -p $REMOTE_PORT \
-            $REMOTE_USER@$REMOTE_HOST << 'EOF'
-            export DOCKER_IMAGE_NAME="$DOCKER_IMAGE_NAME"
-            export ENV_FILE_PATH="$ENV_FILE_PATH"
-            export PEM_FOLDER_PATH="$PEM_FOLDER_PATH"
-            export GITHUB_SHA="${{ github.sha }}"
+            $REMOTE_USER@$REMOTE_HOST << EOF "$DOCKER_IMAGE_NAME" "$ENV_FILE_PATH" "$PEM_FOLDER_PATH" "$GITHUB_SHA"
+         DOCKER_IMAGE_NAME="$1"
+         ENV_FILE_PATH="$2"
+         PEM_FOLDER_PATH="$3"
+         GITHUB_SHA="$4"
+            
             EOF
             docker load -i /tmp/app-image.tar
             rm /tmp/app-image.tar
@@ -118,6 +119,7 @@ jobs:
                 --env-file $ENV_FILE_PATH \
                 -v $PEM_FOLDER_PATH:/app/.pem \
                 $DOCKER_IMAGE_NAME:${{ github.sha }}
+                 
             
             docker image prune -f
             echo "Deployment completed successfully"
