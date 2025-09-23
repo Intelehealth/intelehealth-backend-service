@@ -20,7 +20,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-       
+     
+
     - name: Change to portal directory
       run: cd portal
 
@@ -35,7 +36,7 @@ jobs:
       run: npm ci
       working-directory: portal
 
-    
+   
 
     - name: Build Docker image from portal directory
       run: |
@@ -63,13 +64,13 @@ jobs:
         ssh -i ~/.ssh/deploy_key \
             -o StrictHostKeyChecking=no \
             -P $REMOTE_PORT \
-            $REMOTE_USER@$REMOTE_HOST << EOF "$DOCKER_IMAGE_NAME" "$ENV_FILE_PATH" "$PEM_FOLDER_PATH" "$GITHUB_SHA"
-         DOCKER_IMAGE_NAME="$1"
-         ENV_FILE_PATH="$2"
-         PEM_FOLDER_PATH="$3"
-         GITHUB_SHA="$4"
+            $REMOTE_USER@$REMOTE_HOST <<'EOF'
+            DOCKER_IMAGE_NAME="${{ env.DOCKER_IMAGE_NAME }}"
+            ENV_FILE_PATH="${{ env.ENV_FILE_PATH }}"
+            PEM_FOLDER_PATH="${{ env.PEM_FOLDER_PATH }}"
+            GITHUB_SHA="${{ github.sha }}"
             
-         EOF
+         
              
             
             # Load Docker image
