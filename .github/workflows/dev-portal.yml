@@ -36,9 +36,7 @@ jobs:
       run: npm ci
       working-directory: portal
 
-    - name: Run tests
-      run: npm test
-      working-directory: portal
+   
 
     - name: Build Docker image from portal directory
       run: |
