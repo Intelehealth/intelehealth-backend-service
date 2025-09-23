@@ -6,7 +6,7 @@ import { WebSocketController } from './controllers/websocket.controller';
 import * as http from 'http';
 import * as https from 'https';
 const cors = require('cors');
-
+const c = 'OK';
 class Server {
     app: express.Application;
     port: number = !isNaN(Number(process.env.PORT)) ? Number(process.env.PORT) : 3000;
