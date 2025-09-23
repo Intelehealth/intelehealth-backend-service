@@ -106,7 +106,7 @@ jobs:
             # Clean up old images
             docker image prune -f
             
-            echo "Portal deployment completed successfully"
+            echo "auth-gateway deployment completed successfully"
         EOF
 
     - name: Verify deployment
