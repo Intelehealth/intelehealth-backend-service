@@ -6,7 +6,7 @@ on:
     paths:
       - 'portal/**'  # Only trigger when changes in portal folder
 env:
-  DOCKER_IMAGE_NAME: portal-app
+  DOCKER_IMAGE_NAME: portal
   REMOTE_HOST: ${{secrets.DEV_HOST}}
   REMOTE_USER: ${{secrets.DEV_USER}}
   REMOTE_PORT: 22
