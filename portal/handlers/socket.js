@@ -227,7 +227,7 @@ module.exports = function (server) {
     socket.on("call-connected", async function (data) {
       for (const id in users) {
         if (id === data?.socketId) {
-          const startTime = new Date();
+          const startTime = new Date(new Date().getTime() + (5.5 * 60 * 60 * 1000));
           const usersRecord = {
             recordId: users[id].recordId,
             doctorId: users[id]?.uuid,

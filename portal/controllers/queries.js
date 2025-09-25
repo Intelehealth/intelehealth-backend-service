@@ -512,7 +512,7 @@ module.exports = (function () {
     };
 
     this.getFollowUpVisitsByDoctor = (doctorId) => {
-            return `select  v.visit_id as visit_id,
+        return `select  v.visit_id as visit_id,
  max(p.uuid) as provider_uuid,
             max(value_text) as followup_text
         from visit v,
@@ -537,6 +537,31 @@ module.exports = (function () {
             )
         group by v.visit_id
         order by 1`;
+    };
+
+    this.getVisitsForEndedVisitsForCurrentYear = (speciality) => {
+        return `SELECT DISTINCT
+    v.visit_id,
+    v.uuid,
+    "Ended Visit" AS "Status",
+    MAX(va.value_reference) AS speciality
+FROM
+    visit v
+    JOIN visit_attribute va ON (
+        va.visit_id = v.visit_id
+        AND va.voided = 0
+        AND va.attribute_type_id = 5
+    )
+WHERE
+    v.voided = 0
+    AND v.date_stopped IS NOT NULL
+    AND v.date_stopped > DATE_FORMAT(CURDATE(), '%Y-01-01')
+    AND (
+        va.value_reference IS NULL
+        OR va.value_reference = "${speciality}"
+    )
+GROUP BY
+    v.visit_id, v.uuid`;
     };
     return this;
 })();
