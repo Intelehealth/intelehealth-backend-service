@@ -9,6 +9,7 @@ const { logStream } = require("../logger/index");
 const { MESSAGE } = require("../constants/messages");
 const Sequelize = require('sequelize');
 const Constant = require("../constants/constant");
+const { axiosInstance } = require("../handlers/helper");
 
 /**
  * Return mindmaps respect to key
@@ -292,6 +293,50 @@ const toggleMindmapActiveStatus = async (req, res) => {
   }
 };
 
+/**
+ * Add/Update licence key
+ * @param {request} req
+ * @param {response} res
+ */
+const getTranslation = async (req, res) => {
+  try {
+    const { textToTranslate, targetLang, tabType } = req.body;
+    if (!textToTranslate || !targetLang || !tabType) {
+      return res.status(400).json({ error: "Missing required parameters" });
+    }
+    let body = buildRequestBody(textToTranslate, targetLang,tabType);
+    // 🔹 Call Sarvam API
+    const sarvamRes = await axiosInstance.post(
+      process.env.SARVAM_URL, // replace with actual endpoint
+        body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "api-subscription-key": process.env.SARVAM_API_KEY, // store key in .env
+        },
+      }
+    );
+    return res.json(sarvamRes.data);
+  } catch (error) {
+    res.status(500).json({ error: "Translation failed", details: error.response?.data });
+  }
+};
+
+  // A reusable function to build translation request body
+  const buildRequestBody = (input, targetLang, tabType) => {
+    return {
+      input: input,
+      source_language_code: "en-IN",
+      target_language_code: targetLang,
+      mode: "formal",
+      model: "sarvam-translate:v1",
+      numerals_format: "native",
+      speaker_gender: "Female",
+      enable_preprocessing: true,
+      tabType: tabType
+    };
+  };
+
 module.exports = {
   getMindmapDetails,
   addUpdateLicenceKey,
@@ -299,5 +344,6 @@ module.exports = {
   addUpdateMindMap,
   deleteMindmapKey,
   downloadMindmaps,
-  toggleMindmapActiveStatus
+  toggleMindmapActiveStatus,
+  getTranslation
 };
