@@ -2,9 +2,9 @@ name: Portal Build and Deploy (Dev)
 
 on:
   push:
-    branches: [development_master] # Consider renaming to 'develop'
+    branches: [development_master] # Consider renaming to 'develop' for standard flow
     paths:
-      - 'portal/**' # Only trigger when changes are in the portal folder
+      - 'portal/**'
 
 # ----------------------------------------------------------------------
 # GLOBAL ENVIRONMENT VARIABLES
@@ -25,7 +25,6 @@ jobs:
     runs-on: ubuntu-latest
     
     # Set the default working directory for all steps in this job
-    # This cleans up redundant 'cd portal' and 'working-directory: portal'
     defaults:
       run:
         working-directory: ${{ env.PROJECT_DIR }}
@@ -41,7 +40,6 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
-          # Path is relative to the defaults.run.working-directory
           cache-dependency-path: package-lock.json
 
       # 3. Install Dependencies
@@ -52,51 +50,54 @@ jobs:
       - name: Build and tag Docker image
         run: |
           docker build -t ${{ env.IMAGE_TAG }} .
-          # Add a 'latest' tag for convenience on the remote host
           docker tag ${{ env.IMAGE_TAG }} ${{ env.DOCKER_IMAGE_NAME }}:latest
           # Save to the root of the runner's workspace (../)
           docker save ${{ env.IMAGE_TAG }} > ../app-image.tar
 
       # 5. Transfer Docker Image using dedicated SCP Action
       - name: Transfer Docker image to remote host
-        uses: appleboy/scp-action@v0.1.7 # More secure and clean
+        uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ env.REMOTE_HOST }}
           username: ${{ env.REMOTE_USER }}
           key: ${{ secrets.DEV_SSH_KEY }}
           port: ${{ env.REMOTE_PORT }}
-          # Source is relative to the root of the workspace, not the PROJECT_DIR
           source: 'app-image.tar' 
           target: '/tmp' 
           
-      # 6. Run Deployment Commands Remotely using dedicated SSH Action
+      # 6. Run Deployment Commands Remotely (FIXED SSH VARIABLE PASSING)
       - name: Deploy and restart container
-        uses: appleboy/ssh-action@v1.0.1 # More secure and clean
+        uses: appleboy/ssh-action@v1.0.1
         with:
           host: ${{ env.REMOTE_HOST }}
           username: ${{ env.REMOTE_USER }}
           key: ${{ secrets.DEV_SSH_KEY }}
           port: ${{ env.REMOTE_PORT }}
           script: |
-            # --- Remote Deployment Script ---
+            # --- Remote Shell Variables Defined by GHA Runner ---
+            # GHA expands these locally, then sends them to the remote shell
             DOCKER_IMAGE_NAME="${{ env.DOCKER_IMAGE_NAME }}"
             IMAGE_TAG="${{ env.IMAGE_TAG }}"
+            ENV_FILE_PATH="${{ env.ENV_FILE_PATH }}"
+            PEM_FOLDER_PATH="${{ env.PEM_FOLDER_PATH }}"
+            # --------------------------------------------------
             
             echo "1. Loading image $IMAGE_TAG..."
             docker load -i /tmp/app-image.tar
             rm /tmp/app-image.tar
             
             echo "2. Stopping and removing old container..."
+            # Use the SHELL variables (e.g., $DOCKER_IMAGE_NAME)
             docker stop $DOCKER_IMAGE_NAME || true
             docker rm $DOCKER_IMAGE_NAME || true
             
             echo "3. Verifying required files..."
-            if [ ! -f "${{ env.ENV_FILE_PATH }}" ]; then
-              echo "Error: .env file not found at ${{ env.ENV_FILE_PATH }}"
+            if [ ! -f "$ENV_FILE_PATH" ]; then
+              echo "Error: .env file not found at $ENV_FILE_PATH"
               exit 1
             fi
-            if [ ! -d "${{ env.PEM_FOLDER_PATH }}" ]; then
-              echo "Error: .pem folder not found at ${{ env.PEM_FOLDER_PATH }}"
+            if [ ! -d "$PEM_FOLDER_PATH" ]; then
+              echo "Error: .pem folder not found at $PEM_FOLDER_PATH"
               exit 1
             fi
             
@@ -105,13 +106,12 @@ jobs:
               --name $DOCKER_IMAGE_NAME \
               --restart unless-stopped \
               -p 3004:3004 \
-              --env-file ${{ env.ENV_FILE_PATH }} \
-              -v ${{ env.PEM_FOLDER_PATH }}:/app/.pem \
+              --env-file $ENV_FILE_PATH \
+              -v $PEM_FOLDER_PATH:/app/.pem \
               --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
               $IMAGE_TAG
             
             echo "5. Cleaning up old images..."
-            # Force cleanup of dangling images (and untagged ones)
             docker image prune -af
 
       # 7. Verify Deployment
@@ -126,8 +126,8 @@ jobs:
             # Check if the container is running
             docker ps | grep ${{ env.DOCKER_IMAGE_NAME }}
             if [ $? -eq 0 ]; then
-              echo "Portal container is running successfully!"
+              echo "✅ Portal container is running successfully!"
             else
-              echo "Portal container failed to start!"
+              echo "❌ Portal container failed to start!"
               exit 1
             fi
