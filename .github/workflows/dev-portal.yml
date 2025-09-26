@@ -2,123 +2,369 @@ name: Portal
 
 on:
   push:
-    branches: [development_master]  
+    branches: [development_master]
     paths:
-      - 'portal/**'  # Only trigger when changes in portal folder
+      - 'portal/**'
+      - '.github/workflows/portal.yml'
+  workflow_dispatch:
+
 env:
-  DOCKER_IMAGE_NAME: portal
-  REMOTE_HOST: ${{secrets.DEV_HOST}}
-  REMOTE_USER: ${{secrets.DEV_USER}}
+  IMAGE_NAME: portal
+  REGISTRY: ghcr.io
+
+  # Remote host connection
+  REMOTE_HOST: ${{ secrets.DEV_HOST }}
+  REMOTE_USER: ${{ secrets.DEV_USER }}
   REMOTE_PORT: 22
+
+  # Runtime mounts on the host
   ENV_FILE_PATH: /home/ubuntu/deploy/portal/.env
   PEM_FOLDER_PATH: /home/ubuntu/deploy/portal/.pem
 
+  # App ports and health
+  APP_INTERNAL_PORT: 3004     # port inside container
+  LIVE_PORT: 3004             # public/local port bound by "live" container
+  SHADOW_PORT: 30044          # canary container port
+  HEALTH_PATH: /health
+
+permissions:
+  contents: read
+  packages: write
+  security-events: write  # for SARIF upload
+  id-token: write         # for Cosign keyless signing
+
+concurrency:
+  group: portal-deploy
+  cancel-in-progress: true
+
 jobs:
-  build-and-deploy:
+  build-and-push:
     runs-on: ubuntu-latest
-    
+    timeout-minutes: 25
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-     
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Change to portal directory
-      run: cd portal
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: portal/package-lock.json
+      - name: Set image tags
+        id: meta
+        run: |
+          echo "TAG_SHA=${{ env.REGISTRY }}/${{ github.repository_owner }}/$IMAGE_NAME:${{ github.sha }}" >> $GITHUB_OUTPUT
+          echo "TAG_LATEST=${{ env.REGISTRY }}/${{ github.repository_owner }}/$IMAGE_NAME:latest" >> $GITHUB_OUTPUT
 
-    - name: Install dependencies
-      run: npm ci
-      working-directory: portal
+      - name: Build & push (Buildx + provenance)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./portal
+          file: ./portal/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.TAG_SHA }}
+            ${{ steps.meta.outputs.TAG_LATEST }}
+          cache-from: type=registry,ref=${{ steps.meta.outputs.TAG_LATEST }}
+          cache-to: type=inline
+          provenance: true
 
-   
+      - name: Generate SBOM (CycloneDX)
+        id: sbom
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ steps.meta.outputs.TAG_SHA }}
+          format: cyclonedx-json
+          artifact-name: portal-sbom.cdx.json
 
-    - name: Build Docker image from portal directory
-      run: |
-        cd portal
-        docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} .
-        docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > ../app-image.tar
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: portal-sbom
+          path: portal-sbom.cdx.json
 
-    - name: Deploy to remote host
-      env:
-        SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
-      run: |
-        mkdir -p ~/.ssh
-        chmod 700 ~/.ssh
-        echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-        chmod 600 ~/.ssh/deploy_key
-        
-        # Copy Docker image to remote host
-        scp -i ~/.ssh/deploy_key \
-            -o StrictHostKeyChecking=no \
-            -P $REMOTE_PORT \
-            app-image.tar \
-            $REMOTE_USER@$REMOTE_HOST:/tmp/
-        
-        # SSH into remote host and deploy
-        ssh -i ~/.ssh/deploy_key \
-            -o StrictHostKeyChecking=no \
-            -P $REMOTE_PORT \
-            $REMOTE_USER@$REMOTE_HOST <<'EOF'
-            DOCKER_IMAGE_NAME="${{ env.DOCKER_IMAGE_NAME }}"
-            ENV_FILE_PATH="${{ env.ENV_FILE_PATH }}"
-            PEM_FOLDER_PATH="${{ env.PEM_FOLDER_PATH }}"
-            GITHUB_SHA="${{ github.sha }}"
-            
-         
-             
-            
-            # Load Docker image
-            docker load -i /tmp/app-image.tar
-            rm /tmp/app-image.tar
-            
-            # Stop and remove existing container if running
-            docker stop $DOCKER_IMAGE_NAME || true
-            docker rm $DOCKER_IMAGE_NAME || true
-            
-            # Verify that the .env file exists
-            if [ ! -f "$ENV_FILE_PATH" ]; then
-                echo "Error: .env file not found at $ENV_FILE_PATH"
-                exit 1
-            fi
-            
-            # Verify that the .pem folder exists
-            if [ ! -d "$PEM_FOLDER_PATH" ]; then
-                echo "Error: .pem folder not found at $PEM_FOLDER_PATH"
-                exit 1
-            fi
-            
-            # Run new container using existing files directly
-            docker run -d \
-                --name $DOCKER_IMAGE_NAME \
-                --restart unless-stopped \
-                -p 3004:3004 \
-                --env-file $ENV_FILE_PATH \
-                -v $PEM_FOLDER_PATH:/app/.pem \
-                --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
-                $DOCKER_IMAGE_NAME:${{ github.sha }}
-            
-            # Clean up old images
-            docker image prune -f
-            
-            echo "Portal deployment completed successfully"
-        EOF
+      - name: Trivy image scan (HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: ${{ steps.meta.outputs.TAG_SHA }}
+          format: sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          output: trivy-results.sarif
 
-    - name: Verify deployment
-      env:
-        SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
-      run: |
-        mkdir -p ~/.ssh
-        echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-        chmod 600 ~/.ssh/deploy_key
-        
-        ssh -i ~/.ssh/deploy_key \
-            -o StrictHostKeyChecking=no \
-            -p $REMOTE_PORT \
-            $REMOTE_USER@$REMOTE_HOST \
-            "docker ps | grep $DOCKER_IMAGE_NAME && echo 'Portal deployment successful!'" 
+      - name: Upload SARIF to code scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Cosign sign image (keyless)
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+        run: |
+          cosign sign --yes ${{ steps.meta.outputs.TAG_SHA }}
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Prepare SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "$REMOTE_PORT" "$REMOTE_HOST" >> ~/.ssh/known_hosts
+
+      - name: Deploy (canary → fast swap with rollback, verify signature, hardened runtime)
+        env:
+          TAG_SHA: ghcr.io/${{ github.repository_owner }}/portal:${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          ssh -i ~/.ssh/deploy_key -p "$REMOTE_PORT" "$REMOTE_USER@$REMOTE_HOST" bash -s <<'REMOTE'
+          set -euo pipefail
+
+          IMAGE_TAG="${TAG_SHA}"
+          NAME="${IMAGE_NAME}"
+          CANARY="${IMAGE_NAME}-canary"
+
+          ENV_FILE_PATH="${ENV_FILE_PATH}"
+          PEM_FOLDER_PATH="${PEM_FOLDER_PATH}"
+
+          APP_INTERNAL_PORT="${APP_INTERNAL_PORT}"
+          LIVE_PORT="${LIVE_PORT}"
+          SHADOW_PORT="${SHADOW_PORT}"
+          HEALTH_PATH="${HEALTH_PATH}"
+
+          # ---- Preconditions ----
+          command -v docker >/dev/null || { echo "docker not installed"; exit 1; }
+          command -v curl >/dev/null || { echo "curl required"; exit 1; }
+          [[ -f "$ENV_FILE_PATH" ]] || { echo "Missing env file: $ENV_FILE_PATH"; exit 1; }
+          [[ -d "$PEM_FOLDER_PATH" ]] || { echo "Missing pem folder: $PEM_FOLDER_PATH"; exit 1; }
+
+          # ---- Install cosign (if missing) ----
+          if ! command -v cosign >/dev/null; then
+            COSIGN_VERSION=2.2.4
+            sudo curl -sSL -o /usr/local/bin/cosign "https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign-linux-amd64"
+            sudo chmod +x /usr/local/bin/cosign
+          fi
+
+          # ---- Pull, get digest, verify signature ----
+          docker pull "$IMAGE_TAG"
+          DIGEST="$(docker image inspect --format='{{index .RepoDigests 0}}' "$IMAGE_TAG" | awk -F'@' '{print $2}')"
+          [ -n "$DIGEST" ] || { echo "Failed to resolve image digest"; exit 1; }
+
+          echo "Verifying cosign signature for ${IMAGE_TAG%@*}@${DIGEST}"
+          COSIGN_EXPERIMENTAL=1 cosign verify "${IMAGE_TAG%@*}@${DIGEST}" >/dev/null || {
+            echo "Signature verification failed"; exit 1;
+          }
+
+          IMAGE="${IMAGE_TAG%@*}@${DIGEST}"
+
+          # ---- Remember previous image for rollback ----
+          PREV_IMAGE="$(docker inspect --format='{{.Config.Image}}' "$NAME" 2>/dev/null || true)"
+          echo "Previous image: ${PREV_IMAGE:-none}"
+
+          # ---- Start canary with hardened settings ----
+          docker rm -f "$CANARY" >/dev/null 2>&1 || true
+          docker run -d --name "$CANARY" \
+            --restart unless-stopped \
+            --user 10001:10001 \
+            --read-only \
+            --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+            --tmpfs /run:rw,noexec,nosuid,size=16m \
+            --cap-
+name: Portal
+
+on:
+  push:
+    branches: [development_master]
+    paths:
+      - 'portal/**'
+      - '.github/workflows/portal.yml'
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: portal
+  REGISTRY: ghcr.io
+
+  # Remote host connection
+  REMOTE_HOST: ${{ secrets.DEV_HOST }}
+  REMOTE_USER: ${{ secrets.DEV_USER }}
+  REMOTE_PORT: 22
+
+  # Runtime mounts on the host
+  ENV_FILE_PATH: /home/ubuntu/deploy/portal/.env
+  PEM_FOLDER_PATH: /home/ubuntu/deploy/portal/.pem
+
+  # App ports and health
+  APP_INTERNAL_PORT: 3004     # port inside container
+  LIVE_PORT: 3004             # public/local port bound by "live" container
+  SHADOW_PORT: 30044          # canary container port
+  HEALTH_PATH: /health
+
+permissions:
+  contents: read
+  packages: write
+  security-events: write  # for SARIF upload
+  id-token: write         # for Cosign keyless signing
+
+concurrency:
+  group: portal-deploy
+  cancel-in-progress: true
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set image tags
+        id: meta
+        run: |
+          echo "TAG_SHA=${{ env.REGISTRY }}/${{ github.repository_owner }}/$IMAGE_NAME:${{ github.sha }}" >> $GITHUB_OUTPUT
+          echo "TAG_LATEST=${{ env.REGISTRY }}/${{ github.repository_owner }}/$IMAGE_NAME:latest" >> $GITHUB_OUTPUT
+
+      - name: Build & push (Buildx + provenance)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./portal
+          file: ./portal/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.TAG_SHA }}
+            ${{ steps.meta.outputs.TAG_LATEST }}
+          cache-from: type=registry,ref=${{ steps.meta.outputs.TAG_LATEST }}
+          cache-to: type=inline
+          provenance: true
+
+      - name: Generate SBOM (CycloneDX)
+        id: sbom
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ steps.meta.outputs.TAG_SHA }}
+          format: cyclonedx-json
+          artifact-name: portal-sbom.cdx.json
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: portal-sbom
+          path: portal-sbom.cdx.json
+
+      - name: Trivy image scan (HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: ${{ steps.meta.outputs.TAG_SHA }}
+          format: sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          output: trivy-results.sarif
+
+      - name: Upload SARIF to code scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Cosign sign image (keyless)
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+        run: |
+          cosign sign --yes ${{ steps.meta.outputs.TAG_SHA }}
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Prepare SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "$REMOTE_PORT" "$REMOTE_HOST" >> ~/.ssh/known_hosts
+
+      - name: Deploy (canary → fast swap with rollback, verify signature, hardened runtime)
+        env:
+          TAG_SHA: ghcr.io/${{ github.repository_owner }}/portal:${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          ssh -i ~/.ssh/deploy_key -p "$REMOTE_PORT" "$REMOTE_USER@$REMOTE_HOST" bash -s <<'REMOTE'
+          set -euo pipefail
+
+          IMAGE_TAG="${TAG_SHA}"
+          NAME="${IMAGE_NAME}"
+          CANARY="${IMAGE_NAME}-canary"
+
+          ENV_FILE_PATH="${ENV_FILE_PATH}"
+          PEM_FOLDER_PATH="${PEM_FOLDER_PATH}"
+
+          APP_INTERNAL_PORT="${APP_INTERNAL_PORT}"
+          LIVE_PORT="${LIVE_PORT}"
+          SHADOW_PORT="${SHADOW_PORT}"
+          HEALTH_PATH="${HEALTH_PATH}"
+
+          # ---- Preconditions ----
+          command -v docker >/dev/null || { echo "docker not installed"; exit 1; }
+          command -v curl >/dev/null || { echo "curl required"; exit 1; }
+          [[ -f "$ENV_FILE_PATH" ]] || { echo "Missing env file: $ENV_FILE_PATH"; exit 1; }
+          [[ -d "$PEM_FOLDER_PATH" ]] || { echo "Missing pem folder: $PEM_FOLDER_PATH"; exit 1; }
+
+          # ---- Install cosign (if missing) ----
+          if ! command -v cosign >/dev/null; then
+            COSIGN_VERSION=2.2.4
+            sudo curl -sSL -o /usr/local/bin/cosign "https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign-linux-amd64"
+            sudo chmod +x /usr/local/bin/cosign
+          fi
+
+          # ---- Pull, get digest, verify signature ----
+          docker pull "$IMAGE_TAG"
+          DIGEST="$(docker image inspect --format='{{index .RepoDigests 0}}' "$IMAGE_TAG" | awk -F'@' '{print $2}')"
+          [ -n "$DIGEST" ] || { echo "Failed to resolve image digest"; exit 1; }
+
+          echo "Verifying cosign signature for ${IMAGE_TAG%@*}@${DIGEST}"
+          COSIGN_EXPERIMENTAL=1 cosign verify "${IMAGE_TAG%@*}@${DIGEST}" >/dev/null || {
+            echo "Signature verification failed"; exit 1;
+          }
+
+          IMAGE="${IMAGE_TAG%@*}@${DIGEST}"
+
+          # ---- Remember previous image for rollback ----
+          PREV_IMAGE="$(docker inspect --format='{{.Config.Image}}' "$NAME" 2>/dev/null || true)"
+          echo "Previous image: ${PREV_IMAGE:-none}"
+
+          # ---- Start canary with hardened settings ----
+          docker rm -f "$CANARY" >/dev/null 2>&1 || true
+          docker run -d --name "$CANARY" \
+            --restart unless-stopped \
+            --user 10001:10001 \
+            --read-only \
+            --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+            --tmpfs /run:rw,noexec,nosuid,size=16m \
+            --cap-
