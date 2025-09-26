@@ -113,4 +113,38 @@ export class MainController {
         }
 
     }
+
+    async createRoomAuto(req: Request, res: Response) {
+        try {
+            const { roomName } = req.body;
+             const recordingParams = {
+                roomId: req.body.roomId,
+                doctorId: req.body.doctorId,
+                patientId: req.body.patientId,
+                visitId: req.body.visitId,
+                chwId: req.body.chwId,
+                nurseName: req.body.nurseName,
+                location: req.body.location
+            };
+
+console.log("recordingParams for auto==",recordingParams);
+            if (!roomName) {
+                return res.status(400).json({ success: false, message: "Missing roomName" });
+            }
+
+            const room = await new WebRTCService().createRoomWithAutoEgress(req.body.roomId as string, recordingParams);
+
+            res.json({
+                success: true,
+                room
+            });
+
+        } catch (err: any) {
+            console.error("createRoomAuto error:", err);
+            res.status(500).json({
+                success: false,
+                message: err?.message || "Failed to create room with auto recording"
+            });
+        }
+    }
 }
