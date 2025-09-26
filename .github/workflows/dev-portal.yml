@@ -1,124 +1,133 @@
-name: Portal
+name: Portal Build and Deploy (Dev)
 
 on:
   push:
-    branches: [development_master]  
+    branches: [development_master] # Consider renaming to 'develop'
     paths:
-      - 'portal/**'  # Only trigger when changes in portal folder
+      - 'portal/**' # Only trigger when changes are in the portal folder
+
+# ----------------------------------------------------------------------
+# GLOBAL ENVIRONMENT VARIABLES
+# ----------------------------------------------------------------------
 env:
+  PROJECT_DIR: portal
   DOCKER_IMAGE_NAME: portal
-  REMOTE_HOST: ${{secrets.DEV_HOST}}
-  REMOTE_USER: ${{secrets.DEV_USER}}
+  REMOTE_HOST: ${{ secrets.DEV_HOST }}
+  REMOTE_USER: ${{ secrets.DEV_USER }}
   REMOTE_PORT: 22
   ENV_FILE_PATH: /home/ubuntu/deploy/portal/.env
   PEM_FOLDER_PATH: /home/ubuntu/deploy/portal/.pem
+  # Docker tag based on the commit SHA for uniqueness
+  IMAGE_TAG: ${{ env.DOCKER_IMAGE_NAME }}:${{ github.sha }}
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     
+    # Set the default working directory for all steps in this job
+    # This cleans up redundant 'cd portal' and 'working-directory: portal'
+    defaults:
+      run:
+        working-directory: ${{ env.PROJECT_DIR }}
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-     
+      # 1. Checkout Code
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Change to portal directory
-      run: cd portal
+      # 2. Setup Node.js & Caching
+      - name: Setup Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          # Path is relative to the defaults.run.working-directory
+          cache-dependency-path: package-lock.json
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: portal/package-lock.json
+      # 3. Install Dependencies
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Install dependencies
-      run: npm ci
-      working-directory: portal
+      # 4. Build Docker Image
+      - name: Build and tag Docker image
+        run: |
+          docker build -t ${{ env.IMAGE_TAG }} .
+          # Add a 'latest' tag for convenience on the remote host
+          docker tag ${{ env.IMAGE_TAG }} ${{ env.DOCKER_IMAGE_NAME }}:latest
+          # Save to the root of the runner's workspace (../)
+          docker save ${{ env.IMAGE_TAG }} > ../app-image.tar
 
-   
-
-    - name: Build Docker image from portal directory
-      run: |
-        cd portal
-        docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} .
-        docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > ../app-image.tar
-
-    - name: Deploy to remote host
-      env:
-        SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
-      run: |
-        mkdir -p ~/.ssh
-        chmod 700 ~/.ssh
-        echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-        chmod 600 ~/.ssh/deploy_key
-        
-        # Copy Docker image to remote host
-        scp -i ~/.ssh/deploy_key \
-            -o StrictHostKeyChecking=no \
-            -P $REMOTE_PORT \
-            app-image.tar \
-            $REMOTE_USER@$REMOTE_HOST:/tmp/
-        
-        # SSH into remote host and deploy
-        ssh -i ~/.ssh/deploy_key \
-            -o StrictHostKeyChecking=no \
-            -P $REMOTE_PORT \
-            $REMOTE_USER@$REMOTE_HOST <<'EOF'
+      # 5. Transfer Docker Image using dedicated SCP Action
+      - name: Transfer Docker image to remote host
+        uses: appleboy/scp-action@v0.1.7 # More secure and clean
+        with:
+          host: ${{ env.REMOTE_HOST }}
+          username: ${{ env.REMOTE_USER }}
+          key: ${{ secrets.DEV_SSH_KEY }}
+          port: ${{ env.REMOTE_PORT }}
+          # Source is relative to the root of the workspace, not the PROJECT_DIR
+          source: 'app-image.tar' 
+          target: '/tmp' 
+          
+      # 6. Run Deployment Commands Remotely using dedicated SSH Action
+      - name: Deploy and restart container
+        uses: appleboy/ssh-action@v1.0.1 # More secure and clean
+        with:
+          host: ${{ env.REMOTE_HOST }}
+          username: ${{ env.REMOTE_USER }}
+          key: ${{ secrets.DEV_SSH_KEY }}
+          port: ${{ env.REMOTE_PORT }}
+          script: |
+            # --- Remote Deployment Script ---
             DOCKER_IMAGE_NAME="${{ env.DOCKER_IMAGE_NAME }}"
-            ENV_FILE_PATH="${{ env.ENV_FILE_PATH }}"
-            PEM_FOLDER_PATH="${{ env.PEM_FOLDER_PATH }}"
-            GITHUB_SHA="${{ github.sha }}"
+            IMAGE_TAG="${{ env.IMAGE_TAG }}"
             
-         
-             
-            
-            # Load Docker image
+            echo "1. Loading image $IMAGE_TAG..."
             docker load -i /tmp/app-image.tar
             rm /tmp/app-image.tar
             
-            # Stop and remove existing container if running
+            echo "2. Stopping and removing old container..."
             docker stop $DOCKER_IMAGE_NAME || true
             docker rm $DOCKER_IMAGE_NAME || true
             
-            # Verify that the .env file exists
-            if [ ! -f "$ENV_FILE_PATH" ]; then
-                echo "Error: .env file not found at $ENV_FILE_PATH"
-                exit 1
+            echo "3. Verifying required files..."
+            if [ ! -f "${{ env.ENV_FILE_PATH }}" ]; then
+              echo "Error: .env file not found at ${{ env.ENV_FILE_PATH }}"
+              exit 1
+            fi
+            if [ ! -d "${{ env.PEM_FOLDER_PATH }}" ]; then
+              echo "Error: .pem folder not found at ${{ env.PEM_FOLDER_PATH }}"
+              exit 1
             fi
             
-            # Verify that the .pem folder exists
-            if [ ! -d "$PEM_FOLDER_PATH" ]; then
-                echo "Error: .pem folder not found at $PEM_FOLDER_PATH"
-                exit 1
-            fi
-            
-            # Run new container using existing files directly
+            echo "4. Running new container..."
             docker run -d \
-                --name $DOCKER_IMAGE_NAME \
-                --restart unless-stopped \
-                -p 3004:3004 \
-                --env-file $ENV_FILE_PATH \
-                -v $PEM_FOLDER_PATH:/app/.pem \
-                --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
-                $DOCKER_IMAGE_NAME:${{ github.sha }}
+              --name $DOCKER_IMAGE_NAME \
+              --restart unless-stopped \
+              -p 3004:3004 \
+              --env-file ${{ env.ENV_FILE_PATH }} \
+              -v ${{ env.PEM_FOLDER_PATH }}:/app/.pem \
+              --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
+              $IMAGE_TAG
             
-            # Clean up old images
-            docker image prune -f
-            
-            echo "Portal deployment completed successfully"
-        EOF
+            echo "5. Cleaning up old images..."
+            # Force cleanup of dangling images (and untagged ones)
+            docker image prune -af
 
-    - name: Verify deployment
-      env:
-        SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
-      run: |
-        mkdir -p ~/.ssh
-        echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-        chmod 600 ~/.ssh/deploy_key
-        
-        ssh -i ~/.ssh/deploy_key \
-            -o StrictHostKeyChecking=no \
-            -p $REMOTE_PORT \
-            $REMOTE_USER@$REMOTE_HOST \
-            "docker ps | grep $DOCKER_IMAGE_NAME && echo 'Portal deployment successful!'"    
+      # 7. Verify Deployment
+      - name: Verify successful deployment
+        uses: appleboy/ssh-action@v1.0.1
+        with:
+          host: ${{ env.REMOTE_HOST }}
+          username: ${{ env.REMOTE_USER }}
+          key: ${{ secrets.DEV_SSH_KEY }}
+          port: ${{ env.REMOTE_PORT }}
+          script: |
+            # Check if the container is running
+            docker ps | grep ${{ env.DOCKER_IMAGE_NAME }}
+            if [ $? -eq 0 ]; then
+              echo "Portal container is running successfully!"
+            else
+              echo "Portal container failed to start!"
+              exit 1
+            fi
