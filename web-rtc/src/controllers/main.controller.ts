@@ -115,15 +115,16 @@ export class MainController {
     }
 
     async createRoomAuto(req: Request, res: Response) {
+        console.log("inside creating room..");
         try {
             const { roomName } = req.body;
              const recordingParams = {
                 roomId: req.body.roomId,
                 doctorId: req.body.doctorId,
                 patientId: req.body.patientId,
-                visitId: req.body.visitId,
-                chwId: req.body.chwId,
-                nurseName: req.body.nurseName,
+                viId: req.body.chwId,
+                nurssitId: req.body.visitId,
+                chweName: req.body.nurseName,
                 location: req.body.location
             };
 
