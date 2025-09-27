@@ -9,7 +9,7 @@ const morganMiddleware = require("./middleware/morgan");
 const swaggerUi = require('swagger-ui-express');
 const swaggerDocument = require('./swagger.json');
 const path =   require('path');
-const p = 'Ad';
+const p = 'A';
 const app = express();
 
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS && JSON.parse(process.env.ALLOWED_ORIGINS) || [];
