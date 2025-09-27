@@ -9,8 +9,7 @@ on:
 
 env:
   DOCKER_IMAGE_NAME: portal
-  # Use GitHub's built-in variables for the registry path
-  IMAGE_TAG: ghcr.io/${{ github.repository }}/portal:${{ github.sha }} 
+  # IMAGE_TAG is intentionally excluded from here and calculated in the first step
   REMOTE_HOST: ${{secrets.DEV_HOST}}
   REMOTE_USER: ${{secrets.DEV_USER}}
   REMOTE_PORT: 22
@@ -22,20 +21,34 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     
-    # Define an environment in GitHub for better secret management
     environment: dev 
     
-    # Permissions required to read/write to GHCR (packages)
     permissions:
       contents: read
-      packages: write
+      packages: write # Required for pushing to GHCR
       
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
      
     # --------------------------------------------------------------------------
-    # Build and Push Stage (Replaces SCP/Save)
+    # FIX: Set Lowercase Image Tag (REQUIRED)
+    # This step uses shell expansion (LOWERCASE_REPO,,) to ensure the GHCR tag is valid.
+    # --------------------------------------------------------------------------
+    - name: Set Lowercase Image Tag Variable
+      run: |
+        LOWERCASE_REPO="${{ github.repository }}"
+        LOWERCASE_REPO_SLUG=${LOWERCASE_REPO,,}
+        
+        IMAGE_TAG="ghcr.io/$LOWERCASE_REPO_SLUG/${{ env.DOCKER_IMAGE_NAME }}:${{ github.sha }}"
+        
+        # Export the final, correct variable to the runner's environment
+        echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+        
+        echo "Using image tag: $IMAGE_TAG"
+
+    # --------------------------------------------------------------------------
+    # Build and Push Stage
     # --------------------------------------------------------------------------
 
     - name: Setup Node.js
@@ -48,14 +61,15 @@ jobs:
     - name: Install dependencies
       run: npm ci
       working-directory: ${{ env.PORTAL_DIR }} 
+
+    # FIX: Set up Docker Buildx (REQUIRED for 'cache-from: type=gha')
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
-      
+
     - name: Log in to GitHub Container Registry
       uses: docker/login-action@v3
       with:
         registry: ghcr.io
-        # Use the built-in GITHUB_TOKEN for authentication
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
@@ -64,8 +78,7 @@ jobs:
       with:
         context: ${{ env.PORTAL_DIR }}
         push: true
-        tags: ${{ env.IMAGE_TAG }}
-        # Optional: Add build cache for faster subsequent builds
+        tags: ${{ env.IMAGE_TAG }} # References the lowercase variable
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
@@ -73,10 +86,7 @@ jobs:
     # Deployment Stage (Pull and Run)
     # --------------------------------------------------------------------------
     
-    # We no longer need the 'scp-action' as the file transfer is handled by GHCR
-
     - name: Run deployment commands on remote host
-      # This action is used to execute remote SSH commands
       uses: appleboy/ssh-action@v1.0.1 
       with:
         host: ${{ env.REMOTE_HOST }}
@@ -85,28 +95,22 @@ jobs:
         key: ${{ secrets.DEV_SSH_KEY }}
         script: |
           DOCKER_IMAGE_NAME="${{ env.DOCKER_IMAGE_NAME }}"
-          IMAGE_TAG="${{ env.IMAGE_TAG }}" # The full GHCR tag
+          IMAGE_TAG="${{ env.IMAGE_TAG }}" # References the lowercase variable
           ENV_FILE_PATH="${{ env.DEPLOY_ENV_FILE_PATH }}"
           PEM_FOLDER_PATH="${{ env.DEPLOY_PEM_FOLDER_PATH }}"
           
           echo "Starting deployment for image $IMAGE_TAG"
 
-          # 1. Log in to GHCR on the remote host (Needed for private images)
-          # Use a dedicated deployment token (DEV_GHCR_TOKEN) with 'read:packages' scope
-          # Store this token as a separate secret for better security than an SSH key.
-          docker login ghcr.io -u ${{ env.REMOTE_USER }} -p ${{ secrets.DEV_GHCR_TOKEN }}
+          # Use the dedicated deployment token (DEV_GHCR_TOKEN)
+          docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.DEV_GHCR_TOKEN }}
 
-          # 2. Stop and remove existing container
+          # Stop, remove, and pull
           docker stop $DOCKER_IMAGE_NAME || true
           docker rm -f $DOCKER_IMAGE_NAME || true
-          
-          # 3. Pull the image from GHCR
           docker pull $IMAGE_TAG
-          
-          # 4. Clean up login credentials immediately
           docker logout ghcr.io
 
-          # Verification checks (same as before)
+          # Verification checks
           if [ ! -f "$ENV_FILE_PATH" ]; then
               echo "Error: .env file not found at $ENV_FILE_PATH. Exiting."
               exit 1
@@ -117,7 +121,7 @@ jobs:
               exit 1
           fi
           
-          # 5. Run new container
+          # Run new container
           docker run -d \
               --name $DOCKER_IMAGE_NAME \
               --restart unless-stopped \
@@ -127,7 +131,6 @@ jobs:
               --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
               $IMAGE_TAG
           
-          # Clean up old images
           docker image prune -f
           
           echo "Portal deployment completed successfully using GHCR pull"
@@ -148,5 +151,5 @@ jobs:
             echo "Portal container is running successfully!"
           else
             echo "Portal container is NOT running. Check remote logs."
-            exit 1 # Fail the step if the container isn't running
+            exit 1 
           fi
