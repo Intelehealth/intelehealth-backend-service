@@ -103,7 +103,9 @@ jobs:
           echo "Starting deployment for image $IMAGE_TAG"
 
           # Use the dedicated deployment token (DEV_GHCR_TOKEN)
-          echo ${{ secrets.DEV_GHCR_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          
+          bash -c "echo ${{ secrets.DEV_GHCR_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin"
+
           
 
           # Stop, remove, and pull
