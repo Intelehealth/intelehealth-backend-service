@@ -4,7 +4,8 @@
   "scripts": {
     "build": "npx ts-node build.ts && npx ts-node -r tsconfig-paths/register post-build.ts",
     "postbuild": "npx ts-node -r tsconfig-paths/register post-build.ts",
-    "config:published": "npx ts-node -r tsconfig-paths/register config-generator.ts",
+    "config:all": "npx ts-node -r tsconfig-paths/register config-generator.ts all",
+    "config:published": "npx ts-node -r tsconfig-paths/register config-generator.ts published",
     "lint": "npx eslint --ext .ts src/",
     "lint:tests": "npx eslint --ext .ts spec/",
     "start": "node -r module-alias/register ./dist --env=production",

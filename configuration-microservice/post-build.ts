@@ -23,15 +23,16 @@ if (result.error) {
   try {
     logger.info('Starting post-build process...');
     
-    // Generate config using the last published record
+    // Generate config using the published records
     const fileName = await generateConfig({ 
       mode: 'published',
-      addMetadata: true
     });
     
-    logger.info(`Post-build process completed successfully. Generated: ${fileName}`);
+    logger.info(`Post-build process completed successfully. 
+      Generated: ${fileName}`);
   } catch (err) {
-    logger.err('Post-build process failed:', err);
+    logger.err('Post-build process failed:', true);
+    // eslint-disable-next-line no-process-exit
     process.exit(1);
   }
 })();

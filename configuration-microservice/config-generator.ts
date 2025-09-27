@@ -56,7 +56,7 @@ function parseValue(type:string, value: string) {
 }
 
 interface ConfigGeneratorOptions {
-  mode: 'published';
+  mode: 'all' | 'published';
   outputDir?: string;
   fileName?: string;
   addMetadata?: boolean;
@@ -113,15 +113,24 @@ export async function generateConfig(
 /**
  * Fetch config records based on mode
  */
-async function fetchConfigRecords(mode: 'published'): Promise<Config[]|null> {
+async function fetchConfigRecords(
+  mode: 'all' | 'published',
+): Promise<Config[]|null> {
   try {
     const queryOptions: {
-      where?: { published: boolean };
+      where?: { published?: boolean };
     } = {};
 
-    if(mode === 'published') {
+    switch (mode) {
+    case 'published':
       queryOptions.where = { published: true };
+      break;
+    case 'all':
+    default:
+      // No where clause - fetch all records
+      break;
     }
+    
     const config = await Config.findAll(queryOptions);
     return config;
   } catch (error) {
@@ -224,11 +233,27 @@ async function addPublishEntry(fileName: string): Promise<void> {
  * CLI interface for the config generator
  */
 if (require.main === module) {
-  const mode = 'published';
+  // Get mode from command line argument or default to 'all'
+  const mode = (process.argv[2] || 'published') as 'all' | 'published';
+  
+  // Validate mode
+  const validModes = ['all', 'published'];
+  if (!validModes.includes(mode)) {
+    // eslint-disable-next-line max-len
+    logger.err(`Invalid mode: ${mode}. Valid modes are: ${validModes.join(', ')}`, true);
+    // eslint-disable-next-line no-process-exit
+    process.exit(1);
+  }
+  
+  logger.info(`Generating config for mode: ${mode}`);
   
   generateConfig({ mode })
     .then(fileName => {
-      logger.info(`Config file generated: ${fileName}`);
+      if (fileName) {
+        logger.info(`Config file generated: ${fileName}`);
+      } else {
+        logger.warn('No config file generated');
+      }
       // eslint-disable-next-line no-process-exit
       process.exit(0);
     })

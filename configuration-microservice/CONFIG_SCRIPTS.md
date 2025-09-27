@@ -1,40 +1,27 @@
 # Configuration Scripts Documentation
 
-This document describes the post-build and post-start scripts that automatically generate configuration files from the `dst_configs` table and add entries to the `dst_publish` table.
+This document describes the post-build script and config generator utility that automatically generate configuration files from the `dic_config` table and add entries to the `dic_publish` table.
 
 ## Overview
 
-The configuration system consists of three main components:
+The configuration system consists of two main components:
 
 1. **post-build.ts** - Runs after the build process to generate config files
-2. **post-start.ts** - Runs after the application starts to generate config files
-3. **config-generator.ts** - Core utility for generating configuration files with various options
+2. **config-generator.ts** - Core utility for generating configuration files with various options
 
 ## Scripts
 
 ### Post-Build Script (`post-build.ts`)
 
 Automatically runs after the build process to:
-- Fetch the last published record from `dst_configs` table
-- Generate a configuration file in `./dist/public/configs/`
-- Add an entry to the `dst_publish` table
+- Fetch all published records from `dic_config` table
+- Generate a consolidated configuration file in `./dist/public/configs/`
+- Add an entry to the `dic_publish` table
 
 **Usage:**
 ```bash
 npm run build          # Runs build + post-build
 npm run postbuild      # Runs only post-build
-```
-
-### Post-Start Script (`post-start.ts`)
-
-Runs after the application starts to:
-- Check for existing configuration files
-- Generate new config files if needed
-- Add entries to the `dst_publish` table
-
-**Usage:**
-```bash
-npm run poststart      # Runs post-start script
 ```
 
 ### Config Generator (`config-generator.ts`)
@@ -43,14 +30,10 @@ A flexible utility for generating configuration files with different options:
 
 **Usage:**
 ```bash
-# Generate config from last published record (default)
-npm run config:generate
-npm run config:last
-
-# Generate config from all published records
+# Generate config from all published records (default)
 npm run config:published
 
-# Generate config from all records
+# Generate config from all records (published and unpublished)
 npm run config:all
 ```
 
@@ -58,15 +41,15 @@ npm run config:all
 ```typescript
 import { generateConfig } from './config-generator';
 
-// Generate from last published record
-const fileName = await generateConfig({ mode: 'last' });
-
-// Generate from all published records
+// Generate from all published records (default)
 const fileName = await generateConfig({ mode: 'published' });
+
+// Generate from all records (published and unpublished)
+const fileName = await generateConfig({ mode: 'all' });
 
 // Generate with custom options
 const fileName = await generateConfig({
-  mode: 'last',
+  mode: 'published',
   outputDir: './custom/configs',
   fileName: 'my-config.json',
   addMetadata: true
@@ -75,18 +58,14 @@ const fileName = await generateConfig({
 
 ## Configuration Modes
 
-### `last` Mode
-- Fetches the most recent record from `dst_configs` table
-- Creates a single configuration file
-- Includes metadata about the source record
-
-### `published` Mode
-- Fetches all published records from `dst_configs` table
+### `published` Mode (Default)
+- Fetches all published records from `dic_config` table
 - Creates a consolidated configuration file
 - Each config key becomes a property in the output
+- Used by the post-build script
 
 ### `all` Mode
-- Fetches all records from `dst_configs` table (published and unpublished)
+- Fetches all records from `dic_config` table (published and unpublished)
 - Creates a consolidated configuration file
 - Useful for development and testing
 
@@ -101,53 +80,39 @@ Configuration files are generated in: `./dist/public/configs/`
 
 ### File Structure
 
-**Single Config (last mode):**
+**Generated Config Structure:**
 ```json
 {
-  "specialization": [...],
-  "language": [...],
-  "patient_registration": {...},
-  "_metadata": {
-    "configId": 123,
-    "key": "main_config",
-    "type": "json",
-    "generatedAt": "2024-01-15T10:30:00.000Z",
-    "version": 1745219877539
-  }
+  "version": 1,
+  "config_key_1": {...},
+  "config_key_2": {...},
+  "config_key_3": {...}
 }
 ```
 
-**Multiple Configs (published/all modes):**
-```json
-{
-  "config_key_1": {...},
-  "config_key_2": {...},
-  "_metadata": {
-    "generatedAt": "2024-01-15T10:30:00.000Z",
-    "version": 1745219877539,
-    "configCount": 2,
-    "configIds": [123, 124],
-    "mode": "published"
-  }
-}
-```
+**Key Features:**
+- `version` field: Auto-incremented version number based on the highest ID in `dic_publish` table
+- Each configuration key from the database becomes a property
+- Values are parsed according to their type (string, number, boolean, array, json)
+- All published configurations are consolidated into a single file
 
 ## Database Integration
 
-### dst_configs Table
-The scripts read from the `dst_configs` table with the following structure:
-- `id` - Primary key
-- `key` - Configuration key
-- `value` - JSON configuration data
-- `type` - Data type
-- `published` - Boolean flag for published status
-- `createdAt`, `updatedAt` - Timestamps
+### dic_config Table
+The scripts read from the `dic_config` table with the following structure:
+- `id` - Primary key (auto-increment)
+- `key` - Configuration key (unique, not null)
+- `value` - Configuration value as text (nullable)
+- `type` - Data type (string, number, boolean, array, json)
+- `default_value` - Default value as text (nullable)
+- `published` - Boolean flag for published status (default: false)
+- `createdAt`, `updatedAt`, `deletedAt` - Timestamps (soft delete enabled)
 
-### dst_publish Table
-The scripts add entries to the `dst_publish` table:
-- `id` - Primary key
-- `name` - Display name for the config
-- `path` - File path relative to public directory
+### dic_publish Table
+The scripts add entries to the `dic_publish` table:
+- `id` - Primary key (auto-increment)
+- `name` - Display name for the config file
+- `path` - Full file path to the generated config file
 - `createdAt`, `updatedAt` - Timestamps
 
 ## Error Handling
@@ -168,8 +133,9 @@ All scripts use the `jet-logger` for consistent logging:
 ## Environment Requirements
 
 - Node.js >= 8.10.0
-- MySQL database with `dst_configs` and `dst_publish` tables
+- MySQL database with `dic_config` and `dic_publish` tables
 - Proper environment variables configured in `.env` files
+- TypeScript and ts-node for script execution
 
 ## Troubleshooting
 
@@ -181,16 +147,23 @@ All scripts use the `jet-logger` for consistent logging:
    - Verify table structures exist
 
 2. **No Config Records Found**
-   - Check if `dst_configs` table has data
+   - Check if `dic_config` table has data
    - Verify `published` flag is set to `true` for published records
+   - Ensure records are not soft-deleted (check `deletedAt` is null)
 
 3. **File Generation Failed**
    - Check write permissions for `./dist/public/configs/` directory
    - Ensure sufficient disk space
 
 4. **Duplicate Publish Entries**
-   - Scripts automatically check for existing entries
-   - Duplicate entries are skipped with a warning message
+   - Scripts automatically check for existing entries by file path
+   - Duplicate entries are skipped with an info message
+   - No duplicate entries will be created
+
+5. **Type Parsing Errors**
+   - Ensure configuration values match their declared types
+   - Check JSON values are valid JSON strings
+   - Verify boolean values are properly formatted
 
 ### Debug Mode
 
@@ -206,7 +179,7 @@ The post-build script is automatically integrated into the build process:
 ```json
 {
   "scripts": {
-    "build": "npx ts-node build.ts && npx ts-node post-build.ts"
+    "build": "npx ts-node build.ts && npx ts-node -r tsconfig-paths/register post-build.ts"
   }
 }
 ```
