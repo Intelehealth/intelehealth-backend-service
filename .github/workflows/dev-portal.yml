@@ -93,6 +93,7 @@ jobs:
         username: ${{ env.REMOTE_USER }}
         port: ${{ env.REMOTE_PORT }}
         key: ${{ secrets.DEV_SSH_KEY }}
+        tty: false
         script: |
           DOCKER_IMAGE_NAME="${{ env.DOCKER_IMAGE_NAME }}"
           IMAGE_TAG="${{ env.IMAGE_TAG }}" # References the lowercase variable
