@@ -34,12 +34,16 @@ jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
-      image_tag: ${{ steps.image_meta.outputs.tag }} # Pass the full tag to the deploy job
+      image_tag: ${{ steps.image_meta.outputs.full_image_name }} # Pass the full tag to the deploy job
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-
+    - name: Define Lowercase Repository Owner
+      id: owner_lower
+      run: |
+        REPO_OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+        echo "value=$REPO_OWNER_LOWER" >> $GITHUB_OUTPUT 
     # -----------------------------------------------------
     # EFFICIENCY: Login to the container registry
     # Use GITHUB_TOKEN to push to GitHub Container Registry (ghcr.io)
@@ -54,7 +58,10 @@ jobs:
     - name: Define Image Metadata
       id: image_meta
       run: |
-        TAG=${{ github.sha }}
+        TAG_SHA="ghcr.io/${{ steps.owner_lower.outputs.value }}/${{ env.DOCKER_IMAGE_NAME }}:${{ github.sha }}"
+        
+        # This is the tag we will use for the deployment
+        echo "full_image_name=$TAG_SHA" >> $GITHUB_OUTPUT 
         REPO_OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
         FULL_IMAGE_NAME="ghcr.io/$REPO_OWNER_LOWER/${{ env.DOCKER_IMAGE_NAME }}:$TAG"
 
