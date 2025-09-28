@@ -17,6 +17,7 @@ on:
 env:
   DOCKER_IMAGE_NAME: auth-gateway
   # Standardize the registry to use GitHub's own for simplicity (ghcr.io)
+  GH_REPO_OWNER_LOWER: ${{ github.repository_owner_lowercase }} # Standard GitHub environment variable
   REGISTRY: ghcr.io/${{ github.repository_owner }}
   
   # Remote Host variables remain, but deployment uses a dedicated action
@@ -54,7 +55,10 @@ jobs:
       id: image_meta
       run: |
         TAG=${{ github.sha }}
-        FULL_IMAGE_NAME=${{ env.REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}:$TAG
+        REPO_OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+        FULL_IMAGE_NAME="ghcr.io/$REPO_OWNER_LOWER/${{ env.DOCKER_IMAGE_NAME }}:$TAG"
+
+        #FULL_IMAGE_NAME=${{ env.REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}:$TAG
         echo "tag=$TAG" >> $GITHUB_OUTPUT
         echo "full_image_name=$FULL_IMAGE_NAME" >> $GITHUB_OUTPUT
         
@@ -71,7 +75,7 @@ jobs:
         push: true
         tags: |
           ${{ steps.image_meta.outputs.full_image_name }}
-          ${{ env.REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}:latest # Tag 'latest' as well
+          ghcr.io/${{ steps.image_meta.outputs.repo_owner_lower }}/${{ env.DOCKER_IMAGE_NAME }}:latest # Tag 'latest' as well
         cache-from: type=gha # Use GitHub Actions caching for layers
         cache-to: type=gha,mode=max
 
