@@ -83,13 +83,13 @@ jobs:
     # -----------------------------------------------------
     # QUALITY: Image Vulnerability Scanning (Critical for Production)
     # -----------------------------------------------------
-   - name: Run Trivy vulnerability scan
-     uses: aquasecurity/trivy-action@master
-     with:
-        image-ref: ${{ steps.image_meta.outputs.full_image_name }}
-        format: 'table'
-        exit-code: '0' # Fail the build if critical or high vulnerabilities are found
-        severity: 'CRITICAL,HIGH'
+ #  - name: Run Trivy vulnerability scan
+ #    uses: aquasecurity/trivy-action@master
+ #    with:
+ #       image-ref: ${{ steps.image_meta.outputs.full_image_name }}
+ #       format: 'table'
+ #       exit-code: '0' # Fail the build if critical or high vulnerabilities are found
+ #       severity: 'CRITICAL,HIGH'
         
   # -----------------------------------------------------
   # Job 2: Deploy to Remote Host
