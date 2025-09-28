@@ -34,9 +34,8 @@ jobs:
  build:
   runs-on: ubuntu-latest
   outputs:
-      # Pass the full tag (which now includes the SHA) to the deploy job
-   image_tag: ${{ steps.image_meta.outputs.full_image_name }} 
-    
+    image_tag: ${{ steps.image_meta.outputs.full_image_name }} 
+  
   steps:
    - name: Checkout code
      uses: actions/checkout@v4
