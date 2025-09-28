@@ -10,7 +10,7 @@ permissions:
 on:
   push:
     # 2. RELIABILITY: Use a dedicated 'main' or 'production' branch for production-level deployments
-    branches: [main]
+    branches: [development_master]
     paths:
       - 'auth-gateway/**'
 
