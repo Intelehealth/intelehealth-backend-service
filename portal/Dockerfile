@@ -1,9 +1,12 @@
-# --- Stage 1: Build Stage (Builder) ---
-FROM node:18-alpine AS builder
+FROM node:18-alpine
 
-# Install build dependencies for native modules (like canvas or sharp)
-RUN apk update && \
+WORKDIR /app
+
+RUN apk update && apk upgrade && \
     apk add --no-cache \
+    dumb-init \
+    curl \
+    libc6-compat \
     python3 \
     make \
     g++ \
@@ -16,50 +19,19 @@ RUN apk update && \
     jpeg-dev \
     giflib-dev \
     librsvg-dev \
-    dumb-init \
-    curl \
-    libc6-compat \
     && rm -rf /var/cache/apk/*
 
-WORKDIR /app
-
-# Copy package files
+# Copy package files first
 COPY package*.json ./
 
-# Install dependencies (with build tools available)
+# Install dependencies
 RUN npm ci --legacy-bundling
 
-# Copy application code (optional, but good practice for a complete build stage)
-COPY . .
-
-# --- Stage 2: Production Stage (Final Image) ---
-FROM node:18-alpine AS production
-
-# Install only the *runtime* dependencies needed for the application to run.
-# This often includes libc6-compat, curl, dumb-init, and any native dependencies' runtime libs.
-RUN apk update && \
-    apk add --no-cache \
-    dumb-init \
-    curl \
-    libc6-compat \
-    # Add runtime libraries for native dependencies installed in the builder stage
-    pixman \
-    cairo \
-    pango \
-    libjpeg \
-    giflib \
-    librsvg \
-    && rm -rf /var/cache/apk/*
-
-WORKDIR /app
-
-# Copy only the necessary files from the builder stage
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package*.json ./
+# Copy application code
 COPY . .
 
 # Expose the port your app runs on
-EXPOSE 3004
+EXPOSE 3030
 
 # Start the application
-CMD ["npm", "start"]
+CMD ["npm", "start"]	
