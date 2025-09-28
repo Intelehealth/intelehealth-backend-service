@@ -31,59 +31,114 @@ jobs:
   # -----------------------------------------------------
   # Job 1: Build, Scan, and Push the Docker Image
   # -----------------------------------------------------
+  jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
-      image_tag: ${{ steps.image_meta.outputs.full_image_name }} # Pass the full tag to the deploy job
+      # Pass the full tag (which now includes the SHA) to the deploy job
+      image_tag: ${{ steps.image_meta.outputs.full_image_name }} 
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+
+    # 1. Define Lowercase Repository Owner (Used to fix the previous issue)
     - name: Define Lowercase Repository Owner
       id: owner_lower
       run: |
         REPO_OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-        echo "value=$REPO_OWNER_LOWER" >> $GITHUB_OUTPUT 
-    # -----------------------------------------------------
-    # EFFICIENCY: Login to the container registry
-    # Use GITHUB_TOKEN to push to GitHub Container Registry (ghcr.io)
-    # -----------------------------------------------------
+        echo "value=$REPO_OWNER_LOWER" >> $GITHUB_OUTPUT
+        
     - name: Log in to GitHub Container Registry
       uses: docker/login-action@v3
       with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ github.repository_owner }}
+        registry: ghcr.io
+        username: ${{ github.repository_owner }} 
         password: ${{ secrets.GITHUB_TOKEN }}
         
+    # 2. FIX: Ensure GITHUB_SHA is correctly concatenated in the tag string
     - name: Define Image Metadata
       id: image_meta
       run: |
-        TAG_SHA="ghcr.io/${{ steps.owner_lower.outputs.value }}/${{ env.DOCKER_IMAGE_NAME }}:${{ github.sha }}"
+        # Use a variable for the SHA for clarity
+        COMMIT_SHA=${{ github.sha }}
         
-        # This is the tag we will use for the deployment
+        # Correctly construct the full tag string including the SHA
+        TAG_SHA="ghcr.io/${{ steps.owner_lower.outputs.value }}/${{ env.DOCKER_IMAGE_NAME }}:$COMMIT_SHA"
+        
         echo "full_image_name=$TAG_SHA" >> $GITHUB_OUTPUT 
-        REPO_OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-        FULL_IMAGE_NAME="ghcr.io/$REPO_OWNER_LOWER/${{ env.DOCKER_IMAGE_NAME }}:$TAG"
-
-        #FULL_IMAGE_NAME=${{ env.REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}:$TAG
-        echo "tag=$TAG" >> $GITHUB_OUTPUT
-        echo "full_image_name=$FULL_IMAGE_NAME" >> $GITHUB_OUTPUT
+        echo "Pushing image: $TAG_SHA" # Helpful for debugging
         
+    - name: Set up QEMU (for multi-platform build if needed)
+      uses: docker/setup-qemu-action@v3
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    # -----------------------------------------------------
-    # EFFICIENCY: Use dedicated build-push action for caching and push
-    # -----------------------------------------------------
+    # 3. Use the corrected tags in the build step
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
       with:
-        context: ./auth-gateway # Specify the build context
+        context: ./auth-gateway 
         push: true
         tags: |
           ${{ steps.image_meta.outputs.full_image_name }}
-          ghcr.io/${{ steps.image_meta.outputs.repo_owner_lower }}/${{ env.DOCKER_IMAGE_NAME }}:latest # Tag 'latest' as well
-        cache-from: type=gha # Use GitHub Actions caching for layers
+          ghcr.io/${{ steps.owner_lower.outputs.value }}/${{ env.DOCKER_IMAGE_NAME }}:latest
+        cache-from: type=gha 
+        cache-to: type=gha,mode=maxjobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      # Pass the full tag (which now includes the SHA) to the deploy job
+      image_tag: ${{ steps.image_meta.outputs.full_image_name }} 
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    # 1. Define Lowercase Repository Owner (Used to fix the previous issue)
+    - name: Define Lowercase Repository Owner
+      id: owner_lower
+      run: |
+        REPO_OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+        echo "value=$REPO_OWNER_LOWER" >> $GITHUB_OUTPUT
+        
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.repository_owner }} 
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    # 2. FIX: Ensure GITHUB_SHA is correctly concatenated in the tag string
+    - name: Define Image Metadata
+      id: image_meta
+      run: |
+        # Use a variable for the SHA for clarity
+        COMMIT_SHA=${{ github.sha }}
+        
+        # Correctly construct the full tag string including the SHA
+        TAG_SHA="ghcr.io/${{ steps.owner_lower.outputs.value }}/${{ env.DOCKER_IMAGE_NAME }}:$COMMIT_SHA"
+        
+        echo "full_image_name=$TAG_SHA" >> $GITHUB_OUTPUT 
+        echo "Pushing image: $TAG_SHA" # Helpful for debugging
+        
+    - name: Set up QEMU (for multi-platform build if needed)
+      uses: docker/setup-qemu-action@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    # 3. Use the corrected tags in the build step
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./auth-gateway 
+        push: true
+        tags: |
+          ${{ steps.image_meta.outputs.full_image_name }}
+          ghcr.io/${{ steps.owner_lower.outputs.value }}/${{ env.DOCKER_IMAGE_NAME }}:latest
+        cache-from: type=gha 
         cache-to: type=gha,mode=max
 
     # -----------------------------------------------------
