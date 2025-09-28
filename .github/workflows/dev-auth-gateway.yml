@@ -35,7 +35,6 @@ jobs:
   runs-on: ubuntu-latest
   outputs:
     image_tag: ${{ steps.image_meta.outputs.full_image_name }} 
-  
   steps:
    - name: Checkout code
      uses: actions/checkout@v4
@@ -84,9 +83,9 @@ jobs:
     # -----------------------------------------------------
     # QUALITY: Image Vulnerability Scanning (Critical for Production)
     # -----------------------------------------------------
-    - name: Run Trivy vulnerability scan
-      uses: aquasecurity/trivy-action@master
-      with:
+   - name: Run Trivy vulnerability scan
+     uses: aquasecurity/trivy-action@master
+     with:
         image-ref: ${{ steps.image_meta.outputs.full_image_name }}
         format: 'table'
         exit-code: '1' # Fail the build if critical or high vulnerabilities are found
