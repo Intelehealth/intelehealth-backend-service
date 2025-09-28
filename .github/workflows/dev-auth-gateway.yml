@@ -94,11 +94,11 @@ jobs:
   # -----------------------------------------------------
   # Job 2: Deploy to Remote Host
   # -----------------------------------------------------
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build # Must wait for the build job to complete
+ deploy:
+   runs-on: ubuntu-latest
+   needs: build # Must wait for the build job to complete
     
-    steps:
+   steps:
     # -----------------------------------------------------
     # SECURITY: Use the dedicated SSH Action (avoid writing key to disk)
     # RELIABILITY: Use a cleaner, single-command deployment
