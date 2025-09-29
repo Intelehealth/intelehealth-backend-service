@@ -20,7 +20,7 @@ COPY package*.json ./
 
 # Install dependencies (will include devDependencies like typescript and all @types packages)
 # 'npm ci' ensures an exact, clean install based on package-lock.json
-RUN npm ci --legacy-bundling
+RUN npm install ts-node && npm install typescript && npm ci --legacy-bundling
 
 # Copy application source code (including all .ts files, build.ts, etc.)
 COPY . .
