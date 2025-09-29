@@ -107,7 +107,7 @@ jobs:
                 --restart unless-stopped \
                 -p 4004:4004 \
                 --env-file $ENV_FILE_PATH \
-                -v $PEM_FOLDER_PATH:/app/.pem \
+                -v $PEM_FOLDER_PATH:/app/src/.pem \
                 --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
                 $DOCKER_IMAGE_NAME:${{ github.sha }}
             
