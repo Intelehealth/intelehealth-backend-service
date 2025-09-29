@@ -31,7 +31,7 @@ RUN npm ci --legacy-bundling
 COPY . .
 
 # Expose the port your app runs on
-EXPOSE 3030
+EXPOSE 4004
 
 # Start the application
 CMD ["npm", "start"]	
