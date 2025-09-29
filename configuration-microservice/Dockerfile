@@ -1,60 +1,40 @@
-# ----------------------------------------
-# Stage 1: Builder - Installs dependencies and runs the build
-# ----------------------------------------
-FROM node:18-alpine AS builder
+FROM node:18-alpine
 
-# Set the working directory
+# Set the working directory inside the container
 WORKDIR /app
 
-# Install build-time dependencies (including packages needed for native module compilation)
-# Note: These are removed in the final stage, reducing image size.
-RUN apk update && apk add --no-cache \
+# Install all necessary dependencies (both build tools and runtime libraries)
+RUN apk update && apk upgrade && \
+    apk add --no-cache \
+    # Runtime utilities
+    dumb-init \
+    libc6-compat \
+    # Build tools for native modules (g++, make, python, etc.)
     python3 make g++ gcc libc-dev pkgconfig \
-    pixman-dev cairo-dev pango-dev jpeg-dev giflib-dev librsvg-dev
+    # Libraries for graphics/images (if your app needs them at runtime or build time)
+    pixman-dev cairo-dev pango-dev jpeg-dev giflib-dev librsvg-dev \
+    && rm -rf /var/cache/apk/*
 
 # Copy package files first to leverage Docker layer caching
 COPY package*.json ./
 
-# Install dependencies, including devDependencies needed for the build (like typescript, ts-node, etc.)
+# Install dependencies (will include devDependencies like typescript and all @types packages)
+# 'npm ci' ensures an exact, clean install based on package-lock.json
 RUN npm ci --legacy-bundling
 
-# Copy application source code
+# Copy application source code (including all .ts files, build.ts, etc.)
 COPY . .
 
-# *** CRITICAL: Run the build command to generate the 'dist' folder ***
-# This step must pass without the TSError you encountered.
+# *** CRITICAL: Build the application to create the 'dist' folder ***
+# This step must succeed after you fix the TSError by updating package.json.
 RUN npm run build
-
-
-# ----------------------------------------
-# Stage 2: Runner - Minimal image to run the built application
-# ----------------------------------------
-FROM node:18-alpine AS runner
-
-# Set the working directory
-WORKDIR /app
-
-# Install only the necessary runtime dependencies (no dev tools)
-RUN apk update && apk add --no-cache \
-    dumb-init \
-    libc6-compat \
-    # Add runtime libraries if the final built app needs them
-    pixman cairo pango jpeg gif librsvg
-
-# Copy only the necessary files from the builder stage
-# 1. Copy built JavaScript code (the 'dist' folder)
-COPY --from=builder /app/dist ./dist
-# 2. Copy package.json (for reference/scripts)
-COPY package.json ./
-# 3. Copy production node_modules (dev dependencies are excluded)
-COPY --from=builder /app/node_modules ./node_modules
 
 # Expose the port your app runs on
 EXPOSE 4004
 
-# Use dumb-init for proper signal handling and zombie process reaping
+# Use dumb-init for proper signal handling
 ENTRYPOINT ["dumb-init", "--"]
 
-# *** Set the final command to execute the built entry file ***
-# IMPORTANT: Replace 'index.js' if your main built file has a different name.
+# Set the final command to execute the built entry file
+# IMPORTANT: Replace 'dist/index.js' with your actual built entry point if it's different.
 CMD ["node", "dist/index.js"]
