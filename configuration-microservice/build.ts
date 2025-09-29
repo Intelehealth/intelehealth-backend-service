@@ -24,6 +24,8 @@ import path from 'path';
 
     await copy('./src/views', './dist/views', {});
     await copy('./src/.pem', './dist/.pem', {});
+    // Copy environment files
+    await copy('./env', './dist/env', {});
     // Copy back-end files
     await exec('tsc --build tsconfig.prod.json', './');
   } catch (err) {
@@ -48,6 +50,7 @@ async function removeExceptPublicConfigs() {
         continue;
       }
 
+      // eslint-disable-next-line max-len
       // Special handling: if it's 'public', we need to remove everything inside except 'configs'
       if (item === 'public') {
         const publicItems = await fs.readdir(fullPath);
@@ -62,17 +65,6 @@ async function removeExceptPublicConfigs() {
       }
     }
   }
-}
-
-/**
- * Remove file
- */
-function remove(loc: string): Promise<void> {
-  return new Promise((res, rej) => {
-    return fs.remove(loc, (err) => {
-      return (!!err ? rej(err) : res());
-    });
-  });
 }
 
 /**
