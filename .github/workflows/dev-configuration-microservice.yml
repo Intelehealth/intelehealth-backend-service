@@ -4,7 +4,7 @@ on:
   push:
     branches: [development_master]  
     paths:
-      - 'configuration-microservice/**'  # Only trigger when changes in configration folder
+      - 'configuration-microservice/**'  # Only trigger when changes in portal folder
 env:
   DOCKER_IMAGE_NAME: configuration-microservice
   REMOTE_HOST: ${{secrets.DEV_HOST}}
@@ -32,8 +32,16 @@ jobs:
         cache: 'npm'
         cache-dependency-path: configuration-microservice/package-lock.json
 
+    - name: Install TypeScript globally
+      run: npm install -g typescript
+      working-directory: configuration-microservice
+
+    - name: Install ts-node globally
+      run: npm install -g ts-node
+      working-directory: configuration-microservice
+
     - name: Install dependencies
-      run: npm run install typescript && npm run install ts-node && npm run build && npm ci --production=false
+      run: npm ci --production=false
       working-directory: configuration-microservice
 
    
@@ -99,7 +107,7 @@ jobs:
                 --restart unless-stopped \
                 -p 4004:4004 \
                 --env-file $ENV_FILE_PATH \
-                -v $PEM_FOLDER_PATH:/app/.pem \
+                -v $PEM_FOLDER_PATH:/app/src/.pem \
                 --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
                 $DOCKER_IMAGE_NAME:${{ github.sha }}
             
