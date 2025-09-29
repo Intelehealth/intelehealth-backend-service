@@ -3,15 +3,14 @@ import { RoomServiceClient, Room, AccessToken, EgressClient, EncodedFileOutput, 
 import moment from 'moment';
 const { logStream } = require("../logger/index");
 const { call_recordings } = require("../models");
-import jwt from 'jsonwebtoken';
 
 export class WebRTCService {
     wss: WebSocketServer | null = null;
-    liveSvc: RoomServiceClient | null = null;
+    liveSvc: any;
     egressSvc: EgressClient | null = null;
 
     constructor() {
-      //   this.initLiveSvc()
+        // this.initLiveSvc()
     }
 
     startWebSocketServer({
@@ -70,9 +69,9 @@ export class WebRTCService {
     getRoomList() {
 
         // list rooms
-        // this.liveSvc.listRooms().then((rooms: Room[]) => {
-        //     console.log('existing rooms', rooms);
-        // });
+        this.liveSvc.listRooms().then((rooms: Room[]) => {
+            console.log('existing rooms', rooms);
+        });
 
         // create a new room
         // const opts = {
@@ -284,95 +283,5 @@ export class WebRTCService {
             throw new Error(err?.message ?? 'Something went wrong!')
         }
     }
-
-
-
-    
-    /**
-     * Auto recording: create a room and start recording automatically 
-     */
-  
-async createRoomWithAutoEgress(roomName: string, params?: {
-  roomId?: string;
-  doctorId?: string;
-  patientId?: string;
-  visitId?: string;
-  chwId?: string;
-  nurseName?: string;
-  location?: string;
-}) {
-  try {
-    if (!roomName) throw new Error('Missing roomName');
-
-    console.log('[AutoEgress] Starting room creation with auto recording for room:', roomName);
-
-    // Generate server-side token with roomCreate permission
-    const token = jwt.sign(
-      { video: { roomCreate: true } },
-      process.env.SECRET as string,
-      { issuer: process.env.API_KEY, expiresIn: '10m' }
-    );
-
-    console.log('[AutoEgress] Generated roomCreate token');
-
-    const { BRANDNAME, DOMAIN } = process.env;
-    const strlocation = params?.location || 'Other';
-    const timestamp = new Date();
-    const formattedTime = moment().format('DD-MM-YYYY_HH:mm:ss');
-
-    // Build payload for auto recording
-    const bodyPayload = {
-      name: roomName,
-      egress: {
-        tracks: {
-          filepath: `${BRANDNAME}/${DOMAIN}/${strlocation}/recording-${formattedTime}`,
-          s3: {
-            access_key: process.env.AWS_ACCESS_KEY_ID,
-            secret: process.env.AWS_SECRET_ACCESS_KEY,
-            bucket: process.env.S3_BUCKET_NAME,
-            region: process.env.AWS_REGION,
-            metadata: {
-              doctorId: params?.doctorId || '',
-              patientId: params?.patientId || '',
-              visitId: params?.visitId || '',
-              chwId: params?.chwId || '',
-              nurseName: params?.nurseName || '',
-              location: params?.location || '',
-            },
-          } as any, // cast to any to avoid TS type error
-        },
-      },
-    };
-
-    console.log('[AutoEgress] CreateRoom payload:', JSON.stringify(bodyPayload, null, 2));
-
-    // Call LiveKit CreateRoom endpoint
-    const response = await fetch(`${process.env.LIVEHOST}/twirp/livekit.RoomService/CreateRoom`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(bodyPayload),
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      console.error('[AutoEgress] LiveKit CreateRoom failed:', text);
-      throw new Error(`LiveKit create room failed: ${text}`);
-    }
-
-    const responseJson = await response.json();
-    console.log('[AutoEgress] LiveKit CreateRoom success:', responseJson);
-
-    console.log('[AutoEgress] Auto recording should now be active for this room');
-
-    return responseJson;
-
-  } catch (err: any) {
-    console.error('[AutoEgress] Error in createRoomWithAutoEgress:', err?.message, err?.stack);
-    throw new Error(err?.message || 'Failed to create room with auto recording');
-  }
 }
 
-}
