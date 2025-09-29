@@ -41,7 +41,7 @@ EXPOSE 4004
 # Set the final command to execute the built entry file
 # IMPORTANT: The entry point is dist/src/index.js based on the build output.
 #CMD ["node", "-r", "module-alias/register", "dist/src", "--env=production"]
-CMD ["npm", "run build"]
+CMD ["npm", "run", "build"]
 
 # Start the application
 CMD ["npm", "start"]	
