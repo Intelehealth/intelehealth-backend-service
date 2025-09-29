@@ -27,10 +27,12 @@ COPY package*.json ./
 # Install dependencies
 RUN npm ci --legacy-bundling
 
-RUN npm run build
+
 
 # Copy application code
 COPY . .
+
+RUN npm run build
 
 # Expose the port your app runs on
 EXPOSE 4004
