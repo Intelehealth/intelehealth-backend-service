@@ -23,7 +23,13 @@ import path from 'path';
     });
 
     await copy('./src/views', './dist/views', {});
-    await copy('./src/.pem', './dist/.pem', {});
+    
+    // Copy .pem directory if it exists
+    const pemSourcePath = process.env.PEM_SOURCE_PATH || './src/.pem';
+    if (await fs.pathExists(pemSourcePath)) {
+      await copy(pemSourcePath, './dist/.pem', {});
+    }
+    
     // Copy environment files
     await copy('./env', './dist/env', {});
     // Copy back-end files

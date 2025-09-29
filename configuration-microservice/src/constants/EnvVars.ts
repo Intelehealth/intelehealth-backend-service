@@ -36,5 +36,6 @@ export default {
   DbNameOpenmrs: (process.env.MYSQL_OPENMRS_DB ?? 'openmrs'),
   SslPrivateKey: process.env.SSL_PRIVATE_KEY,
   SslCert: process.env.SSL_CERT,
+  PemFolderPath: process.env.PEM_FOLDER_PATH ?? './src/.pem',
   AllowedOrigins: process.env.ALLOWED_ORIGINS ? JSON.parse(process.env.ALLOWED_ORIGINS) : [],
 } as const;
