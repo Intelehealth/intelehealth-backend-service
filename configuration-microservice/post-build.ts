@@ -8,12 +8,14 @@ import dotenv from 'dotenv';
 import logger from 'jet-logger';
 import { generateConfig } from './config-generator';
 
-// Load environment variables
-const result = dotenv.config({
-  path: path.join(__dirname, `env/${process.env.NODE_ENV || 'development'}.env`),
-});
-if (result.error) {
-  throw result.error;
+// Load environment variables - only in development
+if (process.env.NODE_ENV !== 'production') {
+  const result = dotenv.config({
+    path: path.join(__dirname, `env/${process.env.NODE_ENV || 'development'}.env`),
+  });
+  if (result.error) {
+    throw result.error;
+  }
 }
 
 /**

@@ -30,8 +30,9 @@ import path from 'path';
       await copy(pemSourcePath, './dist/.pem', {});
     }
     
-    // Copy environment files
-    await copy('env', './dist/env', {});
+    if (await fs.pathExists('env')) {
+      await copy('env', './dist/env', {});
+    }
     // Copy back-end files
     await exec('tsc --build tsconfig.prod.json', './');
   } catch (err) {

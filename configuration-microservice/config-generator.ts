@@ -8,16 +8,18 @@ import path from 'path';
 import dotenv from 'dotenv';
 import logger from 'jet-logger';
 
-// Load environment variables FIRST before any other imports
-const result = dotenv.config({
-  path: path.join(
-    __dirname,
-    // eslint-disable-next-line node/no-process-env
-    `env/${process.env.NODE_ENV || 'development'}.env`,
-  ),
-});
-if (result.error) {
-  throw result.error;
+// Load environment variables FIRST before any other imports - only in development
+if (process.env.NODE_ENV !== 'production') {
+  const result = dotenv.config({
+    path: path.join(
+      __dirname,
+      // eslint-disable-next-line node/no-process-env
+      `env/${process.env.NODE_ENV || 'development'}.env`,
+    ),
+  });
+  if (result.error) {
+    throw result.error;
+  }
 }
 
 // Now import database-related modules after environment is loaded
