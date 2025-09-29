@@ -35,6 +35,9 @@ COPY . .
 # Create .pem directory structure for runtime mounting
 RUN mkdir -p src/.pem
 
+# Create .pem directory structure for runtime mounting
+RUN mkdir -p src/.env
+
 RUN npm run build
 
 # Expose the port your app runs on
