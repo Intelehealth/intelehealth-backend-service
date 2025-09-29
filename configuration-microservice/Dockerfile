@@ -1,132 +1,48 @@
-name: configuration-microservice
+FROM node:18-alpine
 
-on:
-  push:
-    branches: [development_master]  
-    paths:
-      - 'configuration-microservice/**'  # Only trigger when changes in portal folder
-env:
-  DOCKER_IMAGE_NAME: configuration-microservice
-  REMOTE_HOST: ${{secrets.DEV_HOST}}
-  REMOTE_USER: ${{secrets.DEV_USER}}
-  REMOTE_PORT: 22
-  ENV_FILE_PATH: /home/ubuntu/deploy/configuration-microservice/.env
-  PEM_FOLDER_PATH: /home/ubuntu/deploy/configuration-microservice/.pem
+WORKDIR /app
 
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-     
+RUN apk update && apk upgrade && \
+    apk add --no-cache \
+    dumb-init \
+    curl \
+    libc6-compat \
+    python3 \
+    make \
+    g++ \
+    gcc \
+    libc-dev \
+    pkgconfig \
+    pixman-dev \
+    cairo-dev \
+    pango-dev \
+    jpeg-dev \
+    giflib-dev \
+    librsvg-dev \
+    && rm -rf /var/cache/apk/*
 
-    - name: Change to configuration-microservice directory
-      run: cd configuration-microservice
+# Copy package files first
+COPY package*.json ./
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: configuration-microservice/package-lock.json
+# Install dependencies
+RUN npm ci --legacy-bundling
 
-    - name: Install TypeScript globally
-      run: npm install -g typescript
-      working-directory: configuration-microservice
 
-    - name: Install ts-node globally
-      run: npm install -g ts-node
-      working-directory: configuration-microservice
 
-    - name: Install dependencies
-      run: npm ci --production=false
-      working-directory: configuration-microservice
+# Copy application code (excluding .pem files)
+COPY . .
 
-   
+# Create .pem directory structure for runtime mounting
+RUN mkdir -p src/.pem
 
-    - name: Build Docker image from configuration-microservice directory
-      run: |
-        cd configuration-microservice
-        docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} .
-        docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > ../app-image.tar
+RUN npm run build
 
-    - name: Deploy to remote host
-      env:
-        SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
-      run: |
-        mkdir -p ~/.ssh
-        chmod 700 ~/.ssh
-        echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-        chmod 600 ~/.ssh/deploy_key
-        
-        # Copy Docker image to remote host
-        scp -i ~/.ssh/deploy_key \
-            -o StrictHostKeyChecking=no \
-            -P $REMOTE_PORT \
-            app-image.tar \
-            $REMOTE_USER@$REMOTE_HOST:/tmp/
-        
-        # SSH into remote host and deploy
-        ssh -i ~/.ssh/deploy_key \
-            -o StrictHostKeyChecking=no \
-            -P $REMOTE_PORT \
-            $REMOTE_USER@$REMOTE_HOST <<'EOF'
-            DOCKER_IMAGE_NAME="${{ env.DOCKER_IMAGE_NAME }}"
-            ENV_FILE_PATH="${{ env.ENV_FILE_PATH }}"
-            PEM_FOLDER_PATH="${{ env.PEM_FOLDER_PATH }}"
-            GITHUB_SHA="${{ github.sha }}"
-            
-         
-             
-            
-            # Load Docker image
-            docker load -i /tmp/app-image.tar
-            rm /tmp/app-image.tar
-            
-            # Stop and remove existing container if running
-            docker stop $DOCKER_IMAGE_NAME || true
-            docker rm $DOCKER_IMAGE_NAME || true
-            
-            # Verify that the .env file exists
-            if [ ! -f "$ENV_FILE_PATH" ]; then
-                echo "Error: .env file not found at $ENV_FILE_PATH"
-                exit 1
-            fi
-            
-            # Verify that the .pem folder exists
-            if [ ! -d "$PEM_FOLDER_PATH" ]; then
-                echo "Error: .pem folder not found at $PEM_FOLDER_PATH"
-                exit 1
-            fi
-            
-            # Run new container using existing files directly
-            docker run -d \
-                --name $DOCKER_IMAGE_NAME \
-                --restart unless-stopped \
-                -p 4004:4004 \
-                --env-file $ENV_FILE_PATH \
-                -v $PEM_FOLDER_PATH:/app/src/.pem \
-                --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
-                $DOCKER_IMAGE_NAME:${{ github.sha }}
-            
-            # Clean up old images
-            docker image prune -f
-            
-            echo "configuration-microservice deployment completed successfully"
-        EOF
+# Expose the port your app runs on
+EXPOSE 4004
 
-    - name: Verify deployment
-      env:
-        SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
-      run: |
-        mkdir -p ~/.ssh
-        echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-        chmod 600 ~/.ssh/deploy_key
-        
-        ssh -i ~/.ssh/deploy_key \
-            -o StrictHostKeyChecking=no \
-            -p $REMOTE_PORT \
-            $REMOTE_USER@$REMOTE_HOST \
-            "docker ps | grep $DOCKER_IMAGE_NAME && echo 'configuration-microservice deployment successful!'"
+
+ 
+# Set the final command to execute the built entry file
+# IMPORTANT: The entry point is dist/src/index.js based on the build output.
+#CMD ["node", "-r", "module-alias/register", "dist/src", "--env=production"]
+CMD ["npm", "start"]
