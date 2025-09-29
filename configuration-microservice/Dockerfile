@@ -1,49 +1,60 @@
-# --- Stage 1: Builder ---
+# ----------------------------------------
+# Stage 1: Builder - Installs dependencies and runs the build
+# ----------------------------------------
 FROM node:18-alpine AS builder
 
+# Set the working directory
 WORKDIR /app
 
-# Install necessary build tools (only needed for the builder stage)
+# Install build-time dependencies (including packages needed for native module compilation)
+# Note: These are removed in the final stage, reducing image size.
 RUN apk update && apk add --no-cache \
     python3 make g++ gcc libc-dev pkgconfig \
-    # ... (other build dependencies like cairo-dev, etc. from your original list)
+    pixman-dev cairo-dev pango-dev jpeg-dev giflib-dev librsvg-dev
 
-# Copy package files and install dependencies
+# Copy package files first to leverage Docker layer caching
 COPY package*.json ./
+
+# Install dependencies, including devDependencies needed for the build (like typescript, ts-node, etc.)
 RUN npm ci --legacy-bundling
 
 # Copy application source code
 COPY . .
 
-# Run the build command
+# *** CRITICAL: Run the build command to generate the 'dist' folder ***
+# This step must pass without the TSError you encountered.
 RUN npm run build
 
-# --- Stage 2: Production/Runner ---
-# Use a minimal base image for the final runtime
+
+# ----------------------------------------
+# Stage 2: Runner - Minimal image to run the built application
+# ----------------------------------------
 FROM node:18-alpine AS runner
 
-# Install only runtime-specific dependencies if needed (e.g., dumb-init, libc6-compat)
-# Use a minimal set from your original list
+# Set the working directory
+WORKDIR /app
+
+# Install only the necessary runtime dependencies (no dev tools)
 RUN apk update && apk add --no-cache \
     dumb-init \
     libc6-compat \
-    # Add any runtime dependencies like image libraries if needed by the built code
+    # Add runtime libraries if the final built app needs them
     pixman cairo pango jpeg gif librsvg
 
-WORKDIR /app
-
 # Copy only the necessary files from the builder stage
-# Copy built code (the 'dist' folder)
+# 1. Copy built JavaScript code (the 'dist' folder)
 COPY --from=builder /app/dist ./dist
-# Copy package.json and node_modules (production dependencies)
-COPY package*.json ./
+# 2. Copy package.json (for reference/scripts)
+COPY package.json ./
+# 3. Copy production node_modules (dev dependencies are excluded)
 COPY --from=builder /app/node_modules ./node_modules
 
 # Expose the port your app runs on
 EXPOSE 4004
 
-# Run the application using the built files
-# The dumb-init wrapper is good practice for container entry points
+# Use dumb-init for proper signal handling and zombie process reaping
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["node", "dist/index.js"] 
-# *** CRITICAL: Replace 'dist/index.js' with your actual entry point ***
+
+# *** Set the final command to execute the built entry file ***
+# IMPORTANT: Replace 'index.js' if your main built file has a different name.
+CMD ["node", "dist/index.js"]
