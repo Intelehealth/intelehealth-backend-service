@@ -31,7 +31,7 @@ import path from 'path';
     }
     
     // Copy environment files
-    await copy('./env', './dist/env', {});
+    await copy('env', './dist/env', {});
     // Copy back-end files
     await exec('tsc --build tsconfig.prod.json', './');
   } catch (err) {
