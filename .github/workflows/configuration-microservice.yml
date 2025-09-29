@@ -33,7 +33,7 @@ jobs:
         cache-dependency-path: configuration-microservice/package-lock.json
 
     - name: Install dependencies
-      run: npm run build && npm ci --production=false
+      run: npm run install typescript && npm run install ts-node && npm run build && npm ci --production=false
       working-directory: configuration-microservice
 
    
