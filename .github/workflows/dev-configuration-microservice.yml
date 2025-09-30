@@ -36,6 +36,9 @@ jobs:
       run: npm ci --production=false
       working-directory: configuration-microservice
 
+    - name: Create Build
+      run: npm run build
+      working-directory: configuration-microservice
    
 
     - name: Build Docker image from configuration-microservice directory
