@@ -7,15 +7,15 @@ import fs from 'fs-extra';
 import path from 'path';
 import dotenv from 'dotenv';
 import logger from 'jet-logger';
-console.log(JSON.stringify(process.env));
 
+dotenv.config();
 // Load environment variables FIRST before any other imports - only in development
-const result = dotenv.config({
-  path: process.env.ENV_FILE_PATH ?? path.join(__dirname, `env/${process.env.NODE_ENV || 'development'}.env`),
-});
-if (result.error) {
-  throw result.error;
-}
+//const result = dotenv.config({
+//  path: process.env.ENV_FILE_PATH ?? path.join(__dirname, `env/${process.env.NODE_ENV || 'development'}.env`),
+//});
+//if (result.error) {
+//  throw result.error;
+//}
 
 // Now import database-related modules after environment is loaded
 import connection from './src/database/connection';
