@@ -9,12 +9,14 @@ import logger from 'jet-logger';
 import { generateConfig } from './config-generator';
 
 // Load environment variables - only in development
-const result = dotenv.config({
-  path: process.env.ENV_FILE_PATH ?? path.join(__dirname, `env/${process.env.NODE_ENV || 'development'}.env`),
-});
-if (result.error) {
-  throw result.error;
-}
+// const result = dotenv.config({
+//   path: process.env.ENV_FILE_PATH ?? path.join(__dirname, `env/${process.env.NODE_ENV || 'development'}.env`),
+// });
+// if (result.error) {
+//   throw result.error;
+// }
+
+dotenv.config();
 
 /**
  * Main function to execute post-build tasks
