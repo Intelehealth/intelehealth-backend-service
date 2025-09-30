@@ -97,7 +97,7 @@ jobs:
             docker run -d \
                 --name $DOCKER_IMAGE_NAME \
                 --restart unless-stopped \
-                -p 3030:3030 \
+                -p 4004:4004 \
                 --env-file $ENV_FILE_PATH \
                 -v $PEM_FOLDER_PATH:/app/.pem \
                 --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
