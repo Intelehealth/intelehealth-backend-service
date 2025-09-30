@@ -7,7 +7,7 @@ import logger from 'jet-logger';
 import childProcess from 'child_process';
 import path from 'path';
 
-
+const a = 'A';
 /**
  * Start
  */
