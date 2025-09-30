@@ -9,6 +9,7 @@ import dotenv from 'dotenv';
 import logger from 'jet-logger';
 
 dotenv.config();
+console.log(JSON.stringify(process.env));
 // Load environment variables FIRST before any other imports - only in development
 //const result = dotenv.config({
 //  path: process.env.ENV_FILE_PATH ?? path.join(__dirname, `env/${process.env.NODE_ENV || 'development'}.env`),
