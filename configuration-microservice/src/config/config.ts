@@ -3,13 +3,11 @@ import dotenv from 'dotenv';
 import { Dialect, Options } from 'sequelize';
 
 // Set the env file - only load .env files in development
-if (process.env.NODE_ENV !== 'production') {
-    const result2 = dotenv.config({
-        path: path.join(__dirname, `../../env/${process.env.NODE_ENV || 'development'}.env`),
-    });
-    if (result2.error) {
-        throw result2.error;
-    }
+const result2 = dotenv.config({
+    path: process.env.ENV_FILE_PATH ?? path.join(__dirname, `../../env/${process.env.NODE_ENV || 'development'}.env`),
+});
+if (result2.error) {
+    throw result2.error;
 }
 
 interface ConfigTs {
