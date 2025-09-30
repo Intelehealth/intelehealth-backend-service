@@ -7,6 +7,7 @@ import fs from 'fs-extra';
 import path from 'path';
 import dotenv from 'dotenv';
 import logger from 'jet-logger';
+console.log(JSON.stringify(process.env));
 
 // Load environment variables FIRST before any other imports - only in development
 const result = dotenv.config({
