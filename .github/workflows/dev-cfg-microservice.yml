@@ -10,8 +10,8 @@ env:
   REMOTE_HOST: ${{secrets.DEV_HOST}}
   REMOTE_USER: ${{secrets.DEV_USER}}
   REMOTE_PORT: 22
-  ENV_FILE_PATH: /home/ubuntu/deploy/configuration-microservice/.env
-  PEM_FOLDER_PATH: /home/ubuntu/deploy/configuration-microservice/.pem
+  ENV_FILE_PATH: /home/ubuntu/deploy/cfg-microservice/.env
+  PEM_FOLDER_PATH: /home/ubuntu/deploy/cfg-microservice/.pem
 
 jobs:
   build-and-deploy:

@@ -16,6 +16,7 @@ import logger from 'jet-logger';
   // logger.warn(`Could not load .env file from ${envFile}: ${result.error.message}`);
   // Try loading from default location
   dotenv.config();
+  console.log(JSON.stringify(process.env, null, 2));
 // } else {
   // logger.info(`Loaded environment variables from ${envFile}`);
 // }
