@@ -10,7 +10,7 @@ env:
   REMOTE_HOST: ${{secrets.DEV_HOST}}
   REMOTE_USER: ${{secrets.DEV_USER}}
   REMOTE_PORT: 22
-  ENV_FILE_PATH: /home/ubuntu/deploy/configuration-microservice/.env
+  ENV_FILE_PATH: /home/ubuntu/deploy/configuration-microservice/development.env
   PEM_FOLDER_PATH: /home/ubuntu/deploy/configuration-microservice/.pem
   NODE_ENV: production
 
