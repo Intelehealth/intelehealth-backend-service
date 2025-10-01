@@ -58,6 +58,15 @@ app.use(cors({
   credentials: true
 }));
 
+// Health check endpoint
+app.get(Paths.Health, (_: Request, res: Response) => {
+  res.status(HttpStatusCodes.OK).json({ 
+    status: 'healthy', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
 // Add APIs, must be after middleware
 app.use(Paths.Base, BaseRouter);
 

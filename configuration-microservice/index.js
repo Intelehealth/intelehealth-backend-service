@@ -2,6 +2,7 @@ const XLSX = require('xlsx');
 const mysql = require('mysql2/promise');
 const path = require('path');
 const dotenv = require('dotenv');
+const a = 'R'; 
 
 // Load environment variables
 dotenv.config({ path: path.resolve(__dirname, 'env/development.env') });

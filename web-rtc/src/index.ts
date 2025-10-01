@@ -9,6 +9,7 @@ const cors = require('cors');
 const Sequelize = require("sequelize");
 const db = require("./models");
 
+
 class Server {
     app: express.Application;
     port: number = !isNaN(Number(process.env.PORT)) ? Number(process.env.PORT) : 3000;
