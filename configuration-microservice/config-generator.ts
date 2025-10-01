@@ -71,8 +71,12 @@ export async function generateConfig(
   try {
     logger.info('Starting config generation process...');
     
+    // Check if required environment variables are present
+    const requiredEnvVars = ['NODE_ENV', 'MYSQL_HOST', 'MYSQL_DB', 'MYSQL_USERNAME', 'MYSQL_PASS'];
+    const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+    
     // Check if we're in a build environment where database might not be available
-    const isBuildTime = process.env.NODE_ENV === 'production' && process.env.MYSQL_HOST === 'localhost';
+    const isBuildTime = process.env.NODE_ENV === 'production' && missingVars.length > 0;
     
     if (isBuildTime) {
       logger.info('Build-time detected: Skipping config generation (database not available)');
