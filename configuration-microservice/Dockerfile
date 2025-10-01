@@ -1,204 +1,46 @@
-name: Deploy Configuration Microservice
+# Multi-stage build for configuration-microservice
+FROM node:18-alpine AS base
 
-on:
-  push:
-    branches:
-      - development_master
-    paths:
-      - 'configuration-microservice/**'
-    
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-    
-    env:
-      # Docker image configuration
-      IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/configuration-microservice
-      CONTAINER_NAME: configuration-microservice
-      
-      # Environment file and PEM folder paths (adjust these paths as needed)
-      ENV_FILE_PATH: /home/ubuntu/deploy/cfg-microservice/.env
-      PEM_FOLDER_PATH: /home/ubuntu/deploy/cfg-microservice/.pem
-      
-      # Application port
-      APP_PORT: 4004
+# Install system dependencies
+RUN apk update && apk upgrade && \
+    apk add --no-cache \
+    dumb-init \
+    curl \
+    && rm -rf /var/cache/apk/*
 
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      
-      - name: Debug Repository Info
-        run: |
-          echo "🔍 Repository Information:"
-          echo "Repository: ${{ github.repository }}"
-          echo "Repository Owner: ${{ github.repository_owner }}"
-          echo "Actor: ${{ github.actor }}"
-          echo "Image Name: ghcr.io/${{ github.repository_owner }}/configuration-microservice"
-      
-      - name: Set Image Name
-        id: image_name
-        run: |
-          REPO_OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          echo "image_name=ghcr.io/$REPO_OWNER_LOWER/configuration-microservice" >> $GITHUB_OUTPUT
-          echo "🐳 Final image name: ghcr.io/$REPO_OWNER_LOWER/configuration-microservice"
+# Set working directory
+WORKDIR /app
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
 
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+# Copy package files
+COPY package*.json ./
 
-      
+# Install dependencies
+RUN npm ci --only=production --legacy-bundling && \
+    npm cache clean --force
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ steps.image_name.outputs.image_name }}
-          tags: |
-            type=ref,event=branch
-            type=sha,prefix={{branch}}-
-            type=raw,value=latest,enable={{is_default_branch}}
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./configuration-microservice
-          file: ./configuration-microservice/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          build-args: |
-            --env-file=${{ env.ENV_FILE_PATH }}
-      - name: Deploy to Remote Server
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.DEV_HOST }}
-          username: ${{ secrets.DEV_USER }}
-          key: ${{ secrets.DEV_SSH_KEY }}
-          port: 22
-          script: |
-            # Set variables
-            IMAGE_NAME="${{ steps.image_name.outputs.image_name }}"
-            CONTAINER_NAME="${{ env.CONTAINER_NAME }}"
-            ENV_FILE_PATH="${{ env.ENV_FILE_PATH }}"
-            PEM_FOLDER_PATH="${{ env.PEM_FOLDER_PATH }}"
-            APP_PORT="${{ env.APP_PORT }}"
-            
-            # Create necessary directories if they don't exist
-            sudo mkdir -p $(dirname "$ENV_FILE_PATH")
-            sudo mkdir -p "$PEM_FOLDER_PATH"
-            
-            # Debug: Check if .env file exists and show its contents
-            # Note: This is the runtime .env file on the server, different from build-time .env
-            echo "🔍 Checking runtime environment file..."
-            echo "📍 Looking for runtime env file at: $ENV_FILE_PATH"
-            echo "📍 Current working directory: $(pwd)"
-            echo "📍 Current user: $(whoami)"
-            
-            if [ -f "$ENV_FILE_PATH" ]; then
-              echo "✅ Environment file found at: $ENV_FILE_PATH"
-              echo "📋 File permissions:"
-              ls -la "$ENV_FILE_PATH"
-              echo "📋 File contents (first 10 lines):"
-              head -10 "$ENV_FILE_PATH" | sed 's/^/  /'
-              echo "📋 File size: $(wc -c < "$ENV_FILE_PATH") bytes"
-            else
-              echo "❌ Environment file NOT found at: $ENV_FILE_PATH"
-              echo "📁 Directory contents:"
-              ls -la $(dirname "$ENV_FILE_PATH") || echo "Directory doesn't exist"
-              echo "🔍 Searching for .env files in common locations:"
-              find /home/ubuntu -name "*.env" -type f 2>/dev/null | head -5 || echo "No .env files found"
-            fi
-            
-            # Pull the latest image
-            echo "Pulling latest Docker image..."
-            echo "🐳 Image name: $IMAGE_NAME:latest"
-            if docker pull $IMAGE_NAME:latest; then
-              echo "✅ Successfully pulled image"
-            else
-              echo "❌ Failed to pull image - this might be the first deployment"
-              echo "📋 Available images:"
-              docker images | grep configuration-microservice || echo "No configuration-microservice images found"
-            fi
-            
-            # Stop and remove existing container if it exists
-            echo "Stopping existing container..."
-            docker stop $CONTAINER_NAME 2>/dev/null || true
-            docker rm $CONTAINER_NAME 2>/dev/null || true
-            
-            # Run the new container
-            # Using the existing .env file on the server for runtime environment variables
-            echo "Starting new container..."
-            echo "🐳 Docker run command (using server's .env file for runtime):"
-            echo "docker run -d --name $CONTAINER_NAME --restart unless-stopped --env-file $ENV_FILE_PATH -v $PEM_FOLDER_PATH:/app/src/.pem:ro -p $APP_PORT:$APP_PORT --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro $IMAGE_NAME:latest"
-            
-            if docker run -d \
-              --name $CONTAINER_NAME \
-              --restart unless-stopped \
-              --env-file $ENV_FILE_PATH \
-              -v $PEM_FOLDER_PATH:/app/src/.pem:ro \
-              -p $APP_PORT:$APP_PORT \
-              --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
-              $IMAGE_NAME:latest; then
-              echo "✅ Container started successfully"
-            else
-              echo "❌ Container failed to start with env-file, trying without..."
-              docker run -d \
-                --name $CONTAINER_NAME \
-                --restart unless-stopped \
-                -v $PEM_FOLDER_PATH:/app/src/.pem:ro \
-                -p $APP_PORT:$APP_PORT \
-                --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
-                $IMAGE_NAME:latest
-            fi
-            
-            # Wait a moment for the container to start
-            sleep 5
-            
-            # Check if container is running
-            if docker ps | grep -q $CONTAINER_NAME; then
-              echo "✅ Container $CONTAINER_NAME is running successfully"
-              echo "🔍 Checking environment variables in container:"
-              docker exec $CONTAINER_NAME env | grep -E "(NODE_ENV|PORT|DB_|API_|CONFIG_)" | head -10 || echo "No matching environment variables found"
-              echo "📋 Recent container logs:"
-              docker logs --tail 20 $CONTAINER_NAME
-            else
-              echo "❌ Container $CONTAINER_NAME failed to start"
-              echo "📋 Container logs:"
-              docker logs $CONTAINER_NAME
-              echo "📋 Docker events (last 10):"
-              docker events --since 5m --until now | tail -10
-              exit 1
-            fi
-            
-            # Clean up old images (keep last 3 versions)
-            echo "Cleaning up old Docker images..."
-            docker image prune -f
-            docker images $IMAGE_NAME --format "table {{.Repository}}\t{{.Tag}}\t{{.CreatedAt}}" | tail -n +4 | head -n -1 | awk '{print $1":"$2}' | xargs -r docker rmi || true
-      - name: Health Check
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.DEV_HOST }}
-          username: ${{ secrets.DEV_USER }}
-          key: ${{ secrets.DEV_SSH_KEY }}
-          script: |
-            # Wait for service to be ready
-            echo "Performing health check..."
-            sleep 10
-            
-            # Check if the service is responding
-            if curl -f http://localhost:${{ env.APP_PORT }}/health 2>/dev/null; then
-              echo "✅ Health check passed - service is responding"
-            else
-              echo "⚠️ Health check failed - service may not be ready yet"
-              echo "Container status:"
-              docker ps | grep ${{ env.CONTAINER_NAME }} || echo "Container not found"
-              echo "Container logs:"
-              docker logs --tail 10 ${{ env.CONTAINER_NAME }}
-            fi
+# Copy application code
+COPY --chown=nodejs:nodejs . .
+
+# Create .pem directory (will be mounted at runtime)
+RUN mkdir -p src/.pem && \
+    chown -R nodejs:nodejs src/.pem
+
+# Switch to non-root user
+USER nodejs
+
+# Expose port
+EXPOSE 4004
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:4004/health || exit 1
+
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["dumb-init", "--"]
+
+# Start the application
+CMD ["npm", "start"]
