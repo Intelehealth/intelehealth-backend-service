@@ -52,3 +52,5 @@ ENTRYPOINT ["dumb-init", "--"]
 
 # Start the application
 CMD ["npm", "start"]
+
+RUN "npm run config:published"
