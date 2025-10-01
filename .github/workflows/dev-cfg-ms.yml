@@ -13,7 +13,7 @@ jobs:
     
     env:
       # Docker image configuration
-      IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/configuration-microservice
+      IMAGE_NAME: configuration-microservice
       CONTAINER_NAME: configuration-microservice
       
       # Environment file and PEM folder paths (adjust these paths as needed)
@@ -27,40 +27,9 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
       
-      - name: Debug Repository Info
-        run: |
-          echo "🔍 Repository Information:"
-          echo "Repository: ${{ github.repository }}"
-          echo "Repository Owner: ${{ github.repository_owner }}"
-          echo "Actor: ${{ github.actor }}"
-          echo "Image Name: ghcr.io/${{ github.repository_owner }}/configuration-microservice"
-      
-      - name: Set Image Name
-        id: image_name
-        run: |
-          REPO_OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          echo "image_name=ghcr.io/$REPO_OWNER_LOWER/configuration-microservice" >> $GITHUB_OUTPUT
-          echo "🐳 Final image name: ghcr.io/$REPO_OWNER_LOWER/configuration-microservice"
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ steps.image_name.outputs.image_name }}
-          tags: |
-            type=ref,event=branch
-            type=sha,prefix={{branch}}-
-            type=raw,value=latest,enable={{is_default_branch}}
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -71,6 +40,8 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            --env-file=${{ env.ENV_FILE_PATH }}
       - name: Deploy to Remote Server
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -91,8 +62,9 @@ jobs:
             sudo mkdir -p "$PEM_FOLDER_PATH"
             
             # Debug: Check if .env file exists and show its contents
-            echo "🔍 Checking environment file..."
-            echo "📍 Looking for env file at: $ENV_FILE_PATH"
+            # Note: This is the runtime .env file on the server, different from build-time .env
+            echo "🔍 Checking runtime environment file..."
+            echo "📍 Looking for runtime env file at: $ENV_FILE_PATH"
             echo "📍 Current working directory: $(pwd)"
             echo "📍 Current user: $(whoami)"
             
@@ -128,8 +100,9 @@ jobs:
             docker rm $CONTAINER_NAME 2>/dev/null || true
             
             # Run the new container
+            # Using the existing .env file on the server for runtime environment variables
             echo "Starting new container..."
-            echo "🐳 Docker run command:"
+            echo "🐳 Docker run command (using server's .env file for runtime):"
             echo "docker run -d --name $CONTAINER_NAME --restart unless-stopped --env-file $ENV_FILE_PATH -v $PEM_FOLDER_PATH:/app/src/.pem:ro -p $APP_PORT:$APP_PORT --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro $IMAGE_NAME:latest"
             
             if docker run -d \
