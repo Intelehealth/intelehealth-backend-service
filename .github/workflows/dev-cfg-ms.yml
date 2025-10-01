@@ -63,7 +63,6 @@ jobs:
           username: ${{ secrets.DEV_USER }}
           key: ${{ secrets.DEV_SSH_KEY }}
           port: 22
-          envs: IMAGE_NAME,CONTAINER_NAME,ENV_FILE_PATH,PEM_FOLDER_PATH,APP_PORT
           script: |
             # Set variables
             IMAGE_NAME="${{ env.IMAGE_NAME }}"
@@ -73,21 +72,28 @@ jobs:
             APP_PORT="${{ env.APP_PORT }}"
             
             # Create necessary directories if they don't exist
-           
+            sudo mkdir -p $(dirname "$ENV_FILE_PATH")
             sudo mkdir -p "$PEM_FOLDER_PATH"
             
             # Debug: Check if .env file exists and show its contents
             echo "🔍 Checking environment file..."
+            echo "📍 Looking for env file at: $ENV_FILE_PATH"
+            echo "📍 Current working directory: $(pwd)"
+            echo "📍 Current user: $(whoami)"
+            
             if [ -f "$ENV_FILE_PATH" ]; then
               echo "✅ Environment file found at: $ENV_FILE_PATH"
               echo "📋 File permissions:"
               ls -la "$ENV_FILE_PATH"
               echo "📋 File contents (first 10 lines):"
               head -10 "$ENV_FILE_PATH" | sed 's/^/  /'
+              echo "📋 File size: $(wc -c < "$ENV_FILE_PATH") bytes"
             else
               echo "❌ Environment file NOT found at: $ENV_FILE_PATH"
               echo "📁 Directory contents:"
               ls -la $(dirname "$ENV_FILE_PATH") || echo "Directory doesn't exist"
+              echo "🔍 Searching for .env files in common locations:"
+              find /home/ubuntu -name "*.env" -type f 2>/dev/null | head -5 || echo "No .env files found"
             fi
             
             # Pull the latest image
@@ -101,14 +107,28 @@ jobs:
             
             # Run the new container
             echo "Starting new container..."
-            docker run -d \
+            echo "🐳 Docker run command:"
+            echo "docker run -d --name $CONTAINER_NAME --restart unless-stopped --env-file $ENV_FILE_PATH -v $PEM_FOLDER_PATH:/app/src/.pem:ro -p $APP_PORT:$APP_PORT --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro $IMAGE_NAME:latest"
+            
+            if docker run -d \
               --name $CONTAINER_NAME \
               --restart unless-stopped \
               --env-file $ENV_FILE_PATH \
               -v $PEM_FOLDER_PATH:/app/src/.pem:ro \
               -p $APP_PORT:$APP_PORT \
               --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
-              $IMAGE_NAME:latest
+              $IMAGE_NAME:latest; then
+              echo "✅ Container started successfully"
+            else
+              echo "❌ Container failed to start with env-file, trying without..."
+              docker run -d \
+                --name $CONTAINER_NAME \
+                --restart unless-stopped \
+                -v $PEM_FOLDER_PATH:/app/src/.pem:ro \
+                -p $APP_PORT:$APP_PORT \
+                --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
+                $IMAGE_NAME:latest
+            fi
             
             # Wait a moment for the container to start
             sleep 5
@@ -116,10 +136,16 @@ jobs:
             # Check if container is running
             if docker ps | grep -q $CONTAINER_NAME; then
               echo "✅ Container $CONTAINER_NAME is running successfully"
+              echo "🔍 Checking environment variables in container:"
+              docker exec $CONTAINER_NAME env | grep -E "(NODE_ENV|PORT|DB_|API_|CONFIG_)" | head -10 || echo "No matching environment variables found"
+              echo "📋 Recent container logs:"
               docker logs --tail 20 $CONTAINER_NAME
             else
               echo "❌ Container $CONTAINER_NAME failed to start"
+              echo "📋 Container logs:"
               docker logs $CONTAINER_NAME
+              echo "📋 Docker events (last 10):"
+              docker events --since 5m --until now | tail -10
               exit 1
             fi
             
@@ -133,7 +159,6 @@ jobs:
           host: ${{ secrets.DEV_HOST }}
           username: ${{ secrets.DEV_USER }}
           key: ${{ secrets.DEV_SSH_KEY }}
-          envs: APP_PORT,CONTAINER_NAME
           script: |
             # Wait for service to be ready
             echo "Performing health check..."
