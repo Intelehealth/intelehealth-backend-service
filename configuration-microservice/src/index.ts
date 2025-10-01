@@ -57,6 +57,17 @@ const start = async (): Promise<void> => {
   try {
     await connection.sync(); // Synchronizes the database with the defined models
     await connectionOpenmrs.sync(); // Synchronizes the database with the defined models
+    
+    // Generate config files at runtime if they don't exist
+    try {
+      const { generateConfig } = await import('../config-generator');
+      logger.info('Generating config files at runtime...');
+      await generateConfig({ mode: 'published' });
+      logger.info('Config files generated successfully');
+    } catch (configError) {
+      logger.warn('Failed to generate config files at runtime:', configError);
+      // Don't fail the startup if config generation fails
+    }
   } catch (error) {
     logger.err(error); // Logs any errors that occur
     process.exit(1); // Exits the process with an error status code
