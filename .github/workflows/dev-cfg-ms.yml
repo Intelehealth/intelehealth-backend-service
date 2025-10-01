@@ -37,6 +37,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Prepare environment file
+        run: |
+          echo "Preparing environment file for build..."
+          # Copy the appropriate .env file to the build context
+          cp configuration-microservice/env/production.env configuration-microservice/.env
+          echo "Environment file prepared:"
+          head -5 configuration-microservice/.env
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -56,6 +64,8 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            ENV_FILE_PATH=${{ env.ENV_FILE_PATH }}
       - name: Deploy to Remote Server
         uses: appleboy/ssh-action@v1.0.3
         with:
