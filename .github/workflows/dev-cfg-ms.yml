@@ -52,49 +52,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Copy server .env file for build
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.DEV_HOST }}
-          username: ${{ secrets.DEV_USER }}
-          key: ${{ secrets.DEV_SSH_KEY }}
-          script: |
-            echo "📋 Copying server .env file for Docker build process..."
-            if [ -f "${{ env.ENV_FILE_PATH }}" ]; then
-              echo "✅ Server .env file found, copying to build context..."
-              # Create a temporary file with the server's .env content
-              cat "${{ env.ENV_FILE_PATH }}" > /tmp/server.env
-              echo "📋 Server .env file copied successfully"
-              echo "📋 First 5 lines of server .env:"
-              head -5 /tmp/server.env
-            else
-              echo "❌ Server .env file not found at ${{ env.ENV_FILE_PATH }}"
-              echo "📁 Directory contents:"
-              ls -la $(dirname "${{ env.ENV_FILE_PATH }}") || echo "Directory doesn't exist"
-              exit 1
-            fi
-
-      - name: Download server .env file
-        uses: appleboy/scp-action@v0.1.4
-        with:
-          host: ${{ secrets.DEV_HOST }}
-          username: ${{ secrets.DEV_USER }}
-          key: ${{ secrets.DEV_SSH_KEY }}
-          source: "/tmp/server.env"
-          target: "configuration-microservice/.env"
-
-      - name: Verify .env file for build
-        run: |
-          echo "🔍 Verifying .env file for Docker build..."
-          if [ -f "configuration-microservice/.env" ]; then
-            echo "✅ .env file ready for Docker build"
-            echo "📋 First 5 lines:"
-            head -5 configuration-microservice/.env
-            echo "📋 File size: $(wc -c < configuration-microservice/.env) bytes"
-          else
-            echo "❌ .env file not found for build"
-            exit 1
-          fi
+      
 
       - name: Extract metadata
         id: meta
