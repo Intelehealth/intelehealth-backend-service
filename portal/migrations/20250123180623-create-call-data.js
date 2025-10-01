@@ -23,6 +23,9 @@ module.exports = {
       call_status: {
         type: Sequelize.STRING
       },
+      reason: {
+        type: Sequelize.STRING
+      },
       call_duration: {
         type: Sequelize.INTEGER
       },

@@ -2,14 +2,22 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    return queryInterface.addColumn("links", "type", {
-      type: Sequelize.STRING,
-      defaultValue: "presctiption-verification",
-      allowNull: false
-    });
+    const tableDescription = await queryInterface.describeTable("links");
+
+    if (!tableDescription.type) {
+      return queryInterface.addColumn("links", "type", {
+        type: Sequelize.STRING,
+        defaultValue: "presctiption-verification",
+        allowNull: false
+      });
+    }
   },
 
   down: async (queryInterface, Sequelize) => {
-    return queryInterface.removeColumn("links", "type");
+    const tableDescription = await queryInterface.describeTable("links");
+
+    if (tableDescription.type) {
+      return queryInterface.removeColumn("links", "type");
+    }
   }
 };

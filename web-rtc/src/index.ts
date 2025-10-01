@@ -6,7 +6,10 @@ import { WebSocketController } from './controllers/websocket.controller';
 import * as http from 'http';
 import * as https from 'https';
 const cors = require('cors');
-const c = 'OK';
+const Sequelize = require("sequelize");
+const db = require("./models");
+
+
 class Server {
     app: express.Application;
     port: number = !isNaN(Number(process.env.PORT)) ? Number(process.env.PORT) : 3000;
@@ -14,6 +17,11 @@ class Server {
     constructor() {
         let server;
         this.app = express();
+        
+        // Add these middleware before routes
+        this.app.use(express.json());
+        this.app.use(express.urlencoded({ extended: true }));
+        
         this.app.use(cors({
             // origin: "*"
             credentials: true,
@@ -36,6 +44,22 @@ class Server {
         });
         this.init();
         new WebSocketController(server);
+
+        // If needed, move this definition to models/session.js
+        db.sequelize.define("Session", {
+            sid: {
+              type: db.Sequelize.STRING,
+              primaryKey: true,
+            },
+            rememberme: db.Sequelize.BOOLEAN,
+            expires: db.Sequelize.DATE,
+            data: db.Sequelize.TEXT,
+        });
+        
+        // Ensure table is created
+        db.sequelize.sync().then(() => {
+            console.log("Session table synced.");
+        }).catch((err: any) => console.error("Sync error:", err));
     }
 
     init() {

@@ -11,10 +11,10 @@ module.exports = {
         {
           key: 'webrtc',
           value: JSON.stringify(
-            { webrtc: true, chat: true, video_call: true },
+            { webrtc: true, chat: true, video_call: true, audio_call: true },
           ),
           type: 'json',
-          default_value: JSON.stringify({ webrtc: true, chat: true, video_call: true })
+          default_value: JSON.stringify({ webrtc: true, chat: true, video_call: true, audio_call: true })
         }
       ], { transaction });
     }),

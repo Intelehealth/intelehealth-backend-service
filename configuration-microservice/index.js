@@ -39,7 +39,7 @@ dotenv.config({ path: path.resolve(__dirname, 'env/development.env') });
               );
               
               if (existingRows.length > 0 && existingRows[0].platform) {
-                console.log(`Skipped update for '${sheetName}' table, name='${name}' - platform already set.`);
+                // console.log(`Skipped update for '${sheetName}' table, name='${name}' - platform already set.`);
                 continue; // Skip update if platform already has a value
               }
 
