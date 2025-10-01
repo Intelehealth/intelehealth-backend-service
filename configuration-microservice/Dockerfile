@@ -32,7 +32,17 @@ RUN npm ci --legacy-bundling
 # Copy application code (excluding .pem files)
 COPY . .
 
-COPY ${ENV_FILE_PATH} .env
+# Define build argument for environment file path
+ARG ENV_FILE_PATH=env/production.env
+
+# Copy the specified .env file to build context (if not already present)
+# This allows the .env file to be pre-created by the CI/CD pipeline
+RUN if [ ! -f .env ]; then \
+      echo "Copying environment file from ${ENV_FILE_PATH}..."; \
+      cp ${ENV_FILE_PATH} .env; \
+    else \
+      echo "Using existing .env file from build context..."; \
+    fi
 
 # Create .pem directory structure but don't copy actual .pem files
 # These will be mounted at runtime
