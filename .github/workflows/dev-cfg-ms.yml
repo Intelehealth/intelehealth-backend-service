@@ -17,8 +17,8 @@ jobs:
       CONTAINER_NAME: configuration-microservice
       
       # Environment file and PEM folder paths (adjust these paths as needed)
-      ENV_FILE_PATH: home/ubuntu/deploy/cfg-microservice/.env
-      PEM_FOLDER_PATH: home/ubuntu/deploy/cfg-microservice/.pem
+      ENV_FILE_PATH: /home/ubuntu/deploy/cfg-microservice/.env
+      PEM_FOLDER_PATH: /home/ubuntu/deploy/cfg-microservice/.pem
       
       # Application port
       APP_PORT: 4004
