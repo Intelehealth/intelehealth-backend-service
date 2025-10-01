@@ -125,10 +125,30 @@ jobs:
             docker stop $CONTAINER_NAME 2>/dev/null || true
             docker rm $CONTAINER_NAME 2>/dev/null || true
             
+            # Check SSL certificate availability
+            echo "🔍 Checking SSL certificate availability..."
+            if [ -d "/etc/letsencrypt/live" ]; then
+              echo "✅ Let's Encrypt directory found"
+              ls -la /etc/letsencrypt/live/ | head -3
+              
+              # Check if we can find any SSL certificates
+              SSL_CERTS=$(find /etc/letsencrypt/live -name "privkey.pem" 2>/dev/null | wc -l)
+              if [ "$SSL_CERTS" -gt 0 ]; then
+                echo "✅ Found $SSL_CERTS SSL certificate(s)"
+                SSL_MOUNT="--mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro"
+              else
+                echo "⚠️ No SSL certificates found, will run in HTTP mode"
+                SSL_MOUNT=""
+              fi
+            else
+              echo "⚠️ /etc/letsencrypt/live/ not found, will run in HTTP mode"
+              SSL_MOUNT=""
+            fi
+            
             # Run the new container
             echo "Starting new container..."
             echo "🐳 Docker run command:"
-            echo "docker run -d --name $CONTAINER_NAME --restart unless-stopped --env-file $ENV_FILE_PATH -v $PEM_FOLDER_PATH:/app/src/.pem:ro -p $APP_PORT:$APP_PORT --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro $IMAGE_NAME:latest"
+            echo "docker run -d --name $CONTAINER_NAME --restart unless-stopped --env-file $ENV_FILE_PATH -v $PEM_FOLDER_PATH:/app/src/.pem:ro -p $APP_PORT:$APP_PORT $SSL_MOUNT $IMAGE_NAME:latest"
             
             if docker run -d \
               --name $CONTAINER_NAME \
@@ -136,17 +156,17 @@ jobs:
               --env-file $ENV_FILE_PATH \
               -v $PEM_FOLDER_PATH:/app/src/.pem:ro \
               -p $APP_PORT:$APP_PORT \
-              --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
+              $SSL_MOUNT \
               $IMAGE_NAME:latest; then
               echo "✅ Container started successfully"
             else
-              echo "❌ Container failed to start with env-file, trying without..."
+              echo "❌ Container failed to start, trying without SSL mount..."
               docker run -d \
                 --name $CONTAINER_NAME \
                 --restart unless-stopped \
+                --env-file $ENV_FILE_PATH \
                 -v $PEM_FOLDER_PATH:/app/src/.pem:ro \
                 -p $APP_PORT:$APP_PORT \
-                --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
                 $IMAGE_NAME:latest
             fi
             
