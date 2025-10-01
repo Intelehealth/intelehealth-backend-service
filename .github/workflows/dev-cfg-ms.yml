@@ -125,11 +125,19 @@ jobs:
             docker stop $CONTAINER_NAME 2>/dev/null || true
             docker rm $CONTAINER_NAME 2>/dev/null || true
             
-            # Check SSL certificate availability
+            # Check SSL certificate availability and fix permissions
             echo "🔍 Checking SSL certificate availability..."
             if [ -d "/etc/letsencrypt/live" ]; then
               echo "✅ Let's Encrypt directory found"
               ls -la /etc/letsencrypt/live/ | head -3
+              
+              # Fix SSL certificate permissions
+              echo "🔧 Fixing SSL certificate permissions..."
+              # Container runs as nodejs user (UID 1001:GID 1001)
+              # We need to change ownership to match the container user
+              sudo chmod -R 755 /etc/letsencrypt/live
+              sudo chown -R 1001:1001 /etc/letsencrypt/live
+              echo "✅ SSL certificate permissions fixed (changed to UID 1001:GID 1001)"
               
               # Check if we can find any SSL certificates
               SSL_CERTS=$(sudo find /etc/letsencrypt/live -name "privkey.pem" 2>/dev/null | wc -l)
