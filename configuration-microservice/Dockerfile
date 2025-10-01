@@ -21,14 +21,15 @@ COPY package*.json ./
 # Install dependencies
 RUN npm ci --only=production --legacy-bundling && \
     npm cache clean --force
-# Build
-RUN npm run build
+
 # Copy application code
 COPY --chown=nodejs:nodejs . .
 
 # Create .pem directory (will be mounted at runtime)
 RUN mkdir -p src/.pem && \
     chown -R nodejs:nodejs src/.pem
+# Build
+RUN npm run build
 
 # Switch to non-root user
 USER nodejs
