@@ -13,7 +13,7 @@ jobs:
     
     env:
       # Docker image configuration
-      IMAGE_NAME: ghcr.io/intelehealth/configuration-microservice
+      IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/configuration-microservice
       CONTAINER_NAME: configuration-microservice
       
       # Environment file and PEM folder paths (adjust these paths as needed)
@@ -26,6 +26,21 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+      
+      - name: Debug Repository Info
+        run: |
+          echo "🔍 Repository Information:"
+          echo "Repository: ${{ github.repository }}"
+          echo "Repository Owner: ${{ github.repository_owner }}"
+          echo "Actor: ${{ github.actor }}"
+          echo "Image Name: ghcr.io/${{ github.repository_owner }}/configuration-microservice"
+      
+      - name: Set Image Name
+        id: image_name
+        run: |
+          REPO_OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "image_name=ghcr.io/$REPO_OWNER_LOWER/configuration-microservice" >> $GITHUB_OUTPUT
+          echo "🐳 Final image name: ghcr.io/$REPO_OWNER_LOWER/configuration-microservice"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -41,7 +56,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.IMAGE_NAME }}
+          images: ${{ steps.image_name.outputs.image_name }}
           tags: |
             type=ref,event=branch
             type=sha,prefix={{branch}}-
@@ -65,7 +80,7 @@ jobs:
           port: 22
           script: |
             # Set variables
-            IMAGE_NAME="${{ env.IMAGE_NAME }}"
+            IMAGE_NAME="${{ steps.image_name.outputs.image_name }}"
             CONTAINER_NAME="${{ env.CONTAINER_NAME }}"
             ENV_FILE_PATH="${{ env.ENV_FILE_PATH }}"
             PEM_FOLDER_PATH="${{ env.PEM_FOLDER_PATH }}"
@@ -98,7 +113,14 @@ jobs:
             
             # Pull the latest image
             echo "Pulling latest Docker image..."
-            docker pull $IMAGE_NAME:latest
+            echo "🐳 Image name: $IMAGE_NAME:latest"
+            if docker pull $IMAGE_NAME:latest; then
+              echo "✅ Successfully pulled image"
+            else
+              echo "❌ Failed to pull image - this might be the first deployment"
+              echo "📋 Available images:"
+              docker images | grep configuration-microservice || echo "No configuration-microservice images found"
+            fi
             
             # Stop and remove existing container if it exists
             echo "Stopping existing container..."
