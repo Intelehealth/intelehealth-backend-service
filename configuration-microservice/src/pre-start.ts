@@ -36,4 +36,6 @@ if (args.env !== 'production') {
   if (result2.error) {
     throw result2.error;
   }
+} else {
+  dotenv.config();
 }
