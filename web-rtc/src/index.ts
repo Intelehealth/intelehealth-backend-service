@@ -8,7 +8,7 @@ import * as https from 'https';
 const cors = require('cors');
 const Sequelize = require("sequelize");
 const db = require("./models");
-const a = 'B';
+const a = 'A';
 
 class Server {
     app: express.Application;
