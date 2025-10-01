@@ -132,7 +132,7 @@ jobs:
               ls -la /etc/letsencrypt/live/ | head -3
               
               # Check if we can find any SSL certificates
-              SSL_CERTS=$(find /etc/letsencrypt/live -name "privkey.pem" 2>/dev/null | wc -l)
+              SSL_CERTS=$(sudo find /etc/letsencrypt/live -name "privkey.pem" 2>/dev/null | wc -l)
               if [ "$SSL_CERTS" -gt 0 ]; then
                 echo "✅ Found $SSL_CERTS SSL certificate(s)"
                 SSL_MOUNT="--mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro"
