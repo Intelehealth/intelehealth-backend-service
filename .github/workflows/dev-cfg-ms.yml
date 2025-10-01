@@ -63,6 +63,7 @@ jobs:
           username: ${{ secrets.DEV_USER }}
           key: ${{ secrets.DEV_SSH_KEY }}
           port: 22
+          envs: IMAGE_NAME,CONTAINER_NAME,ENV_FILE_PATH,PEM_FOLDER_PATH,APP_PORT
           script: |
             # Set variables
             IMAGE_NAME="${{ env.IMAGE_NAME }}"
@@ -132,6 +133,7 @@ jobs:
           host: ${{ secrets.DEV_HOST }}
           username: ${{ secrets.DEV_USER }}
           key: ${{ secrets.DEV_SSH_KEY }}
+          envs: APP_PORT,CONTAINER_NAME
           script: |
             # Wait for service to be ready
             echo "Performing health check..."
