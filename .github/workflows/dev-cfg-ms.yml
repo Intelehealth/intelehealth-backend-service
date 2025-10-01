@@ -30,7 +30,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Docker Hub
+      - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -46,7 +46,6 @@ jobs:
             type=ref,event=branch
             type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -57,10 +56,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          build-args: |
-            ENV_FILE_PATH=${{ env.ENV_FILE_PATH }}
-            PEM_FOLDER_PATH=${{ env.PEM_FOLDER_PATH }}
-
       - name: Deploy to Remote Server
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -79,6 +74,20 @@ jobs:
             # Create necessary directories if they don't exist
             sudo mkdir -p $(dirname "$ENV_FILE_PATH")
             sudo mkdir -p "$PEM_FOLDER_PATH"
+            
+            # Debug: Check if .env file exists and show its contents
+            echo "🔍 Checking environment file..."
+            if [ -f "$ENV_FILE_PATH" ]; then
+              echo "✅ Environment file found at: $ENV_FILE_PATH"
+              echo "📋 File permissions:"
+              ls -la "$ENV_FILE_PATH"
+              echo "📋 File contents (first 10 lines):"
+              head -10 "$ENV_FILE_PATH" | sed 's/^/  /'
+            else
+              echo "❌ Environment file NOT found at: $ENV_FILE_PATH"
+              echo "📁 Directory contents:"
+              ls -la $(dirname "$ENV_FILE_PATH") || echo "Directory doesn't exist"
+            fi
             
             # Pull the latest image
             echo "Pulling latest Docker image..."
@@ -117,7 +126,6 @@ jobs:
             echo "Cleaning up old Docker images..."
             docker image prune -f
             docker images $IMAGE_NAME --format "table {{.Repository}}\t{{.Tag}}\t{{.CreatedAt}}" | tail -n +4 | head -n -1 | awk '{print $1":"$2}' | xargs -r docker rmi || true
-
       - name: Health Check
         uses: appleboy/ssh-action@v1.0.3
         with:
