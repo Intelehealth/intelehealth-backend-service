@@ -27,6 +27,15 @@ import { generateConfig } from './config-generator';
   try {
     logger.info('Starting post-build process...');
     
+    // Check if we're in a build environment where database might not be available
+    const isBuildTime = process.env.NODE_ENV === 'production' && process.env.MYSQL_HOST === 'localhost';
+    
+    if (isBuildTime) {
+      logger.info('Build-time detected: Skipping config generation (database not available)');
+      logger.info('Config generation will happen at runtime when database is available');
+      return;
+    }
+    
     // Generate config using the published records
     const fileName = await generateConfig({ 
       mode: 'published',
@@ -36,6 +45,15 @@ import { generateConfig } from './config-generator';
       Generated: ${fileName}`);
   } catch (err) {
     logger.err('Post-build process failed:', true);
+    
+    // If it's a database connection error during build time, don't fail the build
+    if (err instanceof Error && err.message.includes('ECONNREFUSED')) {
+      logger.warn('Database connection failed during build time. This is expected in Docker build context.');
+      logger.warn('Config generation will be handled at runtime when database is available.');
+      return;
+    }
+    
+    // For other errors, fail the build
     // eslint-disable-next-line no-process-exit
     process.exit(1);
   }

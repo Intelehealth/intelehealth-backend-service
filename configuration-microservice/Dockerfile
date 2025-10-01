@@ -32,12 +32,21 @@ RUN npm ci --legacy-bundling
 # Copy application code (excluding .pem files)
 COPY . .
 
+COPY ${ENV_FILE_PATH} .env
+
 # Create .pem directory structure but don't copy actual .pem files
 # These will be mounted at runtime
 RUN mkdir -p src/.pem
 
-# Build the application
-RUN npm run build
+# Build the application with environment variables from .env file
+# The .env file is now available in the build context
+RUN if [ -f .env ]; then \
+      echo "Loading .env file for build process..."; \
+      set -a && . ./.env && set +a && npm run build; \
+    else \
+      echo "No .env file found, using default values"; \
+      npm run build; \
+    fi
 
 # Expose the port your app runs on
 EXPOSE 4004

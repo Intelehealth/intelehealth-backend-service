@@ -16,8 +16,6 @@ import logger from 'jet-logger';
   // logger.warn(`Could not load .env file from ${envFile}: ${result.error.message}`);
   // Try loading from default location
   dotenv.config();
-  console.log(JSON.stringify(process.env, null, 2));
-console.log("kkkk");
 // } else {
   // logger.info(`Loaded environment variables from ${envFile}`);
 // }
@@ -73,9 +71,25 @@ export async function generateConfig(
   try {
     logger.info('Starting config generation process...');
     
+    // Check if we're in a build environment where database might not be available
+    const isBuildTime = process.env.NODE_ENV === 'production' && process.env.MYSQL_HOST === 'localhost';
+    
+    if (isBuildTime) {
+      logger.info('Build-time detected: Skipping config generation (database not available)');
+      logger.info('Config generation will happen at runtime when database is available');
+      return '';
+    }
+    
     // Initialize database connection
     await connection.authenticate();
     logger.info('Database connection established');
+
+    // Check if last config file exists before generating new one
+    const lastFileExists = await checkLastConfigFileExists();
+    if (lastFileExists) {
+      logger.info('Last config file already exists, skipping generation');
+      return '';
+    }
 
     // Fetch config records based on mode
     const configs = await fetchConfigRecords(options.mode);
@@ -102,13 +116,71 @@ export async function generateConfig(
     logger.info('Config generation process completed successfully');
     return fileName || '';
   } catch (err) {
+    // If it's a database connection error during build time, don't fail
+    if (err instanceof Error && err.message.includes('ECONNREFUSED')) {
+      logger.warn('Database connection failed during build time. This is expected in Docker build context.');
+      logger.warn('Config generation will be handled at runtime when database is available.');
+      return '';
+    }
+    
     logger.err('Config generation process failed:', true);
     // eslint-disable-next-line no-console
     console.error('Detailed error:', err);
     throw err;
   } finally {
-    // Close database connection
-    await connection.close();
+    // Close database connection only if it was opened
+    try {
+      await connection.close();
+    } catch (closeErr) {
+      // Ignore close errors during build time
+      if (!(closeErr instanceof Error && closeErr.message.includes('ECONNREFUSED'))) {
+        logger.warn('Error closing database connection:', closeErr);
+      }
+    }
+  }
+}
+
+/**
+ * Get the last published config record
+ */
+async function getLastPublishedConfig(): Promise<Publish | null> {
+  try {
+    const lastConfig = await Publish.findOne({
+      order: [['createdAt', 'DESC']],
+    });
+    return lastConfig;
+  } catch (error) {
+    logger.err('Error fetching last published config:', true);
+    // eslint-disable-next-line no-console
+    console.error('Detailed error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Check if the last config file exists on disk
+ */
+async function checkLastConfigFileExists(): Promise<boolean> {
+  try {
+    const lastConfig = await getLastPublishedConfig();
+    if (!lastConfig) {
+      logger.info('No previous config file found');
+      return false;
+    }
+
+    const fileExists = await fs.pathExists(lastConfig.path);
+    if (fileExists) {
+      logger.info(`Last config file exists: ${lastConfig.path}`);
+    } else {
+      logger.info(`Last config file does not exist on disk: ${lastConfig.path}`);
+    }
+    
+    return fileExists;
+  } catch (error) {
+    logger.err('Error checking last config file:', true);
+    // eslint-disable-next-line no-console
+    console.error('Detailed error:', error);
+    throw error;
   }
 }
 
