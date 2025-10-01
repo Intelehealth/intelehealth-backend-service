@@ -52,6 +52,50 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Copy server .env file for build
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEV_HOST }}
+          username: ${{ secrets.DEV_USER }}
+          key: ${{ secrets.DEV_SSH_KEY }}
+          script: |
+            echo "📋 Copying server .env file for Docker build process..."
+            if [ -f "${{ env.ENV_FILE_PATH }}" ]; then
+              echo "✅ Server .env file found, copying to build context..."
+              # Create a temporary file with the server's .env content
+              cat "${{ env.ENV_FILE_PATH }}" > /tmp/server.env
+              echo "📋 Server .env file copied successfully"
+              echo "📋 First 5 lines of server .env:"
+              head -5 /tmp/server.env
+            else
+              echo "❌ Server .env file not found at ${{ env.ENV_FILE_PATH }}"
+              echo "📁 Directory contents:"
+              ls -la $(dirname "${{ env.ENV_FILE_PATH }}") || echo "Directory doesn't exist"
+              exit 1
+            fi
+
+      - name: Download server .env file
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.DEV_HOST }}
+          username: ${{ secrets.DEV_USER }}
+          key: ${{ secrets.DEV_SSH_KEY }}
+          source: "/tmp/server.env"
+          target: "configuration-microservice/.env"
+
+      - name: Verify .env file for build
+        run: |
+          echo "🔍 Verifying .env file for Docker build..."
+          if [ -f "configuration-microservice/.env" ]; then
+            echo "✅ .env file ready for Docker build"
+            echo "📋 First 5 lines:"
+            head -5 configuration-microservice/.env
+            echo "📋 File size: $(wc -c < configuration-microservice/.env) bytes"
+          else
+            echo "❌ .env file not found for build"
+            exit 1
+          fi
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -72,7 +116,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            ENV_FILE_PATH=${{ env.ENV_FILE_PATH }}
+            --env-file=${{ env.ENV_FILE_PATH }}
       - name: Deploy to Remote Server
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -93,8 +137,9 @@ jobs:
             sudo mkdir -p "$PEM_FOLDER_PATH"
             
             # Debug: Check if .env file exists and show its contents
-            echo "🔍 Checking environment file..."
-            echo "📍 Looking for env file at: $ENV_FILE_PATH"
+            # Note: This is the runtime .env file on the server, different from build-time .env
+            echo "🔍 Checking runtime environment file..."
+            echo "📍 Looking for runtime env file at: $ENV_FILE_PATH"
             echo "📍 Current working directory: $(pwd)"
             echo "📍 Current user: $(whoami)"
             
@@ -130,8 +175,9 @@ jobs:
             docker rm $CONTAINER_NAME 2>/dev/null || true
             
             # Run the new container
+            # Using the existing .env file on the server for runtime environment variables
             echo "Starting new container..."
-            echo "🐳 Docker run command:"
+            echo "🐳 Docker run command (using server's .env file for runtime):"
             echo "docker run -d --name $CONTAINER_NAME --restart unless-stopped --env-file $ENV_FILE_PATH -v $PEM_FOLDER_PATH:/app/src/.pem:ro -p $APP_PORT:$APP_PORT --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro $IMAGE_NAME:latest"
             
             if docker run -d \
