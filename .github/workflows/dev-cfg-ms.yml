@@ -1,124 +1,140 @@
-name: auth-gateway
+name: Deploy Configuration Microservice
 
 on:
   push:
-    branches: [development_master]  
+    branches:
+      - development_master
     paths:
-      - 'auth-gateway/**'  # Only trigger when changes in portal folder
-env:
-  DOCKER_IMAGE_NAME: auth-gateway
-  REMOTE_HOST: ${{secrets.DEV_HOST}}
-  REMOTE_USER: ${{secrets.DEV_USER}}
-  REMOTE_PORT: 22
-  ENV_FILE_PATH: /home/ubuntu/deploy/auth-gateway/.env
-  PEM_FOLDER_PATH: /home/ubuntu/deploy/auth-gateway/.pem
-
+      - 'configuration-microservice/**'
+    
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     
+    env:
+      # Docker image configuration
+      IMAGE_NAME: intelehealth/configuration-microservice
+      CONTAINER_NAME: configuration-microservice
+      
+      # Environment file and PEM folder paths (adjust these paths as needed)
+      ENV_FILE_PATH: home/ubuntu/deploy/cfg-microservice/.env
+      PEM_FOLDER_PATH: home/ubuntu/deploy/cfg-microservice/.pem
+      
+      # Application port
+      APP_PORT: 4004
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-     
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Change to auth-gateway directory
-      run: cd auth-gateway
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: auth-gateway/package-lock.json
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-    - name: Install dependencies
-      run: npm ci --production=false
-      working-directory: auth-gateway
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
 
-   
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./configuration-microservice
+          file: ./configuration-microservice/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            ENV_FILE_PATH=${{ env.ENV_FILE_PATH }}
+            PEM_FOLDER_PATH=${{ env.PEM_FOLDER_PATH }}
 
-    - name: Build Docker image from auth-gateway directory
-      run: |
-        cd auth-gateway
-        docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} .
-        docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > ../app-image.tar
-
-    - name: Deploy to remote host
-      env:
-        SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
-      run: |
-        mkdir -p ~/.ssh
-        chmod 700 ~/.ssh
-        echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-        chmod 600 ~/.ssh/deploy_key
-        
-        # Copy Docker image to remote host
-        scp -i ~/.ssh/deploy_key \
-            -o StrictHostKeyChecking=no \
-            -P $REMOTE_PORT \
-            app-image.tar \
-            $REMOTE_USER@$REMOTE_HOST:/tmp/
-        
-        # SSH into remote host and deploy
-        ssh -i ~/.ssh/deploy_key \
-            -o StrictHostKeyChecking=no \
-            -P $REMOTE_PORT \
-            $REMOTE_USER@$REMOTE_HOST <<'EOF'
-            DOCKER_IMAGE_NAME="${{ env.DOCKER_IMAGE_NAME }}"
+      - name: Deploy to Remote Server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEV_HOST }}
+          username: ${{ secrets.DEV_USER }}
+          key: ${{ secrets.DEV_SSH_KEY }}
+          port: 22
+          script: |
+            # Set variables
+            IMAGE_NAME="${{ env.IMAGE_NAME }}"
+            CONTAINER_NAME="${{ env.CONTAINER_NAME }}"
             ENV_FILE_PATH="${{ env.ENV_FILE_PATH }}"
             PEM_FOLDER_PATH="${{ env.PEM_FOLDER_PATH }}"
-            GITHUB_SHA="${{ github.sha }}"
+            APP_PORT="${{ env.APP_PORT }}"
             
-         
-             
+            # Create necessary directories if they don't exist
+            sudo mkdir -p $(dirname "$ENV_FILE_PATH")
+            sudo mkdir -p "$PEM_FOLDER_PATH"
             
-            # Load Docker image
-            docker load -i /tmp/app-image.tar
-            rm /tmp/app-image.tar
+            # Pull the latest image
+            echo "Pulling latest Docker image..."
+            docker pull $IMAGE_NAME:latest
             
-            # Stop and remove existing container if running
-            docker stop $DOCKER_IMAGE_NAME || true
-            docker rm $DOCKER_IMAGE_NAME || true
+            # Stop and remove existing container if it exists
+            echo "Stopping existing container..."
+            docker stop $CONTAINER_NAME 2>/dev/null || true
+            docker rm $CONTAINER_NAME 2>/dev/null || true
             
-            # Verify that the .env file exists
-            if [ ! -f "$ENV_FILE_PATH" ]; then
-                echo "Error: .env file not found at $ENV_FILE_PATH"
-                exit 1
-            fi
-            
-            # Verify that the .pem folder exists
-            if [ ! -d "$PEM_FOLDER_PATH" ]; then
-                echo "Error: .pem folder not found at $PEM_FOLDER_PATH"
-                exit 1
-            fi
-            
-            # Run new container using existing files directly
+            # Run the new container
+            echo "Starting new container..."
             docker run -d \
-                --name $DOCKER_IMAGE_NAME \
-                --restart unless-stopped \
-                -p 3030:3030 \
-                --env-file $ENV_FILE_PATH \
-                -v $PEM_FOLDER_PATH:/app/.pem \
-                --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
-                $DOCKER_IMAGE_NAME:${{ github.sha }}
+              --name $CONTAINER_NAME \
+              --restart unless-stopped \
+              --env-file $ENV_FILE_PATH \
+              -v $PEM_FOLDER_PATH:/app/src/.pem:ro \
+              -p $APP_PORT:$APP_PORT \
+              --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
+              $IMAGE_NAME:latest
             
-            # Clean up old images
+            # Wait a moment for the container to start
+            sleep 5
+            
+            # Check if container is running
+            if docker ps | grep -q $CONTAINER_NAME; then
+              echo "✅ Container $CONTAINER_NAME is running successfully"
+              docker logs --tail 20 $CONTAINER_NAME
+            else
+              echo "❌ Container $CONTAINER_NAME failed to start"
+              docker logs $CONTAINER_NAME
+              exit 1
+            fi
+            
+            # Clean up old images (keep last 3 versions)
+            echo "Cleaning up old Docker images..."
             docker image prune -f
-            
-            echo "auth-gateway deployment completed successfully"
-        EOF
+            docker images $IMAGE_NAME --format "table {{.Repository}}\t{{.Tag}}\t{{.CreatedAt}}" | tail -n +4 | head -n -1 | awk '{print $1":"$2}' | xargs -r docker rmi || true
 
-    - name: Verify deployment
-      env:
-        SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
-      run: |
-        mkdir -p ~/.ssh
-        echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-        chmod 600 ~/.ssh/deploy_key
-        
-        ssh -i ~/.ssh/deploy_key \
-            -o StrictHostKeyChecking=no \
-            -p $REMOTE_PORT \
-            $REMOTE_USER@$REMOTE_HOST \
-            "docker ps | grep $DOCKER_IMAGE_NAME && echo 'auth-gateway deployment successful!'"
+      - name: Health Check
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEV_HOST }}
+          username: ${{ secrets.DEV_USER }}
+          key: ${{ secrets.DEV_SSH_KEY }}
+          script: |
+            # Wait for service to be ready
+            echo "Performing health check..."
+            sleep 10
+            
+            # Check if the service is responding
+            if curl -f http://localhost:${{ env.APP_PORT }}/health 2>/dev/null; then
+              echo "✅ Health check passed - service is responding"
+            else
+              echo "⚠️ Health check failed - service may not be ready yet"
+              echo "Container status:"
+              docker ps | grep ${{ env.CONTAINER_NAME }} || echo "Container not found"
+              echo "Container logs:"
+              docker logs --tail 10 ${{ env.CONTAINER_NAME }}
+            fi
