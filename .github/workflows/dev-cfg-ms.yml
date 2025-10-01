@@ -72,7 +72,7 @@ jobs:
             APP_PORT="${{ env.APP_PORT }}"
             
             # Create necessary directories if they don't exist
-            sudo mkdir -p $(dirname "$ENV_FILE_PATH")
+            
             sudo mkdir -p "$PEM_FOLDER_PATH"
             
             # Debug: Check if .env file exists and show its contents
