@@ -34,7 +34,7 @@ RUN npm run build
 RUN npm ci --only=production --legacy-bundling && \
     npm cache clean --force
 
-#TEST
+ 
 
 # Expose port
 EXPOSE 4004
