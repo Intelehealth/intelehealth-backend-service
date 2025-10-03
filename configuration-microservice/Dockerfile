@@ -11,9 +11,7 @@ RUN apk update && apk upgrade && \
 # Set working directory
 WORKDIR /app
 
-# Create non-root user for security
-##RUN addgroup -g 1001 -S nodejs && \
-  ##  adduser -S nodejs -u 1001
+
 
 # Copy package files
 COPY package*.json ./
@@ -23,12 +21,11 @@ RUN npm ci --legacy-bundling && \
     npm cache clean --force
 
 # Copy application code
-#COPY --chown=nodejs:nodejs . .
 COPY . .
 
 # Create .pem directory (will be mounted at runtime)
 RUN mkdir -p src/.pem
-  ##  chown -R nodejs:nodejs src/.pem
+
 
 # Build the application (this runs without .env file, using defaults)
 RUN npm run build
@@ -37,8 +34,7 @@ RUN npm run build
 RUN npm ci --only=production --legacy-bundling && \
     npm cache clean --force
 
-# Switch to non-root user
-##USER nodejs
+
 
 # Expose port
 EXPOSE 4004
