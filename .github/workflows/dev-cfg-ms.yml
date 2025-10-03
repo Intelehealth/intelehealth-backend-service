@@ -158,7 +158,7 @@ jobs:
               -v $PEM_FOLDER_PATH:/app/src/.pem:ro \
               -p $APP_PORT:$APP_PORT \
               $SSL_MOUNT \
-              --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
+              --mount type=bind,src=/home/ubuntu,dst=/home/ubuntu,ro \
               $IMAGE_NAME:latest; then
               echo "✅ Container started successfully"
             else
@@ -169,7 +169,7 @@ jobs:
                 --env-file $ENV_FILE_PATH \
                 -v $PEM_FOLDER_PATH:/app/src/.pem:ro \
                 -p $APP_PORT:$APP_PORT \
-                --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
+                --mount type=bind,src=/home/ubuntu,dst=/home/ubuntu,ro \
                 $IMAGE_NAME:latest
             fi
             
