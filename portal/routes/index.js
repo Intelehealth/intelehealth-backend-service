@@ -8,7 +8,8 @@ const {
   deleteMindmapKey,
   downloadMindmaps,
   toggleMindmapActiveStatus,
-  getTranslation
+  getTranslation,
+  saveTranslation
 } = require("../controllers/mindmap.controller");
 const authMiddleware = require("../middleware/auth");
 // const limiter = require("../middleware/rate-limiter");
@@ -23,6 +24,7 @@ router.post("/mindmap/delete/:key", [authMiddleware, deleteMindmapKey]);
 router.get("/mindmap/download", [authMiddleware, downloadMindmaps]);
 router.post("/mindmap/toggleStatus", [authMiddleware, toggleMindmapActiveStatus]);
 router.post("/mindmap/translate", [authMiddleware, getTranslation]);
+router.post("/mindmap/saveTranslation", [authMiddleware, saveTranslation]);
 
 router.use("/mindmap", require("./notification.route"));
 router.use("/messages", require("./message.route"));
