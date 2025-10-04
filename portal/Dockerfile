@@ -6,33 +6,32 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# Install all necessary build and development dependencies
-# The *-dev packages are ONLY needed here for `npm ci` to compile native modules
-RUN apk update && \
-    apk add --no-cache \
+# Install build dependencies in a single layer with comprehensive cleanup
+RUN apk add --no-cache --virtual .build-deps \
     python3 \
     make \
     g++ \
     gcc \
     libc-dev \
     pkgconfig \
-    # Dependencies for graphical packages (like canvas, sharp, etc.)
     pixman-dev \
     cairo-dev \
     pango-dev \
     jpeg-dev \
     giflib-dev \
     librsvg-dev \
+    && apk add --no-cache \
     dumb-init \
     curl \
-    libc6-compat \
-    && rm -rf /var/cache/apk/*
+    libc6-compat
 
-# Copy package files first to leverage Docker layer caching
+# Copy package files first for better layer caching
 COPY package*.json ./
 
-# Install dependencies. Build tools are available in this stage.
-RUN npm ci --legacy-bundling
+# Install dependencies with optimizations
+RUN npm ci --legacy-bundling --no-audit --no-fund --prefer-offline \
+    && npm cache clean --force \
+    && rm -rf ~/.npm
 
 # Copy application code
 COPY . .
@@ -43,36 +42,43 @@ COPY . .
 # ----------------------------------------------------------------------
 FROM node:18-alpine AS production
 
-# Install only the *runtime* dependencies.
-# This list is much smaller, removing all the "*-dev" and build packages.
-RUN apk update && \
-    apk add --no-cache \
+# Install runtime dependencies and cleanup in single layer
+RUN apk add --no-cache \
     dumb-init \
     curl \
     libc6-compat \
-    # Runtime libraries for native dependencies compiled in the builder stage
     pixman \
     cairo \
     pango \
-    libjpeg \
+    libjpeg-turbo \
     giflib \
     librsvg \
-    # FIX: Add libuuid, which is a transitive runtime dependency of librsvg
     libuuid \
-    && rm -rf /var/cache/apk/*
+    && rm -rf /var/cache/apk/* /tmp/* /var/tmp/*
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs \
+    && adduser -S nodejs -u 1001
 
 WORKDIR /app
 
-# Copy only the essential files from the builder stage:
-# 1. node_modules (which are now compiled)
-# 2. package files (needed for npm start)
-# 3. Application source code
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package*.json ./
-COPY . .
+# Copy package files
+COPY package*.json ./
 
-# Expose the port your app runs on
+# Install only production dependencies
+RUN npm ci --only=production --no-audit --no-fund --prefer-offline \
+    && npm cache clean --force \
+    && rm -rf ~/.npm /tmp/* /var/tmp/*
+
+# Copy application code with proper ownership
+COPY --chown=nodejs:nodejs . .
+
+# Switch to non-root user
+USER nodejs
+
+# Expose port
 EXPOSE 3004
 
-# Use dumb-init to properly handle signals and zombie processes
-CMD ["dumb-init", "npm", "start"]
+# Use dumb-init for proper signal handling
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["npm", "start"]
