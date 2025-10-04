@@ -21,7 +21,7 @@ WORKDIR /app
 RUN apk add --no-cache \
     dumb-init curl libc6-compat \
     cairo pango pixman jpeg giflib librsvg \
-    freetype fontconfig util-linux-libs 
+    freetype fontconfig gdk-pixbuf libuuid
 
 # Ensure the app dir is owned by the pre-existing 'node' user
 RUN chown -R node:node /app
