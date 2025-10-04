@@ -37,20 +37,19 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Install necessary runtime dependencies (only curl and dumb-init).
 RUN apk update && apk add --no-cache \
     dumb-init \
     curl \
-    # IMPORTANT: Re-add the runtime libraries needed for 'canvas' on Alpine
-    libcairo \
-    libpango \
-    libjpeg \
-    libgif \
+    # Correct runtime library packages for Alpine:
+    # libcairo (already correct)
+    # libpango (already correct)
+    jpeg \
+    giflib \
     librsvg \
-    # The libc6-compat provides a compatibility layer for glibc, but it's
-    # better to rely on musl-native libs where possible. If the above still fails,
-    # you might re-introduce libc6-compat here as a last resort:
-    # libc6-compat \
+    # Add other core dependencies that might be needed by the above libraries:
+    libpng \
+    libtiff \
+    # Clean up
     && rm -rf /var/cache/apk/*
 
 # Copy only necessary files from the builder stage
