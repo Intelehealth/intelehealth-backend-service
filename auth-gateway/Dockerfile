@@ -1,8 +1,9 @@
-FROM node:18-alpine
+# Stage 1: Builder
+FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# Install only essential runtime dependencies in a single layer
+# Install build dependencies
 RUN apk add --no-cache --virtual .build-deps \
     python3 \
     make \
@@ -15,24 +16,45 @@ RUN apk add --no-cache --virtual .build-deps \
     pango-dev \
     jpeg-dev \
     giflib-dev \
-    librsvg-dev \
-    && apk add --no-cache dumb-init \
-    && rm -rf /var/cache/apk/*
+    librsvg-dev
 
-# Copy package files first
+COPY package*.json ./
+RUN npm ci --legacy-bundling
+
+COPY . .
+# If you have build step, uncomment:
+# RUN npm run build
+
+# Stage 2: Production
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Install only RUNTIME dependencies (not dev packages)
+RUN apk add --no-cache \
+    dumb-init \
+    cairo \
+    pango \
+    librsvg \
+    giflib \
+    libjpeg-turbo
+
+# Copy package files
 COPY package*.json ./
 
-# Install dependencies
+# Install production dependencies only
 RUN npm ci --legacy-bundling --only=production
 
-# Remove build dependencies after installation
-RUN apk del .build-deps
+# Copy built application from builder stage
+COPY --from=builder /app ./
 
-# Copy application code
-COPY . .
+# Clean up any unnecessary files
+RUN rm -rf \
+    /tmp/* \
+    /var/cache/apk/* \
+    /root/.npm \
+    /root/.node-gyp
 
-# Expose the port your app runs on
 EXPOSE 3030
 
-# Use dumb-init for proper signal handling
 CMD ["dumb-init", "npm", "start"]
