@@ -1,66 +1,56 @@
 # syntax=docker/dockerfile:1.6
 
-# ---- Base (builder+runner) ----
-FROM node:18-alpine AS base
+########################
+# Builder (compiles deps like canvas)
+########################
+FROM node:18-alpine AS builder
 WORKDIR /app
 
-# Keep npm logs quiet and ensure prod installs by default
-ENV NODE_ENV=production \
-    NPM_CONFIG_LOGLEVEL=warn
-
-# System deps: split into runtime vs build and drop build deps after install
-# Many canvas/sharp-style libs need these runtimes; build deps are installed as a virtual package
+# Build tools + header packages required by node-canvas
+# (runtime libs not strictly needed here, just the -dev ones)
 RUN apk add --no-cache \
-      dumb-init \
-      curl \
-      libc6-compat \
-      # runtime libs for common native modules (canvas/sharp/etc.)
-      pixman \
-      cairo \
-      pango \
-      jpeg \
-      giflib \
-      librsvg \
-    && apk add --no-cache --virtual .build-deps \
-      python3 \
-      make \
-      g++ \
-      gcc \
-      libc-dev \
-      pkgconfig
+    python3 make g++ gcc libc-dev pkgconfig \
+    cairo-dev pango-dev pixman-dev jpeg-dev giflib-dev librsvg-dev \
+    freetype-dev fontconfig-dev
 
-# ---- Dependencies layer (cached) ----
-FROM base AS deps
-# Copy only package manifests to maximize cache hits
+# Leverage cache: only package manifests first
 COPY package*.json ./
 
-# Use BuildKit cache for npm to greatly speed up reinstalls
+# Build from source (avoids futile prebuilt fetch on musl)
+# Use npm cache mount for speed
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --omit=dev --legacy-bundling \
+    npm ci --omit=dev --legacy-bundling --build-from-source \
  && npm cache clean --force
 
-# ---- App layer ----
-FROM base AS app
-# Bring in node_modules from deps stage (already pruned to production)
-COPY --from=deps /app/node_modules ./node_modules
-
-# Copy the rest of the app (source)
+# Copy source last (doesn't invalidate dependency cache)
 COPY . .
 
-# If you have a build step (e.g., Next.js, TS -> JS), uncomment:
-# RUN --mount=type=cache,target=/root/.npm \
-#     npm run build \
-#  && npm cache clean --force
+# If you have a build step, uncomment:
+# RUN --mount=type=cache,target=/root/.npm npm run build
 
-# Drop build deps; keep runtime libs only
-RUN apk del .build-deps
+########################
+# Runner (minimal runtime)
+########################
+FROM node:18-alpine AS runner
+WORKDIR /app
 
-# Use the non-root 'node' user provided by the image for safer runtime
-RUN chown -R node:node /app
+# Runtime libs required by canvas at runtime (no *-dev here)
+RUN apk add --no-cache \
+    dumb-init curl libc6-compat \
+    cairo pango pixman jpeg giflib librsvg \
+    freetype fontconfig
+
+# Copy only what's needed to run
+COPY --from=builder /app/node_modules ./node_modules
+COPY . .
+
+# Security: run as non-root
+RUN addgroup -S nodegrp && adduser -S node -G nodegrp \
+ && chown -R node:node /app
 USER node
 
+ENV NODE_ENV=production
 EXPOSE 3004
 
-# Use dumb-init (already installed) to handle PID 1 correctly
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["npm", "start"]
