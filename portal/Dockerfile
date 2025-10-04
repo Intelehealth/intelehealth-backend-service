@@ -23,10 +23,15 @@ RUN apk add --no-cache --virtual .build-deps \
     && apk add --no-cache \
     dumb-init \
     curl \
-    libc6-compat
+    libc6-compat \
+    && ln -sf python3 /usr/bin/python
 
 # Copy package files first for better layer caching
 COPY package*.json ./
+
+# Configure npm for native module compilation
+RUN npm config set python python3 \
+    && npm config set python /usr/bin/python
 
 # Install dependencies with optimizations
 RUN npm ci --legacy-bundling --no-audit --no-fund --prefer-offline \
