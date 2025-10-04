@@ -1,37 +1,54 @@
+FROM node:18-alpine AS builder
+
+Set the working directory
+WORKDIR /app
+
+RUN apk update && 
+apk add --no-cache 
+dumb-init 
+curl 
+libc6-compat 
+python3 
+make 
+g++ 
+gcc 
+libc-dev 
+pkgconfig 
+pixman-dev 
+cairo-dev 
+pango-dev 
+jpeg-dev 
+giflib-dev 
+librsvg-dev
+
+
+COPY package*.json ./
+
+RUN npm ci --legacy-bundling
+
+COPY . .
+
 FROM node:18-alpine
 
 WORKDIR /app
 
-RUN apk update && apk upgrade && \
-    apk add --no-cache \
-    dumb-init \
-    curl \
-    libc6-compat \
-    python3 \
-    make \
-    g++ \
-    gcc \
-    libc-dev \
-    pkgconfig \
-    pixman-dev \
-    cairo-dev \
-    pango-dev \
-    jpeg-dev \
-    giflib-dev \
-    librsvg-dev \
-    && rm -rf /var/cache/apk/*
+RUN apk update && 
+apk add --no-cache 
+dumb-init 
+curl 
+libc6-compat 
+pixman 
+cairo 
+pango 
+jpeg 
+giflib 
+librsvg 
+&& rm -rf /var/cache/apk/*
 
-# Copy package files first
-COPY package*.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app .
 
-# Install dependencies
-RUN npm ci --legacy-bundling
-
-# Copy application code
-COPY . .
-
-# Expose the port your app runs on
 EXPOSE 3030
 
-# Start the application
-CMD ["npm", "start"]	
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+CMD ["npm", "start"]
