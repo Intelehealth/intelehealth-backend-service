@@ -6,7 +6,7 @@ WORKDIR /app
 RUN apk add --no-cache \
     python3 make g++ gcc libc-dev pkgconfig \
     cairo-dev pango-dev pixman-dev jpeg-dev giflib-dev librsvg-dev \
-    freetype-dev fontconfig-dev
+    freetype-dev fontconfig-dev 
 
 COPY package*.json ./
 RUN --mount=type=cache,target=/root/.npm \
@@ -21,7 +21,7 @@ WORKDIR /app
 RUN apk add --no-cache \
     dumb-init curl libc6-compat \
     cairo pango pixman jpeg giflib librsvg \
-    freetype fontconfig
+    freetype fontconfig util-linux-libs 
 
 # Ensure the app dir is owned by the pre-existing 'node' user
 RUN chown -R node:node /app
