@@ -47,6 +47,7 @@ RUN apk update && \
     libjpeg \
     giflib \
     librsvg \
+    libuuid \
     # The development libraries (e.g., cairo-dev) are NOT needed here, 
     # only the base runtime libraries (e.g., cairo) are.
     && rm -rf /var/cache/apk/*
