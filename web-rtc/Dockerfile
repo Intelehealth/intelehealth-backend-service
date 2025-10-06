@@ -26,6 +26,7 @@ RUN apk add --no-cache \
 COPY package*.json ./
 RUN npm ci
 
+#RUN .
 # Copy source code and build (if there's a build step)
 COPY . .
 # Uncomment if you have a build step: RUN npm run build
