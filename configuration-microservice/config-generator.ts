@@ -85,7 +85,7 @@ export async function generateConfig(
     }
     
     // Initialize database connection
-    await connection.authenticate();
+    await connection.sync();
     logger.info('Database connection established');
 
     // Check if last config file exists before generating new one
@@ -131,17 +131,7 @@ export async function generateConfig(
     // eslint-disable-next-line no-console
     console.error('Detailed error:', err);
     throw err;
-  } finally {
-    // Close database connection only if it was opened
-    try {
-      await connection.close();
-    } catch (closeErr) {
-      // Ignore close errors during build time
-      if (!(closeErr instanceof Error && closeErr.message.includes('ECONNREFUSED'))) {
-        logger.warn('Error closing database connection:', closeErr);
-      }
-    }
-  }
+  } 
 }
 
 /**
