@@ -407,26 +407,59 @@ WHERE
           },
         ]
       });
-      let mergedArray = []
-      if(pending_visits !== null) {
-        pending_visits = (pending_visits === 'true');
-        mergedArray = data.map(x => ({ ...x, visit: visits.find(y => y.uuid == x.visitUuid)?.dataValues, visitStatus: visitStatus.find(z => z.uuid == x.visitUuid)?.Status }));
-        mergedArray = mergedArray.filter(obj=>{
-          try {
-            let callStatusList = obj.visit.attributes.filter(attr=>attr.attribute_type.name === "Call Status");
-            let callStatus = JSON.parse(callStatusList?.[0]?.dataValues?.value ?? '{}')
-            if(Constant.PENDING_VISIT_BY_CALL_STATUS.includes(callStatus?.callStatus)){
-              return  pending_visits
-            } 
-            return !pending_visits
-          } catch (error) {
-             logStream("error", error.message)
-             return false
-          }
+      // Create lookup maps for O(1) access instead of O(n) find operations
+      const visitMap = new Map(visits.map(visit => [visit.uuid, visit.dataValues]));
+      const visitStatusMap = new Map(visitStatus.map(status => [status.uuid, status.Status]));
+      
+      // Parse pending_visits once
+      const isPendingVisitsFilter = pending_visits !== null ? (pending_visits === 'true') : null;
+      
+      // Single pass: map, filter, and apply pending visits filter
+      const mergedArray = data
+        .map(appointment => {
+          const visit = visitMap.get(appointment.visitUuid);
+          const visitStatus = visitStatusMap.get(appointment.visitUuid);
+          
+          return {
+            ...appointment,
+            visit,
+            visitStatus
+          };
         })
-      }
-      else
-        mergedArray = data.map(x => ({ ...x, visit: visits.find(y => y.uuid == x.visitUuid)?.dataValues, visitStatus: visitStatus.find(z => z.uuid == x.visitUuid)?.Status }));
+        .filter(appointment => {
+          // Early return: remove appointments with missing visits
+          if (!appointment.visit) {
+            return false;
+          }
+
+          // Early return: remove appointments with ended/completed status
+          if (appointment.visitStatus === "Ended Visit" || appointment.visitStatus === "Completed Visit") {
+            return false;
+          }
+
+          // Apply pending visits filter if specified
+          if (isPendingVisitsFilter !== null) {
+            try {
+              const callStatusAttr = appointment.visit.attributes?.find(
+                attr => attr.attribute_type?.name === "Call Status"
+              );
+              
+              if (callStatusAttr?.dataValues?.value) {
+                const callStatus = JSON.parse(callStatusAttr.dataValues.value);
+                const isPendingStatus = Constant.PENDING_VISIT_BY_CALL_STATUS.includes(callStatus?.callStatus);
+                return isPendingStatus === isPendingVisitsFilter;
+              }
+              
+              // If no call status found, return opposite of pending filter
+              return !isPendingVisitsFilter;
+            } catch (error) {
+              logStream("error", `Failed to parse call status for visit ${appointment.visitUuid}: ${error.message}`);
+              return false;
+            }
+          }
+
+          return true;
+        });
       logStream('debug','Success', 'Get User Slots');
       return mergedArray;
     } catch (error) {

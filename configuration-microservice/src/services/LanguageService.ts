@@ -146,11 +146,9 @@ async function updatePlatform(id: string, platform: string, user_id: string, use
   if (language.platform === platform) {
     return; 
   }
-
   // Perform update
   await Language.update({ platform }, { where: { id } });
-    // Get enabled languages
-    const enabledLanguages = await Language.findAll({
+  const enabledLanguages = await Language.findAll({
         attributes: ['name', 'code', 'en_name', 'is_default', 'platform','is_enabled'],
         where: { is_enabled: true }
     });
@@ -169,7 +167,7 @@ async function updatePlatform(id: string, platform: string, user_id: string, use
 export default {
     getAll,
     updateIsEnabled,
-    setDefault,
     updatePlatform,
+    setDefault,
     getAllEnabledLanguage
 } as const;

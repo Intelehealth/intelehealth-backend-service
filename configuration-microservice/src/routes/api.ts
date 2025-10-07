@@ -23,7 +23,9 @@ import PatientDetailsRoutes from './PatientDetailsRoutes';
 import PatientVisitSectionsRoutes from './PatientVisitSectionsRoutes';
 import RoasterQuestionnaireRoutes from './RoasterQuestionnaireRoutes';
 import DropdownRoutes from './DropdownRoutes';
+import AILLMRoutes from './AILLMRoutes';
 import HomeScreenRoutes from './HomeScreenRoutes';
+import AILLMRecordingRoutes from './AILLMRecordingRoutes';
 
 // **** Variables **** //
 
@@ -144,6 +146,11 @@ languageRouter.get(
   LanguageRoutes.getAll,
 );
 
+publicLanguageRouter.get(
+  Paths.Languages.GetEnabledLanguages,
+  LanguageRoutes.getallEnabledLanguages,
+)
+
 // Update language status
 languageRouter.put(
   Paths.Languages.UpdateIsEnabled,
@@ -170,7 +177,6 @@ languageRouter.put(
 // Add LanguageRouter
 apiRouter.use(Paths.Languages.Base, publicLanguageRouter);
 apiRouter.use(Paths.Languages.Base, authMw, languageRouter);
-
 
 // **** Setup PatientRegistrationRouter **** //
 
@@ -519,17 +525,17 @@ apiRouter.use(Paths.RosterQuestionnaire.Base, authMw, rosterQuestionnaire);
 apiRouter.use(Paths.PatientVisitSections.Base, authMw, patientVisitSectionsRouter);
 
 
-// **** Setup WebrtcRouter **** //
+// **** Setup DropdownRouter **** //
 
 const DropdownRouter = Router();
 
-// Get all webrtcs
+// Get all Dropdowns
 DropdownRouter.get(
   Paths.Dropdown.Get,
   DropdownRoutes.getAll,
 );
 
-// Update webrtc config status
+// Update Dropdowns config status
 DropdownRouter.put(
   Paths.Dropdown.UpdateIsEnabled,
   validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body']),
@@ -539,6 +545,60 @@ DropdownRouter.put(
 // Add DropdownRouter
 apiRouter.use(Paths.Dropdown.Base, authMw, DropdownRouter);
 
+
+// **** Setup AILLMRouter **** //
+
+const aiLlm = Router();
+
+// Get all AILLM menus
+aiLlm.get(
+  Paths.AILLM.Get,
+  AILLMRoutes.getAll,
+);
+
+// Update one AILLM menus status
+aiLlm.put(
+  Paths.SidebarMenus.UpdateIsEnabled,
+  validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body']),
+  AILLMRoutes.updateIsEnabled
+)
+
+// get one AILLM by key
+aiLlm.get(
+  Paths.AILLM.GetByKey,
+  AILLMRoutes.GetByKey,
+);
+
+// Add AILLMRouter
+apiRouter.use(Paths.AILLM.Base, authMw, aiLlm);
+
+
+// **** Setup AILLMRecording Router **** //
+
+const aiLlmRecording = Router();
+
+// Get all AILLMRecording menus
+aiLlmRecording.get(
+  Paths.AILLM.Get,
+  AILLMRecordingRoutes.getAll,
+);
+
+// Update one AILLMRecording menus status
+aiLlmRecording.put(
+  Paths.SidebarMenus.UpdateIsEnabled,
+  validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body']),
+  AILLMRecordingRoutes.updateIsEnabled
+)
+
+
+// get one AILLMRecording by key
+aiLlmRecording.get(
+  Paths.AILLM.GetByKey,
+  AILLMRecordingRoutes.GetByKey,
+);
+
+// Add AILLMRecording Router
+apiRouter.use(Paths.AILLMRecording.Base, authMw, aiLlmRecording);
 
 // **** Setup homeScreenSectionsRouter **** //
 

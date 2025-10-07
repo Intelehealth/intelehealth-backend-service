@@ -7,7 +7,7 @@ import logger from 'jet-logger';
 import childProcess from 'child_process';
 import path from 'path';
 
-
+ 
 /**
  * Start
  */
@@ -23,7 +23,16 @@ import path from 'path';
     });
 
     await copy('./src/views', './dist/views', {});
-    await copy('./src/.pem', './dist/.pem', {});
+    
+    // Copy .pem directory if it exists
+    const pemSourcePath = process.env.PEM_SOURCE_PATH || './src/.pem';
+    if (await fs.pathExists(pemSourcePath)) {
+      await copy(pemSourcePath, './dist/.pem', {});
+    }
+    
+    if (await fs.pathExists('env')) {
+      await copy('env', './dist/env', {});
+    }
     // Copy back-end files
     await exec('tsc --build tsconfig.prod.json', './');
   } catch (err) {
@@ -48,6 +57,7 @@ async function removeExceptPublicConfigs() {
         continue;
       }
 
+      // eslint-disable-next-line max-len
       // Special handling: if it's 'public', we need to remove everything inside except 'configs'
       if (item === 'public') {
         const publicItems = await fs.readdir(fullPath);
@@ -62,17 +72,6 @@ async function removeExceptPublicConfigs() {
       }
     }
   }
-}
-
-/**
- * Remove file
- */
-function remove(loc: string): Promise<void> {
-  return new Promise((res, rej) => {
-    return fs.remove(loc, (err) => {
-      return (!!err ? rej(err) : res());
-    });
-  });
 }
 
 /**

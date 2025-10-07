@@ -19,9 +19,15 @@ module.exports = (sequelize, DataTypes) => {
     chw_id: DataTypes.STRING,
     room_id: DataTypes.STRING,
     call_status: DataTypes.STRING,
+    reason: DataTypes.STRING,
     call_duration: DataTypes.INTEGER,
     start_time: DataTypes.DATE,
-    end_time: DataTypes.DATE
+    end_time: DataTypes.DATE,
+    call_type: {
+      type: DataTypes.ENUM('video', 'audio'),
+      defaultValue: 'video',
+      allowNull: false
+    }
   }, {
     sequelize,
     modelName: 'call_data',
