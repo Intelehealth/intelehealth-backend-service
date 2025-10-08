@@ -140,10 +140,6 @@ apiRouter.use(Paths.Config.Base, configRouter);
 
 const languageRouter = Router();
 const publicLanguageRouter = Router();
-<<<<<<< HEAD
-=======
-
->>>>>>> origin/development_master
 // Get all languages
 languageRouter.get(
   Paths.Languages.Get,
