@@ -153,6 +153,18 @@ async function updatePlatform(id: string, platform: string, user_id: string, use
         where: { is_enabled: true }
     });
   await Config.update({ value: JSON.stringify(enabledLanguages), published: false }, { where: { key: 'language' } });
+<<<<<<< HEAD
+=======
+
+  // Insert audit trail entry
+  await AuditTrail.create({
+    user_id,
+    user_name,
+    activity_type: 'LANGUAGE PLATFORM UPDATED',
+    description: `Updated platform for "${language.en_name}" to "${platform}".`
+  });
+}
+>>>>>>> origin/development_master
 
   // Insert audit trail entry
   await AuditTrail.create({

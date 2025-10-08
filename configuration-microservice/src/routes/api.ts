@@ -140,6 +140,10 @@ apiRouter.use(Paths.Config.Base, configRouter);
 
 const languageRouter = Router();
 const publicLanguageRouter = Router();
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/development_master
 // Get all languages
 languageRouter.get(
   Paths.Languages.Get,
@@ -165,19 +169,30 @@ languageRouter.put(
   LanguageRoutes.setDefault,
 );
 
+<<<<<<< HEAD
 publicLanguageRouter.get(
   Paths.Languages.GetEnabledLanguages,
   LanguageRoutes.getallEnabledLanguages,
 );
+=======
+>>>>>>> origin/development_master
 // Update platform 
 languageRouter.put(
   Paths.Languages.UpdatePlatform,
   LanguageRoutes.updatePlatform,
 );
+<<<<<<< HEAD
 // Add LanguageRouter
 apiRouter.use(Paths.Languages.Base, publicLanguageRouter);
 apiRouter.use(Paths.Languages.Base, authMw, languageRouter);
 
+=======
+
+// Add LanguageRouter
+apiRouter.use(Paths.Languages.Base, publicLanguageRouter);
+apiRouter.use(Paths.Languages.Base, authMw, languageRouter);
+
+>>>>>>> origin/development_master
 // **** Setup PatientRegistrationRouter **** //
 
 const patientRegistrationRouter = Router();
