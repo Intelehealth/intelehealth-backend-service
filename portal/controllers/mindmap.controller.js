@@ -300,6 +300,7 @@ const toggleMindmapActiveStatus = async (req, res) => {
  */
 const getTranslation = async (req, res) => {
   try {
+    logStream('debug', 'Get Sarvam Translation call', 'Get Translation');
     const { textToTranslate, targetLang, tabType } = req.body;
     if (!textToTranslate || !targetLang || !tabType) {
       return res.status(400).json({ error: "Missing required parameters" });
@@ -316,8 +317,10 @@ const getTranslation = async (req, res) => {
         },
       }
     );
+    logStream('debug', 'Sarvam translation received', 'Get Translation');
     return res.json(sarvamRes.data);
   } catch (error) {
+     logStream('debug', error.response?.data, 'Get Sarvam Translation failed');
     res.status(500).json({ error: "Translation failed", details: error.response?.data });
   }
 };
