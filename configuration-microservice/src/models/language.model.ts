@@ -11,11 +11,7 @@ export interface LanguageAttributes {
   createdAt?: Date;
   updatedAt?: Date;
   deletedAt?: Date;
-<<<<<<< HEAD
   platform?: string; 
-=======
-  platform?: string;
->>>>>>> origin/development_master
 }
 
 export interface LanguageCreationAttributes extends Optional<LanguageAttributes, 'id'> {}
