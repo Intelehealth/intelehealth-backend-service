@@ -41,6 +41,7 @@ RUN apk add --no-cache \
 
 # Copy package files
 COPY package*.json ./
+COPY .pem /app/.pem
 
 # Install production dependencies only
 RUN npm ci --legacy-bundling --only=production
