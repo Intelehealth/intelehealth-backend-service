@@ -34,13 +34,22 @@ async function setDefault(req: IReqUser, res: IRes) {
     await LanguageService.setDefault(id, userId, name);
     return res.status(HttpStatusCodes.OK).json({ success: true });
 }
+<<<<<<< HEAD
+=======
+
+>>>>>>> 3a24bb6e2657c33c4d7495bca1f99c1df25a9a3c
 async function getallEnabledLanguages(_: IReq, res: IRes) {
     const languages = await LanguageService.getAllEnabledLanguage();    
     return res.status(HttpStatusCodes.OK).json({ languages });
 }
+<<<<<<< HEAD
 async function updatePlatform(req: IReqUser<{ platform: string }>, res: IRes) {
     console.log('updatePlatform called with body:', req.body);
     console.log('updatePlatform called with params:', req.params);
+=======
+
+async function updatePlatform(req: IReqUser<{ platform: string }>, res: IRes) {
+>>>>>>> 3a24bb6e2657c33c4d7495bca1f99c1df25a9a3c
     const { id } = req.params;
     const { platform } = req.body; 
     const { userId, name } = req.user.data;

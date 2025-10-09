@@ -153,6 +153,7 @@ async function updatePlatform(id: string, platform: string, user_id: string, use
         where: { is_enabled: true }
     });
   await Config.update({ value: JSON.stringify(enabledLanguages), published: false }, { where: { key: 'language' } });
+<<<<<<< HEAD
 
   // Insert audit trail entry
   await AuditTrail.create({
@@ -162,7 +163,17 @@ async function updatePlatform(id: string, platform: string, user_id: string, use
     description: `Updated platform for "${language.en_name}" to "${platform}".`
   });
 }
+=======
+>>>>>>> 3a24bb6e2657c33c4d7495bca1f99c1df25a9a3c
 
+  // Insert audit trail entry
+  await AuditTrail.create({
+    user_id,
+    user_name,
+    activity_type: 'LANGUAGE PLATFORM UPDATED',
+    description: `Updated platform for "${language.en_name}" to "${platform}".`
+  });
+}
 // **** Export default **** //
 
 export default {
