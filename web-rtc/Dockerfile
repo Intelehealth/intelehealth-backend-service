@@ -20,7 +20,7 @@ RUN apk update && apk upgrade && \
     giflib-dev \
     librsvg-dev \
     && rm -rf /var/cache/apk/*
-
+#DUMMY 
 # Copy package files first
 COPY package*.json ./
 
