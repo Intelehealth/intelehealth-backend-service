@@ -1,7 +1,7 @@
 FROM node:18-alpine
 
 WORKDIR /app
-
+#A
 RUN apk update && apk upgrade && \
     apk add --no-cache \
     dumb-init \
