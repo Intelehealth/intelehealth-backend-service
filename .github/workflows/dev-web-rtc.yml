@@ -40,7 +40,7 @@ jobs:
 
     - name: Build Docker image from web-rtc directory
       run: |
-        cd web-rtc
+        cd auth-gateway
         docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} .
         docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > ../app-image.tar
 
