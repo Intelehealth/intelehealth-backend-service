@@ -1,12 +1,10 @@
-FROM node:18-alpine
+# Stage 1: Builder
+FROM node:18-alpine AS builder
 
 WORKDIR /app
-#A
-RUN apk update && apk upgrade && \
-    apk add --no-cache \
-    dumb-init \
-    curl \
-    libc6-compat \
+
+# Install build dependencies
+RUN apk add --no-cache --virtual .build-deps \
     python3 \
     make \
     g++ \
@@ -18,20 +16,45 @@ RUN apk update && apk upgrade && \
     pango-dev \
     jpeg-dev \
     giflib-dev \
-    librsvg-dev \
-    && rm -rf /var/cache/apk/*
+    librsvg-dev
 
-# Copy package files first
 COPY package*.json ./
-
-# Install dependencies
 RUN npm ci --legacy-bundling
 
-# Copy application code
 COPY . .
+# If you have build step, uncomment:
+# RUN npm run build
 
-# Expose the port your app runs on
+# Stage 2: Production
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Install only RUNTIME dependencies (not dev packages)
+RUN apk add --no-cache \
+    dumb-init \
+    cairo \
+    pango \
+    librsvg \
+    giflib \
+    libjpeg-turbo
+
+# Copy package files
+COPY package*.json ./
+
+# Install production dependencies only
+RUN npm ci --legacy-bundling --only=production
+
+# Copy built application from builder stage
+COPY --from=builder /app ./
+
+# Clean up any unnecessary files
+RUN rm -rf \
+    /tmp/* \
+    /var/cache/apk/* \
+    /root/.npm \
+    /root/.node-gyp
+
 EXPOSE 3030
 
-# Start the application
-CMD ["npm", "start"]
+CMD ["dumb-init", "npm", "start"]
