@@ -3,7 +3,7 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-COPY .pem /app/.pem
+
 
 # Install build dependencies
 RUN apk add --no-cache --virtual .build-deps \
