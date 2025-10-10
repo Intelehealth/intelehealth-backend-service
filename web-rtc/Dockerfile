@@ -30,8 +30,11 @@ RUN npm ci
 # Copy application code
 COPY . .
 
+
 # Expose the port your app runs on
 EXPOSE 3000
+
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 
 # Start the application
 CMD ["npm", "start"]
