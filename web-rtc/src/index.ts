@@ -29,7 +29,8 @@ class Server {
         console.log('SSL: ', process.env.SSL);
         console.log('SSL_KEY_PATH: ', process.env.SSL_KEY_PATH);
         console.log('SSL_CERT_PATH: ', process.env.SSL_CERT_PATH);
-        if (process.env.SSL === 'true') {
+        if (process.env.SSL == 'true') {
+         console.log('FOUND: ', process.env.SSL);
             const fs = require("fs");
             try {
                 // Check if files exist before trying to read them
