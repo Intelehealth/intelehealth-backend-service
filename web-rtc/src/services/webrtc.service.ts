@@ -1,8 +1,55 @@
 import { WebSocketServer } from 'ws';
 import { RoomServiceClient, Room, AccessToken, EgressClient, EncodedFileOutput, VideoGrant, EncodingOptionsPreset, EncodedFileType } from 'livekit-server-sdk';
 import moment from 'moment';
+import nodemailer from 'nodemailer';
 const { logStream } = require("../logger/index");
 const { call_recordings } = require("../models");
+
+async function sendRecordingFailureAlert({
+    roomName,
+    visitId,
+    doctorId,
+    patientId,
+    error
+}: {
+    roomName?: string;
+    visitId?: string;
+    doctorId?: string;
+    patientId?: string;
+    error: string;
+}) {
+    try {
+        const {
+            MAIL_USERNAME,
+            MAIL_PASSWORD,
+            MAIL_ALERT_RECIPIENT
+        } = process.env;
+        if (!MAIL_USERNAME || !MAIL_PASSWORD || !MAIL_ALERT_RECIPIENT) return;
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: MAIL_USERNAME,
+                pass: MAIL_PASSWORD
+            }
+        });
+        const mailOptions = {
+            from: MAIL_USERNAME,
+            to: MAIL_ALERT_RECIPIENT,
+            subject: `ALERT: WebRTC Recording Failed - Room: ${roomName || ''}`,
+            html: `<b>WebRTC Recording Failure Detected</b><br>
+Room: ${roomName || '-'}<br>
+Visit ID: ${visitId || '-'}<br>
+Doctor ID: ${doctorId || '-'}<br>
+Patient ID: ${patientId || '-'}<br>
+Error: <pre>${error}</pre><br>
+Detected at: ${new Date().toISOString()}`
+        };
+        await transporter.sendMail(mailOptions);
+    } catch (e) {
+        // logging only
+        logStream('error', 'Failed to send recording failure alert: ' + (e as Error).message, 'sendRecordingFailureAlert');
+    }
+}
 
 export class WebRTCService {
     wss: WebSocketServer | null = null;
@@ -224,6 +271,13 @@ export class WebRTCService {
             };
         } catch (err: any) {
             logStream('error', `Recording error: ${err.message}${err.stack ? '\n' + err.stack : ''}`, 'startRecording');
+            await sendRecordingFailureAlert({
+                roomName,
+                visitId: params?.visitId,
+                doctorId: params?.doctorId,
+                patientId: params?.patientId,
+                error: err?.stack || err?.message || String(err)
+            });
             throw new Error(err?.message ?? 'Something went wrong.');
         }
     }
