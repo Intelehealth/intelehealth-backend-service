@@ -98,7 +98,8 @@ jobs:
                 -p 3000:3000 \
                 --env-file $ENV_FILE_PATH \
                 -v $PEM_FOLDER_PATH:/app/.pem \
-                --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
+                -v /etc/letsencrypt:/etc/letsencrypt \
+                #--mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
                 $DOCKER_IMAGE_NAME:${{ github.sha }}
             
             # Clean up old images
