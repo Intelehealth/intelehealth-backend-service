@@ -6,7 +6,6 @@ import { WebSocketController } from './controllers/websocket.controller';
 import * as http from 'http';
 import * as https from 'https';
 const cors = require('cors');
-const Sequelize = require("sequelize");
 const db = require("./models");
  
 
@@ -28,15 +27,30 @@ class Server {
             origin: true,
         }))
         console.log('SSL: ', process.env.SSL);
+        console.log('SSL_KEY_PATH: ', process.env.SSL_KEY_PATH);
+        console.log('SSL_CERT_PATH: ', process.env.SSL_CERT_PATH);
         if (process.env.SSL === 'true') {
             const fs = require("fs");
-             const options = {
-                key: fs.readFileSync(process.env.SSL_KEY_PATH),
-                cert: fs.readFileSync(process.env.SSL_CERT_PATH),
-            }; 
-          
-            //server = http.createServer(this.app);
-         server = http.createServer(options, this.app);
+            try {
+                // Check if files exist before trying to read them
+                if (!fs.existsSync(process.env.SSL_KEY_PATH)) {
+                    throw new Error(`SSL key file not found: ${process.env.SSL_KEY_PATH}`);
+                }
+                if (!fs.existsSync(process.env.SSL_CERT_PATH)) {
+                    throw new Error(`SSL cert file not found: ${process.env.SSL_CERT_PATH}`);
+                }
+                
+                const options = {
+                    key: fs.readFileSync(process.env.SSL_KEY_PATH),
+                    cert: fs.readFileSync(process.env.SSL_CERT_PATH),
+                };
+                server = https.createServer(options, this.app);
+                console.log('HTTPS server created successfully');
+            } catch (error) {
+                console.error('Error reading SSL files:', (error as any).message);
+                console.log('Falling back to HTTP server');
+                server = http.createServer(this.app);
+            }
         } else {
             server = http.createServer(this.app);
         }
