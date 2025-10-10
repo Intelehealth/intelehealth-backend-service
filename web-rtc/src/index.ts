@@ -30,11 +30,13 @@ class Server {
         console.log('SSL: ', process.env.SSL);
         if (process.env.SSL === 'true') {
             const fs = require("fs");
-            const options = {
+            /* const options = {
                 key: fs.readFileSync(process.env.SSL_KEY_PATH),
                 cert: fs.readFileSync(process.env.SSL_CERT_PATH),
-            };
-            server = https.createServer(options, this.app);
+            }; */
+          
+            server = http.createServer(this.app);
+         //server = http.createServer(options, this.app);
         } else {
             server = http.createServer(this.app);
         }
