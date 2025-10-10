@@ -2,6 +2,8 @@
 FROM node:18-alpine AS builder
 
 WORKDIR /app
+#A
+
 
 # Install build dependencies
 RUN apk add --no-cache --virtual .build-deps \
@@ -41,6 +43,7 @@ RUN apk add --no-cache \
 
 # Copy package files
 COPY package*.json ./
+ 
 
 # Install production dependencies only
 RUN npm ci --legacy-bundling --only=production
