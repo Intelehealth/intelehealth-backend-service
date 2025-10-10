@@ -25,7 +25,7 @@ RUN apk update && apk upgrade && \
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN npm ci  
 
 # Copy application code
 COPY . .
