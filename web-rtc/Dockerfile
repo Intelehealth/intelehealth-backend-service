@@ -1,6 +1,5 @@
-
 FROM node:18-alpine
-
+ #A
 WORKDIR /app
 
 RUN apk update && apk upgrade && \
@@ -21,18 +20,21 @@ RUN apk update && apk upgrade && \
     giflib-dev \
     librsvg-dev \
     && rm -rf /var/cache/apk/*
-
+#DUMMY 
 # Copy package files first
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN npm ci  
 
 # Copy application code
 COPY . .
 
+
 # Expose the port your app runs on
 EXPOSE 3000
+
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 
 # Start the application
 CMD ["npm", "start"]

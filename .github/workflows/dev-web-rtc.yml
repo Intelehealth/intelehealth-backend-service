@@ -32,15 +32,13 @@ jobs:
         cache: 'npm'
         cache-dependency-path: web-rtc/package-lock.json
 
-    - name: Install dependencies
-      run: npm ci --production=false
-      working-directory: web-rtc
+   
 
    
 
     - name: Build Docker image from web-rtc directory
       run: |
-        cd auth-gateway
+        cd web-rtc
         docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} .
         docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > ../app-image.tar
 
@@ -100,7 +98,7 @@ jobs:
                 -p 3000:3000 \
                 --env-file $ENV_FILE_PATH \
                 -v $PEM_FOLDER_PATH:/app/.pem \
-                --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
+                -v /etc/letsencrypt:/etc/letsencrypt \
                 $DOCKER_IMAGE_NAME:${{ github.sha }}
             
             # Clean up old images

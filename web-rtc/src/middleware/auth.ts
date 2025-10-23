@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express"
 import jwt from "jsonwebtoken";
 const fs = require('fs');
 const path = require('path');
+console.log('path->>>>', path.join(__dirname, './../../', '.pem', 'public_key.pem'));
 const publicKey  = fs.readFileSync(path.join(__dirname, './../../', '.pem', 'public_key.pem'), 
   { encoding: 'utf8', flag: 'r' }
 )

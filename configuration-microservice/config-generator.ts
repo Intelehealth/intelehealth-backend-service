@@ -71,8 +71,12 @@ export async function generateConfig(
   try {
     logger.info('Starting config generation process...');
     
+    // Check if required environment variables are present
+    const requiredEnvVars = ['NODE_ENV', 'MYSQL_HOST', 'MYSQL_DB', 'MYSQL_USERNAME', 'MYSQL_PASS'];
+    const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+    
     // Check if we're in a build environment where database might not be available
-    const isBuildTime = process.env.NODE_ENV === 'production' && process.env.MYSQL_HOST === 'localhost';
+    const isBuildTime = process.env.NODE_ENV === 'production' && missingVars.length > 0;
     
     if (isBuildTime) {
       logger.info('Build-time detected: Skipping config generation (database not available)');
@@ -81,7 +85,7 @@ export async function generateConfig(
     }
     
     // Initialize database connection
-    await connection.authenticate();
+    await connection.sync();
     logger.info('Database connection established');
 
     // Check if last config file exists before generating new one
@@ -127,17 +131,7 @@ export async function generateConfig(
     // eslint-disable-next-line no-console
     console.error('Detailed error:', err);
     throw err;
-  } finally {
-    // Close database connection only if it was opened
-    try {
-      await connection.close();
-    } catch (closeErr) {
-      // Ignore close errors during build time
-      if (!(closeErr instanceof Error && closeErr.message.includes('ECONNREFUSED'))) {
-        logger.warn('Error closing database connection:', closeErr);
-      }
-    }
-  }
+  } 
 }
 
 /**
