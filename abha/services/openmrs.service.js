@@ -153,10 +153,13 @@ async function findPersonAttributesByMobile(mobileFormats, openMRSId = null) {
         INNER JOIN patient_identifier pi ON p.patient_id = pi.patient_id
         WHERE pa.person_attribute_type_id = :mobileType
           AND pa.value IN (:mobileValues)
-          AND pa.voided = 0
           AND pi.identifier_type = :openmrsType
           AND pi.identifier = :openmrsId
+          AND pa.voided = 0
           AND pi.voided = 0
+          AND p.voided = 0
+          AND pi.preferred = 1
+        ORDER BY pi.date_changed DESC
       `;
       
       const results = await person_attribute.sequelize.query(query, {
@@ -188,6 +191,7 @@ async function findPersonAttributesByMobile(mobileFormats, openMRSId = null) {
     return await person_attribute.findAll({
       attributes: ["person_id"],
       where: queryParams,
+      orderby: [["date_changed", "DESC"]],
       logging: console.log
     });
   } catch (error) {
@@ -224,7 +228,7 @@ async function findPersonsByCriteria(criteria) {
       [Op.in]: personIds
     },
     gender: { [Op.eq]: gender },
-    voided: { [Op.eq]: 0 }
+    voided: { [Op.eq]: 0 },
   };
   
   if (birthDateRange) {
@@ -244,7 +248,8 @@ async function findPersonsByCriteria(criteria) {
           voided: { [Op.eq]: 0 }
         }
       }
-    ]
+    ],
+    orderby: [["date_changed", "DESC"]]
   });
 }
 
@@ -298,7 +303,8 @@ function buildAbhaSearchQuery(abhaIdentifiers, openMRSId) {
     identifier: {
       [Op.or]: abhaIdentifiers
     },
-    voided: { [Op.eq]: 0 }
+    voided: { [Op.eq]: 0 },
+    preferred: { [Op.eq]: 1 }
   };
 
   // If OpenMRS ID is provided, add AND condition for additional validation
@@ -315,7 +321,8 @@ function buildAbhaSearchQuery(abhaIdentifiers, openMRSId) {
           identifier: { [Op.eq]: openMRSId }
         }
       ],
-      voided: { [Op.eq]: 0 }
+      voided: { [Op.eq]: 0 },
+      preferred: { [Op.eq]: 1 }
     };
   }
 
@@ -335,6 +342,10 @@ async function getPatientInfo(patientId) {
         model: patient_identifier,
         as: "patient_identifier",
         attributes: ["identifier", "identifier_type", 'patient_identifier_id', 'location_id', 'creator'],
+        where: {
+          voided: { [Op.eq]: 0 },
+          preferred: { [Op.eq]: 1 }
+        }
       },
       {
         model: person,
@@ -346,6 +357,7 @@ async function getPatientInfo(patientId) {
             as: "person_name",
             attributes: ["given_name", "family_name"],
             where: {
+              voided: { [Op.eq]: 0 },
               preferred: { [Op.eq] : 1 } 
             }
           },
@@ -354,7 +366,8 @@ async function getPatientInfo(patientId) {
             as: "attributes",
             attributes: ["value", "person_attribute_type_id"],
             where: {
-              "person_attribute_type_id": { [Op.eq]: IDENTIFIER_TYPES.MOBILE_NUMBER }
+              voided: { [Op.eq]: 0 },
+              person_attribute_type_id: { [Op.eq]: IDENTIFIER_TYPES.MOBILE_NUMBER }
             },
             required: false,
           },
@@ -470,6 +483,7 @@ module.exports = (function () {
     const query = {
       where: {
         patient_id: { [Op.eq]: patientId },
+        voided: { [Op.eq]: 0 },
       },
       attributes: ["uuid", "date_started"],
       include: [
@@ -498,15 +512,16 @@ module.exports = (function () {
       query.include.push({
         model: visit_attribute,
         as: "attributes",
-        attributes: ["attribute_type_id", "value_reference"],
+        attributes: ["attribute_type_id", "value_reference", "voided"],
         where: {
-          "attribute_type_id": { [Op.eq]: VISIT_ATTRIBUTE_TYPES.IS_ABDM_LINKED },
-          "value_reference": { [Op.eq]: false }
+          attribute_type_id: { [Op.eq]: VISIT_ATTRIBUTE_TYPES.IS_ABDM_LINKED },
+          value_reference: { [Op.eq]: false },
+          voided: { [Op.eq]: 0 },
         }
       })
     }
 
-    const visits = await visit.findAll(query);
+    const visits = await visit.findAll(query, { logging: console.log });
     return { visits: visits?.length ? visits : null, patientInfo: patientInfo };
   };
 
@@ -621,8 +636,8 @@ module.exports = (function () {
                 identifier: value,
                 creator: creator,
                 location_id: location_id,
-                date_changed: new Date()
-              }, {
+                date_changed: new Date(),
+                preferred: 1,
                 where: {
                   patient_identifier_id: existing.patient_identifier_id
                 },
@@ -636,7 +651,7 @@ module.exports = (function () {
                 identifier: value,
                 identifier_type: type,
                 location_id: location_id,
-                preferred: false,
+                preferred: 1,
                 date_created: new Date(),
                 date_changed: new Date(),
                 uuid: uuid(),
@@ -751,7 +766,7 @@ module.exports = (function () {
             uuid: uuid(),
             creator: 1,
             date_created: now,
-            date_changed: now
+            date_changed: now,
           }));
 
           updatePromises.push(visit_attribute.bulkCreate(newAttributes));

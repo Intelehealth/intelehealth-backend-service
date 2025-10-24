@@ -1264,8 +1264,8 @@ const createEncounterResource = (encounter, patientId) => {
         },
         class: {
             system: "http://terminology.hl7.org/CodeSystem/v3-ActCode",
-            code: "AMB",
-            display: "ambulatory"
+            code: "VR",
+            display: "virtual"
         },
         status: "finished"
     });
@@ -1531,6 +1531,7 @@ async function formatCareContextFHIBundle(response) {
                 createPractitionerResource(practitioner),
                 createOrganizationResource(),
                 createPatientResource(patient),
+                createEncounterResource(response?.encounters[0], patient?.uuid)
             ];
             const WellnessRecordBundle = createFHIRBundle({
                 id: uuid(),
@@ -1558,6 +1559,7 @@ async function formatCareContextFHIBundle(response) {
                 createPractitionerResource(practitioner),
                 createOrganizationResource(),
                 createPatientResource(patient),
+                createEncounterResource(response?.encounters[0], patient?.uuid)
             ];
 
             const HealthRecordBundle = createFHIRBundle({
@@ -1587,6 +1589,7 @@ async function formatCareContextFHIBundle(response) {
                 createPractitionerResource(practitioner),
                 createOrganizationResource(),
                 createPatientResource(patient),
+                createEncounterResource(response?.encounters[0], patient?.uuid)
             ];
 
             const PrescriptionRecordBundle = createFHIRBundle({
@@ -1606,9 +1609,7 @@ async function formatCareContextFHIBundle(response) {
                 careContextReference : response?.uuid,
                 bundleContent : JSON.stringify(PrescriptionRecordBundle)
             })
-        }
-
-        
+        }   
         
         return {
             healthInformationBundle : healthInformationBundle
