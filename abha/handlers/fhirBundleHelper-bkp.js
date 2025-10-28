@@ -9,16 +9,16 @@ const { logStream } = require("../logger");
 const { downloadPrescription, downloadMedication, downloadVitals } = require("./pdfHelper");
 const openmrsService = require("../services/openmrs.service");
 const { getDoctorDetail, getData, convertDataToISO, getAttributeByName, getIdentifierByName, getGender } = require("./utilityHelper");
-const { parseDrugHistory, parseMedicationObservation, buildDosageInstruction, buildDispenseRequest, buildFHIRDosage } = require("./parserHelper");
 
 // Cheif Complaints
 /**
  * Creates a FHIR Condition resource for chief complaints
  * @param {Object} obs - Observation object containing complaint data
  * @param {Object} cheifComplaints - Object to store complaint data
+ * @param {Object} practitioner - Practitioner information
  * @param {Object} patient - Patient information
  */
-function cheifComplaintStructure(obs, cheifComplaints, patient) {
+function cheifComplaintStructure(obs, cheifComplaints, practitioner, patient) {
     const currentComplaint = getData(obs)?.value.split('<b>');
     if (!currentComplaint.length) return;
     const complaints = []
@@ -207,266 +207,67 @@ function physicalExaminationStructure(obs, physicalExaminationData, practitioner
     return physicalExaminationData
 }
 
-
-/**
- * Creates a FHIR MedicationStatement resource from parsed medication data
- * @param {Object} medicationData - Parsed medication data
- * @param {string} obsUuid - Observation UUID for unique ID generation
- * @param {string} obsDatetime - Observation datetime
- * @param {Object} practitioner - Practitioner information
- * @param {Object} patient - Patient information
- * @returns {Object} FHIR MedicationStatement resource
- */
-function createMedicationStatementResource(medicationData, obsUuid, obsDatetime, practitioner, patient) {
-    // Validate input parameters
-    if (!medicationData || !obsUuid || !obsDatetime || !practitioner || !patient) {
-        console.error('Missing required parameters for createMedicationStatementResource');
-        return null;
-    }
-    
-    const { name, fromDate, toDate, adherence, number } = medicationData;
-    
-    if (!name) {
-        console.error('Medication name is required');
-        return null;
-    }
-    
-    let startDate, endDate;
-    try {
-        startDate = convertDataToISO(fromDate);
-        endDate = convertDataToISO(toDate);
-    } catch (e) {
-        console.warn("Error parsing medication dates:", e);
-        startDate = convertDataToISO(obsDatetime);
-        endDate = convertDataToISO(obsDatetime);
-    }
-    
-    const medicationUUID = `${obsUuid}-med-${number || 'unknown'}`;
-    
-    return {
-        resource: {
-            medicationCodeableConcept: {
-                text: name
-            },
-            effectivePeriod: {
-                start: startDate,
-                end: endDate
-            },
-            dateAsserted: convertDataToISO(obsDatetime),
-            informationSource: {
-                reference: `Practitioner/${practitioner?.practitioner_id}`,
-                display: practitioner?.name
-            },
-            subject: {
-                reference: `Patient/${patient?.uuid}`,
-                display: patient?.person?.display
-            },
-            note: adherence ? [
-                {
-                    text: `Medication Adherence: ${adherence}`
-                }
-            ] : [],
-            id: medicationUUID,
-            resourceType: "MedicationStatement",
-            status: "completed"
-        },
-        fullUrl: `MedicationStatement/${medicationUUID}`
-    };
-}
-
-/**
- * Processes drug history and adds MedicationStatement resources to medications section
- * @param {Array} medicalHistory - Array of medical history lines
- * @param {number} drugHistoryIndex - Index where drug history starts
- * @param {Object} medications - Medications data structure
- * @param {Object} obs - Observation object
- * @param {Object} practitioner - Practitioner information
- * @param {Object} patient - Patient information
- */
-function processDrugHistory(medicalHistory, drugHistoryIndex, medications, obs, practitioner, patient) {
-    if (drugHistoryIndex === -1) return;
-    
-    // Get the full drug history text from all lines after drugHistoryIndex
-    const drugHistoryText = medicalHistory.slice(drugHistoryIndex, medicalHistory.length).join(' ').trim();
-    
-    // Parse medications from drug history
-    const parsedMedications = parseDrugHistory(drugHistoryText);
-    
-    // Create MedicationStatement resources for each parsed medication
-    parsedMedications.forEach(medicationData => {
-        const medicationResource = createMedicationStatementResource(
-            medicationData, 
-            obs.uuid, 
-            obs.obsDatetime, 
-            practitioner, 
-            patient
-        );
-        
-        // Only add if resource creation was successful
-        if (medicationResource) {
-            medications.section.entry.push({
-                reference: medicationResource.fullUrl
-            });
-            
-            medications.medications.push(medicationResource);
-        }
-    });
-}
-
-/**
- * Categorizes medical history entries into history and allergies
- * @param {Array} medicalHistory - Array of medical history lines
- * @param {number} drugHistoryIndex - Index to exclude from processing
- * @returns {Object} Object containing categorized history and allergies arrays
- */
-function categorizeMedicalHistoryEntries(medicalHistory, drugHistoryIndex) {
-    const history = [];
-    const allergies = [];
-    
-    for (let i = 0; i < medicalHistory.length; i++) {
-        if (medicalHistory[i] && i !== drugHistoryIndex) {
-            const splitByDash = medicalHistory[i].split('-');
-            const key = splitByDash[0].replace('• ', '').trim();
-            const value = splitByDash.slice(1, splitByDash.length).join('-').trim();
-            
-            // Check if this is an allergy entry
-            if (key.toLowerCase().includes('allerg')) {
-                allergies.push(`${key}:${value}`);
-            } else if (key && value) {
-                history.push(`${key}:${value}`);
-            }
-        }
-    }
-    
-    return { history, allergies };
-}
-
 // Patient Medical History
 /**
  * Creates a FHIR Condition resource for medical history
  * @param {Object} obs - Observation object containing medical history data
  * @param {Object} medicalHistoryData - Object to store medical history data
- * @param {Object} allergiesData - Object to store allergies data
- * @param {Object} medications - Object to store medication data
  * @param {Object} practitioner - Practitioner information
  * @param {Object} patient - Patient information
  */
-function medicalHistoryStructure(obs, medicalHistoryData, allergiesData, medications, practitioner, patient) {
+function medicalHistoryStructure(obs, medicalHistoryData, practitioner, patient) {
     const medicalHistory = getData(obs)?.value.split('<br/>');
     if (!medicalHistory.length) return;
-    
     const history = [];
-    const allergies = [];
-    
-    // Detect drug history section
-    const drugHistoryIndex = medicalHistory.findIndex(line => 
-        line && line.toLowerCase().includes('drug history')
-    );
-    // Process drug history if found
-    processDrugHistory(medicalHistory, drugHistoryIndex, medications, obs, practitioner, patient);
-    
-    // Categorize other medical history entries (excluding drug history)
-    const { history: categorizedHistory, allergies: categorizedAllergies } = 
-        categorizeMedicalHistoryEntries(medicalHistory, drugHistoryIndex);
-    
-    history.push(...categorizedHistory);
-    allergies.push(...categorizedAllergies);
-    
-    // Add to medical history section if there are non-allergy entries
-    if (history.length > 0) {
-        medicalHistoryData.section.entry.push({
-            reference: `Condition/${obs.uuid}`
-        });
+    for (let i = 0; i < medicalHistory.length; i++) {
+        if (medicalHistory[i]) {
+            const splitByDash = medicalHistory[i].split('-');
+            const key = splitByDash[0].replace('• ', '').trim();
+            const value = splitByDash.slice(1, splitByDash.length).join('-').trim();
+            history.push(`${key}:${value}`);
+        }
+    }
+    medicalHistoryData.section.entry.push({
+        reference: `Condition/${obs.uuid}`
+    })
 
-        medicalHistoryData.conditions.push(createFHIRResource({
-            code: {
-                text: history.join(', ')
-            },
-            onsetPeriod: {
-                start: convertDataToISO(obs.obsDatetime)
-            },
-            subject: {
-                reference: `Patient/${patient?.uuid}`
-            },
-            recordedDate: convertDataToISO(obs.obsDatetime),
-            id: obs.uuid,
-            clinicalStatus: {
-                coding: [
-                    {
-                        system: "http://terminology.hl7.org/CodeSystem/condition-clinical",
-                        code: "active",
-                        display: "active"
-                    }
-                ],
-                text: "HISTORY"
-            },
-            category: [
+    medicalHistoryData.conditions.push(createFHIRResource({
+        code: {
+            text: history.join(', ')
+        },
+        onsetPeriod: {
+            start: convertDataToISO(obs.obsDatetime)
+        },
+        subject: {
+            reference: `Patient/${patient?.uuid}`
+        },
+        recordedDate: convertDataToISO(obs.obsDatetime),
+        id: obs.uuid,
+        clinicalStatus: {
+            coding: [
                 {
-                    coding: [
-                        {
-                            system: "http://terminology.hl7.org/CodeSystem/condition-category",
-                            code: "problem-list-item",
-                            display: "Problem List Item"
-                        }
-                    ],
-                    text: "problem list"
+                    system: "http://terminology.hl7.org/CodeSystem/condition-clinical",
+                    code: "active",
+                    display: "active"
                 }
             ],
-            resourceType: "Condition"
-        }));
-    }
-    
-    // Add to allergies section if there are allergy entries
-    if (allergies.length > 0) {
-        allergiesData.section.entry.push({
-            reference: `AllergyIntolerance/${obs.uuid}`,
-            display: "AllergyIntolerance"
-        });
-
-        allergiesData.allergies.push(createFHIRResource({
-            code: {
-                text: allergies.join(', '),
-                coding : [
+            text: "HISTORY"
+        },
+        category: [
+            {
+                coding: [
                     {
-                        system : "http://snomed.info/sct",
-                        code : "716186003",
-                        display : "No known allergy"
+                        system: "http://terminology.hl7.org/CodeSystem/condition-category",
+                        code: "problem-list-item",
+                        display: "Problem List Item"
                     }
                 ],
-            },
-            onsetPeriod: {
-                start: convertDataToISO(obs.obsDatetime)
-            },
-            patient: {
-                reference: `Patient/${patient?.uuid}`
-            },
-            recordedDate: convertDataToISO(obs.obsDatetime),
-            recorder: {
-                reference: `Practitioner/${practitioner?.practitioner_id}`,
-                display: practitioner?.name
-            },
-            id: obs.uuid,
-            clinicalStatus: {
-                coding: [
-                    {
-                        system: "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical",
-                        code: "active",
-                        display: "Active"
-                    }
-                ]
-            },
-            verificationStatus: {
-                coding: [
-                    {
-                        system: "http://terminology.hl7.org/CodeSystem/allergyintolerance-verification",
-                        code: "confirmed",
-                        display: "Confirmed"
-                    }
-                ]
-            },
-            resourceType: "AllergyIntolerance"
-        }));
-    }
+                text: "problem list"
+            }
+        ],
+        resourceType: "Condition"
+    })
+    )
 }
 
 // Family Member medical history
@@ -477,7 +278,7 @@ function medicalHistoryStructure(obs, medicalHistoryData, allergiesData, medicat
  * @param {Object} practitioner - Practitioner information
  * @param {Object} patient - Patient information
  */
-function medicalFamilyHistoryStructure(obs, familyHistoryData, patient) {
+function medicalFamilyHistoryStructure(obs, familyHistoryData, practitioner, patient) {
     const familyHistory = getData(obs)?.value.split('<br/>');
     if (!familyHistory.length) return;
     const relationMap = {};
@@ -670,18 +471,13 @@ function followUPStructure(obs, folloupVisit, practitioner, patient) {
  * @param {Object} prescriptionMedications - Optional object to store prescription medication data
  */
 function medicationStructure(obs, medications, practitioner, patient, prescriptionMedications) {
-    // Parse and validate observation
-    const parsed = parseMedicationObservation(obs.value);
-    if (!parsed) return;
-    
-    const dosageText = buildDosageInstruction(parsed);
-    if (!dosageText) return;
-    
-    // Build FHIR structures using helper functions
-    const dosage = buildFHIRDosage(parsed, dosageText);
-    const obsDatetime = convertDataToISO(obs.obsDatetime);
-    const dispenseRequest = buildDispenseRequest(parsed, obsDatetime);
-    
+    const obsValue = obs.value?.split(':');
+    let dosageInstruction = '';
+    if (obsValue?.[1]) dosageInstruction += obsValue?.[1];
+    if (obsValue?.[3]) dosageInstruction += ` (${obsValue?.[3]}) Aa Day`;
+    if (obsValue?.[2]) dosageInstruction += ` (Duration:${obsValue?.[2]})`;
+    if (obsValue?.[4]) dosageInstruction += ` Remark: ${obsValue?.[4]}`;
+
     const resource = {
         "resource": {
             "requester": {
@@ -689,11 +485,14 @@ function medicationStructure(obs, medications, practitioner, patient, prescripti
                 "display": practitioner?.name
             },
             "medicationCodeableConcept": {
-                "text": parsed.name
+                "text": obsValue?.[0]
             },
-            "authoredOn": obsDatetime,
-            "dosageInstruction": [dosage],
-            ...(Object.keys(dispenseRequest).length > 0 && { "dispenseRequest": dispenseRequest }),
+            "authoredOn": convertDataToISO(obs.obsDatetime),
+            "dosageInstruction": [
+                {
+                    "text": dosageInstruction != '' ? dosageInstruction : 'N/A'
+                }
+            ],
             "subject": {
                 "reference": `Patient/${patient?.uuid}`,
                 "display": patient?.person?.display
@@ -710,7 +509,7 @@ function medicationStructure(obs, medications, practitioner, patient, prescripti
         "reference": `MedicationRequest/${obs.uuid}`
     })
 
-    medications.medications.push(resource)
+    medications.medicationRequest.push(resource)
 
     if (prescriptionMedications) {
         prescriptionMedications.section.entry.push({
@@ -718,7 +517,7 @@ function medicationStructure(obs, medications, practitioner, patient, prescripti
             "type": "MedicationRequest"
         })
 
-        prescriptionMedications.medications.push({
+        prescriptionMedications.medicationRequest.push({
             resource: {
                 ...resource?.resource,
                 "id": `prescription-${obs.uuid}`,
@@ -941,9 +740,6 @@ async function healthRecordStructure({ obs = [], ...healthRecord }, patient) {
     }
 }
 
-/*------------------------------------------------------------------------------------------------*/
-
-/*------------------------------------------------------------------------------------------------*/
 /**
  * Initializes FHIR section data structures
  * @returns {Object} Object containing initialized FHIR section data structures
@@ -979,16 +775,6 @@ const initializeFHIRSections = () => ({
         }),
         conditions: []
     },
-    allergiesData: {
-        section: createFHIRSection({
-            code: {
-                code: "722446000",
-                display: "Allergy record"
-            },
-            title: "Allergies"
-        }),
-        allergies: []
-    },
     familyHistoryData: {
         section: createFHIRSection({
             code: {
@@ -1007,7 +793,7 @@ const initializeFHIRSections = () => ({
             },
             title: "Medications"
         }),
-        medications: []
+        medicationRequest: []
     },
     serviceRequest: {
         section: createFHIRSection({
@@ -1060,7 +846,7 @@ const initializeFHIRSections = () => ({
                 },
                 title: "Medications"
             }),
-            medications: []
+            medicationRequest: []
         }
     },
     healthRecord: {
@@ -1085,7 +871,6 @@ const processObservation = (obs, sections, practitioner, patient) => {
         cheifComplaints,
         physicalExaminationData,
         medicalHistoryData,
-        allergiesData,
         familyHistoryData,
         medications,
         serviceRequest,
@@ -1096,16 +881,16 @@ const processObservation = (obs, sections, practitioner, patient) => {
 
     switch (obs.concept.display) {
         case VISIT_TYPES.CURRENT_COMPLAINT:
-            cheifComplaintStructure(obs, cheifComplaints, patient);
+            cheifComplaintStructure(obs, cheifComplaints, practitioner, patient);
             break;
         case VISIT_TYPES.PHYSICAL_EXAMINATION:
             physicalExaminationStructure(obs, physicalExaminationData, practitioner, patient);
             break;
         case VISIT_TYPES.MEDICAL_HISTORY:
-            medicalHistoryStructure(obs, medicalHistoryData, allergiesData, medications, practitioner, patient);
+            medicalHistoryStructure(obs, medicalHistoryData, practitioner, patient);
             break;
         case VISIT_TYPES.FAMILY_HISTORY:
-            medicalFamilyHistoryStructure(obs, familyHistoryData, patient);
+            medicalFamilyHistoryStructure(obs, familyHistoryData, practitioner, patient);
             break;
         case VISIT_TYPES.FOLLOW_UP_VISIT:
             followUPStructure(obs, folloupVisit, practitioner, patient);
@@ -1185,14 +970,13 @@ function getEncountersFHIBundle(encounters, practitioner, patient) {
             cheifComplaints: sections.cheifComplaints?.conditions?.length ? sections.cheifComplaints : {},
             physicalExamination: sections.physicalExaminationData?.observations.length ? sections.physicalExaminationData : {},
             medicalHistory: sections.medicalHistoryData?.conditions?.length ? sections.medicalHistoryData : {},
-            allergies: sections.allergiesData?.allergies?.length ? sections.allergiesData : {},
             familyHistory: sections.familyHistoryData?.conditions?.length ? sections.familyHistoryData : {},
-            medications: sections.medications?.medications.length ? sections.medications : {},
+            medications: sections.medications?.medicationRequest.length ? sections.medications : {},
             serviceRequest: sections.serviceRequest?.requests.length ? sections.serviceRequest : {},
             followUp: sections.folloupVisit?.followUp?.length ? sections.folloupVisit : {},
             referrals: sections.referrals?.requests?.length ? sections.referrals : {},
             wellnessRecord: sections.wellnessRecord?.vitalSigns?.observations?.length ? sections.wellnessRecord : {},
-            prescriptionRecord: sections.prescriptionRecord?.medications?.medications?.length ? sections.prescriptionRecord : {},
+            prescriptionRecord: sections.prescriptionRecord?.medications?.medicationRequest?.length ? sections.prescriptionRecord : {},
             healthRecord: sections.healthRecord //TODO: added obs for health record to fetch all the document url and process it with promise.all in healthRecordStructure
         };
     } catch (error) {
@@ -1580,8 +1364,8 @@ async function prescriptionRecordBinaryStructure(prescriptionRecord, response, d
     }
 
     // Add Binary resource to prescription record
-    if (prescriptionRecord?.medications?.medications) {
-        prescriptionRecord.medications.medications.push({
+    if (prescriptionRecord?.medications?.medicationRequest) {
+        prescriptionRecord.medications.medicationRequest.push({
             fullUrl: `Binary/${uniqueIdBinary}`,
             resource: binaryResource
         });
@@ -1672,7 +1456,6 @@ async function formatCareContextFHIBundle(response) {
             medications,
             cheifComplaints,
             medicalHistory,
-            allergies,
             familyHistory,
             physicalExamination,
             serviceRequest,
@@ -1692,7 +1475,6 @@ async function formatCareContextFHIBundle(response) {
             medications?.section,
             cheifComplaints?.section,
             medicalHistory?.section,
-            allergies?.section,
             familyHistory?.section,
             physicalExamination?.section,
             serviceRequest?.section,
@@ -1707,10 +1489,9 @@ async function formatCareContextFHIBundle(response) {
             createPractitionerResource(practitioner),
             createOrganizationResource(),
             createPatientResource(patient),
-            ...(medications?.medications ?? []),
+            ...(medications?.medicationRequest ?? []),
             ...(cheifComplaints?.conditions ?? []),
             ...(medicalHistory?.conditions ?? []),
-            ...(allergies?.allergies ?? []),
             ...(familyHistory?.conditions ?? []),
             ...(physicalExamination?.observations ?? []),
             ...(serviceRequest?.requests ?? []),
@@ -1721,7 +1502,7 @@ async function formatCareContextFHIBundle(response) {
         ].filter(Boolean);
 
         const healthInformationBundle = [];
-        const encounterUuid = response?.encounters?.length ? response?.encounters[0]?.uuid : uuid();
+
         if(OPConsultRecordEntries.length) {
             const OPConsultRecordBundle = createFHIRBundle({
                 id: uuid(),
@@ -1743,14 +1524,14 @@ async function formatCareContextFHIBundle(response) {
         }
 
 
-        const formatWellnessFHIBundleResult = formatWellnessFHIBundle(wellnessRecord, patient, practitioner, response?.startDatetime, encounterUuid);
+        const formatWellnessFHIBundleResult = formatWellnessFHIBundle(wellnessRecord, patient, practitioner, response?.startDatetime);
         if(formatWellnessFHIBundleResult?.length) {
             const wellnessRecordEntries = [
                 ...formatWellnessFHIBundleResult,
                 createPractitionerResource(practitioner),
                 createOrganizationResource(),
                 createPatientResource(patient),
-                createEncounterResource({uuid: encounterUuid}, patient?.uuid)
+                createEncounterResource({uuid: uuid()}, patient?.uuid)
             ];
             const WellnessRecordBundle = createFHIRBundle({
                 id: uuid(),
@@ -1771,14 +1552,14 @@ async function formatCareContextFHIBundle(response) {
             })
         }
         
-        const formatHealthRecordFHIBundleResult = formatHealthRecordFHIBundle(healthRecord, patient, practitioner, response?.startDatetime, encounterUuid);
+        const formatHealthRecordFHIBundleResult = formatHealthRecordFHIBundle(healthRecord, patient, practitioner, response?.startDatetime);
         if(formatHealthRecordFHIBundleResult?.length) {
             const healthRecordEntries = [
                 ...formatHealthRecordFHIBundleResult,
                 createPractitionerResource(practitioner),
                 createOrganizationResource(),
                 createPatientResource(patient),
-                createEncounterResource({uuid: encounterUuid}, patient?.uuid)
+                createEncounterResource({uuid: uuid()}, patient?.uuid)
             ];
 
             const HealthRecordBundle = createFHIRBundle({
@@ -1801,17 +1582,14 @@ async function formatCareContextFHIBundle(response) {
             })
         }
 
-        // Completed Visit Encounter
-        const completedVisitEncounter = response?.encounters?.find(encounter => encounter.encounterType.display === 'Visit Complete');
-        const completedVisitEncounterUuid = completedVisitEncounter?.uuid ? completedVisitEncounter?.uuid : uuid();
-        const formatPrescriptionFHIBundleResult = formatPrescriptionFHIBundle(prescriptionRecord, completedVisitEncounter, patient, practitioner, completedVisitEncounterUuid);
+        const formatPrescriptionFHIBundleResult = formatPrescriptionFHIBundle(prescriptionRecord, response, patient, practitioner);
         if(formatPrescriptionFHIBundleResult?.length) {
             const prescriptionRecordEntries = [
                 ...formatPrescriptionFHIBundleResult,
                 createPractitionerResource(practitioner),
                 createOrganizationResource(),
                 createPatientResource(patient),
-                createEncounterResource({uuid: completedVisitEncounterUuid}, patient?.uuid)
+                createEncounterResource({uuid: uuid()}, patient?.uuid)
             ];
 
             const PrescriptionRecordBundle = createFHIRBundle({
@@ -1851,19 +1629,20 @@ async function formatCareContextFHIBundle(response) {
  * @param {Object} practitioner - Practitioner data
  * @returns {Array} Formatted prescription FHIR bundle entries
  */
-function formatPrescriptionFHIBundle({ medications }, completedVisitEncounter, patient, practitioner, encounterUuid) {
-    
-    if (!medications || !completedVisitEncounter) return [];
+function formatPrescriptionFHIBundle({ medications, documentReferences }, response, patient, practitioner) {
+    if (!medications) return [];
+    const sharedPrescription = response?.encounters?.find(encounter => encounter.encounterType.display === 'Visit Complete');
+    if (!sharedPrescription) return [];
     return [
         createFHIRResource({
             id: uuid(),
-            date: convertDataToISO(completedVisitEncounter?.encounterDatetime),
+            date: convertDataToISO(sharedPrescription?.encounterDatetime),
             custodian: {
                 reference: "Organization/10371",
                 display: "Intelehealth Telemedicine"
             },
             meta: {
-                lastUpdated: convertDataToISO(completedVisitEncounter?.encounterDatetime),
+                lastUpdated: convertDataToISO(sharedPrescription?.encounterDatetime),
                 versionId: "1",
                 profile: [
                     "https://nrces.in/ndhm/fhir/r4/StructureDefinition/PrescriptionRecord"
@@ -1872,9 +1651,6 @@ function formatPrescriptionFHIBundle({ medications }, completedVisitEncounter, p
             subject: {
                 reference: "Patient/" + patient?.uuid,
                 display: patient?.person?.display
-            },
-            encounter: {
-                reference: `Encounter/${encounterUuid}`
             },
             author: [{
                 reference: "Practitioner/" + practitioner?.practitioner_id,
@@ -1904,7 +1680,7 @@ function formatPrescriptionFHIBundle({ medications }, completedVisitEncounter, p
             resourceType: "Composition",
             status: "final"
         }),
-        ...(medications?.medications ?? [])
+        ...(medications?.medicationRequest ?? [])
     ];
 }
 
@@ -1916,7 +1692,7 @@ function formatPrescriptionFHIBundle({ medications }, completedVisitEncounter, p
  * @param {string} startDatetime - Start datetime
  * @returns {Object} Wellness record resource object
  */
-const createWellnessRecordResource = (wellnessRecord, patient, practitioner, startDatetime, encounterUuid) => {
+const createWellnessRecordResource = (wellnessRecord, patient, practitioner, startDatetime) => {
     const uniqueId = uuid();
     return createFHIRResource({
         resourceType: "Composition",
@@ -1956,9 +1732,6 @@ const createWellnessRecordResource = (wellnessRecord, patient, practitioner, sta
             reference: `Practitioner/${practitioner?.practitioner_id}`,
             display: practitioner?.name
         }],
-        encounter: {
-            reference: `Encounter/${encounterUuid}`
-        },
         date: convertDataToISO(startDatetime),
         title: "Wellness Record",
         section: [
@@ -1982,11 +1755,11 @@ const createWellnessRecordResource = (wellnessRecord, patient, practitioner, sta
  * @param {string} startDatetime - Start datetime
  * @returns {Array} Formatted wellness FHIR bundle entries
  */
-function formatWellnessFHIBundle(wellnessRecord, patient, practitioner, startDatetime, encounterUuid) {
+function formatWellnessFHIBundle(wellnessRecord, patient, practitioner, startDatetime) {
     const { vitalSigns, documentReferences } = wellnessRecord
     if (!vitalSigns?.entry?.length) return [];
     return [
-        createWellnessRecordResource(wellnessRecord, patient, practitioner, startDatetime, encounterUuid),
+        createWellnessRecordResource(wellnessRecord, patient, practitioner, startDatetime),
         ...vitalSigns?.observations,
         ...documentReferences?.entries
     ]
@@ -2038,9 +1811,6 @@ const createHealthRecordResource = (healthRecord, patient, practitioner, startDa
             reference: `Patient/${patient?.uuid}`,
             display: patient?.person?.display
         },
-        encounter: {
-            reference: `Encounter/${encounterUuid}`
-        },
         author: [{
             reference: `Practitioner/${practitioner?.practitioner_id}`,
             display: practitioner?.name
@@ -2059,10 +1829,10 @@ const createHealthRecordResource = (healthRecord, patient, practitioner, startDa
  * @param {string} startDatetime - Start datetime
  * @returns {Array} Formatted health record FHIR bundle entries
  */
-function formatHealthRecordFHIBundle(healthRecord, patient, practitioner, startDatetime, encounterUuid) {
+function formatHealthRecordFHIBundle(healthRecord, patient, practitioner, startDatetime) {
     if (!healthRecord?.entriesFullRecords?.length) return [];
     return [
-        createHealthRecordResource(healthRecord, patient, practitioner, startDatetime, encounterUuid),
+        createHealthRecordResource(healthRecord, patient, practitioner, startDatetime),
         ...healthRecord?.entriesFullRecords
     ]
 }
