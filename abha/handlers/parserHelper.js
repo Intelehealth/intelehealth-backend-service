@@ -1,0 +1,204 @@
+/**
+ * Parses drug history text and extracts medication information
+ * @param {string} drugHistoryText - The drug history text to parse
+ * @returns {Array} Array of parsed medication objects
+ */
+function parseDrugHistory(drugHistoryText) {
+    if (!drugHistoryText || typeof drugHistoryText !== 'string') {
+        console.warn('Invalid drug history text provided to parseDrugHistory');
+        return [];
+    }
+
+    const medications = [];
+    
+    try {
+        // Extract adherence (shared across all medications)
+        const adherenceMatch = drugHistoryText.match(/Medication Adherence\s*-\s*([^.]+)/i);
+        const adherence = adherenceMatch ? adherenceMatch[1].trim() : '';
+        
+        // Find all medication patterns (Medication name 1, Medication name 2, etc.)
+        const medicationPattern = /Medication name\s+(\d+)\s*-\s*Medication Name\s*-\s*([^.]+?)\s*\.\s*From\s*-\s*([^.]+?)\s*\.\s*To\s*-\s*([^.]+?)\s*\./gi;
+        
+        let match;
+        while ((match = medicationPattern.exec(drugHistoryText)) !== null) {
+            const [, medicationNumber, medicationName, fromDate, toDate] = match;
+            
+            // Validate parsed data
+            if (!medicationName || !fromDate || !toDate) {
+                console.warn('Incomplete medication data found:', { medicationName, fromDate, toDate });
+                continue;
+            }
+            
+            medications.push({
+                number: parseInt(medicationNumber) || medications.length + 1,
+                name: medicationName.trim(),
+                fromDate: fromDate.trim(),
+                toDate: toDate.trim(),
+                adherence: adherence
+            });
+        }
+    } catch (error) {
+        console.error('Error parsing drug history:', error);
+    }
+    
+    return medications;
+}
+
+
+// Helper Functions for Medication Resources
+
+/**
+ * Parses medication observation value into structured components
+ * @param {string} value - Observation value (format: "medication:dose:duration:frequency:remarks")
+ * @returns {Object|null} Parsed medication values or null if invalid
+ */
+function parseMedicationObservation(value) {
+    if (!value) return null;
+    const parts = value.split(':');
+    if (parts.length < 1) return null;
+    
+    return {
+        name: parts[0],
+        dose: parts[1],
+        duration: parts[2],
+        frequency: parts[3],
+        remarks: parts[4]
+    };
+}
+
+/**
+ * Builds human-readable dosage instruction text
+ * @param {Object} parsed - Parsed medication values from parseMedicationObservation
+ * @returns {string} Complete dosage instruction text
+ */
+function buildDosageInstruction(parsed) {
+    if (!parsed) return '';
+    
+    let instruction = '';
+    if (parsed.dose) instruction += parsed.dose;
+    if (parsed.frequency) instruction += ` (${parsed.frequency}) times a Day`;
+    if (parsed.duration) instruction += ` (Duration:${parsed.duration})`;
+    if (parsed.remarks) instruction += ` Remark: ${parsed.remarks}`;
+    
+    return instruction;
+}
+
+/**
+ * Builds FHIR R5 compliant dosage structure
+ * @param {Object} parsed - Parsed medication values
+ * @param {string} dosageText - Human-readable dosage instruction
+ * @returns {Object} FHIR R5 Dosage structure
+ */
+function buildFHIRDosage(parsed, dosageText) {
+    const dosage = { text: dosageText };
+    
+    // Add timing if frequency is specified
+    if (parsed.frequency) {
+        dosage.timing = {
+            repeat: {
+                frequency: parseInt(parsed.frequency) || 1,
+                period: 1,
+                periodUnit: "d"
+            }
+        };
+    }
+    
+    // Add patient instructions if remarks exist
+    if (parsed.remarks) {
+        dosage.patientInstruction = parsed.remarks;
+    }
+    
+    // Add dose if specified
+    if (parsed.dose) {
+        // Parse dose to extract value and unit if possible
+        const doseMatch = parsed.dose.match(/^([0-9.]+)\s*(.*)$/);
+        let doseValue, doseUnit;
+        
+        if (doseMatch) {
+            doseValue = parseFloat(doseMatch?.[1] ?? 1);
+            doseUnit = doseMatch?.[2]?.trim() || 'unit';
+        } else {
+            doseValue = 1;
+            doseUnit = 'unit';
+        }
+        
+        dosage.doseAndRate = [
+            {
+                type: {
+                    coding: [
+                        {
+                            system: "http://terminology.hl7.org/CodeSystem/dose-rate-type",
+                            code: "ordered",
+                            display: "Ordered"
+                        }
+                    ]
+                },
+                doseQuantity: {
+                    value: doseValue,
+                    unit: doseUnit
+                }
+            }
+        ];
+    }
+    
+    return dosage;
+}
+
+/**
+ * Builds FHIR R5 dispenseRequest structure
+ * @param {Object} parsed - Parsed medication values
+ * @param {string} obsDatetime - Observation datetime in ISO format
+ * @returns {Object} FHIR R5 dispenseRequest or empty object
+ */
+function buildDispenseRequest(parsed, obsDatetime) {
+    const dispenseRequest = {};
+    
+    if (!parsed.duration) return dispenseRequest;
+    
+    // Parse duration (e.g., "7 days", "2 weeks", etc.)
+    const durationMatch = parsed.duration.match(/(\d+)\s*(day|days|week|weeks|month|months)/i);
+    if (!durationMatch) return dispenseRequest;
+    
+    const durationValue = parseInt(durationMatch[1]);
+    const durationUnit = durationMatch[2].toLowerCase();
+    
+    // Map unit to UCUM code
+    const unitMap = {
+        'day': 'd', 'days': 'd',
+        'week': 'wk', 'weeks': 'wk',
+        'month': 'mo', 'months': 'mo'
+    };
+    const ucumUnit = unitMap[durationUnit] || 'd';
+    
+    // Build expectedSupplyDuration
+    dispenseRequest.expectedSupplyDuration = {
+        value: durationValue,
+        unit: durationUnit,
+        code: ucumUnit,
+        system: "http://unitsofmeasure.org"
+    };
+    
+    // Calculate validity period
+    const startDate = new Date(obsDatetime);
+    const endDate = new Date(startDate);
+    const daysToAdd = ucumUnit === 'd' ? durationValue : 
+                     ucumUnit === 'wk' ? durationValue * 7 : 
+                     ucumUnit === 'mo' ? durationValue * 30 : durationValue;
+    endDate.setDate(endDate.getDate() + daysToAdd);
+    
+    dispenseRequest.validityPeriod = {
+        start: startDate.toISOString(),
+        end: endDate.toISOString()
+    };
+    
+    return dispenseRequest;
+}
+
+
+module.exports = {
+    parseDrugHistory,
+    parseMedicationObservation,
+    buildDosageInstruction,
+    buildFHIRDosage,
+    buildDispenseRequest
+}
