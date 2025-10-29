@@ -2101,7 +2101,7 @@ function formatWellnessFHIBundle(wellnessRecord, patient, practitioner, startDat
  * @param {string} startDatetime - Start datetime
  * @returns {Object} Health record resource object
  */
-const createHealthRecordResource = (healthRecord, patient, practitioner, startDatetime) => {
+const createHealthRecordResource = (healthRecord, patient, practitioner, startDatetime,encounterUuid) => {
     const uniqueId = uuid();
     return createFHIRResource({
         resourceType: "Composition",
