@@ -4,12 +4,8 @@ const { URLSearchParams } = require('url');
 const router = express.Router();
 
 router.post('/click2call', async (req, res) => {
-  console.log("API trigger...ssss");
-  
   try {
-    console.log("ApI calling....... Vishal");
-    
-    const { caller, receiver, custom, retry = '0' } = req.body;
+    const { caller, receiver, custom, retry = '0', notes } = req.body;
     // Basic input validation
     if (!caller || !receiver || !custom) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -19,7 +15,8 @@ router.post('/click2call', async (req, res) => {
     body.append('format', 'json');
     body.append('caller', caller);
     body.append('receiver', receiver);
-    body.append('custom', custom); // visit id
+    body.append('custom', custom); // doctorUuid:patientUuid
+    body.append('notes', notes); // visitUuid:healthWorkerUuid
     body.append('retry', retry);
     const r = await fetch('https://api-voice.kaleyra.com/v1/', {
       method: 'POST',
