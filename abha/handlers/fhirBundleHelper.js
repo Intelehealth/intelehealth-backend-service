@@ -8,66 +8,9 @@ const { uuid } = require('uuidv4');
 const { logStream } = require("../logger");
 const { downloadPrescription, downloadMedication, downloadVitals } = require("./pdfHelper");
 const openmrsService = require("../services/openmrs.service");
-const { getDoctorDetail, getData, convertDataToISO, getAttributeByName, getIdentifierByName, getGender } = require("./utilityHelper");
-const { parseDrugHistory, parseMedicationObservation, buildDosageInstruction, buildDispenseRequest, buildFHIRDosage } = require("./parserHelper");
+const { getDoctorDetail, getData, convertDataToISO, getAttributeByName, getIdentifierByName, getGender, sortEncountersByPriority, sortObservationsByPriority } = require("./utilityHelper");
+const { parseDrugHistory, parseMedicationObservation, buildDosageInstruction, buildDispenseRequest, buildFHIRDosage, parseAssociatedSymptoms, parseRegularComplaints } = require("./parserHelper");
 
-// Chief Complaints
-/**
- * Helper function to clean and validate complaint text
- * @param {string} text - Text to clean
- * @returns {string} Cleaned text
- */
-const cleanComplaintText = (text) => {
-    if (!text || typeof text !== 'string') return '';
-    return text.trim().replace(/^•\s*/, '').replace(/\s*-\s*$/, '');
-};
-
-/**
- * Helper function to parse associated symptoms from complaint data
- * @param {Array} splitByBr - Array of complaint parts split by <br/>
- * @returns {Array} Array of formatted complaint strings
- */
-const parseAssociatedSymptoms = (splitByBr) => {
-    const complaints = [];
-    const title = VISIT_TYPES.ASSOCIATED_SYMPTOMS;
-    
-    for (let j = 1; j < splitByBr.length; j += 2) {
-        const key = cleanComplaintText(splitByBr[j]);
-        const value = splitByBr[j + 1]?.trim();
-        
-        if (key && key.length > 1 && value) {
-            complaints.push(`${title} ${key} ${value}`);
-        }
-    }
-    
-    return complaints;
-};
-
-/**
- * Helper function to parse regular complaint data
- * @param {Array} splitByBr - Array of complaint parts split by <br/>
- * @returns {Array} Array of formatted complaint strings
- */
-const parseRegularComplaints = (splitByBr) => {
-    const complaints = [];
-    const title = splitByBr[0]?.replace('</b>:', '') || '';
-    
-    for (let k = 1; k < splitByBr.length; k++) {
-        const complaintText = splitByBr[k]?.trim();
-        
-        if (complaintText && complaintText.length > 1) {
-            const splitByDash = complaintText.split('-');
-            const key = cleanComplaintText(splitByDash[0]);
-            const value = splitByDash.slice(1).join('-').trim();
-            
-            if (key && value) {
-                complaints.push(`${title} ${key} ${value}`);
-            }
-        }
-    }
-    
-    return complaints;
-};
 
 /**
  * Helper function to create FHIR condition resource
@@ -155,7 +98,7 @@ function cheifComplaintStructure(obs, cheifComplaints, patient) {
         if (splitByBr.length <= 1) continue;
 
         if (splitByBr[0].includes(VISIT_TYPES.ASSOCIATED_SYMPTOMS)) {
-            complaints.push(...parseAssociatedSymptoms(splitByBr));
+            complaints.push(...parseAssociatedSymptoms(splitByBr, VISIT_TYPES));
         } else {
             complaints.push(...parseRegularComplaints(splitByBr));
         }
@@ -807,13 +750,14 @@ function medicationStructure(obs, medications, practitioner, patient, prescripti
     const obsDatetime = convertDataToISO(obs.obsDatetime);
     const dispenseRequest = buildDispenseRequest(parsed, obsDatetime);
     
-    const reason = cheifComplaintMedicationsCondition ? {reason: [
+    const reason = cheifComplaintMedicationsCondition ? {reasonReference: [
         {
             reference: cheifComplaintMedicationsCondition?.fullUrl,
             display: cheifComplaintMedicationsCondition?.resource?.code?.text
         }
     ]} : {};
-    
+    console.log("cheifComplaintMedicationsCondition", cheifComplaintMedicationsCondition);
+    console.log("reason", reason);
     const resource = {
         resource: {
             requester: {
@@ -839,12 +783,6 @@ function medicationStructure(obs, medications, practitioner, patient, prescripti
                 display: practitioner?.name
             },
             priority: "routine",
-            note: [
-                {
-                    text: "Everyday",
-                    time: convertDataToISO(obs.obsDatetime)
-                }
-            ],
             ...reason
         },
         fullUrl: `MedicationRequest/${obs.uuid}`
@@ -853,7 +791,7 @@ function medicationStructure(obs, medications, practitioner, patient, prescripti
     medications.section.entry.push({
         reference: `MedicationRequest/${obs.uuid}`
     })
-
+    console.log("resource", JSON.stringify(resource, null, 2));
     medications.medications.push(resource)
 
     if (prescriptionMedications) {
@@ -1288,6 +1226,7 @@ const processObservation = (obs, sections, practitioner, patient) => {
     }
 };
 
+
 /**
  * Processes observations for a specific encounter type
  * @param {Object} encounter - Encounter object containing observations
@@ -1297,15 +1236,27 @@ const processObservation = (obs, sections, practitioner, patient) => {
  */
 const processEncounterObservations = (encounter, sections, practitioner, patient) => {
     try {
-        if (encounter.encounterType.display === VISIT_TYPES.ADULTINITIAL) {
-            encounter.obs.forEach(obs => processObservation(obs, sections, practitioner, patient));
-        } else if (encounter.encounterType.display === VISIT_TYPES.VITALS) {
-            encounter.obs.forEach(obs => {
-                physicalExaminationVitalStructure(obs, sections.physicalExaminationData, practitioner, patient)
-                vitalWellnessRecordStructure(obs, sections.wellnessRecord.vitalSigns, practitioner, patient)
+        // Early return if encounter or observations are invalid
+        if (!encounter?.encounterType?.display || !encounter?.obs || !Array.isArray(encounter.obs) || encounter.obs.length === 0) {
+            return;
+        }
+
+        const encounterType = encounter.encounterType.display;
+        const sortedObs = sortObservationsByPriority(encounter.obs, VISIT_TYPES);
+        
+        // Handle encounter types that require sorted observations (CURRENT_COMPLAINT first)
+        if (encounterType === VISIT_TYPES.ADULTINITIAL || encounterType === VISIT_TYPES.VISIT_NOTE) {
+            sortedObs.forEach(obs => processObservation(obs, sections, practitioner, patient));
+            return;
+        }
+
+        // Handle VITALS encounter type
+        if (encounterType === VISIT_TYPES.VITALS) {
+            sortedObs.forEach(obs => {
+                physicalExaminationVitalStructure(obs, sections.physicalExaminationData, practitioner, patient);
+                vitalWellnessRecordStructure(obs, sections.wellnessRecord.vitalSigns, practitioner, patient);
             });
-        } else if (encounter.encounterType.display === VISIT_TYPES.VISIT_NOTE) {
-            encounter.obs.forEach(obs => processObservation(obs, sections, practitioner, patient));
+            return;
         }
     } catch (error) {
         logStream("error", `Error processing encounter observations: ${error.message}`);
@@ -1323,7 +1274,10 @@ function getEncountersFHIBundle(encounters, practitioner, patient) {
     try {
         const sections = initializeFHIRSections();
 
-        encounters.forEach(encounter =>
+        // Sort encounters to prioritize ADULTINITIAL first
+        const sortedEncounters = sortEncountersByPriority(encounters, VISIT_TYPES);
+        
+        sortedEncounters.forEach(encounter =>
             processEncounterObservations(encounter, sections, practitioner, patient)
         );
         return {
@@ -1836,8 +1790,8 @@ async function formatCareContextFHIBundle(response) {
         
         // Collect all sections
         const sections = [
-            medications?.section,
             cheifComplaints?.section,
+            medications?.section,
             medicalHistory?.section,
             allergies?.section,
             familyHistory?.section,
@@ -1854,8 +1808,8 @@ async function formatCareContextFHIBundle(response) {
             createPractitionerResource(practitioner),
             createOrganizationResource(),
             createPatientResource(patient),
-            ...(medications?.medications ?? []),
             ...(cheifComplaints?.conditions ?? []),
+            ...(medications?.medications ?? []),
             ...(medicalHistory?.conditions ?? []),
             ...(allergies?.allergies ?? []),
             ...(familyHistory?.conditions ?? []),

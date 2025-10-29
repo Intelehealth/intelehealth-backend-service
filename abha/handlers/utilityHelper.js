@@ -192,6 +192,65 @@ function convertToBase64(response) {
     }
 }
 
+
+/**
+ * Helper function to sort observations, prioritizing CURRENT_COMPLAINT
+ * @param {Array} observations - Array of observation objects
+ * @returns {Array} Sorted array of observations
+ */
+const sortObservationsByPriority = (observations, visitType) => {
+    if (!observations || observations.length === 0) return [];
+    
+    // Normalize comparison by trimming and checking for exact match
+    const normalizeDisplay = (display) => display?.trim();
+    const currentComplaintValue = normalizeDisplay(visitType.CURRENT_COMPLAINT);
+    
+    // Separate complaints from other observations to ensure complaints always come first
+    const complaints = [];
+    const otherObservations = [];
+    
+    observations.forEach(obs => {
+        const display = normalizeDisplay(obs.concept?.display);
+        if (display === currentComplaintValue) {
+            complaints.push(obs);
+        } else {
+            otherObservations.push(obs);
+        }
+    });
+    
+    // Return complaints first, then all other observations in their original order
+    return [...complaints, ...otherObservations];
+};
+
+/**
+ * Helper function to sort encounters, prioritizing ADULTINITIAL
+ * @param {Array} encounters - Array of encounter objects
+ * @returns {Array} Sorted array of encounters
+ */
+const sortEncountersByPriority = (encounters, visitType) => {
+    if (!encounters || encounters.length === 0) return [];
+    
+    // Normalize comparison by trimming and checking for exact match
+    const normalizeDisplay = (display) => display?.trim();
+    const adultInitialValue = normalizeDisplay(visitType.ADULTINITIAL);
+    
+    // Separate ADULTINITIAL encounters from other encounters to ensure ADULTINITIAL always comes first
+    const adultInitialEncounters = [];
+    const otherEncounters = [];
+    
+    encounters.forEach(encounter => {
+        const display = normalizeDisplay(encounter.encounterType?.display);
+        if (display === adultInitialValue) {
+            adultInitialEncounters.push(encounter);
+        } else {
+            otherEncounters.push(encounter);
+        }
+    });
+    
+    // Return ADULTINITIAL encounters first, then all other encounters in their original order
+    return [...adultInitialEncounters, ...otherEncounters];
+};
+
 module.exports = {
     convertDateToDDMMYYYY,
     handleError,
@@ -202,5 +261,7 @@ module.exports = {
     getAttributeByName,
     getGender,
     convertToBase64,
-    convertToDataURL
+    convertToDataURL,
+    sortObservationsByPriority,
+    sortEncountersByPriority
 }
