@@ -750,18 +750,11 @@ function medicationStructure(obs, medications, practitioner, patient, prescripti
     const obsDatetime = convertDataToISO(obs.obsDatetime);
     const dispenseRequest = buildDispenseRequest(parsed, obsDatetime);
     
-    const reason = cheifComplaintMedicationsCondition ? {reasonReference: [
+    const reason = cheifComplaintMedicationsCondition ?  {  reasonCode: [
         {
-            reference: cheifComplaintMedicationsCondition?.fullUrl,
-            display: cheifComplaintMedicationsCondition?.resource?.code?.text
+            text: cheifComplaintMedicationsCondition?.resource?.code?.text ?? 'Other Reason'
         }
-    ],
-    reasonCode: [
-        {
-            text: cheifComplaintMedicationsCondition?.resource?.code?.text
-        }
-    ]
-} : {};
+    ]} : {};
     
     const resource = {
         resource: {
