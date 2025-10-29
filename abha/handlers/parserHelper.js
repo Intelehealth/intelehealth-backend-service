@@ -235,10 +235,72 @@ function buildDispenseRequest(parsed, obsDatetime) {
 }
 
 
+// Chief Complaints
+/**
+ * Helper function to clean and validate complaint text
+ * @param {string} text - Text to clean
+ * @returns {string} Cleaned text
+ */
+const cleanComplaintText = (text) => {
+    if (!text || typeof text !== 'string') return '';
+    return text.trim().replace(/^•\s*/, '').replace(/\s*-\s*$/, '');
+};
+
+/**
+ * Helper function to parse associated symptoms from complaint data
+ * @param {Array} splitByBr - Array of complaint parts split by <br/>
+ * @param {Object} visitType - Visit type object
+ * @returns {Array} Array of formatted complaint strings
+ */
+function parseAssociatedSymptoms(splitByBr, visitType) {
+    const complaints = [];
+    const title = visitType.ASSOCIATED_SYMPTOMS;
+    
+    for (let j = 1; j < splitByBr.length; j += 2) {
+        const key = cleanComplaintText(splitByBr[j]);
+        const value = splitByBr[j + 1]?.trim();
+        
+        if (key && key.length > 1 && value) {
+            complaints.push(`${title} ${key} ${value}`);
+        }
+    }
+    
+    return complaints;
+};
+
+/**
+ * Helper function to parse regular complaint data
+ * @param {Array} splitByBr - Array of complaint parts split by <br/>
+ * @returns {Array} Array of formatted complaint strings
+ */
+function parseRegularComplaints(splitByBr) {
+    const complaints = [];
+    const title = splitByBr[0]?.replace('</b>:', '') || '';
+    
+    for (let k = 1; k < splitByBr.length; k++) {
+        const complaintText = splitByBr[k]?.trim();
+        
+        if (complaintText && complaintText.length > 1) {
+            const splitByDash = complaintText.split('-');
+            const key = cleanComplaintText(splitByDash[0]);
+            const value = splitByDash.slice(1).join('-').trim();
+            
+            if (key && value) {
+                complaints.push(`${title} ${key} ${value}`);
+            }
+        }
+    }
+    
+    return complaints;
+};
+
+
 module.exports = {
     parseDrugHistory,
     parseMedicationObservation,
     buildDosageInstruction,
     buildFHIRDosage,
-    buildDispenseRequest
+    buildDispenseRequest,
+    parseAssociatedSymptoms,
+    parseRegularComplaints
 }
