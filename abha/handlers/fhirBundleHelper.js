@@ -755,9 +755,14 @@ function medicationStructure(obs, medications, practitioner, patient, prescripti
             reference: cheifComplaintMedicationsCondition?.fullUrl,
             display: cheifComplaintMedicationsCondition?.resource?.code?.text
         }
-    ]} : {};
-    console.log("cheifComplaintMedicationsCondition", cheifComplaintMedicationsCondition);
-    console.log("reason", reason);
+    ],
+    reasonCode: [
+        {
+            text: cheifComplaintMedicationsCondition?.resource?.code?.text
+        }
+    ]
+} : {};
+    
     const resource = {
         resource: {
             requester: {

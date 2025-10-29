@@ -141,12 +141,12 @@ function buildFHIRDosage(parsed, dosageText) {
             }
         };
     }
-    dosage.additionalInstruction = [
-        {
-            text: parsed.remarks ?? ''
-        }
-    ];
-    dosage.patientInstruction = parsed.remarks ?? '';
+
+    dosage.additionalInstruction = [{
+        text: parsed.remarks ?? 'Other Instructions'
+    }];
+
+    dosage.patientInstruction = parsed.remarks ?? 'Other Instructions';
     
     // Add dose if specified
     if (parsed.dose) {
