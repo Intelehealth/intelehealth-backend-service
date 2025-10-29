@@ -11,86 +11,211 @@ const openmrsService = require("../services/openmrs.service");
 const { getDoctorDetail, getData, convertDataToISO, getAttributeByName, getIdentifierByName, getGender } = require("./utilityHelper");
 const { parseDrugHistory, parseMedicationObservation, buildDosageInstruction, buildDispenseRequest, buildFHIRDosage } = require("./parserHelper");
 
-// Cheif Complaints
+// Chief Complaints
+/**
+ * Helper function to clean and validate complaint text
+ * @param {string} text - Text to clean
+ * @returns {string} Cleaned text
+ */
+const cleanComplaintText = (text) => {
+    if (!text || typeof text !== 'string') return '';
+    return text.trim().replace(/^•\s*/, '').replace(/\s*-\s*$/, '');
+};
+
+/**
+ * Helper function to parse associated symptoms from complaint data
+ * @param {Array} splitByBr - Array of complaint parts split by <br/>
+ * @returns {Array} Array of formatted complaint strings
+ */
+const parseAssociatedSymptoms = (splitByBr) => {
+    const complaints = [];
+    const title = VISIT_TYPES.ASSOCIATED_SYMPTOMS;
+    
+    for (let j = 1; j < splitByBr.length; j += 2) {
+        const key = cleanComplaintText(splitByBr[j]);
+        const value = splitByBr[j + 1]?.trim();
+        
+        if (key && key.length > 1 && value) {
+            complaints.push(`${title} ${key} ${value}`);
+        }
+    }
+    
+    return complaints;
+};
+
+/**
+ * Helper function to parse regular complaint data
+ * @param {Array} splitByBr - Array of complaint parts split by <br/>
+ * @returns {Array} Array of formatted complaint strings
+ */
+const parseRegularComplaints = (splitByBr) => {
+    const complaints = [];
+    const title = splitByBr[0]?.replace('</b>:', '') || '';
+    
+    for (let k = 1; k < splitByBr.length; k++) {
+        const complaintText = splitByBr[k]?.trim();
+        
+        if (complaintText && complaintText.length > 1) {
+            const splitByDash = complaintText.split('-');
+            const key = cleanComplaintText(splitByDash[0]);
+            const value = splitByDash.slice(1).join('-').trim();
+            
+            if (key && value) {
+                complaints.push(`${title} ${key} ${value}`);
+            }
+        }
+    }
+    
+    return complaints;
+};
+
+/**
+ * Helper function to create FHIR condition resource
+ * @param {Object} params - Parameters for condition creation
+ * @returns {Object} FHIR condition resource
+ */
+const createFHIRCondition = ({ 
+    id, 
+    text, 
+    patientUuid, 
+    obsDatetime, 
+    clinicalStatusText, 
+    categoryCode, 
+    categoryDisplay, 
+    categoryText 
+}) => {
+    return createFHIRResource({
+        id,
+        resourceType: "Condition",
+        code: { text },
+        onsetPeriod: { start: convertDataToISO(obsDatetime) },
+        subject: { reference: `Patient/${patientUuid}` },
+        recordedDate: convertDataToISO(obsDatetime),
+        clinicalStatus: {
+            coding: [{
+                system: "http://terminology.hl7.org/CodeSystem/condition-clinical",
+                code: "active",
+                display: "active"
+            }],
+            text: clinicalStatusText
+        },
+        category: [{
+            coding: [{
+                system: "http://terminology.hl7.org/CodeSystem/condition-category",
+                code: categoryCode,
+                display: categoryDisplay
+            }],
+            text: categoryText
+        }]
+    });
+};
+
 /**
  * Creates a FHIR Condition resource for chief complaints
  * @param {Object} obs - Observation object containing complaint data
  * @param {Object} cheifComplaints - Object to store complaint data
  * @param {Object} patient - Patient information
+ * @returns {Object} Updated cheifComplaints object
  */
 function cheifComplaintStructure(obs, cheifComplaints, patient) {
-    const currentComplaint = getData(obs)?.value.split('<b>');
-    if (!currentComplaint.length) return;
-    const complaints = []
-    for (let i = 0; i < currentComplaint.length; i++) {
-        if (currentComplaint[i] && currentComplaint[i].length > 1) {
-            const obs1 = currentComplaint[i].split('<');
-            if (!obs1[0].match(VISIT_TYPES.ASSOCIATED_SYMPTOMS)) {
-                cheifComplaints.section.entry.push({
-                    "reference": `Condition/${obs.uuid}`
-                })
-                complaints.push(obs1[0]);
-            }
-            const splitByBr = currentComplaint[i].split('<br/>');
-            if (splitByBr[0].includes(VISIT_TYPES.ASSOCIATED_SYMPTOMS)) {
-                for (let j = 1; j < splitByBr.length; j = j + 2) {
-                    if (splitByBr[j].trim() && splitByBr[j].trim().length > 1) {
-                        const key = splitByBr[j].replace('• ', '').replace(' -', '');
-                        const value = splitByBr[j + 1];
-                        const title = VISIT_TYPES.ASSOCIATED_SYMPTOMS;
-                        complaints.push(`${title} ${key} ${value}`);
-                    }
-                }
-            } else {
-                for (let k = 1; k < splitByBr.length; k++) {
-                    if (splitByBr[k].trim() && splitByBr[k].trim().length > 1) {
-                        const splitByDash = splitByBr[k].split('-');
-                        const key = splitByDash[0].replace('• ', '');
-                        const value = splitByDash.slice(1, splitByDash.length).join('-');
-                        const title = splitByBr[0].replace('</b>:', '');
-                        complaints.push(`${title} ${key} ${value}`);
-                    }
-                }
-            }
+    // Early return if no valid data
+    const complaintData = getData(obs)?.value;
+    if (!complaintData || typeof complaintData !== 'string') {
+        return cheifComplaints;
+    }
+
+    const currentComplaint = complaintData.split('<b>');
+    if (!currentComplaint.length) {
+        return cheifComplaints;
+    }
+
+    const complaints = [];
+    let mainComplaint = '';
+
+    // Process each complaint section
+    for (const complaintSection of currentComplaint) {
+        if (!complaintSection || complaintSection.length <= 1) continue;
+
+        const obsParts = complaintSection.split('<');
+        const complaintText = obsParts[0]?.trim();
+        
+        if (!complaintText) continue;
+
+        // Check if this is not an associated symptom
+        if (!complaintText.match(VISIT_TYPES.ASSOCIATED_SYMPTOMS)) {
+            cheifComplaints.section.entry.push({
+                reference: `Condition/${obs.uuid}`
+            });
+            complaints.push(complaintText);
+            mainComplaint = complaintText;
+        }
+
+        // Parse detailed complaint information
+        const splitByBr = complaintSection.split('<br/>');
+        if (splitByBr.length <= 1) continue;
+
+        if (splitByBr[0].includes(VISIT_TYPES.ASSOCIATED_SYMPTOMS)) {
+            complaints.push(...parseAssociatedSymptoms(splitByBr));
+        } else {
+            complaints.push(...parseRegularComplaints(splitByBr));
         }
     }
-    cheifComplaints?.conditions.push(createFHIRResource({
-        code: {
-            text: complaints.join(', ')
-        },
-        onsetPeriod: {
-            start: convertDataToISO(obs.obsDatetime)
-        },
-        subject: {
-            reference: `Patient/${patient?.uuid}`
-        },
-        recordedDate: convertDataToISO(obs.obsDatetime),
+
+    // Early return if no complaints found
+    if (!complaints.length) {
+        return cheifComplaints;
+    }
+
+    // Create FHIR condition for all complaints
+    const conditionResource = createFHIRCondition({
         id: obs.uuid,
-        clinicalStatus: {
-            coding: [
-                {
-                    system: "http://terminology.hl7.org/CodeSystem/condition-clinical",
-                    "code": "active",
-                    "display": "active"
-                }
-            ],
-            text: "COMPLAIN"
-        },
-        category: [
-            {
-                coding: [
-                    {
-                        system: "http://terminology.hl7.org/CodeSystem/condition-category",
-                        code: "problem-list-item",
-                        display: "Problem List Item"
-                    }
-                ],
-                text: "problem list"
-            }
-        ],
-        resourceType: "Condition"
-    })
-    )
+        text: complaints.join(', '),
+        patientUuid: patient?.uuid,
+        obsDatetime: obs.obsDatetime,
+        clinicalStatusText: "COMPLAIN",
+        categoryCode: "problem-list-item",
+        categoryDisplay: "Problem List Item",
+        categoryText: "problem list"
+    });
+
+    cheifComplaints?.conditions.push(conditionResource);
+
+    // TODO: Create FHIR condition for each complaint as list of conditions
+    // for (const complaint of complaints) {
+    //     const conditionId = uuid();
+    //     cheifComplaints.section.entry.push({
+    //         reference: `Condition/${conditionId}`
+    //     });
+    //     // Create FHIR condition for all complaints
+    //     const conditionResource = createFHIRCondition({
+    //         id: conditionId,
+    //         text: complaint,
+    //         patientUuid: patient?.uuid,
+    //         obsDatetime: obs.obsDatetime,
+    //         clinicalStatusText: "Chief Complaint",
+    //         categoryCode: "problem-list-item",
+    //         categoryDisplay: "Problem List Item",
+    //         categoryText: "problem list"
+    //     });
+    
+    //     cheifComplaints?.conditions.push(conditionResource);
+    // }
+
+    // Create FHIR condition for main complaint (medications)
+    if (mainComplaint) {
+        cheifComplaints.medicationsCondition = createFHIRCondition({
+            id: uuid(),
+            text: mainComplaint,
+            patientUuid: patient?.uuid,
+            obsDatetime: obs.obsDatetime,
+            clinicalStatusText: "Chief Complaint",
+            categoryCode: "encounter-diagnosis",
+            categoryDisplay: "Encounter Diagnosis",
+            categoryText: "Encounter Diagnosis"
+        });
+    }
+
+    return cheifComplaints;
 }
 
 // Vitals
@@ -669,7 +794,7 @@ function followUPStructure(obs, folloupVisit, practitioner, patient) {
  * @param {Object} patient - Patient information
  * @param {Object} prescriptionMedications - Optional object to store prescription medication data
  */
-function medicationStructure(obs, medications, practitioner, patient, prescriptionMedications) {
+function medicationStructure(obs, medications, practitioner, patient, prescriptionMedications, cheifComplaintMedicationsCondition) {
     // Parse and validate observation
     const parsed = parseMedicationObservation(obs.value);
     if (!parsed) return;
@@ -682,48 +807,67 @@ function medicationStructure(obs, medications, practitioner, patient, prescripti
     const obsDatetime = convertDataToISO(obs.obsDatetime);
     const dispenseRequest = buildDispenseRequest(parsed, obsDatetime);
     
+    const reason = cheifComplaintMedicationsCondition ? {reason: [
+        {
+            reference: cheifComplaintMedicationsCondition?.fullUrl,
+            display: cheifComplaintMedicationsCondition?.resource?.code?.text
+        }
+    ]} : {};
+    
     const resource = {
-        "resource": {
-            "requester": {
-                "reference": `Practitioner/${practitioner?.practitioner_id}`,
-                "display": practitioner?.name
+        resource: {
+            requester: {
+                reference: `Practitioner/${practitioner?.practitioner_id}`,
+                display: practitioner?.name
             },
-            "medicationCodeableConcept": {
-                "text": parsed.name
+            medicationCodeableConcept: {
+                text: parsed.name
             },
-            "authoredOn": obsDatetime,
-            "dosageInstruction": [dosage],
-            ...(Object.keys(dispenseRequest).length > 0 && { "dispenseRequest": dispenseRequest }),
-            "subject": {
-                "reference": `Patient/${patient?.uuid}`,
-                "display": patient?.person?.display
+            authoredOn: obsDatetime,
+            dosageInstruction: [dosage],
+            ...(Object.keys(dispenseRequest).length > 0 && { dispenseRequest: dispenseRequest }),
+            subject: {
+                reference: `Patient/${patient?.uuid}`,
+                display: patient?.person?.display
             },
-            "id": obs.uuid,
-            "intent": "order",
-            "resourceType": "MedicationRequest",
-            "status": "active"
+            id: obs.uuid,
+            intent: "order",
+            resourceType: "MedicationRequest",
+            status: "active",
+            recorder: {
+                reference: `Practitioner/${practitioner?.practitioner_id}`,
+                display: practitioner?.name
+            },
+            priority: "routine",
+            note: [
+                {
+                    text: "Everyday",
+                    time: convertDataToISO(obs.obsDatetime)
+                }
+            ],
+            ...reason
         },
-        "fullUrl": `MedicationRequest/${obs.uuid}`
+        fullUrl: `MedicationRequest/${obs.uuid}`
     }
 
     medications.section.entry.push({
-        "reference": `MedicationRequest/${obs.uuid}`
+        reference: `MedicationRequest/${obs.uuid}`
     })
 
     medications.medications.push(resource)
 
     if (prescriptionMedications) {
         prescriptionMedications.section.entry.push({
-            "reference": `MedicationRequest/prescription-${obs.uuid}`,
-            "type": "MedicationRequest"
+            reference: `MedicationRequest/prescription-${obs.uuid}`,
+            type: "MedicationRequest"
         })
 
         prescriptionMedications.medications.push({
             resource: {
                 ...resource?.resource,
-                "id": `prescription-${obs.uuid}`,
+                id: `prescription-${obs.uuid}`,
             },
-            "fullUrl": `MedicationRequest/prescription-${obs.uuid}`
+            fullUrl: `MedicationRequest/prescription-${obs.uuid}`
         })
     }
 }
@@ -1111,9 +1255,10 @@ const processObservation = (obs, sections, practitioner, patient) => {
             followUPStructure(obs, folloupVisit, practitioner, patient);
             break;
         case VISIT_TYPES.JSV_MEDICATIONS:
-        case VISIT_TYPES.MEDICATIONS:
-            medicationStructure(obs, medications, practitioner, patient, prescriptionRecord?.medications);
+        case VISIT_TYPES.MEDICATIONS: {
+            medicationStructure(obs, medications, practitioner, patient, prescriptionRecord?.medications, cheifComplaints?.medicationsCondition);
             break;
+        }
         case VISIT_TYPES.TELEMEDICINE_DIAGNOSIS:
             physicalExaminationData?.section.entry.push({
                 "reference": `Observation/${obs.uuid}`
@@ -1193,6 +1338,7 @@ function getEncountersFHIBundle(encounters, practitioner, patient) {
             referrals: sections.referrals?.requests?.length ? sections.referrals : {},
             wellnessRecord: sections.wellnessRecord?.vitalSigns?.observations?.length ? sections.wellnessRecord : {},
             prescriptionRecord: sections.prescriptionRecord?.medications?.medications?.length ? sections.prescriptionRecord : {},
+            cheifComplaintMedicationsCondition: sections.cheifComplaints?.medicationsCondition ? sections.cheifComplaints?.medicationsCondition : {},
             healthRecord: sections.healthRecord //TODO: added obs for health record to fetch all the document url and process it with promise.all in healthRecordStructure
         };
     } catch (error) {
@@ -1680,7 +1826,8 @@ async function formatCareContextFHIBundle(response) {
             referrals,
             prescriptionRecord,
             wellnessRecord,
-            healthRecord
+            healthRecord,
+            cheifComplaintMedicationsCondition
         } = getEncountersFHIBundle(response?.encounters, practitioner, patient);
         const prescriptionDocumentReference = await prescriptionDocumentReferenceStructure(response, practitioner);
         await prescriptionRecordBinaryStructure(prescriptionRecord, response, practitioner);
@@ -1698,7 +1845,7 @@ async function formatCareContextFHIBundle(response) {
             serviceRequest?.section,
             followUp?.section,
             referrals?.section,
-            prescriptionDocumentReference?.section
+            prescriptionDocumentReference?.section,
         ].filter(Boolean);
 
         // Collect all entries
@@ -1718,6 +1865,7 @@ async function formatCareContextFHIBundle(response) {
             ...(referrals?.requests ?? []),
             createEncounterResource(response?.encounters[0], patient?.uuid),
             prescriptionDocumentReference?.content,
+            cheifComplaintMedicationsCondition
         ].filter(Boolean);
 
         const healthInformationBundle = [];
@@ -1811,7 +1959,8 @@ async function formatCareContextFHIBundle(response) {
                 createPractitionerResource(practitioner),
                 createOrganizationResource(),
                 createPatientResource(patient),
-                createEncounterResource({uuid: completedVisitEncounterUuid}, patient?.uuid)
+                createEncounterResource({uuid: completedVisitEncounterUuid}, patient?.uuid),
+                ...(cheifComplaintMedicationsCondition ? [cheifComplaintMedicationsCondition] : [])
             ];
 
             const PrescriptionRecordBundle = createFHIRBundle({
@@ -1853,7 +2002,7 @@ async function formatCareContextFHIBundle(response) {
  */
 function formatPrescriptionFHIBundle({ medications }, completedVisitEncounter, patient, practitioner, encounterUuid) {
     
-    if (!medications || !completedVisitEncounter) return [];
+    if (!medications?.medications?.length || !completedVisitEncounter) return [];
     return [
         createFHIRResource({
             id: uuid(),

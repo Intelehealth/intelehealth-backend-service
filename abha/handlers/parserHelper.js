@@ -58,12 +58,31 @@ function parseMedicationObservation(value) {
     if (parts.length < 1) return null;
     
     return {
-        name: parts[0],
-        dose: parts[1],
-        duration: parts[2],
-        frequency: parts[3],
-        remarks: parts[4]
+        name: parts?.[0] ?? '',
+        dose: parts?.[1] ?? '',
+        duration: parts?.[2] ?? 1,
+        frequency: parseFrequencyPattern(parts?.[3]),
+        remarks: parts?.[4] ?? ''
     };
+}
+
+/**
+ * Parses frequency pattern to determine times per day
+ * @param {string} frequency - Frequency pattern (e.g., "0-1-0", "1-1-1", "1-1-0")
+ * @returns {number} Number of times per day
+ */
+function parseFrequencyPattern(frequency) {
+    if (!frequency) return 1;
+    
+    // Handle dash-separated patterns (e.g., "0-1-0", "1-1-1")
+    if (frequency.includes('-')) {
+        const parts = frequency.split('-').map(part => parseInt(part.trim()) || 0);
+        return parts.reduce((sum, part) => sum + part, 0);
+    }
+    
+    // Handle simple numeric values
+    const numericValue = parseInt(frequency);
+    return isNaN(numericValue) ? 1 : numericValue;
 }
 
 /**
@@ -90,23 +109,44 @@ function buildDosageInstruction(parsed) {
  * @returns {Object} FHIR R5 Dosage structure
  */
 function buildFHIRDosage(parsed, dosageText) {
-    const dosage = { text: dosageText };
+    const dosage = { 
+        text: dosageText,
+        route: {
+            coding: [
+                {
+                    system: "http://snomed.info/sct",
+                    code: "26643006",
+                    display: "Oral Route"
+                }
+            ]
+        },
+        method: {
+            coding: [
+                {
+                    system: "http://snomed.info/sct",
+                    code: "738995006",
+                    display: "Swallow"
+                }
+            ]
+        } 
+    };
     
     // Add timing if frequency is specified
     if (parsed.frequency) {
         dosage.timing = {
             repeat: {
-                frequency: parseInt(parsed.frequency) || 1,
+                frequency: parseInt(parsed.frequency),
                 period: 1,
                 periodUnit: "d"
             }
         };
     }
-    
-    // Add patient instructions if remarks exist
-    if (parsed.remarks) {
-        dosage.patientInstruction = parsed.remarks;
-    }
+    dosage.additionalInstruction = [
+        {
+            text: parsed.remarks ?? ''
+        }
+    ];
+    dosage.patientInstruction = parsed.remarks ?? '';
     
     // Add dose if specified
     if (parsed.dose) {
