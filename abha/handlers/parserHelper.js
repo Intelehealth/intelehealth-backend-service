@@ -143,6 +143,13 @@ function buildFHIRDosage(parsed, dosageText) {
     }
 
     dosage.additionalInstruction = [{
+        coding: [
+            {
+                system: "http://snomed.info/sct",
+                code: "311504000",
+                display: "With or after food"
+            }
+        ],
         text: parsed.remarks ?? 'Other Instructions'
     }];
 

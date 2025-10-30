@@ -572,7 +572,7 @@ function buildWellnessLifestyleObservations(lifestyle, wellnessLifestyle, obs, p
                     }
                 ],
                 code: {
-                    text: value
+                    text: `${key} : ${value}`
                 },
                 subject: {
                     reference: `Patient/${patient?.uuid}`,
