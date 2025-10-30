@@ -390,28 +390,48 @@ function processDrugHistory(medicalHistory, drugHistoryIndex, medications, obs, 
 function categorizeMedicalHistoryEntries(medicalHistory, drugHistoryIndex) {
     const history = [];
     const allergies = [];
-    
+    const lifestyle = [];
+
+    const isLifestyleKey = (text = '') => {
+        const t = text.toLowerCase();
+        return (
+            t.includes('smok') ||
+            t.includes('tobacco') ||
+            t.includes('alcohol') ||
+            t.includes('drink')
+        );
+    };
+
     for (let i = 0; i < medicalHistory.length; i++) {
         if (medicalHistory[i] && i !== drugHistoryIndex) {
             const splitByDash = medicalHistory[i].split('-');
             const key = splitByDash[0].replace('• ', '').trim();
             const value = splitByDash.slice(1, splitByDash.length).join('-').trim();
-            
+
+            if (!key || !value) continue;
+
+            // Extract lifestyle (smoking/alcohol) separately and do not include in medical history
+            if (isLifestyleKey(key)) {
+                lifestyle.push({ key, value });
+                continue;
+            }
+
             // Check if this is an allergy entry
             if (key.toLowerCase().includes('allerg')) {
                 allergies.push(`${key}:${value}`);
-            } else if (key && value) {
+            } else {
                 history.push(`${key}:${value}`);
             }
         }
     }
-    
-    return { history, allergies };
+
+    return { history, allergies, lifestyle };
 }
 
 // Patient Medical History
 /**
  * Creates a FHIR Condition resource for medical history
+ * Also extracts Lifestyle (alcohol/smoking) into wellness record lifestyle section
  * @param {Object} obs - Observation object containing medical history data
  * @param {Object} medicalHistoryData - Object to store medical history data
  * @param {Object} allergiesData - Object to store allergies data
@@ -419,12 +439,165 @@ function categorizeMedicalHistoryEntries(medicalHistory, drugHistoryIndex) {
  * @param {Object} practitioner - Practitioner information
  * @param {Object} patient - Patient information
  */
-function medicalHistoryStructure(obs, medicalHistoryData, allergiesData, medications, practitioner, patient) {
+// ---- Helpers split out for clarity and reuse ----
+function buildMedicalHistoryConditions(history, obs, medicalHistoryData, patient) {
+    if (!Array.isArray(history) || history.length === 0) return;
+    medicalHistoryData.section.entry.push({
+        reference: `Condition/${obs.uuid}`
+    });
+    medicalHistoryData.conditions.push(createFHIRResource({
+        code: {
+            text: history.join(', ')
+        },
+        onsetPeriod: {
+            start: convertDataToISO(obs.obsDatetime)
+        },
+        subject: {
+            reference: `Patient/${patient?.uuid}`
+        },
+        recordedDate: convertDataToISO(obs.obsDatetime),
+        id: obs.uuid,
+        clinicalStatus: {
+            coding: [
+                {
+                    system: "http://terminology.hl7.org/CodeSystem/condition-clinical",
+                    code: "active",
+                    display: "active"
+                }
+            ],
+            text: "HISTORY"
+        },
+        category: [
+            {
+                coding: [
+                    {
+                        system: "http://terminology.hl7.org/CodeSystem/condition-category",
+                        code: "problem-list-item",
+                        display: "Problem List Item"
+                    }
+                ],
+                text: "problem list"
+            }
+        ],
+        resourceType: "Condition"
+    }));
+}
+
+function buildAllergiesResources(allergies, obs, allergiesData, practitioner, patient) {
+    if (!Array.isArray(allergies) || allergies.length === 0) return;
+    allergiesData.section.entry.push({
+        reference: `AllergyIntolerance/${obs.uuid}`,
+        display: "AllergyIntolerance"
+    });
+    allergiesData.allergies.push(createFHIRResource({
+        code: {
+            text: allergies.join(', '),
+            coding : [
+                {
+                    system : "http://snomed.info/sct",
+                    code : "716186003",
+                    display : "No known allergy"
+                }
+            ],
+        },
+        onsetPeriod: {
+            start: convertDataToISO(obs.obsDatetime)
+        },
+        patient: {
+            reference: `Patient/${patient?.uuid}`
+        },
+        recordedDate: convertDataToISO(obs.obsDatetime),
+        recorder: {
+            reference: `Practitioner/${practitioner?.practitioner_id}`,
+            display: practitioner?.name
+        },
+        id: obs.uuid,
+        clinicalStatus: {
+            coding: [
+                {
+                    system: "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical",
+                    code: "active",
+                    display: "Active"
+                }
+            ]
+        },
+        verificationStatus: {
+            coding: [
+                {
+                    system: "http://terminology.hl7.org/CodeSystem/allergyintolerance-verification",
+                    code: "confirmed",
+                    display: "Confirmed"
+                }
+            ]
+        },
+        resourceType: "AllergyIntolerance"
+    }));
+}
+
+function buildWellnessLifestyleObservations(lifestyle, wellnessLifestyle, obs, practitioner, patient) {
+    if (!Array.isArray(lifestyle) || lifestyle.length === 0 || !wellnessLifestyle) return;
+    const normalizeLifestyleType = (key = '') => {
+        const t = key.toLowerCase();
+        if (t.includes('smok') || t.includes('tobacco')) return 'Smoking';
+        if (t.includes('alcohol') || t.includes('drink')) return 'Alcohol';
+        return 'Lifestyle';
+    };
+    lifestyle.forEach(({ key, value }) => {
+        const type = normalizeLifestyleType(key);
+        const obsId = `${type.toLowerCase()}-${obs.uuid}`;
+        wellnessLifestyle.entry.push({
+            reference: `Observation/${obsId}`,
+            display: type
+        });
+        wellnessLifestyle.observations.push(
+            createFHIRResource({
+                resourceType: "Observation",
+                id: obsId,
+                meta: {
+                    profile: [
+                        "https://nrces.in/ndhm/fhir/r4/StructureDefinition/ObservationLifestyle"
+                    ]
+                },
+                status: "final",
+                category: [
+                    {
+                        coding: [
+                            {
+                                system: "http://terminology.hl7.org/CodeSystem/observation-category",
+                                code: "social-history",
+                                display: "Social History"
+                            }
+                        ],
+                        text: "Social History"
+                    }
+                ],
+                code: {
+                    text: value
+                },
+                subject: {
+                    reference: `Patient/${patient?.uuid}`,
+                    display: patient?.person?.display
+                },
+                effectiveDateTime: convertDataToISO(obs.obsDatetime),
+                performer: [
+                    {
+                        reference: `Practitioner/${practitioner?.practitioner_id}`,
+                        display: practitioner?.name
+                    }
+                ]
+            })
+        );
+    });
+}
+
+// ---- Orchestrator that parses and delegates to helpers ----
+function medicalHistoryStructure(obs, medicalHistoryData, allergiesData, medications, practitioner, patient, wellnessLifestyle) {
     const medicalHistory = getData(obs)?.value.split('<br/>');
     if (!medicalHistory.length) return;
     
     const history = [];
     const allergies = [];
+    const lifestyle = [];
     
     // Detect drug history section
     const drugHistoryIndex = medicalHistory.findIndex(line => 
@@ -434,107 +607,21 @@ function medicalHistoryStructure(obs, medicalHistoryData, allergiesData, medicat
     processDrugHistory(medicalHistory, drugHistoryIndex, medications, obs, practitioner, patient);
     
     // Categorize other medical history entries (excluding drug history)
-    const { history: categorizedHistory, allergies: categorizedAllergies } = 
+    const { history: categorizedHistory, allergies: categorizedAllergies, lifestyle: categorizedLifestyle } = 
         categorizeMedicalHistoryEntries(medicalHistory, drugHistoryIndex);
     
     history.push(...categorizedHistory);
     allergies.push(...categorizedAllergies);
-    
-    // Add to medical history section if there are non-allergy entries
-    if (history.length > 0) {
-        medicalHistoryData.section.entry.push({
-            reference: `Condition/${obs.uuid}`
-        });
+    lifestyle.push(...categorizedLifestyle);
 
-        medicalHistoryData.conditions.push(createFHIRResource({
-            code: {
-                text: history.join(', ')
-            },
-            onsetPeriod: {
-                start: convertDataToISO(obs.obsDatetime)
-            },
-            subject: {
-                reference: `Patient/${patient?.uuid}`
-            },
-            recordedDate: convertDataToISO(obs.obsDatetime),
-            id: obs.uuid,
-            clinicalStatus: {
-                coding: [
-                    {
-                        system: "http://terminology.hl7.org/CodeSystem/condition-clinical",
-                        code: "active",
-                        display: "active"
-                    }
-                ],
-                text: "HISTORY"
-            },
-            category: [
-                {
-                    coding: [
-                        {
-                            system: "http://terminology.hl7.org/CodeSystem/condition-category",
-                            code: "problem-list-item",
-                            display: "Problem List Item"
-                        }
-                    ],
-                    text: "problem list"
-                }
-            ],
-            resourceType: "Condition"
-        }));
-    }
-    
-    // Add to allergies section if there are allergy entries
-    if (allergies.length > 0) {
-        allergiesData.section.entry.push({
-            reference: `AllergyIntolerance/${obs.uuid}`,
-            display: "AllergyIntolerance"
-        });
+    // Build lifestyle observations under wellness record
+    buildWellnessLifestyleObservations(lifestyle, wellnessLifestyle, obs, practitioner, patient);
 
-        allergiesData.allergies.push(createFHIRResource({
-            code: {
-                text: allergies.join(', '),
-                coding : [
-                    {
-                        system : "http://snomed.info/sct",
-                        code : "716186003",
-                        display : "No known allergy"
-                    }
-                ],
-            },
-            onsetPeriod: {
-                start: convertDataToISO(obs.obsDatetime)
-            },
-            patient: {
-                reference: `Patient/${patient?.uuid}`
-            },
-            recordedDate: convertDataToISO(obs.obsDatetime),
-            recorder: {
-                reference: `Practitioner/${practitioner?.practitioner_id}`,
-                display: practitioner?.name
-            },
-            id: obs.uuid,
-            clinicalStatus: {
-                coding: [
-                    {
-                        system: "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical",
-                        code: "active",
-                        display: "Active"
-                    }
-                ]
-            },
-            verificationStatus: {
-                coding: [
-                    {
-                        system: "http://terminology.hl7.org/CodeSystem/allergyintolerance-verification",
-                        code: "confirmed",
-                        display: "Confirmed"
-                    }
-                ]
-            },
-            resourceType: "AllergyIntolerance"
-        }));
-    }
+    // Build medical history conditions
+    buildMedicalHistoryConditions(history, obs, medicalHistoryData, patient);
+
+    // Build allergies resources
+    buildAllergiesResources(allergies, obs, allergiesData, practitioner, patient);
 }
 
 // Family Member medical history
@@ -1163,6 +1250,11 @@ const initializeFHIRSections = () => ({
             entry: [],
             observations: []
         },
+        lifestyle: {
+            title: "Lifestyle",
+            entry: [],
+            observations: []
+        },
         documentReferences: {
             title: "Vital Report",
             sections: [],
@@ -1191,6 +1283,10 @@ const initializeFHIRSections = () => ({
     }
 });
 
+// Helper: check if wellness record has any observations (vital signs or lifestyle)
+const hasWellnessData = (wellnessRecord) =>
+    ((wellnessRecord?.vitalSigns?.observations?.length ?? 0) + (wellnessRecord?.lifestyle?.observations?.length ?? 0)) > 0;
+
 /**
  * Processes an observation based on its concept display
  * @param {Object} obs - Observation object to process
@@ -1209,7 +1305,8 @@ const processObservation = (obs, sections, practitioner, patient) => {
         serviceRequest,
         folloupVisit,
         prescriptionRecord,
-        healthRecord
+        healthRecord,
+        wellnessRecord
     } = sections;
 
     switch (obs.concept.display) {
@@ -1220,7 +1317,7 @@ const processObservation = (obs, sections, practitioner, patient) => {
             physicalExaminationStructure(obs, physicalExaminationData, practitioner, patient);
             break;
         case VISIT_TYPES.MEDICAL_HISTORY:
-            medicalHistoryStructure(obs, medicalHistoryData, allergiesData, medications, practitioner, patient);
+            medicalHistoryStructure(obs, medicalHistoryData, allergiesData, medications, practitioner, patient, wellnessRecord.lifestyle);
             break;
         case VISIT_TYPES.FAMILY_HISTORY:
             medicalFamilyHistoryStructure(obs, familyHistoryData, patient);
@@ -1326,7 +1423,7 @@ function getEncountersFHIBundle(encounters, practitioner, patient) {
             serviceRequest: sections.serviceRequest?.requests.length ? sections.serviceRequest : {},
             followUp: sections.folloupVisit?.followUp?.length ? sections.folloupVisit : {},
             referrals: sections.referrals?.requests?.length ? sections.referrals : {},
-            wellnessRecord: sections.wellnessRecord?.vitalSigns?.observations?.length ? sections.wellnessRecord : {},
+            wellnessRecord: hasWellnessData(sections.wellnessRecord) ? sections.wellnessRecord : {},
             prescriptionRecord: sections.prescriptionRecord?.medications?.medications?.length ? sections.prescriptionRecord : {},
             cheifComplaintMedicationsCondition: sections.cheifComplaints?.medicationsCondition ? sections.cheifComplaints?.medicationsCondition : {},
             healthRecord: sections.healthRecord //TODO: added obs for health record to fetch all the document url and process it with promise.all in healthRecordStructure
@@ -2101,14 +2198,18 @@ const createWellnessRecordResource = (wellnessRecord, patient, practitioner, sta
         date: convertDataToISO(startDatetime),
         title: "Wellness Record",
         section: [
-            {
+            ...(wellnessRecord?.vitalSigns?.entry?.length ? [{
                 title: wellnessRecord?.vitalSigns?.title,
                 entry: wellnessRecord?.vitalSigns?.entry
-            },
-            {
+            }] : []),
+            ...(wellnessRecord?.lifestyle?.entry?.length ? [{
+                title: wellnessRecord?.lifestyle?.title,
+                entry: wellnessRecord?.lifestyle?.entry
+            }] : []),
+            ...(wellnessRecord?.documentReferences?.sections?.length ? [{
                 title: wellnessRecord?.documentReferences?.title,
                 entry: wellnessRecord?.documentReferences?.sections
-            }
+            }] : []),
         ]
     })
 }
@@ -2122,11 +2223,12 @@ const createWellnessRecordResource = (wellnessRecord, patient, practitioner, sta
  * @returns {Array} Formatted wellness FHIR bundle entries
  */
 function formatWellnessFHIBundle(wellnessRecord, patient, practitioner, startDatetime, encounterUuid) {
-    const { vitalSigns, documentReferences } = wellnessRecord
-    if (!vitalSigns?.entry?.length) return [];
+    const { vitalSigns, lifestyle, documentReferences } = wellnessRecord
+    if (!vitalSigns?.entry?.length && !lifestyle?.entry?.length) return [];
     return [
         createWellnessRecordResource(wellnessRecord, patient, practitioner, startDatetime, encounterUuid),
         ...vitalSigns?.observations,
+        ...lifestyle?.observations,
         ...documentReferences?.entries
     ]
 }
