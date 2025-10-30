@@ -773,72 +773,76 @@ function followUPStructure(obs, folloupVisit, practitioner, patient) {
  */
 function medicationStructure(obs, medications, practitioner, patient, prescriptionMedications, cheifComplaintMedicationsCondition) {
     // Parse and validate observation
-    const parsed = parseMedicationObservation(obs.value);
-    if (!parsed) return;
-    
-    const dosageText = buildDosageInstruction(parsed);
-    if (!dosageText) return;
-    
-    // Build FHIR structures using helper functions
-    const dosage = buildFHIRDosage(parsed, dosageText);
-    const obsDatetime = convertDataToISO(obs.obsDatetime);
-    const dispenseRequest = buildDispenseRequest(parsed, obsDatetime);
-    
-    const reason = cheifComplaintMedicationsCondition ?  {  reasonCode: [
-        {
-            text: cheifComplaintMedicationsCondition?.resource?.code?.text ?? 'Other Reason'
-        }
-    ]} : {};
-    
-    const resource = {
-        resource: {
-            requester: {
-                reference: `Practitioner/${practitioner?.practitioner_id}`,
-                display: practitioner?.name
-            },
-            medicationCodeableConcept: {
-                text: parsed.name
-            },
-            authoredOn: obsDatetime,
-            dosageInstruction: [dosage],
-            ...(Object.keys(dispenseRequest).length > 0 && { dispenseRequest: dispenseRequest }),
-            subject: {
-                reference: `Patient/${patient?.uuid}`,
-                display: patient?.person?.display
-            },
-            id: obs.uuid,
-            intent: "order",
-            resourceType: "MedicationRequest",
-            status: "active",
-            recorder: {
-                reference: `Practitioner/${practitioner?.practitioner_id}`,
-                display: practitioner?.name
-            },
-            priority: "routine",
-            ...reason
-        },
-        fullUrl: `MedicationRequest/${obs.uuid}`
-    }
-
-    medications.section.entry.push({
-        reference: `MedicationRequest/${obs.uuid}`
-    })
-    
-    medications.medications.push(resource)
-
-    if (prescriptionMedications) {
-        prescriptionMedications.section.entry.push({
-            reference: `MedicationRequest/prescription-${obs.uuid}`,
-            type: "MedicationRequest"
-        })
-
-        prescriptionMedications.medications.push({
+    try {
+        const parsed = parseMedicationObservation(obs.value);
+        if (!parsed || !parsed.name || !parsed.dose) return;
+        
+        const dosageText = buildDosageInstruction(parsed);
+        if (!dosageText) return;
+        
+        // Build FHIR structures using helper functions
+        const dosage = buildFHIRDosage(parsed, dosageText);
+        const obsDatetime = convertDataToISO(obs.obsDatetime);
+        const dispenseRequest = buildDispenseRequest(parsed, obsDatetime);
+        
+        const reason = cheifComplaintMedicationsCondition ?  {  reasonCode: [
+            {
+                text: cheifComplaintMedicationsCondition?.resource?.code?.text ?? 'Other Reason'
+            }
+        ]} : {};
+        
+        const resource = {
             resource: {
-                ...resource?.resource,
-                id: `prescription-${obs.uuid}`,
+                requester: {
+                    reference: `Practitioner/${practitioner?.practitioner_id}`,
+                    display: practitioner?.name
+                },
+                medicationCodeableConcept: {
+                    text: parsed.name
+                },
+                authoredOn: obsDatetime,
+                dosageInstruction: [dosage],
+                ...(Object.keys(dispenseRequest).length > 0 && { dispenseRequest: dispenseRequest }),
+                subject: {
+                    reference: `Patient/${patient?.uuid}`,
+                    display: patient?.person?.display
+                },
+                id: obs.uuid,
+                intent: "order",
+                resourceType: "MedicationRequest",
+                status: "active",
+                recorder: {
+                    reference: `Practitioner/${practitioner?.practitioner_id}`,
+                    display: practitioner?.name
+                },
+                priority: "routine",
+                ...reason
             },
-            fullUrl: `MedicationRequest/prescription-${obs.uuid}`
+            fullUrl: `MedicationRequest/${obs.uuid}`
+        }
+
+        medications.section.entry.push({
+            reference: `MedicationRequest/${obs.uuid}`
         })
+        
+        medications.medications.push(resource)
+
+        if (prescriptionMedications) {
+            prescriptionMedications.section.entry.push({
+                reference: `MedicationRequest/prescription-${obs.uuid}`,
+                type: "MedicationRequest"
+            })
+
+            prescriptionMedications.medications.push({
+                resource: {
+                    ...resource?.resource,
+                    id: `prescription-${obs.uuid}`,
+                },
+                fullUrl: `MedicationRequest/prescription-${obs.uuid}`
+            })
+        }
+    } catch (err) {
+        logStream("error", err);
     }
 }
 
