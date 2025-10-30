@@ -546,36 +546,57 @@ function medicalHistoryStructure(obs, medicalHistoryData, allergiesData, medicat
  * @param {Object} patient - Patient information
  */
 function medicalFamilyHistoryStructure(obs, familyHistoryData, patient) {
-    const familyHistory = getData(obs)?.value.split('<br/>');
+    const rawValue = getData(obs)?.value || '';
+    const familyHistory = rawValue.split('<br/>').filter(Boolean);
     if (!familyHistory.length) return;
     const relationMap = {};
+    let lastRelation = null;
     for (let i = 0; i < familyHistory.length; i++) {
-        if (familyHistory[i] && familyHistory[i].includes(':')) {
-            const splitByColon = familyHistory[i].split(':');
-            const splitByDot = splitByColon[1].trim().split("•");
-            splitByDot.forEach(element => {
-                if (element.trim() && !element.includes('None.')) {
-                    const splitByComma = element.split(',');
-                    const key = splitByComma.shift().trim();
-                    if (splitByComma?.length) {
-                        for (const value of splitByComma) {
-                            const relation = value?.replace(/[^a-zA-Z]/g, '')?.trim()?.toLowerCase();
-
-                            if (!RELATIONS[relation]) continue;
-
-                            if (!relationMap[relation]) {
-                                relationMap[relation] = key
-                            } else {
-                                relationMap[relation] += `, ${key}`;
-                            }
+        const line = familyHistory[i];
+        if (line && line.includes(':')) {
+            const splitByColon = line.split(':');
+            if (splitByColon.length < 2) continue;
+            const afterColon = splitByColon[1].trim();
+            if (!afterColon) continue;
+            const segments = afterColon.split("•").map(s => s && s.trim()).filter(Boolean);
+            segments.forEach(segment => {
+                // Skip explicit "None" entries, with or without trailing period
+                if (/\bnone\.?$/i.test(segment)) return;
+                const parts = segment.split(',').map(s => s && s.trim()).filter(Boolean);
+                if (!parts.length) return;
+                const condition = parts.shift();
+                if (parts.length) {
+                    let foundRelationForThis = false;
+                    for (const token of parts) {
+                        const relation = token?.replace(/[^a-zA-Z]/g, '')?.trim()?.toLowerCase();
+                        if (relation && RELATIONS[relation]) {
+                            if (!relationMap[relation]) relationMap[relation] = [];
+                            relationMap[relation].push(condition);
+                            lastRelation = relation;
+                            foundRelationForThis = true;
                         }
                     }
+                    // If no valid relation token found, attach to last valid relation if present
+                    if (!foundRelationForThis && lastRelation) {
+                        if (!relationMap[lastRelation]) relationMap[lastRelation] = [];
+                        relationMap[lastRelation].push(condition);
+                    }
+                } else if (lastRelation) {
+                    // No explicit relation provided; append condition to the last valid relation
+                    if (!relationMap[lastRelation]) relationMap[lastRelation] = [];
+                    relationMap[lastRelation].push(condition);
                 }
             });
-        } else if (familyHistory[i]) {
+        } else if (line) {
             // console.log("er", familyHistory)
-            // const key = familyHistory[i].replace('•', '').trim();
+            // const key = line.replace('•', '').trim();
         }
+    }
+
+    // Deduplicate and convert arrays to comma-separated strings for downstream usage
+    for (const relKey of Object.keys(relationMap)) {
+        const uniqueConditions = Array.from(new Set(relationMap[relKey]));
+        relationMap[relKey] = uniqueConditions.join(', ');
     }
 
     const relations = Object.keys(relationMap);
@@ -583,6 +604,8 @@ function medicalFamilyHistoryStructure(obs, familyHistoryData, patient) {
     if (!relations?.length) return;
 
     for (const key of relations) {
+        const relation = RELATIONS[key];
+        if (!relation?.name) continue;
         const uniquId = uuid()
         familyHistoryData.section.entry.push({
             "reference": `FamilyMemberHistory/${uniquId}`
@@ -591,19 +614,30 @@ function medicalFamilyHistoryStructure(obs, familyHistoryData, patient) {
             "resource": {
                 "text": {
                     "status": "generated",
-                    "div": `<div xmlns=\"http://www.w3.org/1999/xhtml\">${RELATIONS[key].name} is having ${relationMap[key]}.</div>`
+                    "div": `<div xmlns=\"http://www.w3.org/1999/xhtml\">${relation.name} is having ${relationMap[key]}.</div>`
                 },
                 "patient": {
                     "reference": `Patient/${patient?.uuid}`,
                     "display": patient?.person?.display
                 },
                 "status": "completed",
+                "date": convertDataToISO(obs.obsDatetime),
                 "id": uniquId,
+                "sex": {
+                    "coding": [
+                        {
+                            "system": "http://terminology.hl7.org/CodeSystem/v3-AdministrativeGender",
+                            "code": relation.gender,
+                            "display": getGender(relation.gender)
+                        }
+                    ],
+                    "text": getGender(relation.gender)
+                },
                 "relationship": {
                     "coding": [
                         {
                             "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode",
-                            "code": RELATIONS[key].code,
+                            "code": relation.code,
                             "display": key
                         }
                     ]
@@ -620,7 +654,7 @@ function medicalFamilyHistoryStructure(obs, familyHistoryData, patient) {
                             ],
                             "text": relationMap[key]
                         },
-                        // "contributedToDeath": true,
+                        // "contributedToDeath": false,
                         // "onsetAge": {
                         //     "value": 84,
                         //     "unit": "yr",
@@ -789,7 +823,7 @@ function medicationStructure(obs, medications, practitioner, patient, prescripti
     medications.section.entry.push({
         reference: `MedicationRequest/${obs.uuid}`
     })
-    console.log("resource", JSON.stringify(resource, null, 2));
+    
     medications.medications.push(resource)
 
     if (prescriptionMedications) {
