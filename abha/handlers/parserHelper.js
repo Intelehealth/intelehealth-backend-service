@@ -60,7 +60,7 @@ function parseMedicationObservation(value) {
     return {
         name: parts?.[0] ?? '',
         dose: parts?.[1] ?? '',
-        duration: parts?.[2] ?? 1,
+        duration: parts?.[2] ?? '1',
         frequency: parseFrequencyPattern(parts?.[3]),
         remarks: parts?.[4] ?? ''
     };
@@ -196,7 +196,7 @@ function buildDispenseRequest(parsed, obsDatetime) {
     if (!parsed.duration) return dispenseRequest;
     
     // Parse duration (e.g., "7 days", "2 weeks", etc.)
-    const durationMatch = parsed.duration.match(/(\d+)\s*(day|days|week|weeks|month|months)/i);
+    const durationMatch = String(parsed.duration).match(/(\d+)\s*(day|days|week|weeks|month|months)/i);
     if (!durationMatch) return dispenseRequest;
     
     const durationValue = parseInt(durationMatch[1]);
