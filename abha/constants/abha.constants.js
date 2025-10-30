@@ -79,51 +79,63 @@ const VISIT_TYPES = {
 const RELATIONS = {
     'father': {
         name: 'Father',
-        code: 'FTH'
+        code: 'FTH',
+        gender: 'M'
     },
     'mother': {
         name: 'Mother',
-        code: 'MTH'
+        code: 'MTH',
+        gender: 'F'
     },
     'sister': {
         name: 'Sister',
-        code: 'SIS'
+        code: 'SIS',
+        gender: 'F'
     },
     'brother':{
         name: 'Brother',
-        code: 'BRO'
+        code: 'BRO',
+        gender: 'M'
     },
     'son': {
         name: 'Son',
-        code: 'SON'
+        code: 'SON',
+        gender: 'M'
     },
     'daughter': {
         name: 'Daughter',
-        code: 'DAU'
+        code: 'DAU',
+        gender: 'F'
     },
     'stepdaughter': {
         name: 'Step Daughter',
-        code: 'STPDAU'
+        code: 'STPDAU',
+        gender: 'F'
     },
     'stepson': {
         name: 'Step Son',
-        code: 'STPSON'
+        code: 'STPSON',
+        gender: 'M'
     },
     'stepsister': {
         name: 'Step Sister',
-        code: 'STPSIS'
+        code: 'STPSIS',
+        gender: 'F'
     },
     'stepbrother': {
         name: 'Step Brother',
-        code: 'STPBRO'
+        code: 'STPBRO',
+        gender: 'M'
     },
     'wife': {
         name: 'Wife',
-        code: 'WIFE'
+        code: 'WIFE',
+        gender: 'F'
     },
     'husband': {
         name: 'Husband',
-        code: 'HUSB'
+        code: 'HUSB',
+        gender: 'M'
     } 
 }
 

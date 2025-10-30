@@ -66,7 +66,7 @@ function getAttributeByName(attributes = [], name) {
 function getGender(gender) {
     if (gender === 'M') return "Male";
     if (gender === 'F') return "Female";
-    return ''
+    return 'Other'
 }
 
 /**
