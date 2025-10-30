@@ -1,5 +1,5 @@
 const { RES } = require("../handlers/helper");
-const { mindmaps, licences } = require("../models");
+const { mindmaps, licences, translation_analysis } = require("../models");
 const { mkDir } = require("../handlers/directory");
 const { rmDir } = require("../handlers/deletefile");
 const { wrMindmap } = require("../handlers/writefile");
@@ -300,15 +300,16 @@ const toggleMindmapActiveStatus = async (req, res) => {
  */
 const getTranslation = async (req, res) => {
   try {
+    logStream('debug', 'Get Sarvam Translation call', 'Get Translation');
     const { textToTranslate, targetLang, tabType } = req.body;
     if (!textToTranslate || !targetLang || !tabType) {
       return res.status(400).json({ error: "Missing required parameters" });
     }
-    let body = buildRequestBody(textToTranslate, targetLang,tabType);
+    let body = buildRequestBody(textToTranslate, targetLang, tabType);
     // 🔹 Call Sarvam API
     const sarvamRes = await axiosInstance.post(
       process.env.SARVAM_URL, // replace with actual endpoint
-        body,
+      body,
       {
         headers: {
           "Content-Type": "application/json",
@@ -316,12 +317,82 @@ const getTranslation = async (req, res) => {
         },
       }
     );
+    logStream('debug', 'Sarvam translation received', 'Get Translation');
     return res.json(sarvamRes.data);
   } catch (error) {
+     logStream('debug', error.response?.data, 'Get Sarvam Translation failed');
     res.status(500).json({ error: "Translation failed", details: error.response?.data });
   }
 };
 
+/**
+ * Create or update a translation record
+ * @param {request} req
+ * @param {response} res
+ */
+const saveTranslation = async (req, res) => {
+  try {
+    const {
+      visitId,
+      conceptId,
+      is_rejected,
+      rejected_en_text,
+      rejected_regional_text,
+      created_by,
+      api_failure_retry_counts
+    } = req.body;
+
+    if (!visitId || !conceptId) {
+      return res.status(400).json({ message: 'visitId and conceptId are required' });
+    }
+
+    // 1️⃣ If retry count is provided → update existing record (or create one if it doesn't exist yet)
+    if (typeof api_failure_retry_counts !== 'undefined') {
+      let translation = await translation_analysis.findOne({
+        where: { visitId, conceptId, is_rejected },
+      });
+
+      if (translation) {
+        translation.api_failure_retry_counts = api_failure_retry_counts;
+        translation.updated_datetime = new Date();
+        await translation.save();
+        return res.json({ message: 'Retry count updated', data: translation });
+      }
+
+      // If no record exists yet, create one for retry count
+      const newTranslation = await translation_analysis.create({
+        visitId,
+        conceptId,
+        api_failure_retry_counts,
+        rejected_en_text,
+        rejected_regional_text,
+        created_by: created_by || null,
+        created_datetime: new Date(),
+        updated_datetime: new Date(),
+      });
+
+      return res.json({ message: 'Retry count record created', data: newTranslation });
+    }
+
+    // 2️⃣ For each rejected text, create a new record (don’t reuse existing)
+    const newTranslation = await translation_analysis.create({
+      visitId,
+      conceptId,
+      is_rejected: is_rejected ?? true,
+      rejected_en_text: rejected_en_text || null,
+      rejected_regional_text: rejected_regional_text || null,
+      created_by: created_by || null,
+      api_failure_retry_counts: 0,          // default when creating rejection records
+      created_datetime: new Date(),
+      updated_datetime: new Date(),
+    });
+
+    return res.json({ message: 'Rejected text record created', data: newTranslation });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Internal server error', error: err.message });
+  }
+};
   // A reusable function to build translation request body
   const buildRequestBody = (input, targetLang, tabType) => {
     return {
@@ -345,5 +416,6 @@ module.exports = {
   deleteMindmapKey,
   downloadMindmaps,
   toggleMindmapActiveStatus,
-  getTranslation
+  getTranslation,
+  saveTranslation
 };
