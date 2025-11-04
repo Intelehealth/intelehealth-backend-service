@@ -268,7 +268,7 @@ function parseAssociatedSymptoms(splitByBr, visitType) {
         const value = splitByBr[j + 1]?.trim();
         
         if (key && key.length > 1 && value) {
-            complaints.push(`${title} ${key} ${value}`);
+            complaints.push(`${title} - ${key} ${value}`);
         }
     }
     
@@ -293,7 +293,7 @@ function parseRegularComplaints(splitByBr) {
             const value = splitByDash.slice(1).join('-').trim();
             
             if (key && value) {
-                complaints.push(`${title} ${key} ${value}`);
+                complaints.push(`${title} - ${key} ${value}`);
             }
         }
     }
