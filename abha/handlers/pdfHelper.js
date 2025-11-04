@@ -5,6 +5,7 @@ const pdfFonts = require('pdfmake/build/vfs_fonts');
 const { VISIT_TYPES } = require("../constants/abha.constants");
 const { logo, precription, visitImage } = require("./images");
 const { logStream } = require("../logger");
+const { categorizeMedicalHistoryEntries } = require("./parserHelper");
 
 /**
   * Parse observation data
@@ -48,25 +49,25 @@ function getCheckUpReason(complaints, obs) {
                         }
                     }
                 } else {
-                    // let ckr_data = {
-                    //     colSpan: 2,
-                    //     ul: []
-                    // };
-                    // complaints.symptoms.push([{ text: splitByBr[0].replace('</b>:', ''), style: 'subSectionheader', colSpan: 2  }])
-                    // for (let k = 1; k < splitByBr.length; k++) {
-                    //     if (splitByBr[k].trim() && splitByBr[k].trim().length > 1) {
-                    //         const splitByDash = splitByBr[k].split('-');
-                    //         const value = splitByDash.slice(1, splitByDash.length).join('-') ?? ''
-                    //         ckr_data.ul.push({
-                    //             text: [
-                    //                 { text: `${splitByDash[0].replace('• ', '')} :`, bold: true },
-                    //                 { text: value? value : 'None' }
-                    //             ],
-                    //             margin: [0, 5, 0, 5]
-                    //         })
-                    //     }
-                    // }
-                    // complaints.symptoms.push([ckr_data])
+                    let ckr_data = {
+                        colSpan: 2,
+                        ul: []
+                    };
+                    complaints.symptoms.push([{ text: splitByBr[0].replace('</b>:', ''),  bold: true, style: 'subSectionheader', colSpan: 2  }])
+                    for (let k = 1; k < splitByBr.length; k++) {
+                        if (splitByBr[k].trim() && splitByBr[k].trim().length > 1) {
+                            const splitByDash = splitByBr[k].split('-');
+                            const value = splitByDash.slice(1, splitByDash.length).join('-') ?? ''
+                            ckr_data.ul.push({
+                                text: [
+                                    { text: `${splitByDash[0].replace('• ', '')} :`, bold: true },
+                                    { text: value? value : 'None' }
+                                ],
+                                margin: [0, 5, 0, 5]
+                            })
+                        }
+                    }
+                    complaints.symptoms.push([ckr_data])
                 }
             }
         }
@@ -485,6 +486,11 @@ function getRecords(encountersRecords, type) {
                 ]);
             }
             break;
+        case 'symptoms':
+            if (encountersRecords[VISIT_TYPES.CURRENT_COMPLAINT].symptoms.length) {
+                records = encountersRecords[VISIT_TYPES.CURRENT_COMPLAINT].symptoms
+            }
+            break;
         case 'physical_examination':
             if (encountersRecords[VISIT_TYPES.PHYSICAL_EXAMINATION].length) {
                 records.push([
@@ -499,7 +505,6 @@ function getRecords(encountersRecords, type) {
             break;
         case 'abdomen_examination':
             if (encountersRecords[VISIT_TYPES.ABDOMEN_EXAMINATION].length) {
-                // records.push([{ text: 'Abdomen', style: 'subSectionheader', bold: true, colSpan: 2 }, ''])
                 records.push([
                     {
                         colSpan: 2,
@@ -512,6 +517,9 @@ function getRecords(encountersRecords, type) {
             break;
         case VISIT_TYPES.VITALS:
             records = encountersRecords[VISIT_TYPES.VITALS];
+            break;
+        case 'Lifestyle':
+            records = encountersRecords[VISIT_TYPES.LIFESTYLE];
             break;
     }
     return records;
@@ -536,7 +544,8 @@ function getEncountersRecords(encounters = [], doctorDetail = null) {
         [VISIT_TYPES.ADDITIONAL_INSTURCTION]: [],
         [VISIT_TYPES.REQUESTED_TESTS]: [],
         [VISIT_TYPES.DOCTOR_DETIALS]: null,
-        [VISIT_TYPES.FOLLOW_UP_VISIT]: null
+        [VISIT_TYPES.FOLLOW_UP_VISIT]: null,
+        [VISIT_TYPES.LIFESTYLE]: []
     }
     for (const enc of encounters) {
         if (enc.encounterType.display === VISIT_TYPES.ADULTINITIAL) {
@@ -587,6 +596,7 @@ function getEncountersRecords(encounters = [], doctorDetail = null) {
                         colSpan: 2,
                         ul: []
                     };
+                    
                     const medicalHistory = getData(obs)?.value.split('<br/>');
                     encounterType[VISIT_TYPES.MEDICAL_HISTORY].push([{ text: `Patient history`, style: 'subSectionheader', colSpan: 2 }])
                     for (let i = 0; i < medicalHistory.length; i++) {
@@ -597,8 +607,15 @@ function getEncountersRecords(encounters = [], doctorDetail = null) {
                             ph_data.ul.push({ text: [{ text: `${label} : `, bold: true }, `${value ? value : 'None'}`], margin: [0, 5, 0, 5] });
                         }
                     }
-                    encounterType[VISIT_TYPES.MEDICAL_HISTORY].push([ph_data]);
 
+                    /** Process lifestyle entries */
+                    const { lifestyle } = categorizeMedicalHistoryEntries(medicalHistory);
+                    lifestyle?.forEach(item => {
+                        encounterType[VISIT_TYPES.LIFESTYLE].push({ text: [{ text: `${item?.key} : `, bold: true }, `${item?.value ? item?.value : 'None'}`], margin: [0, 5, 0, 5] })
+                    });
+                    /** End of lifestyle entries */
+                    
+                    encounterType[VISIT_TYPES.MEDICAL_HISTORY].push([ph_data]);
                 }
 
                 if (obs.concept.display === VISIT_TYPES.FAMILY_HISTORY) {
@@ -928,6 +945,7 @@ async function downloadPrescription(visit, doctorDetail = null) {
                                     ]
                                 }
                             ],
+                            ...getRecords(encountersRecords, 'symptoms'),
                             ...getRecords(encountersRecords, 'associated_symptoms')
                         ]),
                         createSection('physicalExamination', 'Physical examination', [
@@ -1149,6 +1167,16 @@ async function downloadVitals(visit, doctorDetail = null) {
                                     colSpan: 2,
                                     ul: [
                                         ...getRecords(encountersRecords, 'Vitals')
+                                    ]
+                                }
+                            ]
+                        ]),
+                        createSection('vitals', 'Lifestyle', [
+                            [
+                                {
+                                    colSpan: 2,
+                                    ul: [
+                                        ...getRecords(encountersRecords, 'Lifestyle')
                                     ]
                                 }
                             ]
