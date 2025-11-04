@@ -9,7 +9,7 @@ const { logStream } = require("../logger");
 const { downloadPrescription, downloadMedication, downloadVitals } = require("./pdfHelper");
 const openmrsService = require("../services/openmrs.service");
 const { getDoctorDetail, getData, convertDataToISO, getAttributeByName, getIdentifierByName, getGender, sortEncountersByPriority, sortObservationsByPriority } = require("./utilityHelper");
-const { parseDrugHistory, parseMedicationObservation, buildDosageInstruction, buildDispenseRequest, buildFHIRDosage, parseAssociatedSymptoms, parseRegularComplaints } = require("./parserHelper");
+const { parseDrugHistory, parseMedicationObservation, buildDosageInstruction, buildDispenseRequest, buildFHIRDosage, parseAssociatedSymptoms, parseRegularComplaints, categorizeMedicalHistoryEntries } = require("./parserHelper");
 
 
 /**
@@ -86,9 +86,9 @@ function cheifComplaintStructure(obs, cheifComplaints, patient) {
 
         // Check if this is not an associated symptom
         if (!complaintText.match(VISIT_TYPES.ASSOCIATED_SYMPTOMS)) {
-            cheifComplaints.section.entry.push({
-                reference: `Condition/${obs.uuid}`
-            });
+            // cheifComplaints.section.entry.push({
+            //     reference: `Condition/${obs.uuid}`
+            // });
             complaints.push(complaintText);
             mainComplaint = complaintText;
         }
@@ -110,39 +110,39 @@ function cheifComplaintStructure(obs, cheifComplaints, patient) {
     }
 
     // Create FHIR condition for all complaints
-    const conditionResource = createFHIRCondition({
-        id: obs.uuid,
-        text: complaints.join(', '),
-        patientUuid: patient?.uuid,
-        obsDatetime: obs.obsDatetime,
-        clinicalStatusText: "COMPLAIN",
-        categoryCode: "problem-list-item",
-        categoryDisplay: "Problem List Item",
-        categoryText: "problem list"
-    });
+    // const conditionResource = createFHIRCondition({
+    //     id: obs.uuid,
+    //     text: complaints.join(', '),
+    //     patientUuid: patient?.uuid,
+    //     obsDatetime: obs.obsDatetime,
+    //     clinicalStatusText: "COMPLAIN",
+    //     categoryCode: "problem-list-item",
+    //     categoryDisplay: "Problem List Item",
+    //     categoryText: "problem list"
+    // });
 
-    cheifComplaints?.conditions.push(conditionResource);
+    // cheifComplaints?.conditions.push(conditionResource);
 
     // TODO: Create FHIR condition for each complaint as list of conditions
-    // for (const complaint of complaints) {
-    //     const conditionId = uuid();
-    //     cheifComplaints.section.entry.push({
-    //         reference: `Condition/${conditionId}`
-    //     });
-    //     // Create FHIR condition for all complaints
-    //     const conditionResource = createFHIRCondition({
-    //         id: conditionId,
-    //         text: complaint,
-    //         patientUuid: patient?.uuid,
-    //         obsDatetime: obs.obsDatetime,
-    //         clinicalStatusText: "Chief Complaint",
-    //         categoryCode: "problem-list-item",
-    //         categoryDisplay: "Problem List Item",
-    //         categoryText: "problem list"
-    //     });
+    for (const complaint of complaints) {
+        const conditionId = uuid();
+        cheifComplaints.section.entry.push({
+            reference: `Condition/${conditionId}`
+        });
+        // Create FHIR condition for all complaints
+        const conditionResource = createFHIRCondition({
+            id: conditionId,
+            text: complaint,
+            patientUuid: patient?.uuid,
+            obsDatetime: obs.obsDatetime,
+            clinicalStatusText: "Chief Complaint",
+            categoryCode: "problem-list-item",
+            categoryDisplay: "Problem List Item",
+            categoryText: "problem list"
+        });
     
-    //     cheifComplaints?.conditions.push(conditionResource);
-    // }
+        cheifComplaints?.conditions.push(conditionResource);
+    }
 
     // Create FHIR condition for main complaint (medications)
     if (mainComplaint) {
@@ -379,53 +379,6 @@ function processDrugHistory(medicalHistory, drugHistoryIndex, medications, obs, 
             medications.medications.push(medicationResource);
         }
     });
-}
-
-/**
- * Categorizes medical history entries into history and allergies
- * @param {Array} medicalHistory - Array of medical history lines
- * @param {number} drugHistoryIndex - Index to exclude from processing
- * @returns {Object} Object containing categorized history and allergies arrays
- */
-function categorizeMedicalHistoryEntries(medicalHistory, drugHistoryIndex) {
-    const history = [];
-    const allergies = [];
-    const lifestyle = [];
-
-    const isLifestyleKey = (text = '') => {
-        const t = text.toLowerCase();
-        return (
-            t.includes('smok') ||
-            t.includes('tobacco') ||
-            t.includes('alcohol') ||
-            t.includes('drink')
-        );
-    };
-
-    for (let i = 0; i < medicalHistory.length; i++) {
-        if (medicalHistory[i] && i !== drugHistoryIndex) {
-            const splitByDash = medicalHistory[i].split('-');
-            const key = splitByDash[0].replace('• ', '').trim();
-            const value = splitByDash.slice(1, splitByDash.length).join('-').trim();
-
-            if (!key || !value) continue;
-
-            // Extract lifestyle (smoking/alcohol) separately and do not include in medical history
-            if (isLifestyleKey(key)) {
-                lifestyle.push({ key, value });
-                continue;
-            }
-
-            // Check if this is an allergy entry
-            if (key.toLowerCase().includes('allerg')) {
-                allergies.push(`${key}:${value}`);
-            } else {
-                history.push(`${key}:${value}`);
-            }
-        }
-    }
-
-    return { history, allergies, lifestyle };
 }
 
 // Patient Medical History
@@ -1855,7 +1808,7 @@ async function vitalsDocumentReferenceStructure(wellnessRecord, response, doctor
                 code: "371530004",
                 display: "Consultation report"
             }],
-            text: "Vital Report"
+            text: "Wellness Report"
         },
         subject: {
             reference: `Patient/${response?.patient?.uuid}`,
@@ -1866,7 +1819,7 @@ async function vitalsDocumentReferenceStructure(wellnessRecord, response, doctor
                 contentType: "application/pdf",
                 language: "en-IN",
                 data: result.content,
-                title: "Vital Report",
+                title: "Wellness Report",
                 creation: convertDataToISO(response?.startDatetime)
             }
         }]

@@ -302,6 +302,54 @@ function parseRegularComplaints(splitByBr) {
 };
 
 
+
+/**
+ * Categorizes medical history entries into history and allergies
+ * @param {Array} medicalHistory - Array of medical history lines
+ * @param {number} drugHistoryIndex - Index to exclude from processing
+ * @returns {Object} Object containing categorized history and allergies arrays
+ */
+function categorizeMedicalHistoryEntries(medicalHistory, drugHistoryIndex = -1) {
+    const history = [];
+    const allergies = [];
+    const lifestyle = [];
+
+    const isLifestyleKey = (text = '') => {
+        const t = text.toLowerCase();
+        return (
+            t.includes('smok') ||
+            t.includes('tobacco') ||
+            t.includes('alcohol') ||
+            t.includes('drink')
+        );
+    };
+
+    for (let i = 0; i < medicalHistory.length; i++) {
+        if (medicalHistory[i] && i !== drugHistoryIndex) {
+            const splitByDash = medicalHistory[i].split('-');
+            const key = splitByDash[0].replace('• ', '').trim();
+            const value = splitByDash.slice(1, splitByDash.length).join('-').trim();
+
+            if (!key) continue;
+
+            // Extract lifestyle (smoking/alcohol) separately and do not include in medical history
+            if (isLifestyleKey(key)) {
+                lifestyle.push({ key, value: value ?? 'None' });
+                continue;
+            }
+
+            // Check if this is an allergy entry
+            if (key.toLowerCase().includes('allerg')) {
+                allergies.push(`${key}:${value ?? 'None'}`);
+            } else {
+                history.push(`${key}:${value ?? 'None'}`);
+            }
+        }
+    }
+
+    return { history, allergies, lifestyle };
+}
+
 module.exports = {
     parseDrugHistory,
     parseMedicationObservation,
@@ -309,5 +357,6 @@ module.exports = {
     buildFHIRDosage,
     buildDispenseRequest,
     parseAssociatedSymptoms,
-    parseRegularComplaints
+    parseRegularComplaints,
+    categorizeMedicalHistoryEntries
 }
