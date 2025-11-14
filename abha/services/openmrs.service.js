@@ -303,8 +303,7 @@ function buildAbhaSearchQuery(abhaIdentifiers, openMRSId) {
     identifier: {
       [Op.or]: abhaIdentifiers
     },
-    voided: { [Op.eq]: 0 },
-    preferred: { [Op.eq]: 1 }
+    voided: { [Op.eq]: 0 }
   };
 
   // If OpenMRS ID is provided, add AND condition for additional validation
@@ -343,8 +342,7 @@ async function getPatientInfo(patientId) {
         as: "patient_identifier",
         attributes: ["identifier", "identifier_type", 'patient_identifier_id', 'location_id', 'creator'],
         where: {
-          voided: { [Op.eq]: 0 },
-          preferred: { [Op.eq]: 1 }
+          voided: { [Op.eq]: 0 }
         }
       },
       {
@@ -637,7 +635,6 @@ module.exports = (function () {
                 creator: creator,
                 location_id: location_id,
                 date_changed: new Date(),
-                preferred: 1,
                 where: {
                   patient_identifier_id: existing.patient_identifier_id
                 },
@@ -651,7 +648,6 @@ module.exports = (function () {
                 identifier: value,
                 identifier_type: type,
                 location_id: location_id,
-                preferred: 1,
                 date_created: new Date(),
                 date_changed: new Date(),
                 uuid: uuid(),
