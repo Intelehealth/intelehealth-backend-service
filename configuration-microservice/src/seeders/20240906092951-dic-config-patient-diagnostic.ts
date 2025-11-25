@@ -24,7 +24,7 @@ module.exports = {
           type: 'array',
           default_value: JSON.stringify(dianostics)
         }
-      ]);
+      ], { transaction });
     }),
 
   down: (queryInterface: QueryInterface): Promise<void> => queryInterface.sequelize.transaction(
