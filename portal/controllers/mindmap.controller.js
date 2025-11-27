@@ -402,7 +402,7 @@ const saveTranslation = async (req, res) => {
       mode: "formal",
       model: "sarvam-translate:v1",
       numerals_format: "native",
-      speaker_gender: "Female",
+      speaker_gender: "Male",
       enable_preprocessing: true,
       tabType: tabType
     };
