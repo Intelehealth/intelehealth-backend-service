@@ -1,5 +1,5 @@
 const { QueryTypes } = require("sequelize");
-const { getVisitCountV3, getVisitScore } = require("../controllers/queries");
+const { getVisitCountV3, getVisitScore, getPreviousEncountersByVisit } = require("../controllers/queries");
 const {
     visit,
     encounter,
@@ -21,6 +21,58 @@ const { forEach } = require("lodash");
 const Op = Sequelize.Op;
 const openMrsDB = require("../public/javascripts/mysql/mysqlOpenMrs");
 module.exports = (function () {
+
+    // Function to get score with fallback to previous encounters
+    this.getScoreWithFallback = async (encounter_id, visit_id) => {
+        try {
+            // First, try to get score from the current encounter
+            let query = getVisitScore(encounter_id);
+            const scoreResult = await new Promise((resolve, reject) => {
+                openMrsDB.query(query, (err, results, fields) => {
+                    if (err) reject(err);
+                    resolve(results);
+                });
+            });
+
+            let score = scoreResult.length ? scoreResult[0].total_score : 0;
+
+            // If score is 0 and visit_id is provided, check previous encounters
+            if (score === 0 && visit_id) {
+                const queryPrevious = getPreviousEncountersByVisit(visit_id);
+                const previousEncounters = await new Promise((resolve, reject) => {
+                    openMrsDB.query(queryPrevious, (err, results, fields) => {
+                        if (err) reject(err);
+                        resolve(results);
+                    });
+                });
+
+                // Loop through previous encounters to find one with non-zero score
+                if (Array.isArray(previousEncounters)) {
+                    for (let encounter of previousEncounters) {
+                        if (encounter.encounter_id !== encounter_id) {
+                            let queryFallback = getVisitScore(encounter.encounter_id);
+                            const fallbackResult = await new Promise((resolve, reject) => {
+                                openMrsDB.query(queryFallback, (err, results, fields) => {
+                                    if (err) reject(err);
+                                    resolve(results);
+                                });
+                            });
+                            let fallbackScore = fallbackResult.length ? fallbackResult[0].total_score : 0;
+                            if (fallbackScore > 0) {
+                                score = fallbackScore;
+                                break; // Found a non-zero score, stop searching
+                            }
+                        }
+                    }
+                }
+            }
+
+            return score;
+        } catch (error) {
+            console.error("Error in getScoreWithFallback:", error);
+            return 0;
+        }
+    };
 
     this.getVisits = async (type, limit, offset) => {
         if (!type) {
@@ -45,16 +97,10 @@ module.exports = (function () {
                     // const obs = await sequelize.query(getVisitScore(filteredVisits[i].max_enc), {
                     //     type: QueryTypes.SELECT,
                     // });
-                    let query2 = getVisitScore(filteredVisits[i].max_enc);
-                    const obser = await new Promise((resolve, reject) => {
-                        openMrsDB.query(query2, (err, results, fields) => {
-                            if (err) reject(err);
-                            resolve(results);
-                        });
-                    }).catch((err) => {
-                        throw err;
-                    });
-                    filteredVisits[i].score = obser.length ? obser[0].total_score : 0;
+                    filteredVisits[i].score = await this.getScoreWithFallback(
+                        filteredVisits[i].max_enc, 
+                        filteredVisits[i].visit_id
+                    );
                 }
             }
             if (type === "Priority" || type === "Visit In Progress") {
@@ -90,16 +136,10 @@ module.exports = (function () {
                 // const obs = await sequelize.query(getVisitScore(currentPageVisits[i].max_enc), {
                 //     type: QueryTypes.SELECT,
                 // });
-                let query2 = getVisitScore(filteredVisits[i].max_enc);
-                const obser = await new Promise((resolve, reject) => {
-                    openMrsDB.query(query2, (err, results, fields) => {
-                        if (err) reject(err);
-                        resolve(results);
-                    });
-                }).catch((err) => {
-                    throw err;
-                });
-                currentPageVisits[i].score = obser.length ? obser[0].total_score : 0;
+                currentPageVisits[i].score = await this.getScoreWithFallback(
+                    currentPageVisits[i].max_enc,
+                    currentPageVisits[i].visit_id
+                );
             }
         }
         return Array.isArray(currentPageVisits) ? { visits: [...currentPageVisits.map((v) => { return { visit_id: v?.visit_id, score: v?.score } })], totalCount: filteredVisits.length } : { visits: [], totalCount: filteredVisits.length };
