@@ -8,6 +8,7 @@ const openmrsService = require("../services/openmrs.service");
 const { convertDateToDDMMYYYY, handleError } = require("../handlers/utilityHelper");
 const { abdm_visit_status } = require("../models");
 const { formatCareContextFHIBundle } = require("../handlers/fhirBundleHelper");
+const { encryptWithPublicKey } = require("../utils/rsa-encrypt");
 
 module.exports = (function () {
 
@@ -65,6 +66,16 @@ module.exports = (function () {
    * @param {str} string
    */
   this.getRSAText = async (cypherType = 'RSA/ECB/OAEPWithSHA-1AndMGF1Padding', publicKey, str) => {
+    const apiKey = process.env.DEVGLAN_CRYPTO_API_KEY;
+    if (!apiKey) {
+      throw new Error('DEVGLAN_CRYPTO_API_KEY environment variable is not configured');
+    }
+
+    if(process.env.ENABLE_LOCAL_CRYPTO === 'true') {
+      logStream("debug", 'Using Local Crypto', 'Get Encrypted Text');
+      return encryptWithPublicKey(publicKey, str, cypherType);
+    }
+
     const response = await axiosInstance.post(
       process.env.ENCYPTED_DATA_URL, {
       "textToEncrypt": str?.toString(),
@@ -72,6 +83,10 @@ module.exports = (function () {
       "privateKey": publicKey,
       "keyType": "publicKeyForEncryption",
       "cipherType": cypherType
+    }, {
+      headers: {
+        'X-Devglan-Cryto-API-Key': apiKey
+      }
     });
     return response?.data?.encryptedOutput;
   }
@@ -139,9 +154,9 @@ module.exports = (function () {
       const { value, txnId = "", scope = "aadhar" } = req.body;
 
       const accessToken = req.token
-
+      console.log("accessToken", accessToken);
       const encryptedText = await this.getEncryptedData(accessToken, value, 'Enroll OTP Req');
-
+      console.log("encryptedText", encryptedText);
       logStream("debug", 'Scope:' + scope + ' \n value: ' + value + ' Encrypted', 'Enroll OTP Req');
 
       let payload = {
