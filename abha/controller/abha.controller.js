@@ -154,9 +154,9 @@ module.exports = (function () {
       const { value, txnId = "", scope = "aadhar" } = req.body;
 
       const accessToken = req.token
-      console.log("accessToken", accessToken);
+     
       const encryptedText = await this.getEncryptedData(accessToken, value, 'Enroll OTP Req');
-      console.log("encryptedText", encryptedText);
+      
       logStream("debug", 'Scope:' + scope + ' \n value: ' + value + ' Encrypted', 'Enroll OTP Req');
 
       let payload = {
