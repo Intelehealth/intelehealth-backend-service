@@ -85,8 +85,17 @@ module.exports = (function () {
       "cipherType": cypherType
     }, {
       headers: {
-        'X-Devglan-Cryto-API-Key': apiKey
+        'X-Devglan-Cryto-API-Key': `apiKey`
       }
+    }).catch(error => {
+      logStream("error", JSON.stringify(error, null, 1), 'Get Encrypted Text - Devglan Crypto API Error');
+      const encryptedOutput = encryptWithPublicKey(publicKey, str, cypherType);
+      logStream("debug", 'Encrypted Output: ' + encryptedOutput, 'Get Encrypted Text - Local Crypto');
+      return {
+        data: {
+          encryptedOutput: encryptedOutput
+        }
+      };
     });
     return response?.data?.encryptedOutput;
   }
