@@ -67,7 +67,7 @@ module.exports = (function () {
    */
   this.getRSAText = async (cypherType = 'RSA/ECB/OAEPWithSHA-1AndMGF1Padding', publicKey, str) => {
     const apiKey = process.env.DEVGLAN_CRYPTO_API_KEY;
-    if (!apiKey) {
+    if (!apiKey && process.env.ENABLE_LOCAL_CRYPTO !== 'true') {
       throw new Error('DEVGLAN_CRYPTO_API_KEY environment variable is not configured');
     }
 
