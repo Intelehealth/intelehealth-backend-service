@@ -67,7 +67,7 @@ module.exports = (function () {
    */
   this.getRSAText = async (cypherType = 'RSA/ECB/OAEPWithSHA-1AndMGF1Padding', publicKey, str) => {
     const apiKey = process.env.DEVGLAN_CRYPTO_API_KEY;
-    if (!apiKey) {
+    if (!apiKey && process.env.ENABLE_LOCAL_CRYPTO !== 'true') {
       throw new Error('DEVGLAN_CRYPTO_API_KEY environment variable is not configured');
     }
 
@@ -85,8 +85,17 @@ module.exports = (function () {
       "cipherType": cypherType
     }, {
       headers: {
-        'X-Devglan-Cryto-API-Key': apiKey
+        'X-Devglan-Cryto-API-Key': `apiKey`
       }
+    }).catch(error => {
+      logStream("error", JSON.stringify(error, null, 1), 'Get Encrypted Text - Devglan Crypto API Error');
+      const encryptedOutput = encryptWithPublicKey(publicKey, str, cypherType);
+      logStream("debug", 'Encrypted Output: ' + encryptedOutput, 'Get Encrypted Text - Local Crypto');
+      return {
+        data: {
+          encryptedOutput: encryptedOutput
+        }
+      };
     });
     return response?.data?.encryptedOutput;
   }
