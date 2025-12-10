@@ -277,10 +277,19 @@ module.exports = (function () {
     speciality,
     page = 1,
     limit = 25,
-    type
+    type,
+    sortField = "date_created",
+    sortOrder = "DESC"
   ) => {
     try {
       logStream('debug','Openmrs Service', 'Get Visits By Type');
+
+      // Normalize sortOrder to uppercase
+      const dbSortOrder = sortOrder && sortOrder.toUpperCase() === "ASC" ? "ASC" : "DESC";
+
+      // For visit_uploaded field, use date_created column for sorting
+      const dbField = "date_created";
+
       let offset = limit * (Number(page) - 1);
 
       if (limit > 5000) limit = 5000;
@@ -359,10 +368,15 @@ module.exports = (function () {
             attributes: ["name", ["parent_location", "parent"]],
           },
         ],
-        order: [["visit_id", "DESC"]],
+        order: [[dbField, dbSortOrder]],
         limit,
         offset,
       });
+
+      console.log('✅ DATABASE - First 3 visits returned:',
+        visits.slice(0, 3).map(v => ({ visit_id: v.visit_id, date_created: v.date_created }))
+      );
+
       const visitsBySanch = await this.setSanchForVisits(visits);
       return {  totalCount: visitIds.length, currentCount: visits.length, visits: visitsBySanch};
     } catch (error) {
@@ -400,19 +414,32 @@ module.exports = (function () {
   * @param { string } speciality - Doctor speciality
   * @param { number } page - Page number
   * @param { number } limit - Limit
+  * @param { string } sortField - Sort field (date_created for visit_uploaded)
+  * @param { string } sortOrder - Sort order (ASC/DESC)
   */
   this._getAwaitingVisits = async (
     speciality,
     page,
-    limit = 25
+    limit = 25,
+    sortField = "date_created",
+    sortOrder = "DESC"
   ) => {
     try {
       logStream('debug','Openmrs Service', 'Get Awaiting Visits');
+      console.log('🔧 SERVICE - _getAwaitingVisits parameters:', {
+        speciality,
+        page,
+        limit,
+        sortField,
+        sortOrder
+      });
       return await getVisitsByType(
         speciality,
         page,
         limit,
-        "Awaiting Consult"
+        "Awaiting Consult",
+        sortField,
+        sortOrder
       );
     } catch (error) {
       logStream("error", error.message);
