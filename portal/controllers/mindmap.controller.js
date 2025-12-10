@@ -10,6 +10,8 @@ const { MESSAGE } = require("../constants/messages");
 const Sequelize = require('sequelize');
 const Constant = require("../constants/constant");
 const { axiosInstance } = require("../handlers/helper");
+const { QueryTypes } = require('sequelize');
+const openmrsModels = require("../openmrs_models");
 
 /**
  * Return mindmaps respect to key
@@ -301,12 +303,12 @@ const toggleMindmapActiveStatus = async (req, res) => {
 const getTranslation = async (req, res) => {
   try {
     logStream('debug', 'Get Sarvam Translation call', 'Get Translation');
-    const { textToTranslate, targetLang, tabType } = req.body;
+    const { textToTranslate, targetLang, tabType, speaker_gender } = req.body;
     if (!textToTranslate || !targetLang || !tabType) {
       return res.status(400).json({ error: "Missing required parameters" });
     }
-    let body = buildRequestBody(textToTranslate, targetLang, tabType);
-    // 🔹 Call Sarvam API
+    let body = buildRequestBody(textToTranslate, targetLang, tabType, speaker_gender);
+    // 🔹 Call Sarvam AP4I
     const sarvamRes = await axiosInstance.post(
       process.env.SARVAM_URL, // replace with actual endpoint
       body,
@@ -394,7 +396,7 @@ const saveTranslation = async (req, res) => {
   }
 };
   // A reusable function to build translation request body
-  const buildRequestBody = (input, targetLang, tabType) => {
+  const buildRequestBody = (input, targetLang, tabType, speaker_gender = "Male") => {
     return {
       input: input,
       source_language_code: "en-IN",
@@ -402,7 +404,7 @@ const saveTranslation = async (req, res) => {
       mode: "formal",
       model: "sarvam-translate:v1",
       numerals_format: "native",
-      speaker_gender: "Male",
+      speaker_gender: speaker_gender,
       enable_preprocessing: true,
       tabType: tabType
     };
