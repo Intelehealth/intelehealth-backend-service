@@ -1,4 +1,4 @@
-name: auth-gateway
+name: nas-tif-auth-gateway
 
 on:
   push:
