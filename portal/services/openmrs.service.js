@@ -283,11 +283,8 @@ module.exports = (function () {
   ) => {
     try {
       logStream('debug','Openmrs Service', 'Get Visits By Type');
-
-      // Normalize sortOrder to uppercase
       const dbSortOrder = sortOrder && sortOrder.toUpperCase() === "ASC" ? "ASC" : "DESC";
 
-      // For visit_uploaded field, use date_created column for sorting
       const dbField = "date_created";
 
       let offset = limit * (Number(page) - 1);
@@ -295,11 +292,16 @@ module.exports = (function () {
       if (limit > 5000) limit = 5000;
       const visitIds = await this.getVisits(type, speciality);
 
+      // If this is a large offset, let's verify we can actually get records
+      if (offset >= visitIds.length) {
+        return { totalCount: visitIds.length, currentCount: 0, visits: [] };
+      }
+
       const visits = await visit.findAll({
         where: {
           visit_id: { [Op.in]: visitIds },
         },
-        attributes: ["uuid","date_stopped","date_created"],
+        attributes: ["uuid","date_stopped","date_created","visit_id"],
         include: [
           {
             model: encounter,
@@ -368,16 +370,13 @@ module.exports = (function () {
             attributes: ["name", ["parent_location", "parent"]],
           },
         ],
-        order: [[dbField, dbSortOrder]],
+        order: [[dbField, dbSortOrder], ["visit_id", dbSortOrder]],
         limit,
         offset,
       });
 
-      console.log('✅ DATABASE - First 3 visits returned:',
-        visits.slice(0, 3).map(v => ({ visit_id: v.visit_id, date_created: v.date_created }))
-      );
-
       const visitsBySanch = await this.setSanchForVisits(visits);
+
       return {  totalCount: visitIds.length, currentCount: visits.length, visits: visitsBySanch};
     } catch (error) {
       logStream("error", error.message);
