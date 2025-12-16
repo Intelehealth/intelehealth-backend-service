@@ -299,8 +299,8 @@ const forgetPasswordResetPassword = async (req, res, next) => {
 const getAwaitingVisits = async (req, res, next) => {
   try {
     logStream('debug', 'API call', 'Get Awaiting Visits');
-    const { speciality, page } = req.query;
-    const data = await _getAwaitingVisits(speciality, page);
+    const { speciality, page, sortField, sortOrder } = req.query;
+    const data = await _getAwaitingVisits(speciality, page, 25, sortField, sortOrder);
     logStream('debug', 'Success', 'Get Awaiting Visits');
     res.json({
       count: data.currentCount,

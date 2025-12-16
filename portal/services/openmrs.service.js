@@ -277,20 +277,27 @@ module.exports = (function () {
     speciality,
     page = 1,
     limit = 25,
-    type
+    type,
+    sortField = "date_created",
+    sortOrder = "DESC"
   ) => {
     try {
       logStream('debug','Openmrs Service', 'Get Visits By Type');
+      const dbSortOrder = sortOrder && sortOrder.toUpperCase() === "ASC" ? "ASC" : "DESC";
+      const dbField = "date_created";
       let offset = limit * (Number(page) - 1);
-
       if (limit > 5000) limit = 5000;
       const visitIds = await this.getVisits(type, speciality);
+      // If this is a large offset, let's verify we can actually get records
+      if (offset >= visitIds.length) {
+        return { totalCount: visitIds.length, currentCount: 0, visits: [] };
+      }
 
       const visits = await visit.findAll({
         where: {
           visit_id: { [Op.in]: visitIds },
         },
-        attributes: ["uuid","date_stopped","date_created"],
+        attributes: ["uuid","date_stopped","date_created","visit_id"],
         include: [
           {
             model: encounter,
@@ -359,11 +366,13 @@ module.exports = (function () {
             attributes: ["name", ["parent_location", "parent"]],
           },
         ],
-        order: [["visit_id", "DESC"]],
+        order: [[dbField, dbSortOrder], ["visit_id", dbSortOrder]],
         limit,
         offset,
       });
+
       const visitsBySanch = await this.setSanchForVisits(visits);
+
       return {  totalCount: visitIds.length, currentCount: visits.length, visits: visitsBySanch};
     } catch (error) {
       logStream("error", error.message);
@@ -404,7 +413,9 @@ module.exports = (function () {
   this._getAwaitingVisits = async (
     speciality,
     page,
-    limit = 25
+    limit = 25,
+    sortField = "date_created",
+    sortOrder = "DESC"
   ) => {
     try {
       logStream('debug','Openmrs Service', 'Get Awaiting Visits');
@@ -412,13 +423,16 @@ module.exports = (function () {
         speciality,
         page,
         limit,
-        "Awaiting Consult"
+        "Awaiting Consult",
+        sortField,
+        sortOrder
       );
     } catch (error) {
       logStream("error", error.message);
       throw error;
     }
   };
+
 
   /**
   * Get inprogress visits
