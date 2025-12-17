@@ -313,6 +313,8 @@ function categorizeMedicalHistoryEntries(medicalHistory, drugHistoryIndex = -1) 
     const history = [];
     const allergies = [];
     const lifestyle = [];
+    const physicalActivity = [];
+    const womenHealth = [];
 
     const isLifestyleKey = (text = '') => {
         const t = text.toLowerCase();
@@ -320,7 +322,27 @@ function categorizeMedicalHistoryEntries(medicalHistory, drugHistoryIndex = -1) 
             t.includes('smok') ||
             t.includes('tobacco') ||
             t.includes('alcohol') ||
-            t.includes('drink')
+            t.includes('drink') ||
+            t.includes('diet')
+        );
+    };
+
+    const isPhysicalActivity = (text = '') => {
+        const t = text.toLowerCase();
+        return (
+            t.includes('physical activity') ||
+            t.includes('steps count') ||
+            t.includes('slept daily') ||
+            t.includes('calories')
+        );
+    };
+
+    const isWomenHealth = (text = '') => {
+        const t = text.toLowerCase();
+        return (
+            t.includes('pregnancy') ||
+            t.includes('menopause') ||
+            t.includes('menarche')
         );
     };
 
@@ -329,12 +351,22 @@ function categorizeMedicalHistoryEntries(medicalHistory, drugHistoryIndex = -1) 
             const splitByDash = medicalHistory[i].split('-');
             const key = splitByDash[0].replace('• ', '').trim();
             const value = splitByDash.slice(1, splitByDash.length).join('-').trim();
-
+            
             if (!key) continue;
 
             // Extract lifestyle (smoking/alcohol) separately and do not include in medical history
             if (isLifestyleKey(key)) {
                 lifestyle.push({ key, value: value ?? 'None' });
+                continue;
+            }
+
+            if (isPhysicalActivity(key)) {
+                physicalActivity.push({ key, value: value ?? 'None' });
+                continue;
+            }
+
+            if (isWomenHealth(key)) {
+                womenHealth.push({ key, value: value ?? 'None' });
                 continue;
             }
 
@@ -347,7 +379,7 @@ function categorizeMedicalHistoryEntries(medicalHistory, drugHistoryIndex = -1) 
         }
     }
 
-    return { history, allergies, lifestyle };
+    return { history, allergies, lifestyle, physicalActivity, womenHealth };
 }
 
 module.exports = {

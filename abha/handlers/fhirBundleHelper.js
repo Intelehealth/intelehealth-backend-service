@@ -493,6 +493,7 @@ function buildWellnessLifestyleObservations(lifestyle, wellnessLifestyle, obs, p
         const t = key.toLowerCase();
         if (t.includes('smok') || t.includes('tobacco')) return 'Smoking';
         if (t.includes('alcohol') || t.includes('drink')) return 'Alcohol';
+        if (t.includes('diet')) return 'Diet';
         return 'Lifestyle';
     };
     lifestyle.forEach(({ key, value }) => {
@@ -543,15 +544,134 @@ function buildWellnessLifestyleObservations(lifestyle, wellnessLifestyle, obs, p
     });
 }
 
+function buildWellnessPhysicalActivityObservations(physicalActivity, wellnessPhysicalActivity, obs, practitioner, patient) {
+    if (!Array.isArray(physicalActivity) || physicalActivity.length === 0 || !wellnessPhysicalActivity) return;
+    const normalizePhysicalActivityType = (key = '') => {
+        const t = key.toLowerCase();
+        if (t.includes('daily steps count') || t.includes('steps count')) return 'StepsCount';
+        if (t.includes('hours slept daily') || t.includes('sleep')) return 'SleepDuration';
+        if (t.includes('calories')) return 'CaloriesBurned';
+        if (t.includes('physical activity duration')) return 'PhysicalActivityDuration';
+        return 'PhysicalActivity';
+    };
+    physicalActivity.forEach(({ key, value }) => {
+        const type = normalizePhysicalActivityType(key);
+        const obsId = `${type.toLowerCase()}-${obs.uuid}`;
+        wellnessPhysicalActivity.entry.push({
+            reference: `Observation/${obsId}`,
+            display: type
+        });
+        wellnessPhysicalActivity.observations.push(
+            createFHIRResource({
+                resourceType: "Observation",
+                id: obsId,
+                meta: {
+                    profile: [
+                        "https://nrces.in/ndhm/fhir/r4/StructureDefinition/ObservationPhysicalActivity"
+                    ]
+                },
+                status: "final",
+                category: [
+                    {
+                        coding: [
+                            {
+                                system: "http://terminology.hl7.org/CodeSystem/observation-category",
+                                code: "social-history",
+                                display: "Social History"
+                            }
+                        ],
+                        text: "Social History"
+                    }
+                ],
+                code: {
+                    text: `${key} : ${value}`
+                },
+                subject: {
+                    reference: `Patient/${patient?.uuid}`,
+                    display: patient?.person?.display
+                },
+                effectiveDateTime: convertDataToISO(obs.obsDatetime),
+                performer: [
+                    {
+                        reference: `Practitioner/${practitioner?.practitioner_id}`,
+                        display: practitioner?.name
+                    }
+                ]
+            })
+        );
+    });
+}
+
+function buildWellnessWomenHealthObservations(womenHealth, wellnessWomenHealth, obs, practitioner, patient) {
+    if (!Array.isArray(womenHealth) || womenHealth.length === 0 || !wellnessWomenHealth) return;
+    const normalizeWomenHealthType = (key = '') => {
+        const t = key.toLowerCase();
+        if (t.includes('last menstruation') || t.includes('menstruation')) return 'MenstrualCycle';
+        if (t.includes('pregnancy') || t.includes('pregnant')) return 'Pregnancy';
+        if (t.includes('menopause')) return 'Menopause';
+        if (t.includes('menarche')) return 'Menarche';
+        return 'WomenHealth';
+    };
+    womenHealth.forEach(({ key, value }) => {
+        const type = normalizeWomenHealthType(key);
+        const obsId = `${type.toLowerCase()}-${obs.uuid}`;
+        wellnessWomenHealth.entry.push({
+            reference: `Observation/${obsId}`,
+            display: type
+        });
+        wellnessWomenHealth.observations.push(
+            createFHIRResource({
+                resourceType: "Observation",
+                id: obsId,
+                meta: {
+                    profile: [
+                        "https://nrces.in/ndhm/fhir/r4/StructureDefinition/ObservationWomenHealth"
+                    ]
+                },
+                status: "final",
+                category: [
+                    {
+                        coding: [
+                            {
+                                system: "http://terminology.hl7.org/CodeSystem/observation-category",
+                                code: "social-history",
+                                display: "Social History"
+                            }
+                        ],
+                        text: "Social History"
+                    }
+                ],
+                code: {
+                    text: `${key} : ${value}`
+                },
+                subject: {
+                    reference: `Patient/${patient?.uuid}`,
+                    display: patient?.person?.display
+                },
+                effectiveDateTime: convertDataToISO(obs.obsDatetime),
+                performer: [
+                    {
+                        reference: `Practitioner/${practitioner?.practitioner_id}`,
+                        display: practitioner?.name
+                    }
+                ]
+            })
+        );
+    });
+}
+            
+
 // ---- Orchestrator that parses and delegates to helpers ----
-function medicalHistoryStructure(obs, medicalHistoryData, allergiesData, medications, practitioner, patient, wellnessLifestyle) {
+function medicalHistoryStructure(obs, medicalHistoryData, allergiesData, medications, practitioner, patient, wellnessLifestyle, wellnessPhysicalActivity, wellnessWomenHealth) {
     const medicalHistory = getData(obs)?.value.split('<br/>');
     if (!medicalHistory.length) return;
     
     const history = [];
     const allergies = [];
     const lifestyle = [];
-    
+    const physicalActivity = [];
+    const womenHealth = [];
+        
     // Detect drug history section
     const drugHistoryIndex = medicalHistory.findIndex(line => 
         line && line.toLowerCase().includes('drug history')
@@ -560,15 +680,23 @@ function medicalHistoryStructure(obs, medicalHistoryData, allergiesData, medicat
     processDrugHistory(medicalHistory, drugHistoryIndex, medications, obs, practitioner, patient);
     
     // Categorize other medical history entries (excluding drug history)
-    const { history: categorizedHistory, allergies: categorizedAllergies, lifestyle: categorizedLifestyle } = 
+    const { history: categorizedHistory, allergies: categorizedAllergies, lifestyle: categorizedLifestyle, physicalActivity: categorizedPhysicalActivity, womenHealth: categorizedWomenHealth } = 
         categorizeMedicalHistoryEntries(medicalHistory, drugHistoryIndex);
     
     history.push(...categorizedHistory);
     allergies.push(...categorizedAllergies);
     lifestyle.push(...categorizedLifestyle);
+    physicalActivity.push(...categorizedPhysicalActivity);
+    womenHealth.push(...categorizedWomenHealth);
 
     // Build lifestyle observations under wellness record
     buildWellnessLifestyleObservations(lifestyle, wellnessLifestyle, obs, practitioner, patient);
+
+    // Build physical activity observations under wellness record
+    buildWellnessPhysicalActivityObservations(physicalActivity, wellnessPhysicalActivity, obs, practitioner, patient);
+
+    // Build women health observations under wellness record
+    buildWellnessWomenHealthObservations(womenHealth, wellnessWomenHealth, obs, practitioner, patient);
 
     // Build medical history conditions
     buildMedicalHistoryConditions(history, obs, medicalHistoryData, patient);
@@ -1208,6 +1336,16 @@ const initializeFHIRSections = () => ({
             entry: [],
             observations: []
         },
+        physicalActivity: {
+            title: "Physical Activity",
+            entry: [],
+            observations: []
+        },
+        womenHealth: {
+            title: "Women Health",
+            entry: [],
+            observations: []
+        },
         documentReferences: {
             title: "Vital Report",
             sections: [],
@@ -1240,6 +1378,13 @@ const initializeFHIRSections = () => ({
 const hasWellnessData = (wellnessRecord) =>
     ((wellnessRecord?.vitalSigns?.observations?.length ?? 0) + (wellnessRecord?.lifestyle?.observations?.length ?? 0)) > 0;
 
+// Helper: check if wellness record has any observations (vital signs or Physical Activity)
+const hasPhysicalActivityData = (wellnessRecord) =>
+    ((wellnessRecord?.vitalSigns?.observations?.length ?? 0) + (wellnessRecord?.physicalActivity?.observations?.length ?? 0)) > 0;
+
+// Helper: check if wellness record has any observations (vital signs or Women Health)
+const hasWomenHealthData = (wellnessRecord) =>
+    ((wellnessRecord?.vitalSigns?.observations?.length ?? 0) + (wellnessRecord?.womenHealth?.observations?.length ?? 0)) > 0;
 /**
  * Processes an observation based on its concept display
  * @param {Object} obs - Observation object to process
@@ -1270,7 +1415,7 @@ const processObservation = (obs, sections, practitioner, patient) => {
             physicalExaminationStructure(obs, physicalExaminationData, practitioner, patient);
             break;
         case VISIT_TYPES.MEDICAL_HISTORY:
-            medicalHistoryStructure(obs, medicalHistoryData, allergiesData, medications, practitioner, patient, wellnessRecord.lifestyle);
+            medicalHistoryStructure(obs, medicalHistoryData, allergiesData, medications, practitioner, patient, wellnessRecord.lifestyle, wellnessRecord.physicalActivity, wellnessRecord.womenHealth);
             break;
         case VISIT_TYPES.FAMILY_HISTORY:
             medicalFamilyHistoryStructure(obs, familyHistoryData, patient);
@@ -2159,6 +2304,14 @@ const createWellnessRecordResource = (wellnessRecord, patient, practitioner, sta
                 title: wellnessRecord?.lifestyle?.title,
                 entry: wellnessRecord?.lifestyle?.entry
             }] : []),
+            ...(wellnessRecord?.physicalActivity?.entry?.length ? [{
+                title: wellnessRecord?.physicalActivity?.title,
+                entry: wellnessRecord?.physicalActivity?.entry
+            }] : []),
+            ...(wellnessRecord?.womenHealth?.entry?.length ? [{
+                title: wellnessRecord?.womenHealth?.title,
+                entry: wellnessRecord?.womenHealth?.entry
+            }] : []),
             ...(wellnessRecord?.documentReferences?.sections?.length ? [{
                 title: wellnessRecord?.documentReferences?.title,
                 entry: wellnessRecord?.documentReferences?.sections
@@ -2176,12 +2329,14 @@ const createWellnessRecordResource = (wellnessRecord, patient, practitioner, sta
  * @returns {Array} Formatted wellness FHIR bundle entries
  */
 function formatWellnessFHIBundle(wellnessRecord, patient, practitioner, startDatetime, encounterUuid) {
-    const { vitalSigns, lifestyle, documentReferences } = wellnessRecord
-    if (!vitalSigns?.entry?.length && !lifestyle?.entry?.length) return [];
+    const { vitalSigns, lifestyle, documentReferences, physicalActivity, womenHealth } = wellnessRecord
+    if (!vitalSigns?.entry?.length && !lifestyle?.entry?.length && !physicalActivity?.entry?.length && !womenHealth?.entry?.length) return [];
     return [
         createWellnessRecordResource(wellnessRecord, patient, practitioner, startDatetime, encounterUuid),
         ...vitalSigns?.observations,
         ...lifestyle?.observations,
+        ...physicalActivity?.observations,
+        ...womenHealth?.observations,
         ...documentReferences?.entries
     ]
 }
