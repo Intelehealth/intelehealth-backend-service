@@ -184,8 +184,6 @@ const getTotal = (visits, type) => {
 const getVisitCountsForDashboard= async (req, res, next) => {
   const { userUuid } = req.params;
   const { speciality } = req.query;
-  const startTime = Date.now();
-
   try {
     logStream('debug', 'API call', 'Get Visit Counts');
     console.log(`[Visit Counts] Starting API call for userUuid: ${userUuid}, speciality: ${speciality}`);
@@ -203,33 +201,21 @@ const getVisitCountsForDashboard= async (req, res, next) => {
           const dbQueryTime = Date.now() - dbQueryStart;
 
           if (err) {
-            console.error('[Visit Counts] DB Query ERROR:', err.message);
-            console.error('[Visit Counts] Query execution time:', dbQueryTime + 'ms');
             reject(err);
           } else {
-            console.log(`[Visit Counts] DB Query completed in ${dbQueryTime}ms`);
-            console.log(`[Visit Counts] Rows returned: ${results.length}`);
-            console.log('[Visit Counts] Sample data:', JSON.stringify(results.slice(0, 3), null, 2));
             resolve(results);
           }
         });
       }),
       (async () => {
-        const slotsStart = Date.now();
         const slots = await getUserSlots({
           userUuid,
           fromDate: moment().startOf('year').format('DD/MM/YYYY'),
           toDate: moment().endOf('year').format('DD/MM/YYYY')
         });
-        const slotsTime = Date.now() - slotsStart;
-        console.log(`[Visit Counts] getUserSlots completed in ${slotsTime}ms`);
-        console.log(`[Visit Counts] Slots returned: ${Array.isArray(slots) ? slots.length : 'N/A'}`);
         return slots;
       })()
     ]);
-
-    const totalTime = Date.now() - startTime;
-
     // Calculate counts
     const awaitingCount = getTotal(data, "Awaiting Consult");
     const priorityCount = getTotal(data, "Priority");
@@ -241,8 +227,6 @@ const getVisitCountsForDashboard= async (req, res, next) => {
     console.log(`  - Priority: ${priorityCount}`);
     console.log(`  - In Progress: ${inProgressCount}`);
     console.log(`  - Appointments: ${appointmentCount}`);
-    console.log(`[Visit Counts] Total API execution time: ${totalTime}ms`);
-
     logStream('debug', 'Success', 'Get Visit Counts');
     res.json({
       data: {
@@ -254,9 +238,6 @@ const getVisitCountsForDashboard= async (req, res, next) => {
       message: MESSAGE.OPENMRS.VISIT_COUNT_FETCHED_SUCCESSFULLY,
     });
   } catch (error) {
-    const totalTime = Date.now() - startTime;
-    console.error(`[Visit Counts] ERROR after ${totalTime}ms:`, error.message);
-    console.error('[Visit Counts] Stack trace:', error.stack);
     logStream("error", error.message);
     res.statusCode = 422;
     res.json({ status: false, message: error.message });
@@ -350,8 +331,8 @@ const forgetPasswordResetPassword = async (req, res, next) => {
 const getAwaitingVisits = async (req, res, next) => {
   try {
     logStream('debug', 'API call', 'Get Awaiting Visits');
-    const { speciality, page } = req.query;
-    const data = await _getAwaitingVisits(speciality, page);
+    const { speciality, page, sortField, sortOrder } = req.query;
+    const data = await _getAwaitingVisits(speciality, page, 25, sortField, sortOrder);
     logStream('debug', 'Success', 'Get Awaiting Visits');
     res.json({
       count: data.currentCount,
