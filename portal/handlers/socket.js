@@ -16,7 +16,7 @@ const CALL_STATUSES = {
   HW_CANCELLED: "hw_cancelled",
   IDLE: "available",
   SUCCESS: "success",
-  UNSUCCESS: "unsuccess",
+  UNSUCCESS: "failure"
 };
 
 module.exports = function (server) {
@@ -74,13 +74,15 @@ module.exports = function (server) {
 
     emitAllUserStatus();
 
-    socket.on("disconnect", async (data) => {      
-      if(users[socket.id].callStatus === 'calling'){
+    socket.on("disconnect", async (data) => {
+      if (users[socket.id].callStatus === 'calling') {
         const callStatus = CALL_STATUSES.UNSUCCESS;
         const usersRecord = {
+          recordId: users[socket.id].recordId,
           doctorId: users[socket.id].uuid,
           roomId: users[socket.id].room,
-          callStatus: callStatus
+          callStatus: callStatus,
+          reason: data === "transport error" ? "Internet disconnected/Weak network": 'No internet'
         }
         await updateCallRecordOfWebrtc(usersRecord);
       }
@@ -128,6 +130,7 @@ module.exports = function (server) {
       if (initiator === "dr") {
         users[socketId].callStatus = CALL_STATUSES.IN_CALL;
         users[socketId].room = roomId;
+        users[socketId].nurseId = nurseId;
         for (const id in users) {
           if (users[id].uuid === nurseId) {
             users[id].callStatus = CALL_STATUSES.IN_CALL;
@@ -165,30 +168,54 @@ module.exports = function (server) {
     });
 
     socket.on("bye", async function (data) {
-      const usersRecord = {
-        doctorId: doctorId,
-        nurseId: nurseId,
-        roomId: roomId,
-      }
-      await updateCallRecordOfWebrtc(usersRecord);
-      
-      if (data?.socketId) {
-        users[data?.socketId].callStatus = CALL_STATUSES.IDLE;
-        users[data?.socketId].room = null;
-      }
+      const socketUser = users[data?.socketId];
 
-      if (data?.appSocketId) {
-        users[data?.appSocketId].callStatus = CALL_STATUSES.IDLE;
-        users[data?.appSocketId].room = null;
-      }
-
-      for (const id in users) {
-        if (users[id].uuid === data?.nurseId) {
-          users[id].callStatus = CALL_STATUSES.IDLE;
-          users[id].room = null;
+      // If call was already handled in cancel_dr
+      if (socketUser && socketUser.callTerminated) {
+        console.log("Skipping bye: already handled by cancel_dr");
+        return;
+      } else {
+        if (data.doctorId) {
+          const usersRecord = {
+            recordId: socketUser.recordId,
+            doctorId: data.doctorId,
+            nurseId: data.nurseId,
+            roomId: data.roomId,
+            callStatus: CALL_STATUSES.SUCCESS,
+          }
+          await updateCallRecordOfWebrtc(usersRecord);
+        } else {
+          for (const id in users) {
+            if (id === data?.socketId) {
+              const usersRecord = {
+                recordId: users[id].recordId,
+                doctorId: users[id].uuid,
+                nurseId: data.nurseId,
+                roomId: users[id].room,
+                callStatus: CALL_STATUSES.SUCCESS,
+              }
+              await updateCallRecordOfWebrtc(usersRecord);
+            }
+          }
         }
+        if (data?.socketId) {
+          users[data?.socketId].callStatus = CALL_STATUSES.IDLE;
+          users[data?.socketId].room = null;
+        }
+
+        if (data?.appSocketId) {
+          users[data?.appSocketId].callStatus = CALL_STATUSES.IDLE;
+          users[data?.appSocketId].room = null;
+        }
+
+        for (const id in users) {
+          if (users[id].uuid === data?.nurseId) {
+            users[id].callStatus = CALL_STATUSES.IDLE;
+            users[id].room = null;
+          }
+        }
+        emitAllUserStatus();
       }
-      emitAllUserStatus();
     });
 
     socket.on("ack_msg_received", function (data) {
@@ -197,17 +224,33 @@ module.exports = function (server) {
     });
 
     socket.on("call-connected", async function (data) {
-      const { visitId, doctorId, nurseId, roomId } = data;
-      const callStatus = CALL_STATUSES.SUCCESS;
-      await createCallRecordOfWebrtc(doctorId, nurseId, roomId, visitId, callStatus);
+      for (const id in users) {
+        if (id === data?.socketId) {
+          const startTime = new Date(new Date().getTime() + (5.5 * 60 * 60 * 1000));
+          const usersRecord = {
+            recordId: users[id].recordId,
+            doctorId: users[id]?.uuid,
+            roomId: users[id]?.room,
+            startTime: startTime
+          }
+          await updateCallRecordOfWebrtc(usersRecord);
+        }
+      }
       markConnected(data);
     });
 
-    socket.on("cancel_hw", function (data) {
+    socket.on("cancel_hw", async function (data) {
       for (const id in users) {
         if (users[id].uuid === data?.connectToDrId) {
           users[id].callStatus = CALL_STATUSES.HW_CANCELLED;
-          users[id].room = null;
+          const usersRecord = {
+            recordId: users[id].recordId,
+            doctorId: users[id]?.uuid,
+            roomId: users[id]?.room,
+            callStatus: CALL_STATUSES.UNSUCCESS,
+            reason: 'HW disconnected the call'
+          }
+          await updateCallRecordOfWebrtc(usersRecord);
           emitAllUserStatus();
           setTimeout(() => {
             users[id].callStatus = CALL_STATUSES.IDLE;
@@ -218,14 +261,23 @@ module.exports = function (server) {
       }
     });
 
-    socket.on("cancel_dr", function (data) {
+    socket.on("cancel_dr", async function (data) {
       for (const id in users) {
-        if (users[id].uuid === data?.nurseId) {
+        if (users[id].nurseId === data?.nurseId) {
           users[id].callStatus = CALL_STATUSES.DR_CANCELLED;
-          users[id].room = null;
+          users[id].callTerminated = true;
+          const usersRecord = {
+            recordId: users[id].recordId,
+            doctorId: users[id].uuid,
+            roomId: users[id]?.room,
+            callStatus: CALL_STATUSES.UNSUCCESS,
+            reason: 'Doctor disconnected the call'
+          }
+          await updateCallRecordOfWebrtc(usersRecord);
           emitAllUserStatus();
           setTimeout(() => {
             users[id].callStatus = CALL_STATUSES.IDLE;
+            users[id].callTerminated = false;
             emitAllUserStatus();
           }, 2000);
           io.to(id).emit("cancel_dr", "webapp");
@@ -233,14 +285,23 @@ module.exports = function (server) {
       }
     });
 
-    socket.on("call_time_up", function (toUserUuid) {
+    socket.on("call_time_up", async function (toUserUuid) {
       for (const id in users) {
-        if (users[id].uuid === toUserUuid) {
+        if (users[id].nurseId === toUserUuid) {
           users[id].callStatus = CALL_STATUSES.IDLE;
-          users[id].room = null;
+          users[id].callTerminated = true;
+          const usersRecord = {
+            recordId: users[id].recordId,
+            doctorId: users[id].uuid,
+            roomId: users[id].room,
+            callStatus: CALL_STATUSES.UNSUCCESS,
+            reason: 'HW not available to pick the call'
+          }
+          await updateCallRecordOfWebrtc(usersRecord);
           emitAllUserStatus();
           setTimeout(() => {
             users[id].callStatus = CALL_STATUSES.IDLE;
+            users[id].callTerminated = false;
             emitAllUserStatus();
           }, 2000);
           io.to(id).emit("call_time_up", toUserUuid);
@@ -248,11 +309,19 @@ module.exports = function (server) {
       }
     });
 
-    socket.on("hw_call_reject", function (toUserUuid) {
+    socket.on("hw_call_reject", async function (toUserUuid) {
       for (const id in users) {
         if (users[id].uuid === toUserUuid) {
           users[id].callStatus = CALL_STATUSES.HW_REJECTED;
           users[id].room = null;
+          const usersRecord = {
+            recordId: users[id].recordId,
+            doctorId: users[id].uuid,
+            roomId: users[socket.id].room,
+            callStatus: CALL_STATUSES.UNSUCCESS,
+            reason: 'HW rejected the call'
+          }
+          await updateCallRecordOfWebrtc(usersRecord);
           emitAllUserStatus();
           setTimeout(() => {
             users[id].callStatus = CALL_STATUSES.IDLE;
@@ -263,11 +332,19 @@ module.exports = function (server) {
       }
     });
 
-    socket.on("dr_call_reject", function (toUserUuid) {
+    socket.on("dr_call_reject", async function (toUserUuid) {
       for (const id in users) {
         if (users[id].uuid === toUserUuid) {
           users[id].callStatus = CALL_STATUSES.DR_REJECTED;
           users[id].room = null;
+          const usersRecord = {
+            recordId: users[id].recordId,
+            doctorId: users[id].uuid,
+            roomId: users[socket.id].room,
+            callStatus: CALL_STATUSES.UNSUCCESS,
+            reason: 'Doctor rejected the call'
+          }
+          await updateCallRecordOfWebrtc(usersRecord);
           emitAllUserStatus();
           setTimeout(() => {
             users[id].callStatus = CALL_STATUSES.IDLE;
@@ -308,7 +385,11 @@ module.exports = function (server) {
       let isCalling = false;
       users[socket.id].callStatus = CALL_STATUSES.CALLING;
       users[socket.id].room = roomId;
-
+      users[socket.id].nurseId = nurseId;
+      const { visitId, doctorId, calltype } = dataIds;
+      const callStatus = CALL_STATUSES.CALLING;
+      let record = await createCallRecordOfWebrtc(doctorId, nurseId, roomId, visitId, callStatus, calltype);
+      users[socket.id].recordId = record?.data?.id;
       for (const id in users) {
         const userObj = users[id];
         if (userObj.uuid === nurseId) {
@@ -358,7 +439,9 @@ module.exports = function (server) {
         data = await user_settings.findOne({
           where: { user_uuid: nurseId },
         });
-      } catch (error) {}
+      } catch (error) {
+        console.error("Error fetching user settings:", error);
+      }
 
       sendCloudNotification({
         title: "",
@@ -411,27 +494,48 @@ module.exports = function (server) {
      * Admin socket events below
      */
     socket.on("getAdminUnreadCount", async function () {
-      const unreadcount = await sequelize.query(
-        "SELECT COUNT(sm.message) AS unread FROM supportmessages sm WHERE sm.to = 'System Administrator' AND sm.isRead = 0",
-        { type: QueryTypes.SELECT }
-      );
-      socket.emit("adminUnreadCount", unreadcount[0].unread);
+      try {
+        const unreadcount = await sequelize.query(
+          "SELECT COUNT(sm.message) AS unread FROM supportmessages sm WHERE sm.to = 'System Administrator' AND sm.isRead = 0",
+          { type: QueryTypes.SELECT }
+        );
+        socket.emit("adminUnreadCount", unreadcount[0].unread);
+      } catch (err) {
+        console.error("getAdminUnreadCount error:", err.message);
+        socket.emit("adminUnreadCount", 0);
+      }
     });
 
     socket.on("getDoctorAdminUnreadCount", async function (data) {      
-      const unreadcount = await sequelize.query(
-        `SELECT COUNT(sm.message) AS unread FROM supportmessages sm WHERE sm.to = '${data}' AND sm.isRead = 0`,
-        { type: QueryTypes.SELECT }
-      );
-      socket.emit("doctorAdminUnreadCount", unreadcount[0].unread);
+      try {
+        const unreadcount = await sequelize.query(
+          "SELECT COUNT(sm.message) AS unread FROM supportmessages sm WHERE sm.to = :toUser AND sm.isRead = 0",
+          {
+            replacements: { toUser: data },
+            type: QueryTypes.SELECT,
+          }
+        );
+        socket.emit("doctorAdminUnreadCount", unreadcount[0].unread);
+      } catch (err) {
+        console.error("getDoctorAdminUnreadCount error:", err.message);
+        socket.emit("doctorAdminUnreadCount", 0);
+      }
     });
 
     socket.on("getDrUnreadCount", async function (data) {
-      const unreadcount = await sequelize.query(
-        `SELECT COUNT(m.message) AS unread FROM messages m WHERE m.toUser = '${data}' AND m.isRead = 0`,
-        { type: QueryTypes.SELECT }
-      );
-      socket.emit("drUnreadCount", unreadcount[0].unread);
+      try {
+        const unreadcount = await sequelize.query(
+          "SELECT COUNT(m.message) AS unread FROM messages m WHERE m.toUser = :toUser AND m.isRead = 0",
+          {
+            replacements: { toUser: data },
+            type: QueryTypes.SELECT,
+          }
+        );
+        socket.emit("drUnreadCount", unreadcount[0].unread);
+      } catch (err) {
+        console.error("getDrUnreadCount error:", err.message);
+        socket.emit("drUnreadCount", 0);
+      }
     });
   });
 

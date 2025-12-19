@@ -95,13 +95,14 @@ where
      * @param { string } slotTime - Slot time
      * @param { string } patientName - Patient name
      * @param { string } openMrsId - OpenMRS id
+     * @param { string } notificationType - Notification type
      */
-  const sendCancelNotificationToWebappDoctor = async ({
+  const sendNotificationToWebappDoctor = async ({
     id,
     slotTime,
     patientName,
     openMrsId,
-  }) => {
+  }, notificationType = Constant.CANCELLED) => {
     const query = `SELECT
     a.id,
     s.notification_object as webpush_obj,
@@ -112,15 +113,27 @@ FROM
 WHERE
     a.id = ${id}`;
     try {
-      logStream('debug','Appointment Service', 'Send Cancel Notification To Webapp Doctor');
+      logStream('debug','Appointment Service', `Send ${notificationType} Notification To Webapp Doctor`);
       const data = await getDataFromQuery(query);
       if (data && data.length) {
         asyncForEach(data, async (data) => {
           if (data.webpush_obj) {
-            const engTitle = `Appointment for ${patientName}(${slotTime}) has been cancelled.`;
-            const ruTitle = `Запись на прием за ${patientName}(${slotTime}) отменена.`;
+            let ruTranslatedNotificationType = '', engTranslatedNotificationType = '';
+            if(notificationType === Constant.CANCELLED) {
+              ruTranslatedNotificationType = "отменена";
+              engTranslatedNotificationType = "cancelled";
+            } else if(notificationType === Constant.RESCHEDULED) {
+              ruTranslatedNotificationType = "перенесена";
+              engTranslatedNotificationType = "rescheduled";
+            } else if(notificationType === Constant.BOOKED) {
+              ruTranslatedNotificationType = "забронирована";
+              engTranslatedNotificationType = "booked";
+            }
+
+            const engTitle = `Appointment for ${patientName}(${slotTime}) has been ${engTranslatedNotificationType}.`;
+            const ruTitle = `Запись на прием за ${patientName}(${slotTime}) ${ruTranslatedNotificationType}.`;
             const title = data.locale === "ru" ? ruTitle : engTitle;
-            logStream('debug','Success', 'Send Cancel Notification To Webapp Doctor');
+            logStream('debug','Success', `Send ${notificationType} Notification To Webapp Doctor`);
             sendWebPushNotification({
               webpush_obj: data.webpush_obj,
               title,
@@ -394,26 +407,59 @@ WHERE
           },
         ]
       });
-      let mergedArray = []
-      if(pending_visits !== null) {
-        pending_visits = (pending_visits === 'true');
-        mergedArray = data.map(x => ({ ...x, visit: visits.find(y => y.uuid == x.visitUuid)?.dataValues, visitStatus: visitStatus.find(z => z.uuid == x.visitUuid)?.Status }));
-        mergedArray = mergedArray.filter(obj=>{
-          try {
-            let callStatusList = obj.visit.attributes.filter(attr=>attr.attribute_type.name === "Call Status");
-            let callStatus = JSON.parse(callStatusList?.[0]?.dataValues?.value ?? '{}')
-            if(Constant.PENDING_VISIT_BY_CALL_STATUS.includes(callStatus?.callStatus)){
-              return  pending_visits
-            } 
-            return !pending_visits
-          } catch (error) {
-             logStream("error", error.message)
-             return false
-          }
+      // Create lookup maps for O(1) access instead of O(n) find operations
+      const visitMap = new Map(visits.map(visit => [visit.uuid, visit.dataValues]));
+      const visitStatusMap = new Map(visitStatus.map(status => [status.uuid, status.Status]));
+      
+      // Parse pending_visits once
+      const isPendingVisitsFilter = pending_visits !== null ? (pending_visits === 'true') : null;
+      
+      // Single pass: map, filter, and apply pending visits filter
+      const mergedArray = data
+        .map(appointment => {
+          const visit = visitMap.get(appointment.visitUuid);
+          const visitStatus = visitStatusMap.get(appointment.visitUuid);
+          
+          return {
+            ...appointment,
+            visit,
+            visitStatus
+          };
         })
-      }
-      else
-        mergedArray = data.map(x => ({ ...x, visit: visits.find(y => y.uuid == x.visitUuid)?.dataValues, visitStatus: visitStatus.find(z => z.uuid == x.visitUuid)?.Status }));
+        .filter(appointment => {
+          // Early return: remove appointments with missing visits
+          if (!appointment.visit) {
+            return false;
+          }
+
+          // Early return: remove appointments with ended/completed status
+          if (appointment.visitStatus === "Ended Visit" || appointment.visitStatus === "Completed Visit") {
+            return false;
+          }
+
+          // Apply pending visits filter if specified
+          if (isPendingVisitsFilter !== null) {
+            try {
+              const callStatusAttr = appointment.visit.attributes?.find(
+                attr => attr.attribute_type?.name === "Call Status"
+              );
+              
+              if (callStatusAttr?.dataValues?.value) {
+                const callStatus = JSON.parse(callStatusAttr.dataValues.value);
+                const isPendingStatus = Constant.PENDING_VISIT_BY_CALL_STATUS.includes(callStatus?.callStatus);
+                return isPendingStatus === isPendingVisitsFilter;
+              }
+              
+              // If no call status found, return opposite of pending filter
+              return !isPendingVisitsFilter;
+            } catch (error) {
+              logStream("error", `Failed to parse call status for visit ${appointment.visitUuid}: ${error.message}`);
+              return false;
+            }
+          }
+
+          return true;
+        });
       logStream('debug','Success', 'Get User Slots');
       return mergedArray;
     } catch (error) {
@@ -862,7 +908,7 @@ WHERE
      * @param { object } params - (slotDate, slotTime, speciality, visitUuid)
      */
   this._bookAppointment = async (params) => {
-    const { slotDate, slotTime, speciality, visitUuid } = params;
+    const { slotDate, slotTime, speciality, visitUuid, webApp = false } = params;
     try {
       logStream('debug','API calling', 'Book Appointment');
       const appntSlots = await this._getAppointmentSlots({
@@ -903,6 +949,9 @@ WHERE
 
       const data = await createAppointment(params);
       logStream('debug','Success', 'Book Appointment');
+      if(!webApp) {
+        await sendNotificationToWebappDoctor(data, Constant.BOOKED);
+      }
       return {
         data: data.toJSON(),
       };
@@ -943,7 +992,7 @@ WHERE
     if (appointment) {
       logStream('debug','Success', 'Cancel Appointment');
       appointment.update({ status, updatedBy: hwUUID, reason });
-      if (notify) sendCancelNotificationToWebappDoctor(appointment);
+      if (notify) sendNotificationToWebappDoctor(appointment, status);
       return {
         status: true,
         message: MESSAGE.APPOINTMENT.APPOINTMENT_CANCELLED_SUCCESSFULLY,
@@ -1067,12 +1116,12 @@ WHERE
             delete apnmtData[key];
           });
           await this._cancelAppointment(appointment, true, false, true);
-          await this._bookAppointment(apnmtData);
+          await this._bookAppointment({...apnmtData, webApp: true});
           logStream('debug','Success', 'Reschedule Or Cancel Appointment');
         } else {
           await this._cancelAppointment(appointment, true, false);
           await sendCancelNotification(apnmt);
-          await sendCancelNotificationToWebappDoctor(apnmt);
+          await sendNotificationToWebappDoctor(apnmt, Constant.CANCELLED);
           logStream('debug','Success', 'Reschedule Or Cancel Appointment');
         }
       });
@@ -1106,13 +1155,13 @@ WHERE
     hwName,
     hwAge,
     hwGender,
-    webApp,
+    webApp = false,
   }) => {
     logStream('debug','Appointment Service', 'Reschedule Appointment');
     const cancelled = await this._cancelAppointment(
       { id: appointmentId, userId: hwUUID, reason },
       false,
-      null,
+      !webApp,
       true
     );
 

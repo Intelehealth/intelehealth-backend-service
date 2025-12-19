@@ -28,10 +28,21 @@ const args = parse<IArgs>({
   },
 });
 
-// Set the env file
-const result2 = dotenv.config({
-  path: path.join(__dirname, `../env/${args.env}.env`),
-});
-if (result2.error) {
-  throw result2.error;
+// Set the env file - load .env files based on environment
+if (args.env !== 'production') {
+  const result2 = dotenv.config({
+    path: path.join(__dirname, `../env/${args.env}.env`),
+  });
+  if (result2.error) {
+    throw result2.error;
+  }
+} else {
+  dotenv.config();
 }
+
+// Debug: Log some key environment variables to help with troubleshooting
+console.log('🔍 Environment Debug Info:');
+console.log(`NODE_ENV: ${process.env.NODE_ENV || 'undefined'}`);
+console.log(`MYSQL_HOST: ${process.env.MYSQL_HOST || 'undefined'}`);
+console.log(`MYSQL_DB: ${process.env.MYSQL_DB || 'undefined'}`);
+console.log(`Total env vars loaded: ${Object.keys(process.env).length}`);

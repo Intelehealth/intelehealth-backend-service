@@ -5,9 +5,15 @@ module.exports = {
   up: (queryInterface: QueryInterface): Promise<void> =>
     queryInterface.sequelize.transaction(async (transaction) => {
       // here go all migration changes
-      await queryInterface.addColumn("mst_patient_registration","validations", {
-        type: DataTypes.JSON
-      });
+      const table = await queryInterface.describeTable("mst_patient_registration");
+
+      if (!table.validations) {
+        await queryInterface.addColumn("mst_patient_registration","validations", {
+            type: DataTypes.JSON,
+          },
+          { transaction }
+        );
+      }
 
       await queryInterface.changeColumn("audit_trail", "activity_type", {
         type: DataTypes.ENUM(
@@ -32,7 +38,8 @@ module.exports = {
           "PATIENT VISIT SECTION ORDER UPDATED",
           "VITAL NAME UPDATED",
           "ROSTER QUESTIONNAIRE CONFIG UPDATED",
-          "PATIENT REGISTRATION FIELD VALIDATION UPDATED"
+          "PATIENT REGISTRATION FIELD VALIDATION UPDATED",
+          "DROPDOWN CONFIG UPDATED"
         ),
       });
     }),
@@ -40,7 +47,11 @@ module.exports = {
   down: (queryInterface: QueryInterface): Promise<void> =>
     queryInterface.sequelize.transaction(async (transaction) => {
       // here go all migration undo changes
-      await queryInterface.removeColumn("mst_patient_registration","validations");
+      const table = await queryInterface.describeTable("mst_patient_registration");
+
+      if (table.validations) {
+        await queryInterface.removeColumn("mst_patient_registration","validations", { transaction });
+      }
 
       await queryInterface.changeColumn("audit_trail", "activity_type", {
         type: DataTypes.ENUM(
@@ -64,7 +75,9 @@ module.exports = {
           "PATIENT VISIT SECTION NAME UPDATED",
           "PATIENT VISIT SECTION ORDER UPDATED",
           "VITAL NAME UPDATED",
-          "ROSTER QUESTIONNAIRE CONFIG UPDATED"
+          "ROSTER QUESTIONNAIRE CONFIG UPDATED",
+          "PATIENT REGISTRATION FIELD VALIDATION UPDATED",
+          "DROPDOWN CONFIG UPDATED"
         ),
       });
     }),
