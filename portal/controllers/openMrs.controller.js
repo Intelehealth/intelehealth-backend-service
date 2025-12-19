@@ -186,22 +186,54 @@ const getVisitCountsForDashboard= async (req, res, next) => {
   const { speciality } = req.query;
   try {
     logStream('debug', 'API call', 'Get Visit Counts');
-    const data = await new Promise((resolve, reject) => {
-      openMrsDB.query(getVisitCountForDashboard(speciality), (err, results) => {
-        if (err) reject(err);
-        resolve(results);
-      });
-    }).catch((err) => {
-      throw err;
-    });
-    const data2 = await getUserSlots({userUuid, fromDate:moment().startOf('year').format('DD/MM/YYYY'), toDate:moment().endOf('year').format('DD/MM/YYYY')})
+    console.log(`[Visit Counts] Starting API call for userUuid: ${userUuid}, speciality: ${speciality}`);
+
+    // Execute both queries in parallel for better performance
+    const [data, data2] = await Promise.all([
+      new Promise((resolve, reject) => {
+        const dbQueryStart = Date.now();
+        const query = getVisitCountForDashboard(speciality);
+
+        // Log the query being executed
+        console.log('[Visit Counts] Executing DB Query:', query.substring(0, 200) + '...');
+
+        openMrsDB.query(query, (err, results) => {
+          const dbQueryTime = Date.now() - dbQueryStart;
+
+          if (err) {
+            reject(err);
+          } else {
+            resolve(results);
+          }
+        });
+      }),
+      (async () => {
+        const slots = await getUserSlots({
+          userUuid,
+          fromDate: moment().startOf('year').format('DD/MM/YYYY'),
+          toDate: moment().endOf('year').format('DD/MM/YYYY')
+        });
+        return slots;
+      })()
+    ]);
+    // Calculate counts
+    const awaitingCount = getTotal(data, "Awaiting Consult");
+    const priorityCount = getTotal(data, "Priority");
+    const inProgressCount = getTotal(data, "Visit In Progress");
+    const appointmentCount = getTotalVisits(data2);
+
+    console.log(`[Visit Counts] Counts calculated:`);
+    console.log(`  - Awaiting Consult: ${awaitingCount}`);
+    console.log(`  - Priority: ${priorityCount}`);
+    console.log(`  - In Progress: ${inProgressCount}`);
+    console.log(`  - Appointments: ${appointmentCount}`);
     logStream('debug', 'Success', 'Get Visit Counts');
     res.json({
       data: {
-        awaitingVisit: getTotal(data, "Awaiting Consult"),
-        priorityVisit: getTotal(data, "Priority"),
-        inProgressVisit: getTotal(data, "Visit In Progress"),
-        appointmentVisit: getTotalVisits(data2)
+        awaitingVisit: awaitingCount,
+        priorityVisit: priorityCount,
+        inProgressVisit: inProgressCount,
+        appointmentVisit: appointmentCount
       },
       message: MESSAGE.OPENMRS.VISIT_COUNT_FETCHED_SUCCESSFULLY,
     });
