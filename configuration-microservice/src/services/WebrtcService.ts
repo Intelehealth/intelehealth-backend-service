@@ -17,7 +17,7 @@ export const WEBRTC_NOT_FOUND_ERR = 'Webrtc field not found';
 async function getAll(): Promise<any> {
     const [webrtc, webrtc_section] = await Promise.all([
         Webrtc.findAll({
-            attributes: ['id', 'name', 'key', 'is_enabled', 'createdAt', 'updatedAt'],
+            attributes: ['id', 'name', 'key', 'is_enabled', 'createdAt', 'updatedAt', 'platform'],
             raw: true
         }),
         Features.findOne({

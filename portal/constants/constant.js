@@ -48,5 +48,19 @@ module.exports = {
     VERIFICATON: "verificaton",
     PHONE_NUMBER: "phoneNumber",
     COUNTRY_CODE: "countryCode",
-    EMAIL_ID: "emailId"
+    EMAIL_ID: "emailId",
+    VISIT_TYPES: {
+        PRIORITY: 'Priority',
+        AWAITING:'Awaiting Consult',
+        IN_PROGRESS:'Visit In Progress',
+        ENDED: 'Ended Visit',
+        FOLLOW_UP:'Follow-Up'
+    },
+    PENDING_VISIT_BY_CALL_STATUS: [
+        "Review of Imaging", 
+        "Review with Reports",
+        "Referral", 
+        "Close Call without Completion", 
+        "Reschedule/Repeat Internally"
+    ]
 }

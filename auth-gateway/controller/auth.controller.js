@@ -15,6 +15,7 @@ const {
   _getProvider,
   _setProvider
 } = require("../services/openmrs.service");
+const { logged_in_users, black_list_tokens } = require("../models");
 const { createError } = require("../handlers/createError");
 const buffer = require("buffer").Buffer;
 
@@ -42,7 +43,7 @@ module.exports = (function () {
 
       if (data?.data?.authenticated) {
         const expiresIn = rememberme ? 3 : 15;
-        resp.token = getToken(
+        const token = getToken(
           {
             sessionId: data?.data?.sessionId,
             userId: data?.data?.user?.uuid,
@@ -53,6 +54,11 @@ module.exports = (function () {
             .endOf("day")
             .unix()
         );
+
+        // Store token in the database
+        await logged_in_users.create({ userId: data?.data?.user?.uuid, token: token, loggedAt: moment().toISOString() });
+
+        resp.token = token;
         resp.status = true;
       }
       logStream("debug", `Login Success for ${username}`, "Login");
@@ -200,6 +206,24 @@ module.exports = (function () {
       logStream("debug", "API calling", "Delete User");
 
       const userData = await _getUserByUuid(uuid);
+      
+      // Fetch all logged-in users related to this user
+      const loggedInUsers = await logged_in_users.findAll({ where: { userId: uuid }});
+      
+      if(loggedInUsers){
+        // Prepare an array to insert into the black_list_tokens table
+        const blackListTokens = loggedInUsers.map(user => ({
+          userId: user.userId,
+          token: user.token,
+        }));
+        
+        // Bulk insert into the black_list_tokens table
+        if (blackListTokens.length > 0) {
+          await black_list_tokens.bulkCreate(blackListTokens);
+          logStream("debug", "Inserted multiple records into black_list_tokens", "Delete User");
+        }
+      }
+
       await _deletePerson(userData.person.uuid);
       logStream("debug", 'Deleted the person', "Delete User");
 

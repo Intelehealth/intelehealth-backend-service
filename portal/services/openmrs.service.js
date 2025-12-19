@@ -3,7 +3,7 @@ const openMrsDB = require("../handlers/mysql/mysqlOpenMrs");
 const { user_settings, appointments: Appointment } = require("../models");
 const { axiosInstance } = require("../handlers/helper");
 const { QueryTypes } = require("sequelize");
-const { getVisitCountV3 } = require("../controllers/queries");
+const { getVisitCountV3, getVisitCountForEndedVisits } = require("../controllers/queries");
 const {
   visit,
   encounter,
@@ -240,9 +240,15 @@ module.exports = (function () {
           type: QueryTypes.SELECT,
         });
       } else {
-        visits = await sequelize.query(getVisitCountV3(), {
-          type: QueryTypes.SELECT,
-        });
+        if(type === "Ended Visit") {
+          visits = await sequelize.query(getVisitCountForEndedVisits(), {
+            type: QueryTypes.SELECT,
+          });
+        } else {
+           visits = await sequelize.query(getVisitCountV3(), {
+            type: QueryTypes.SELECT,
+          });
+        }
       }
       let appointmentVisitIds = [];
       if(type === "Awaiting Consult"){
@@ -281,7 +287,7 @@ module.exports = (function () {
   this.getVisitsByType = async (
     speciality,
     page = 1,
-    limit = 1000,
+    limit = 25,
     type,
     countOnly = false
   ) => {
@@ -295,6 +301,12 @@ module.exports = (function () {
         model: obs,
         as: "obs",
         attributes: ["value_text", "concept_id", "value_numeric"],
+        where: { voided: 0 },
+        required: false,
+      }
+      const {IN_PROGRESS,FOLLOW_UP} = Constant.VISIT_TYPES;
+      if(![IN_PROGRESS,FOLLOW_UP].includes(type)){
+         obsCondition.where.concept_id = 163212;
       }
       if(type === 'Follow-Up'){
         obsCondition.where = {
@@ -302,15 +314,17 @@ module.exports = (function () {
           value_text: { [Op.ne]: "No" },
           voided: 0,
         };
+        obsCondition.required = true;
         type = "Completed Visit";
       }
-      if (limit > 5000) limit = 5000;
+      if (limit > 200) limit = 200;
       const visitIds = await this.getVisits(type, speciality);
 
       if (!countOnly) {
         visits = await visit.findAll({
           where: {
             visit_id: { [Op.in]: visitIds },
+            voided: 0,
           },
           attributes: ["uuid", "date_stopped", "date_created"],
           include: [
@@ -325,37 +339,10 @@ module.exports = (function () {
                   as: "type",
                   attributes: ["name"],
                 },
-                {
-                  model: encounter_provider,
-                  as: "encounter_provider",
-                  attributes: ["uuid"],
-                  include: [
-                    {
-                      model: provider,
-                      as: "provider",
-                      attributes: ["identifier", "uuid"],
-                      include: [
-                        {
-                          model: person,
-                          as: "person",
-                          attributes: ["gender"],
-                          include: [
-                            {
-                              model: person_name,
-                              as: "person_name",
-                              attributes: [
-                                "given_name",
-                                "family_name",
-                                "middle_name",
-                              ],
-                            },
-                          ],
-                        },
-                      ],
-                    },
-                  ],
-                },
               ],
+              where: {
+                voided: 0,
+              }
             },
             {
               model: patient_identifier,
@@ -366,18 +353,6 @@ module.exports = (function () {
               model: person_name,
               as: "patient_name",
               attributes: ["given_name", "family_name", "middle_name"],
-            },
-            {
-              model: person_attribute,
-              as: "person_attribute",
-              attributes: ["value"],
-              include: [
-                {
-                  model: person_attribute_type,
-                  as: "person_attribute_type",
-                  attributes: ["name"],
-                }
-              ],
             },
             {
               model: person,
@@ -415,7 +390,7 @@ module.exports = (function () {
   this._getPriorityVisits = async (
     speciality,
     page = 1,
-    limit = 1000
+    limit = 25
   ) => {
     try {
       logStream('debug','Openmrs Service', 'Get Priority Visits');
@@ -439,7 +414,7 @@ module.exports = (function () {
   this._getAwaitingVisits = async (
     speciality,
     page = 1,
-    limit = 1000
+    limit = 25
   ) => {
     try {
       logStream('debug','Openmrs Service', 'Get Awaiting Visits');
@@ -464,7 +439,7 @@ module.exports = (function () {
   this._getInProgressVisits = async (
     speciality,
     page = 1,
-    limit = 1000
+    limit = 25
   ) => {
     try {
       logStream('debug','Openmrs Service', 'Get In Progress Visits');
@@ -489,7 +464,7 @@ module.exports = (function () {
   this._getCompletedVisits = async (
     speciality,
     page = 1,
-    limit = 1000,
+    limit = 25,
     countOnly
   ) => {
     try {
@@ -516,7 +491,7 @@ module.exports = (function () {
 this._getFollowUpVisits = async (
   speciality,
   page = 1,
-  limit = 1000,
+  limit = 25,
   countOnly
 ) => {
   try {
@@ -543,7 +518,7 @@ this._getFollowUpVisits = async (
   this._getEndedVisits = async (
     speciality,
     page = 1,
-    limit = 1000
+    limit = 25
   ) => {
     try {
       logStream('debug','Openmrs Service', 'Get Ended Visits');
@@ -559,5 +534,29 @@ this._getFollowUpVisits = async (
     }
   };
 
+  /**
+   * Get doctor document
+   * @param { string } userUuid - User uuid
+   */
+  this.getObsValue = async (obsUuid) => {
+    const url = `/openmrs/ws/rest/v1/obs/${obsUuid}/value`;
+    const data = await axiosInstance.get(url, { responseType: 'arraybuffer' }).catch((err) => {
+      console.log(err);
+      return null;
+    });
+
+    if (!data) {
+      return {
+        success: false,
+        message: MESSAGE.COMMON.INVALID_LINK
+      };
+    }
+
+    return {
+      success: true,
+      data: data?.data
+    };
+  };
+  
   return this;
 })();

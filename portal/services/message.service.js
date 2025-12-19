@@ -1,5 +1,6 @@
 const { asyncForEach } = require("../handlers/helper");
-const { messages, Sequelize } = require("../models");
+const { messages, Sequelize, sequelize } = require("../models");
+const { QueryTypes } = require("sequelize");
 
 module.exports = (function () {
   /**
@@ -88,6 +89,7 @@ module.exports = (function () {
         }
       }
 
+      // Fetch all messages for the given users, patient, and visit
       let data = await messages.findAll({
         where: {
           fromUser: { [Sequelize.Op.in]: [fromUser, toUser] },
@@ -97,15 +99,60 @@ module.exports = (function () {
         },
         raw: true,
       });
+
+      // Mark unread messages sent to 'fromUser' (i.e., received by them) as read
+      await sequelize.query(
+        `UPDATE messages
+        SET isRead = TRUE
+        WHERE fromUser = :fromUser
+        AND toUser = :toUser
+        AND patientId = :patientId
+        AND visitId = :visitId
+        AND isRead = FALSE`,
+        {
+          replacements: { fromUser, toUser, patientId, visitId },
+          type: QueryTypes.UPDATE,
+          logging: console.log,
+        }
+      );
+
+      // Format message data
       for (let i = 0; i < data.length; i++) {
         try {
           data[i].createdAt = new Date(data[i].createdAt).toGMTString();
           data[i].isRead = Boolean(data[i].isRead);
           data[i].isDelivered = Boolean(Number(data[i].isDelivered));
-        } catch (error) {}
+        } catch (error) {
+          console.error("Error formatting message:", error);
+        }
+      }
+
+      // Broadcast unread count to relevant users
+      try {
+        const unreadCountResult = await sequelize.query(
+          `SELECT COUNT(m.message) AS unread FROM messages m WHERE m.toUser = :toUser AND m.isRead = 0`,
+          {
+            replacements: { toUser: fromUser }, // fromUser is the one receiving messages
+            type: QueryTypes.SELECT,
+          }
+        );
+
+        const unreadCount = unreadCountResult[0].unread;
+
+        for (const key in users) {
+          if (Object.prototype.hasOwnProperty.call(users, key)) {
+            const user = users[key];
+            if (user && [fromUser, toUser].includes(user.uuid)) {
+              io.to(key).emit("drUnreadCount", unreadCount);
+            }
+          }
+        }
+      } catch (broadcastError) {
+        console.error("Error broadcasting unread count:", broadcastError);
       }
       return { success: true, data };
     } catch (error) {
+      console.error("Error in getMessages:", error);
       return {
         success: false,
         data: [],
@@ -177,6 +224,7 @@ module.exports = (function () {
           where: {
             isRead: false,
             patientId: msg.patientId,
+            toUser: drUuid
           },
         });
 
@@ -206,6 +254,7 @@ module.exports = (function () {
       });
       return { success: true, data };
     } catch (error) {
+      console.error("Error in getPatientMessageList:", error);
       return {
         success: false,
         data: [],

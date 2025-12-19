@@ -4,9 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node src/index.ts",
+    "start": "ts-node src/index.ts",
     "dev": "nodemon src/index.ts",
-    "debug": "nodemon src/index.ts"
+    "debug": "nodemon src/index.ts",
+    "migrate": "npx sequelize db:migrate"
   },
   "keywords": [],
   "author": "",
@@ -18,11 +19,18 @@
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.2",
-    "livekit-server-sdk": "^1.2.1",
+    "livekit-server-sdk": "^2.10.2",
+    "moment": "^2.30.1",
+    "mysql": "^2.17.1",
+    "mysql2": "^2.3.3",
+    "sequelize": "^6.37.5",
+    "sequelize-cli": "^6.2.0",
     "ws": "^8.13.0"
   },
   "devDependencies": {
+    "@types/aws-sdk": "^2.7.4",
     "@types/jsonwebtoken": "^9.0.5",
+    "@types/moment": "^2.13.0",
     "@types/ws": "^8.5.4",
     "nodemon": "^2.0.22",
     "ts-node": "^10.9.1",

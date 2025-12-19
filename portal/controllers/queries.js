@@ -232,7 +232,7 @@ module.exports = (function () {
               ) as ended
             from
                 visit v
-                LEFT JOIN encounter e using (visit_id)
+                LEFT JOIN encounter e on e.visit_id = v.visit_id and (e.encounter_type IN (1,6,9,12,14,15))
                 LEFT JOIN visit_attribute va on (va.visit_id= v.visit_id and va.voided = 0 and va.attribute_type_id = 5)
             where
                 v.voided = 0
@@ -296,7 +296,7 @@ module.exports = (function () {
               ) as ended
             from
                 visit v
-                LEFT JOIN encounter e using (visit_id)
+                LEFT JOIN encounter e on e.visit_id = v.visit_id and (e.encounter_type IN (1,6,9,12,14,15))
                 LEFT JOIN visit_attribute va on (va.visit_id= v.visit_id and va.voided = 0 and va.attribute_type_id = 5)
             where
                 v.voided = 0
@@ -308,6 +308,26 @@ module.exports = (function () {
         ) as t1
     where
         encounter_id = max_enc
+    `;
+    };
+
+    this.getVisitCountForEndedVisits = () => {
+      return `select
+        v.visit_id,
+        v.uuid,
+       "Ended Visit" as "Status",
+        max(va.value_reference) as speciality
+    from
+                visit v
+                JOIN visit_attribute va on (va.visit_id= v.visit_id and va.voided = 0 and va.attribute_type_id = 5)
+            where
+                v.voided = 0
+        		and v.date_stopped is not null
+            and (
+          value_reference is null
+          or value_reference = 'General Physician'
+      )
+      group by v.visit_id
     `;
     };
 

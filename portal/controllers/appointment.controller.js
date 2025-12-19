@@ -378,7 +378,8 @@ module.exports = (function () {
         { key: Constant.HW_UUID, type: "string" },
       ];
       if (validateParams(req.body, keysAndTypeToCheck)) {
-        const data = await _cancelAppointment(req.body);
+        const notify = !req.body.webApp;
+        const data = await _cancelAppointment(req.body, false, notify, false);
         logStream('debug','Appointment Cancelled', 'Cancel Appointment');
         res.json(data);
       }
@@ -556,7 +557,6 @@ module.exports = (function () {
    * @param {*} res
    */
   this.validateDayOff = async (req, res, next) => {
-    console.log("CALLED")
     try {
       const { userUuid } = req.params;
       const { year, month, date, time } = req.query;

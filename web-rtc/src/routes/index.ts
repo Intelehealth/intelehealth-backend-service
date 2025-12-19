@@ -13,6 +13,8 @@ class IndexRoute {
 
     initRoutes() {
         router.get('/getToken', [authMiddleware, this.mainController.getToken])
+        router.post('/startRecording', [authMiddleware, this.mainController.startRecording])
+        router.get('/stopRecording', [authMiddleware, this.mainController.stopRecording])
     }
 }
 

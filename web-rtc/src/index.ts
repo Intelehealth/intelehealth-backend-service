@@ -6,6 +6,8 @@ import { WebSocketController } from './controllers/websocket.controller';
 import * as http from 'http';
 import * as https from 'https';
 const cors = require('cors');
+const db = require("./models");
+ 
 
 class Server {
     app: express.Application;
@@ -14,19 +16,42 @@ class Server {
     constructor() {
         let server;
         this.app = express();
+        
+        // Add these middleware before routes
+        this.app.use(express.json());
+        this.app.use(express.urlencoded({ extended: true }));
+        
         this.app.use(cors({
             // origin: "*"
             credentials: true,
             origin: true,
         }))
         console.log('SSL: ', process.env.SSL);
-        if (process.env.SSL === 'true') {
+        console.log('SSL_KEY_PATH: ', process.env.SSL_KEY_PATH);
+        console.log('SSL_CERT_PATH: ', process.env.SSL_CERT_PATH);
+        if (process.env.SSL == 'true') {
+         console.log('FOUND: ', process.env.SSL);
             const fs = require("fs");
-            const options = {
-                key: fs.readFileSync(process.env.SSL_KEY_PATH),
-                cert: fs.readFileSync(process.env.SSL_CERT_PATH),
-            };
-            server = https.createServer(options, this.app);
+            try {
+                // Check if files exist before trying to read them
+                if (!fs.existsSync(process.env.SSL_KEY_PATH)) {
+                    throw new Error(`SSL key file not found: ${process.env.SSL_KEY_PATH}`);
+                }
+                if (!fs.existsSync(process.env.SSL_CERT_PATH)) {
+                    throw new Error(`SSL cert file not found: ${process.env.SSL_CERT_PATH}`);
+                }
+                
+                const options = {
+                    key: fs.readFileSync(process.env.SSL_KEY_PATH),
+                    cert: fs.readFileSync(process.env.SSL_CERT_PATH),
+                };
+                server = https.createServer(options, this.app);
+                console.log('HTTPS server created successfully');
+            } catch (error) {
+                console.error('Error reading SSL files:', (error as any).message);
+                console.log('Falling back to HTTP server');
+                server = http.createServer(this.app);
+            }
         } else {
             server = http.createServer(this.app);
         }
@@ -36,6 +61,22 @@ class Server {
         });
         this.init();
         new WebSocketController(server);
+
+        // If needed, move this definition to models/session.js
+        db.sequelize.define("Session", {
+            sid: {
+              type: db.Sequelize.STRING,
+              primaryKey: true,
+            },
+            rememberme: db.Sequelize.BOOLEAN,
+            expires: db.Sequelize.DATE,
+            data: db.Sequelize.TEXT,
+        });
+        
+        // Ensure table is created
+        db.sequelize.sync().then(() => {
+            console.log("Session table synced.");
+        }).catch((err: any) => console.error("Sync error:", err));
     }
 
     init() {
