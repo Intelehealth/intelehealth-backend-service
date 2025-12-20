@@ -186,8 +186,6 @@ const getVisitCountsForDashboard= async (req, res, next) => {
   const { speciality } = req.query;
   try {
     logStream('debug', 'API call', 'Get Visit Counts');
-
-    // Run queries in parallel - using lightweight count function
     const [data, appointmentCount] = await Promise.all([
       new Promise((resolve, reject) => {
         openMrsDB.query(getVisitCountForDashboard(speciality), (err, results) => {
