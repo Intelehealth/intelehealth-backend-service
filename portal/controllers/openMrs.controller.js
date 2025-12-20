@@ -1,7 +1,7 @@
 const { MESSAGE } = require("../constants/messages");
 const openMrsDB = require("../handlers/mysql/mysqlOpenMrs");
 const { sendOtp, resetPassword } = require("../services/openmrs.service");
-const { getUserSlots } = require("../services/appointment.service");
+const { getUserSlots, getUserSlotsCount } = require("../services/appointment.service");
 const { logStream } = require("../logger/index");
 const {
   _getAwaitingVisits,
@@ -186,53 +186,24 @@ const getVisitCountsForDashboard= async (req, res, next) => {
   const { speciality } = req.query;
   try {
     logStream('debug', 'API call', 'Get Visit Counts');
-    console.log(`[Visit Counts] Starting API call for userUuid: ${userUuid}, speciality: ${speciality}`);
 
-    // Execute both queries in parallel for better performance
-    const [data, data2] = await Promise.all([
+    // Run queries in parallel - using lightweight count function
+    const [data, appointmentCount] = await Promise.all([
       new Promise((resolve, reject) => {
-        const dbQueryStart = Date.now();
-        const query = getVisitCountForDashboard(speciality);
-
-        // Log the query being executed
-        console.log('[Visit Counts] Executing DB Query:', query.substring(0, 200) + '...');
-
-        openMrsDB.query(query, (err, results) => {
-          const dbQueryTime = Date.now() - dbQueryStart;
-
-          if (err) {
-            reject(err);
-          } else {
-            resolve(results);
-          }
+        openMrsDB.query(getVisitCountForDashboard(speciality), (err, results) => {
+          if (err) reject(err);
+          resolve(results);
         });
       }),
-      (async () => {
-        const slots = await getUserSlots({
-          userUuid,
-          fromDate: moment().startOf('year').format('DD/MM/YYYY'),
-          toDate: moment().endOf('year').format('DD/MM/YYYY')
-        });
-        return slots;
-      })()
+      getUserSlotsCount({userUuid, fromDate:moment().startOf('year').format('DD/MM/YYYY'), toDate:moment().endOf('year').format('DD/MM/YYYY')})
     ]);
-    // Calculate counts
-    const awaitingCount = getTotal(data, "Awaiting Consult");
-    const priorityCount = getTotal(data, "Priority");
-    const inProgressCount = getTotal(data, "Visit In Progress");
-    const appointmentCount = getTotalVisits(data2);
 
-    console.log(`[Visit Counts] Counts calculated:`);
-    console.log(`  - Awaiting Consult: ${awaitingCount}`);
-    console.log(`  - Priority: ${priorityCount}`);
-    console.log(`  - In Progress: ${inProgressCount}`);
-    console.log(`  - Appointments: ${appointmentCount}`);
     logStream('debug', 'Success', 'Get Visit Counts');
     res.json({
       data: {
-        awaitingVisit: awaitingCount,
-        priorityVisit: priorityCount,
-        inProgressVisit: inProgressCount,
+        awaitingVisit: getTotal(data, "Awaiting Consult"),
+        priorityVisit: getTotal(data, "Priority"),
+        inProgressVisit: getTotal(data, "Visit In Progress"),
         appointmentVisit: appointmentCount
       },
       message: MESSAGE.OPENMRS.VISIT_COUNT_FETCHED_SUCCESSFULLY,
@@ -243,12 +214,6 @@ const getVisitCountsForDashboard= async (req, res, next) => {
     res.json({ status: false, message: error.message });
   }
 };
-
-  const getTotalVisits = (visits) => {
-    return (Array.isArray(visits)
-    ? visits.filter((v) => (v?.visitStatus === 'Awaiting Consult' || v?.visitStatus === 'Visit In Progress'))
-    : [])?.length;
-  }
   
 /**
  * To return the FollowUp Visits from the openmrs db using custom query
