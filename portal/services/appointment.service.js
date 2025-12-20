@@ -288,62 +288,142 @@ WHERE
         raw: true,
       });
 
-      const visitIds = data.map((v) => v?.visitUuid);
+      // Early return if no appointments
+      if (!data || data.length === 0) {
+        return [];
+      }
 
+      const visitIds = data.map((v) => v?.visitUuid).filter(Boolean);
+
+      // Early return if no visit IDs
+      if (visitIds.length === 0) {
+        return data;
+      }
+
+      // Run queries in parallel for better performance
+      const [visitStatus, visits] = await Promise.all([
+        sequelize.query(getVisitCountV4(visitIds), {
+          type: QueryTypes.SELECT,
+        }),
+        visit.findAll({
+          where: {
+            uuid: { [Op.in]: visitIds },
+          },
+          attributes: ["uuid"],
+          include: [
+            {
+              model: encounter,
+              as: "encounters",
+              attributes: ["encounter_datetime"],
+              include: [
+                {
+                  model: obs,
+                  as: "obs",
+                  attributes: ["value_text", "concept_id", "value_numeric"],
+                  required: false
+                },
+                {
+                  model: encounter_type,
+                  as: "type",
+                  attributes: ["name"],
+                }
+              ],
+            },
+            {
+              model: patient_identifier,
+              as: "patient",
+              attributes: ["identifier"],
+            },
+            {
+              model: person_name,
+              as: "patient_name",
+              attributes: ["given_name", "family_name"],
+            },
+            {
+              model: person,
+              as: "person",
+              attributes: ["uuid", "gender", "birthdate"],
+            },
+            {
+              model: location,
+              as: "location",
+              attributes: ["name", ["parent_location", "parent"]],
+            },
+          ]
+        })
+      ]);
+
+      const visitsBySanch = await this.setSanchForVisits(visits);
+
+      // Create lookup maps for O(1) access instead of O(n) find()
+      const visitMap = new Map(visitsBySanch.map(v => [v.uuid, v]));
+      const statusMap = new Map(visitStatus.map(s => [s.uuid, s.Status]));
+
+      // Efficient merge using Map lookups - O(n) instead of O(n²)
+      const mergedArray = data.map(appointment => ({
+        ...appointment,
+        visit: visitMap.get(appointment.visitUuid),
+        visitStatus: statusMap.get(appointment.visitUuid)
+      }));
+
+      logStream('debug','Success', 'Get User Slots');
+      return mergedArray;
+    } catch (error) {
+      logStream("error", error.message);
+      throw error;
+    }
+  };
+
+  /**
+     * Get appointment visit count (lightweight version for dashboard)
+     * Only returns count - no full visit data
+     * @param { string } userUuid - User uuid
+     * @param { string } fromDate - From date
+     * @param { string } toDate - To date
+     */
+  this.getUserSlotsCount = async ({ userUuid, fromDate, toDate }) => {
+    try {
+      logStream('debug','Appointment Service', 'Get User Slots Count');
+
+      // Get appointment visit UUIDs only
+      const appointments = await Appointment.findAll({
+        where: {
+          userUuid,
+          slotJsDate: {
+            [Op.between]: this.getFilterDates(fromDate, toDate),
+          },
+          status: Constant.BOOKED,
+        },
+        attributes: ['visitUuid'],
+        raw: true,
+      });
+
+      // Early return if no appointments
+      if (!appointments || appointments.length === 0) {
+        logStream('debug','No appointments found', 'Get User Slots Count');
+        return 0;
+      }
+
+      const visitIds = appointments.map((v) => v?.visitUuid).filter(Boolean);
+
+      // Early return if no visit IDs
+      if (visitIds.length === 0) {
+        logStream('debug','No valid visit UUIDs', 'Get User Slots Count');
+        return 0;
+      }
+
+      // Get visit statuses only - no need for full visit data
       const visitStatus = await sequelize.query(getVisitCountV4(visitIds), {
         type: QueryTypes.SELECT,
       });
 
-      const visits = await visit.findAll({
-        where: {
-          uuid: { [Op.in]: visitIds },
-        },
-        attributes: ["uuid"],
-        include: [
-          {
-            model: encounter,
-            as: "encounters",
-            attributes: ["encounter_datetime"],
-            include: [
-              {
-                model: obs,
-                as: "obs",
-                attributes: ["value_text", "concept_id", "value_numeric"],
-                required: false
-              },
-              {
-                model: encounter_type,
-                as: "type",
-                attributes: ["name"],
-              }
-            ],
-          },
-          {
-            model: patient_identifier,
-            as: "patient",
-            attributes: ["identifier"],
-          },
-          {
-            model: person_name,
-            as: "patient_name",
-            attributes: ["given_name", "family_name"],
-          },
-          {
-            model: person,
-            as: "person",
-            attributes: ["uuid", "gender", "birthdate"],
-          },
-          {
-            model: location,
-            as: "location",
-            attributes: ["name", ["parent_location", "parent"]],
-          },
-        ]
-      });
-      const visitsBySanch = await this.setSanchForVisits(visits);
-      const mergedArray = data.map(x => ({ ...x, visit: visitsBySanch.find(y => y.uuid == x.visitUuid), visitStatus: visitStatus.find(z => z.uuid == x.visitUuid)?.Status }));
-      logStream('debug','Success', 'Get User Slots');
-      return mergedArray;
+      // Count visits with Awaiting Consult or Visit In Progress status
+      const count = visitStatus.filter(
+        v => v?.Status === 'Awaiting Consult' || v?.Status === 'Visit In Progress'
+      ).length;
+
+      logStream('debug',`Count: ${count}`, 'Get User Slots Count');
+      return count;
     } catch (error) {
       logStream("error", error.message);
       throw error;
