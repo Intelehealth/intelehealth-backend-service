@@ -1,7 +1,7 @@
 const { MESSAGE } = require("../constants/messages");
 const openMrsDB = require("../handlers/mysql/mysqlOpenMrs");
 const { sendOtp, resetPassword } = require("../services/openmrs.service");
-const { getUserSlots } = require("../services/appointment.service");
+const { getUserSlots,getUserSlotsCount } = require("../services/appointment.service");
 const { logStream } = require("../logger/index");
 const {
   _getAwaitingVisits,
@@ -184,79 +184,29 @@ const getTotal = (visits, type) => {
 const getVisitCountsForDashboard= async (req, res, next) => {
   const { userUuid } = req.params;
   const { speciality } = req.query;
-  const startTime = Date.now();
-
   try {
     logStream('debug', 'API call', 'Get Visit Counts');
-    console.log(`[Visit Counts] Starting API call for userUuid: ${userUuid}, speciality: ${speciality}`);
-
-    // Execute both queries in parallel for better performance
-    const [data, data2] = await Promise.all([
+    const [data, appointmentCount] = await Promise.all([
       new Promise((resolve, reject) => {
-        const dbQueryStart = Date.now();
-        const query = getVisitCountForDashboard(speciality);
-
-        // Log the query being executed
-        console.log('[Visit Counts] Executing DB Query:', query.substring(0, 200) + '...');
-
-        openMrsDB.query(query, (err, results) => {
-          const dbQueryTime = Date.now() - dbQueryStart;
-
-          if (err) {
-            console.error('[Visit Counts] DB Query ERROR:', err.message);
-            console.error('[Visit Counts] Query execution time:', dbQueryTime + 'ms');
-            reject(err);
-          } else {
-            console.log(`[Visit Counts] DB Query completed in ${dbQueryTime}ms`);
-            console.log(`[Visit Counts] Rows returned: ${results.length}`);
-            console.log('[Visit Counts] Sample data:', JSON.stringify(results.slice(0, 3), null, 2));
-            resolve(results);
-          }
+        openMrsDB.query(getVisitCountForDashboard(speciality), (err, results) => {
+          if (err) reject(err);
+          resolve(results);
         });
       }),
-      (async () => {
-        const slotsStart = Date.now();
-        const slots = await getUserSlots({
-          userUuid,
-          fromDate: moment().startOf('year').format('DD/MM/YYYY'),
-          toDate: moment().endOf('year').format('DD/MM/YYYY')
-        });
-        const slotsTime = Date.now() - slotsStart;
-        console.log(`[Visit Counts] getUserSlots completed in ${slotsTime}ms`);
-        console.log(`[Visit Counts] Slots returned: ${Array.isArray(slots) ? slots.length : 'N/A'}`);
-        return slots;
-      })()
+      getUserSlotsCount({userUuid, fromDate:moment().startOf('year').format('DD/MM/YYYY'), toDate:moment().endOf('year').format('DD/MM/YYYY')})
     ]);
-
-    const totalTime = Date.now() - startTime;
-
-    // Calculate counts
-    const awaitingCount = getTotal(data, "Awaiting Consult");
-    const priorityCount = getTotal(data, "Priority");
-    const inProgressCount = getTotal(data, "Visit In Progress");
-    const appointmentCount = getTotalVisits(data2);
-
-    console.log(`[Visit Counts] Counts calculated:`);
-    console.log(`  - Awaiting Consult: ${awaitingCount}`);
-    console.log(`  - Priority: ${priorityCount}`);
-    console.log(`  - In Progress: ${inProgressCount}`);
-    console.log(`  - Appointments: ${appointmentCount}`);
-    console.log(`[Visit Counts] Total API execution time: ${totalTime}ms`);
 
     logStream('debug', 'Success', 'Get Visit Counts');
     res.json({
       data: {
-        awaitingVisit: awaitingCount,
-        priorityVisit: priorityCount,
-        inProgressVisit: inProgressCount,
+        awaitingVisit: getTotal(data, "Awaiting Consult"),
+        priorityVisit: getTotal(data, "Priority"),
+        inProgressVisit: getTotal(data, "Visit In Progress"),
         appointmentVisit: appointmentCount
       },
       message: MESSAGE.OPENMRS.VISIT_COUNT_FETCHED_SUCCESSFULLY,
     });
   } catch (error) {
-    const totalTime = Date.now() - startTime;
-    console.error(`[Visit Counts] ERROR after ${totalTime}ms:`, error.message);
-    console.error('[Visit Counts] Stack trace:', error.stack);
     logStream("error", error.message);
     res.statusCode = 422;
     res.json({ status: false, message: error.message });
