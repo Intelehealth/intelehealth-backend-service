@@ -37,5 +37,6 @@ router.use("/openai", require("./openai.route"));
 router.use('/signature', require("./signature.route"));
 router.use("/user", require("./user.route"));
 router.use("/video-library", require("./videoLibrary.route"));
+router.use("/ncdReport", require("./ncdReport.route"));
 
 module.exports = router;
