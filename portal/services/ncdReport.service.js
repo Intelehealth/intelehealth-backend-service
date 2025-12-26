@@ -416,8 +416,6 @@ console.log("Fetching NCD Report Data for patient:", patientUuid);
       }
 
       // Get last 7 NCD visits for the patient
-      // Filter by visit_attribute if available, otherwise use encounter type
-      // Order by date_started DESC (includes time component) to get most recent visits first
       // If multiple visits exist on the same date, they are ordered by time (most recent first)
       let visits;
       
