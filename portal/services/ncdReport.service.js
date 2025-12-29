@@ -240,7 +240,7 @@ async function getConceptIds() {
     const missingRequired = requiredKeys.filter(key => !conceptIds[key]);
     
     if (missingRequired.length > 0) {
-      console.log(`\n⚠️  Using fallback concept IDs for missing concepts: ${missingRequired.join(', ')}`);
+      console.log(`\n Using fallback concept IDs for missing concepts: ${missingRequired.join(', ')}`);
       missingRequired.forEach(key => {
         if (knownConceptIds[key]) {
           conceptIds[key] = knownConceptIds[key];
@@ -257,7 +257,7 @@ async function getConceptIds() {
     // Log summary
     const foundCount = Object.keys(conceptIds).length;
     const requiredCount = conceptMappings.length;
-    console.log(`\n📊 Concept ID Summary: Found ${foundCount}/${requiredCount} required concepts`);
+    console.log(`\n Concept ID Summary: Found ${foundCount}/${requiredCount} required concepts`);
     
     if (foundCount < requiredCount) {
       const missing = conceptMappings
@@ -265,7 +265,7 @@ async function getConceptIds() {
         .map(m => ({ key: m.key, searchTerms: m.searchTerms }));
       
       if (missing.length > 0) {
-        console.error(`\n⚠️  Missing concepts (${missing.length}):`);
+        console.error(`\n Missing concepts (${missing.length}):`);
         missing.forEach(m => {
           console.error(`   - ${m.key}`);
           console.error(`     Searched: ${m.searchTerms.slice(0, 3).join(', ')}${m.searchTerms.length > 3 ? '...' : ''}`);
@@ -281,13 +281,12 @@ async function getConceptIds() {
       conceptIdsCache = conceptIds;
       logStream("debug", "Concept IDs fetched from database", JSON.stringify(conceptIds));
     } else {
-      console.error(`\n❌ Not caching incomplete concept IDs. Please check database connection and concept names.`);
+      console.error(`\n Not caching incomplete concept IDs. Please check database connection and concept names.`);
     }
     
     return conceptIds;
   } catch (error) {
     logStream("error", `Error fetching concept IDs: ${error.message}`);
-    console.error(`\n❌ Error fetching concept IDs: ${error.message}`);
     console.error(`\n💡 To verify concept names in your database, run this SQL query:`);
     console.error(`   SELECT concept_id, name, locale_preferred, concept_name_type`);
     console.error(`   FROM concept_name`);
@@ -411,8 +410,12 @@ console.log("Fetching NCD Report Data for patient:", patientUuid);
         }
       });
 
+      console.log(` Checking for NCD visit attribute type 'isNcdSevikaVisit'...`);
       if (!ncdVisitAttributeType) {
+        console.log(`    NCD visit attribute type 'isNcdSevikaVisit' not found, falling back to encounter type filter`);
         logStream("warning", "NCD visit attribute type 'isNcdSevikaVisit' not found, falling back to encounter type filter");
+      } else {
+        console.log(`  Found attribute type ID: ${ncdVisitAttributeType.visit_attribute_type_id}`);
       }
 
       // Get last 7 NCD visits for the patient
@@ -421,6 +424,7 @@ console.log("Fetching NCD Report Data for patient:", patientUuid);
       
       if (ncdVisitAttributeType) {
         // Use visit_attribute to filter NCD visits
+        console.log(`\n🔍 Searching for visits with isNcdSevikaVisit attribute...`);
         const ncdVisitIds = await visit_attribute.findAll({
           where: {
             attribute_type_id: ncdVisitAttributeType.visit_attribute_type_id,
@@ -434,11 +438,14 @@ console.log("Fetching NCD Report Data for patient:", patientUuid);
           raw: true
         });
 
+        console.log(`   Found ${ncdVisitIds.length} visits with isNcdSevikaVisit attribute`);
         const ncdVisitIdList = ncdVisitIds.map(v => v.visit_id);
 
         if (ncdVisitIdList.length === 0) {
+          console.log(`   ⚠️  No visits found with isNcdSevikaVisit attribute for patient ${personId}`);
           visits = [];
         } else {
+          console.log(`   ✓ Filtering ${ncdVisitIdList.length} NCD visits for patient ${personId}`);
           visits = await visit.findAll({
             where: {
               patient_id: personId,
@@ -488,6 +495,37 @@ console.log("Fetching NCD Report Data for patient:", patientUuid);
         }
       } else {
         // Fallback to encounter type filter if visit_attribute not found
+        console.log(`\n🔍 Using fallback: Searching for visits with encounter_type = 6 (Vitals) for patient ${personId}...`);
+        
+        // First, let's check if patient has any visits at all
+        const allVisitsCount = await visit.count({
+          where: {
+            patient_id: personId,
+            voided: 0,
+          }
+        });
+        console.log(`   Total visits for patient: ${allVisitsCount}`);
+        
+        // Check visits with encounter_type 6
+        const vitalsVisitsCount = await visit.count({
+          where: {
+            patient_id: personId,
+            voided: 0,
+          },
+          include: [
+            {
+              model: encounter,
+              as: "encounters",
+              where: {
+                voided: 0,
+                encounter_type: 6,
+              },
+              required: true,
+            },
+          ],
+        });
+        console.log(`   Visits with encounter_type 6 (Vitals): ${vitalsVisitsCount}`);
+        
         visits = await visit.findAll({
           where: {
             patient_id: personId,
@@ -535,37 +573,65 @@ console.log("Fetching NCD Report Data for patient:", patientUuid);
             console.log("=== END QUERY ===");
           },
         });
+        
+        console.log(`   ✓ Found ${visits.length} visits with encounter_type 6 and vitals observations`);
       }
-
-      // Helper functions for color coding (defined outside map for efficiency)
-      const isHighBP = (systolic, diastolic) => {
-        if (systolic === null || diastolic === null) return false;
-        return systolic >= 140 || diastolic >= 90;
-      };
-
-      const isHighHB = (hgb) => {
-        if (hgb === null || hgb === 'N/A') return false;
-        const hgbNum = parseFloat(hgb);
-        return !isNaN(hgbNum) && hgbNum > 18;
-      };
-
-      const isNormalHB = (hgb) => {
-        if (hgb === null || hgb === 'N/A') return false;
-        const hgbNum = parseFloat(hgb);
-        return !isNaN(hgbNum) && hgbNum >= 12 && hgbNum <= 18;
-      };
-
-      const isHighRBS = (rbs) => {
-        if (rbs === null || rbs === 'N/A') return false;
-        const rbsNum = parseFloat(rbs);
-        return !isNaN(rbsNum) && rbsNum > 140;
-      };
-
-      const isNormalRBS = (rbs) => {
-        if (rbs === null || rbs === 'N/A') return false;
-        const rbsNum = parseFloat(rbs);
-        return !isNaN(rbsNum) && rbsNum >= 70 && rbsNum <= 140;
-      };
+      
+      console.log(`\n📊 Final result: ${visits.length} NCD visits found for patient ${personId}`);
+      
+      // If no visits found with either method, try a more flexible approach:
+      // Find any visits that have the required vitals observations, regardless of attribute or encounter type
+      if (visits.length === 0) {
+        console.log(`\n⚠️  No visits found with standard filters. Trying flexible approach: any visit with vitals observations...`);
+        
+        visits = await visit.findAll({
+          where: {
+            patient_id: personId,
+            voided: 0,
+          },
+          attributes: ["visit_id", "uuid", "date_started", "date_stopped"],
+          include: [
+            {
+              model: encounter,
+              as: "encounters",
+              attributes: ["encounter_id", "encounter_datetime", "encounter_type"],
+              where: {
+                voided: 0,
+              },
+              required: false,
+              include: [
+                {
+                  model: obs,
+                  as: "obs",
+                  attributes: [
+                    "obs_id",
+                    "concept_id",
+                    "value_numeric",
+                    "value_text",
+                    "obs_datetime",
+                  ],
+                  where: {
+                    voided: 0,
+                    concept_id: {
+                      [Op.in]: Object.values(CONCEPT_IDS),
+                    },
+                  },
+                  required: true, // Only include visits that have at least one vital observation
+                },
+              ],
+            },
+          ],
+          order: [["date_started", "DESC"]],
+          limit: 7,
+          logging: (sql) => {
+            console.log("=== NCD VISITS QUERY (flexible - any visit with vitals) ===");
+            console.log(sql);
+            console.log("=== END QUERY ===");
+          },
+        });
+        
+        console.log(`   ✓ Found ${visits.length} visits with vitals observations (flexible query)`);
+      }
 
       // Process visits to extract vitals
       // Visits are already ordered by date_started DESC (includes time component)
