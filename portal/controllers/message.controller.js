@@ -160,7 +160,7 @@ module.exports = (function () {
    * @param {*} res
    */
   this.getMessages = async (req, res) => {
-    const { fromUser, toUser, patientId } = req.params;
+    const { fromUser, toUser, patientId } = req.params || {};
     const visitId = req.query.visitId;
     const keysAndTypeToCheck = [
       { key: Constant.FROM_USER, type: "string" },
@@ -260,7 +260,7 @@ module.exports = (function () {
    * @param {*} res
    */
   this.getVisits = async (req, res) => {
-    const { patientId } = req.params;
+    const { patientId } = req.params || {};
     const keysAndTypeToCheck = [{ key: Constant.PATIENT_ID, type: "string" }];
     try {
       logStream('debug', 'API call', 'Get Visits');
