@@ -38,15 +38,11 @@ async function getConceptIds() {
     const requiredKeys = ['SYSTOLIC_BP', 'DIASTOLIC_BP', 'HEMOGLOBIN', 'BLOOD_SUGAR'];
     const hasRequired = requiredKeys.every(key => conceptIdsCache[key]);
     if (hasRequired && Object.keys(conceptIdsCache).length > 0) {
-      console.log('✅ Using cached concept IDs');
       return conceptIdsCache;
     } else {
-      console.log('⚠️  Cache exists but missing required concepts, fetching fresh...');
       conceptIdsCache = null; // Clear invalid cache
     }
   }
-  
-  console.log('🔍 Fetching concept IDs from database...');
 
   try {
     // Define concept UUIDs (from frontend visit-summary component)
@@ -63,7 +59,6 @@ async function getConceptIds() {
     const conceptIds = {};
 
     // Fetch concept IDs by UUID (most reliable method - no ambiguity)
-    console.log('\n🔍 Fetching concept IDs by UUID (from frontend constants)...');
     for (const mapping of conceptUuidMappings) {
       try {
         const result = await sequelize.query(
@@ -80,13 +75,10 @@ async function getConceptIds() {
 
         if (result && result.length > 0) {
           conceptIds[mapping.key] = result[0].concept_id;
-          console.log(`   ✅ ${mapping.key}: concept_id=${result[0].concept_id}`);
         } else {
-          console.log(`   ⚠️  Could not find ${mapping.key} with UUID ${mapping.uuid}`);
           logStream("warning", `Concept not found for ${mapping.key} with UUID ${mapping.uuid}`);
         }
       } catch (err) {
-        console.log(`   ❌ Error fetching ${mapping.key}: ${err.message}`);
         logStream("error", `Error fetching concept ${mapping.key}: ${err.message}`);
       }
     }
@@ -108,62 +100,30 @@ async function getConceptIds() {
     };
 
     const requiredKeys = ['SYSTOLIC_BP', 'DIASTOLIC_BP', 'HEMOGLOBIN', 'BLOOD_SUGAR'];
-    const missingRequired = requiredKeys.filter(key => !conceptIds[key]);
-
-    if (missingRequired.length > 0) {
-      console.log(`\n⚠️  Using fallback concept IDs for missing concepts: ${missingRequired.join(', ')}`);
-      missingRequired.forEach(key => {
-        if (knownConceptIds[key]) {
-          conceptIds[key] = knownConceptIds[key];
-          console.log(`   ✓ Fallback: ${key} = ${knownConceptIds[key]}`);
-        }
-      });
-
-      // Also set RBS if BLOOD_SUGAR was set
-      if (conceptIds.BLOOD_SUGAR && knownConceptIds.RBS) {
-        conceptIds.RBS = conceptIds.BLOOD_SUGAR;
+    
+    // Use fallback concept IDs for any missing required concepts
+    requiredKeys.forEach(key => {
+      if (!conceptIds[key] && knownConceptIds[key]) {
+        conceptIds[key] = knownConceptIds[key];
       }
+    });
+
+    // Also set RBS if BLOOD_SUGAR was set
+    if (conceptIds.BLOOD_SUGAR) {
+      conceptIds.RBS = conceptIds.BLOOD_SUGAR;
     }
 
-    // Log summary
-    const foundCount = Object.keys(conceptIds).length;
-    const requiredCount = conceptUuidMappings.length;
-    console.log(`\n📊 Concept ID Summary: Found ${foundCount}/${requiredCount} required concepts`);
-
-    if (foundCount < requiredCount) {
-      const missing = conceptUuidMappings
-        .filter(m => !conceptIds[m.key])
-        .map(m => ({ key: m.key, uuid: m.uuid }));
-
-      if (missing.length > 0) {
-        console.error(`\n⚠️  Missing concepts (${missing.length}):`);
-        missing.forEach(m => {
-          console.error(`   - ${m.key} (UUID: ${m.uuid})`);
-        });
-      }
-    } else {
-      console.log(`✅ All required concepts found successfully!`);
-    }
 
     // Cache the results (only if we have all required concepts after fallback)
     const hasAllRequired = requiredKeys.every(key => conceptIds[key]);
     if (hasAllRequired) {
       conceptIdsCache = conceptIds;
       logStream("debug", "Concept IDs fetched from database", JSON.stringify(conceptIds));
-    } else {
-      console.error(`\n Not caching incomplete concept IDs. Please check database connection and concept names.`);
     }
     
     return conceptIds;
   } catch (error) {
     logStream("error", `Error fetching concept IDs: ${error.message}`);
-    console.error(`\n💡 To verify concept names in your database, run this SQL query:`);
-    console.error(`   SELECT concept_id, name, locale_preferred, concept_name_type`);
-    console.error(`   FROM concept_name`);
-    console.error(`   WHERE voided = 0`);
-    console.error(`   AND (name LIKE '%BLOOD%' OR name LIKE '%PRESSURE%' OR name LIKE '%SUGAR%'`);
-    console.error(`   OR name LIKE '%HEMOGLOBIN%')`);
-    console.error(`   ORDER BY name;`);
     // Return empty object if fetch fails
     return {};
   }
@@ -179,34 +139,19 @@ module.exports = (function () {
   this.getNcdReportData = async (patientUuid) => {
     try {
       logStream("debug", "NCD Report Service", "Get NCD Report Data");
-console.log("Fetching NCD Report Data for patient:", patientUuid);
 
-      // Fetch concept IDs from database
+      // Fetch concept IDs from database (only BP, HB, RBS)
       const CONCEPT_IDS = await getConceptIds();
       
-      // Check if we have at least the minimum required concepts
+      // Check if we have all required concepts: BP (systolic/diastolic), HB, RBS
       const requiredConcepts = ['SYSTOLIC_BP', 'DIASTOLIC_BP', 'HEMOGLOBIN', 'BLOOD_SUGAR'];
-      const missingRequired = requiredConcepts.filter(key => !CONCEPT_IDS[key]);
+      const hasAllRequired = requiredConcepts.every(key => CONCEPT_IDS[key]);
       
-      if (missingRequired.length > 0) {
-        const errorMsg = `Unable to fetch required concept IDs from database. Missing: ${missingRequired.join(', ')}. Please verify concept names in OpenMRS. Check console logs for SQL query.`;
-        logStream("error", errorMsg);
-        throw new Error(errorMsg);
-      }
-      
-      if (!CONCEPT_IDS || Object.keys(CONCEPT_IDS).length === 0) {
-        logStream("error", "No concept IDs found in database");
-        throw new Error("Unable to fetch concept IDs from database. Please verify concept names in OpenMRS. Check console logs for SQL query.");
+      if (!hasAllRequired || !CONCEPT_IDS || Object.keys(CONCEPT_IDS).length === 0) {
+        logStream("error", "Unable to fetch required concept IDs from database");
+        throw new Error("Unable to fetch required concept IDs from database. Please verify concept names in OpenMRS.");
       }
 
-      // Log CONCEPT_IDS for debugging (only NCD vitals: BP, HB, RBS)
-      console.log('\n📋 CONCEPT_IDS being used:', {
-        SYSTOLIC_BP: CONCEPT_IDS.SYSTOLIC_BP,
-        DIASTOLIC_BP: CONCEPT_IDS.DIASTOLIC_BP,
-        HEMOGLOBIN: CONCEPT_IDS.HEMOGLOBIN,
-        BLOOD_SUGAR: CONCEPT_IDS.BLOOD_SUGAR,
-        RBS: CONCEPT_IDS.RBS
-      });
 
       // Get patient person_id from UUID
       const personIdResult = await sequelize.query(
@@ -289,12 +234,8 @@ console.log("Fetching NCD Report Data for patient:", patientUuid);
         }
       });
 
-      console.log(` Checking for NCD visit attribute type 'isNcdSevikaVisit'...`);
       if (!ncdVisitAttributeType) {
-        console.log(`    NCD visit attribute type 'isNcdSevikaVisit' not found, falling back to encounter type filter`);
         logStream("warning", "NCD visit attribute type 'isNcdSevikaVisit' not found, falling back to encounter type filter");
-      } else {
-        console.log(`  Found attribute type ID: ${ncdVisitAttributeType.visit_attribute_type_id}`);
       }
 
       // Get last 7 NCD visits for the patient
@@ -303,7 +244,6 @@ console.log("Fetching NCD Report Data for patient:", patientUuid);
       
       if (ncdVisitAttributeType) {
         // Use visit_attribute to filter NCD visits
-        console.log(`\n🔍 Searching for visits with isNcdSevikaVisit attribute...`);
         const ncdVisitIds = await visit_attribute.findAll({
           where: {
             attribute_type_id: ncdVisitAttributeType.visit_attribute_type_id,
@@ -317,14 +257,11 @@ console.log("Fetching NCD Report Data for patient:", patientUuid);
           raw: true
         });
 
-        console.log(`   Found ${ncdVisitIds.length} visits with isNcdSevikaVisit attribute`);
         const ncdVisitIdList = ncdVisitIds.map(v => v.visit_id);
 
         if (ncdVisitIdList.length === 0) {
-          console.log(`   ⚠️  No visits found with isNcdSevikaVisit attribute for patient ${personId}`);
           visits = [];
         } else {
-          console.log(`   ✓ Filtering ${ncdVisitIdList.length} NCD visits for patient ${personId}`);
           visits = await visit.findAll({
             where: {
               patient_id: personId,
@@ -365,46 +302,10 @@ console.log("Fetching NCD Report Data for patient:", patientUuid);
             ],
             order: [["date_started", "DESC"]],
             limit: 7,
-            logging: (sql) => {
-              console.log("=== NCD VISITS QUERY (by visit_attribute) ===");
-              console.log(sql);
-              console.log("=== END QUERY ===");
-            },
           });
         }
       } else {
         // Fallback to encounter type filter if visit_attribute not found
-        console.log(`\n🔍 Using fallback: Searching for visits with encounter_type = 6 (Vitals) for patient ${personId}...`);
-        
-        // First, let's check if patient has any visits at all
-        const allVisitsCount = await visit.count({
-          where: {
-            patient_id: personId,
-            voided: 0,
-          }
-        });
-        console.log(`   Total visits for patient: ${allVisitsCount}`);
-        
-        // Check visits with encounter_type 6
-        const vitalsVisitsCount = await visit.count({
-          where: {
-            patient_id: personId,
-            voided: 0,
-          },
-          include: [
-            {
-              model: encounter,
-              as: "encounters",
-              where: {
-                voided: 0,
-                encounter_type: 6,
-              },
-              required: true,
-            },
-          ],
-        });
-        console.log(`   Visits with encounter_type 6 (Vitals): ${vitalsVisitsCount}`);
-        
         visits = await visit.findAll({
           where: {
             patient_id: personId,
@@ -446,23 +347,12 @@ console.log("Fetching NCD Report Data for patient:", patientUuid);
           ],
           order: [["date_started", "DESC"]],
           limit: 7,
-          logging: (sql) => {
-            console.log("=== NCD VISITS QUERY (by encounter_type) ===");
-            console.log(sql);
-            console.log("=== END QUERY ===");
-          },
         });
-        
-        console.log(`   ✓ Found ${visits.length} visits with encounter_type 6 and vitals observations`);
       }
-      
-      console.log(`\n📊 Final result: ${visits.length} NCD visits found for patient ${personId}`);
       
       // If no visits found with either method, try a more flexible approach:
       // Find any visits that have the required vitals observations, regardless of attribute or encounter type
       if (visits.length === 0) {
-        console.log(`\n⚠️  No visits found with standard filters. Trying flexible approach: any visit with vitals observations...`);
-        
         visits = await visit.findAll({
           where: {
             patient_id: personId,
@@ -502,19 +392,11 @@ console.log("Fetching NCD Report Data for patient:", patientUuid);
           ],
           order: [["date_started", "DESC"]],
           limit: 7,
-          logging: (sql) => {
-            console.log("=== NCD VISITS QUERY (flexible - any visit with vitals) ===");
-            console.log(sql);
-          },
         });
-        
-        console.log(`   ✓ Found ${visits.length} visits with vitals observations (flexible query)`);
       }
 
       // If we still have fewer than 7 visits, try to get more by removing the required constraint on observations
       if (visits.length < 7) {
-        console.log(`\n⚠️  Only found ${visits.length} visits. Trying to find more visits (up to 7) without strict observation requirements...`);
-        
         const allVisits = await visit.findAll({
           where: {
             patient_id: personId,
@@ -565,7 +447,6 @@ console.log("Fetching NCD Report Data for patient:", patientUuid);
         });
         
         if (visitsWithVitals.length > visits.length) {
-          console.log(`   ✓ Found ${visitsWithVitals.length} total visits with vitals (including those without strict requirements)`);
           visits = visitsWithVitals.slice(0, 7); // Limit to 7
         }
       }
@@ -574,12 +455,6 @@ console.log("Fetching NCD Report Data for patient:", patientUuid);
       // Visits are already ordered by date_started DESC (includes time component)
       // So if multiple visits exist on the same date, they are ordered by time (most recent first)
       // If multiple readings exist for the same vital within a visit, pick the latest one (by obs_datetime)
-      console.log(`\n📅 Processing ${visits.length} visits (ordered by date_started DESC - includes time):`);
-      visits.forEach((v, idx) => {
-        const visitJson = v.toJSON();
-        console.log(`   ${idx + 1}. Visit ${visitJson.uuid.substring(0, 8)}... - Date: ${moment(visitJson.date_started).format("YYYY-MM-DD HH:mm:ss")}`);
-        console.log(`      Encounters in visit: ${visitJson.encounters?.length || 0}`);
-      });
       
       const visitVitals = visits.map((v) => {
         const visitJson = v.toJSON();
@@ -613,24 +488,6 @@ console.log("Fetching NCD Report Data for patient:", patientUuid);
           });
         });
 
-        // Debug: Log all observations found in this visit
-        if (allObservations.length > 0) {
-          console.log(`   📋 Visit ${visitJson.uuid.substring(0, 8)} has ${allObservations.length} observations:`);
-          allObservations.forEach(obs => {
-            console.log(`      - concept_id: ${obs.concept_id}, value: ${obs.value_numeric || obs.value_text || 'N/A'}`);
-          });
-        }
-
-        // Debug: Log CONCEPT_IDS for this visit
-        if (visitJson.uuid === visits[0]?.toJSON()?.uuid) {
-          console.log(`   🔍 CONCEPT_IDS mapping:`, {
-            SYSTOLIC_BP: CONCEPT_IDS.SYSTOLIC_BP,
-            DIASTOLIC_BP: CONCEPT_IDS.DIASTOLIC_BP,
-            HEMOGLOBIN: CONCEPT_IDS.HEMOGLOBIN,
-            BLOOD_SUGAR: CONCEPT_IDS.BLOOD_SUGAR,
-            RBS: CONCEPT_IDS.RBS
-          });
-        }
 
         // Extract vitals from the latest observations using dynamically fetched concept IDs
         Object.values(obsMap).forEach((observation) => {
@@ -639,35 +496,14 @@ console.log("Fetching NCD Report Data for patient:", patientUuid);
           const numericValue = observation.value_numeric !== null && observation.value_numeric !== undefined 
             ? observation.value_numeric 
             : (observation.value_text ? parseFloat(observation.value_text) : null);
-          const value = numericValue !== null && !isNaN(numericValue) ? numericValue : (observation.value_text || 'N/A');
-          
-          // Debug: Log observation structure for HB and RBS
-          if (conceptId === CONCEPT_IDS.HEMOGLOBIN || conceptId === CONCEPT_IDS.BLOOD_SUGAR || conceptId === CONCEPT_IDS.RBS) {
-            console.log(`   🔍 Observation details for concept_id=${conceptId}:`, {
-              value_numeric: observation.value_numeric,
-              value_text: observation.value_text,
-              computed_numericValue: numericValue,
-              computed_value: value
-            });
-          }
-          
           if (conceptId === CONCEPT_IDS.SYSTOLIC_BP) {
             vitals.systolicBP = numericValue;
-            console.log(`   ✅ Matched SYSTOLIC_BP: concept_id=${conceptId}, value=${value}, numericValue=${numericValue}`);
           } else if (conceptId === CONCEPT_IDS.DIASTOLIC_BP) {
             vitals.diastolicBP = numericValue;
-            console.log(`   ✅ Matched DIASTOLIC_BP: concept_id=${conceptId}, value=${value}, numericValue=${numericValue}`);
           } else if (conceptId === CONCEPT_IDS.BLOOD_SUGAR || conceptId === CONCEPT_IDS.RBS) {
             vitals.bloodSugar = numericValue;
-            console.log(`   ✅ Matched BLOOD_SUGAR/RBS: concept_id=${conceptId}, value=${value}, numericValue=${numericValue}, assigned=${vitals.bloodSugar}`);
           } else if (conceptId === CONCEPT_IDS.HEMOGLOBIN) {
             vitals.hemoglobin = numericValue;
-            console.log(`   ✅ Matched HEMOGLOBIN: concept_id=${conceptId}, value=${value}, numericValue=${numericValue}, assigned=${vitals.hemoglobin}`);
-          } else {
-            // Log unmatched observations for debugging
-            if (visitJson.uuid === visits[0]?.toJSON()?.uuid) {
-              console.log(`   ⚠️  Unmatched observation: concept_id=${conceptId}, value=${value}`);
-            }
           }
         });
 
@@ -690,19 +526,6 @@ console.log("Fetching NCD Report Data for patient:", patientUuid);
         vitals.hgb = vitals.hemoglobin !== null && vitals.hemoglobin !== undefined ? vitals.hemoglobin : 'N/A';
         vitals.rbs = vitals.bloodSugar !== null && vitals.bloodSugar !== undefined ? vitals.bloodSugar : 'N/A';
         vitals.date = vitals.visitDate;
-
-        // Log all vitals for verification
-        console.log(`   📊 Visit ${visitJson.uuid.substring(0, 8)}... - Final vitals:`, {
-          systolicBP: vitals.systolicBP,
-          diastolicBP: vitals.diastolicBP,
-          bp: vitals.bp,
-          hemoglobin: vitals.hemoglobin,
-          hgb: vitals.hgb,
-          bloodSugar: vitals.bloodSugar,
-          rbs: vitals.rbs
-        });
-
-        // Color coding flags removed - no longer needed
 
         return vitals;
       });
