@@ -49,172 +49,45 @@ async function getConceptIds() {
   console.log('🔍 Fetching concept IDs from database...');
 
   try {
-    // Concept name mappings based on actual database values
-    // Updated from concept_id.csv provided by user
-    const conceptMappings = [
-      { 
-        searchTerms: [
-          'SYSTOLIC BLOOD PRESSURE',  // concept_id: 5085
-          'Systolic blood pressure',
-          'SYSTOLIC BP',
-          'SYSTOLIC'
-        ], 
-        key: 'SYSTOLIC_BP' 
-      },
-      { 
-        searchTerms: [
-          'DIASTOLIC BLOOD PRESSURE',  // concept_id: 5086
-          'Diastolic blood pressure',
-          'DIASTOLIC BP',
-          'DIASTOLIC'
-        ], 
-        key: 'DIASTOLIC_BP' 
-      },
-      { 
-        searchTerms: [
-          'sugar random',  // concept_id: 165178 (preferred in frontend)
-          'Sugar Random',
-          'RANDOM BLOOD SUGAR',
-          'BLOOD SUGAR',  // concept_id: 9 or 887 or 163355
-          'Blood Sugar',
-          'RBS',
-          'RANDOM SUGAR'
-        ], 
-        key: 'BLOOD_SUGAR' 
-      },
-      { 
-        searchTerms: [
-          'HEMOGLOBIN',  // concept_id: 21
-          'Hemoglobin',
-          'HB',
-          'HGB'
-        ], 
-        key: 'HEMOGLOBIN' 
-      },
-      { 
-        searchTerms: [
-          'Weight (kg)',  // concept_id: 5089
-          'WEIGHT (KG)',
-          'WEIGHT',
-          'Weight'
-        ], 
-        key: 'WEIGHT' 
-      },
-      { 
-        searchTerms: [
-          'HEIGHT',
-          'Height',
-          'Height (cm)',
-          'HEIGHT (CM)',
-          'Height in cm'
-        ], 
-        key: 'HEIGHT' 
-      },
-      { 
-        searchTerms: [
-          'BMI',
-          'BODY MASS INDEX',
-          'Body Mass Index',
-          'Body Mass Index (BMI)'
-        ], 
-        key: 'BMI' 
-      },
-      { 
-        searchTerms: [
-          'TEMPERATURE',
-          'TEMP',
-          'Temperature',
-          'TEMPERATURE (C)',
-          'Temperature (C)',
-          'Temperature in Celsius'
-        ], 
-        key: 'TEMPERATURE' 
-      },
-      { 
-        searchTerms: [
-          'PULSE',  // concept_id: 5087
-          'Pulse',
-          'HEART RATE',
-          'Heart Rate',
-          'PULSE RATE',
-          'Pulse Rate'
-        ], 
-        key: 'PULSE' 
-      }
+    // Define concept UUIDs (from frontend visit-summary component)
+    // These are the exact UUIDs used by the Intelehealth frontend
+    // UUID format in OpenMRS: concept.uuid column
+    // Only fetch concept IDs for NCD vitals: BP, HB, RBS
+    const conceptUuidMappings = [
+      { uuid: '5085AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA', key: 'SYSTOLIC_BP' },
+      { uuid: '5086AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA', key: 'DIASTOLIC_BP' },
+      { uuid: '95cf1d31-21dc-4fae-96fd-d1dd9455914f', key: 'BLOOD_SUGAR' },  // Sugar Random (RBS)
+      { uuid: '33b241d6-3e9d-443e-9572-f38ecb1e752a', key: 'HEMOGLOBIN' }    // Haemoglobin (HB)
     ];
 
     const conceptIds = {};
 
-    // Fetch concept IDs for each mapping
-    for (const mapping of conceptMappings) {
-      let found = false;
-      
-      // Try each search term until we find a match
-      console.log(`\n🔍 Searching for: ${mapping.key}`);
-      for (const searchTerm of mapping.searchTerms) {
-        try {
-          // Use case-insensitive exact match first (most reliable)
-          let result = await sequelize.query(
-            `SELECT DISTINCT cn.concept_id, cn.name, cn.locale_preferred, cn.concept_name_type
-             FROM concept_name cn
-             INNER JOIN concept c ON c.concept_id = cn.concept_id
-             WHERE UPPER(cn.name) = UPPER(:searchTerm)
-               AND cn.voided = 0
-               AND c.retired = 0
-             ORDER BY 
-               CASE WHEN cn.locale_preferred = 1 THEN 1 ELSE 2 END,
-               CASE WHEN cn.concept_name_type = 'FULLY_SPECIFIED' THEN 1 ELSE 2 END,
-               cn.date_created DESC
-             LIMIT 1`,
-            {
-              replacements: { searchTerm: searchTerm.trim() },
-              type: QueryTypes.SELECT,
-            }
-          );
-
-          // If no exact match, try LIKE search (partial match)
-          if (!result || result.length === 0) {
-            result = await sequelize.query(
-              `SELECT DISTINCT cn.concept_id, cn.name, cn.locale_preferred, cn.concept_name_type
-               FROM concept_name cn
-               INNER JOIN concept c ON c.concept_id = cn.concept_id
-               WHERE UPPER(cn.name) LIKE UPPER(:searchTerm)
-                 AND cn.voided = 0
-                 AND c.retired = 0
-               ORDER BY 
-                 CASE WHEN cn.locale_preferred = 1 THEN 1 ELSE 2 END,
-                 CASE WHEN cn.concept_name_type = 'FULLY_SPECIFIED' THEN 1 ELSE 2 END,
-                 cn.date_created DESC
-               LIMIT 1`,
-              {
-                replacements: { searchTerm: `%${searchTerm.trim()}%` },
-                type: QueryTypes.SELECT,
-              }
-            );
+    // Fetch concept IDs by UUID (most reliable method - no ambiguity)
+    console.log('\n🔍 Fetching concept IDs by UUID (from frontend constants)...');
+    for (const mapping of conceptUuidMappings) {
+      try {
+        const result = await sequelize.query(
+          `SELECT concept_id, uuid
+           FROM concept
+           WHERE uuid = :uuid
+             AND retired = 0
+           LIMIT 1`,
+          {
+            replacements: { uuid: mapping.uuid },
+            type: QueryTypes.SELECT,
           }
+        );
 
-          if (result && result.length > 0) {
-            conceptIds[mapping.key] = result[0].concept_id;
-            console.log(`   ✅ Found: "${result[0].name}" → concept_id: ${result[0].concept_id}`);
-            found = true;
-            break; // Found a match, move to next mapping
-          } else {
-            console.log(`   ❌ No match for: "${searchTerm}"`);
-          }
-        } catch (termError) {
-          // Continue to next search term if this one fails
-          console.error(`   ⚠️  Error searching for "${searchTerm}": ${termError.message}`);
-          logStream("warning", `Error searching for term "${searchTerm}": ${termError.message}`);
+        if (result && result.length > 0) {
+          conceptIds[mapping.key] = result[0].concept_id;
+          console.log(`   ✅ ${mapping.key}: concept_id=${result[0].concept_id}`);
+        } else {
+          console.log(`   ⚠️  Could not find ${mapping.key} with UUID ${mapping.uuid}`);
+          logStream("warning", `Concept not found for ${mapping.key} with UUID ${mapping.uuid}`);
         }
-      }
-
-      if (!found) {
-        logStream("warning", `Concept ID not found for: ${mapping.key} (searched: ${mapping.searchTerms.join(', ')})`);
-        console.error(`❌ Concept ID not found for: ${mapping.key}`);
-        console.error(`   Searched terms: ${mapping.searchTerms.join(', ')}`);
-      } else {
-        console.log(`✅ Found concept ID for ${mapping.key}: ${conceptIds[mapping.key]}`);
-        logStream("info", `Found concept ID for ${mapping.key}: ${conceptIds[mapping.key]}`);
+      } catch (err) {
+        console.log(`   ❌ Error fetching ${mapping.key}: ${err.message}`);
+        logStream("error", `Error fetching concept ${mapping.key}: ${err.message}`);
       }
     }
 
@@ -223,31 +96,29 @@ async function getConceptIds() {
       conceptIds.RBS = conceptIds.BLOOD_SUGAR;
     }
 
-    // Fallback: If required concepts are missing, use known concept IDs from CSV
-    // This ensures the service works even if search fails
-    // IMPORTANT: Do this BEFORE logging and caching
+    // Fallback: If required concepts are missing, try known concept IDs
+    // This ensures the service works even if UUID lookup fails
+    // Only NCD vitals: BP, HB, RBS
     const knownConceptIds = {
       SYSTOLIC_BP: 5085,
       DIASTOLIC_BP: 5086,
-      BLOOD_SUGAR: 165178, // sugar random
+      BLOOD_SUGAR: 165178, // Sugar Random (from UUID: 95cf1d31-21dc-4fae-96fd-d1dd9455914f)
       RBS: 165178,
-      HEMOGLOBIN: 21,
-      WEIGHT: 5089,
-      PULSE: 5087
+      HEMOGLOBIN: 165175  // Haemoglobin (from UUID: 33b241d6-3e9d-443e-9572-f38ecb1e752a)
     };
-    
+
     const requiredKeys = ['SYSTOLIC_BP', 'DIASTOLIC_BP', 'HEMOGLOBIN', 'BLOOD_SUGAR'];
     const missingRequired = requiredKeys.filter(key => !conceptIds[key]);
-    
+
     if (missingRequired.length > 0) {
-      console.log(`\n Using fallback concept IDs for missing concepts: ${missingRequired.join(', ')}`);
+      console.log(`\n⚠️  Using fallback concept IDs for missing concepts: ${missingRequired.join(', ')}`);
       missingRequired.forEach(key => {
         if (knownConceptIds[key]) {
           conceptIds[key] = knownConceptIds[key];
-          console.log(`   ✓ Using fallback: ${key} = ${knownConceptIds[key]}`);
+          console.log(`   ✓ Fallback: ${key} = ${knownConceptIds[key]}`);
         }
       });
-      
+
       // Also set RBS if BLOOD_SUGAR was set
       if (conceptIds.BLOOD_SUGAR && knownConceptIds.RBS) {
         conceptIds.RBS = conceptIds.BLOOD_SUGAR;
@@ -256,19 +127,18 @@ async function getConceptIds() {
 
     // Log summary
     const foundCount = Object.keys(conceptIds).length;
-    const requiredCount = conceptMappings.length;
-    console.log(`\n Concept ID Summary: Found ${foundCount}/${requiredCount} required concepts`);
-    
+    const requiredCount = conceptUuidMappings.length;
+    console.log(`\n📊 Concept ID Summary: Found ${foundCount}/${requiredCount} required concepts`);
+
     if (foundCount < requiredCount) {
-      const missing = conceptMappings
+      const missing = conceptUuidMappings
         .filter(m => !conceptIds[m.key])
-        .map(m => ({ key: m.key, searchTerms: m.searchTerms }));
-      
+        .map(m => ({ key: m.key, uuid: m.uuid }));
+
       if (missing.length > 0) {
-        console.error(`\n Missing concepts (${missing.length}):`);
+        console.error(`\n⚠️  Missing concepts (${missing.length}):`);
         missing.forEach(m => {
-          console.error(`   - ${m.key}`);
-          console.error(`     Searched: ${m.searchTerms.slice(0, 3).join(', ')}${m.searchTerms.length > 3 ? '...' : ''}`);
+          console.error(`   - ${m.key} (UUID: ${m.uuid})`);
         });
       }
     } else {
@@ -292,7 +162,7 @@ async function getConceptIds() {
     console.error(`   FROM concept_name`);
     console.error(`   WHERE voided = 0`);
     console.error(`   AND (name LIKE '%BLOOD%' OR name LIKE '%PRESSURE%' OR name LIKE '%SUGAR%'`);
-    console.error(`   OR name LIKE '%HEMOGLOBIN%' OR name LIKE '%WEIGHT%' OR name LIKE '%PULSE%')`);
+    console.error(`   OR name LIKE '%HEMOGLOBIN%')`);
     console.error(`   ORDER BY name;`);
     // Return empty object if fetch fails
     return {};
@@ -328,6 +198,15 @@ console.log("Fetching NCD Report Data for patient:", patientUuid);
         logStream("error", "No concept IDs found in database");
         throw new Error("Unable to fetch concept IDs from database. Please verify concept names in OpenMRS. Check console logs for SQL query.");
       }
+
+      // Log CONCEPT_IDS for debugging (only NCD vitals: BP, HB, RBS)
+      console.log('\n📋 CONCEPT_IDS being used:', {
+        SYSTOLIC_BP: CONCEPT_IDS.SYSTOLIC_BP,
+        DIASTOLIC_BP: CONCEPT_IDS.DIASTOLIC_BP,
+        HEMOGLOBIN: CONCEPT_IDS.HEMOGLOBIN,
+        BLOOD_SUGAR: CONCEPT_IDS.BLOOD_SUGAR,
+        RBS: CONCEPT_IDS.RBS
+      });
 
       // Get patient person_id from UUID
       const personIdResult = await sequelize.query(
@@ -632,6 +511,65 @@ console.log("Fetching NCD Report Data for patient:", patientUuid);
         console.log(`   ✓ Found ${visits.length} visits with vitals observations (flexible query)`);
       }
 
+      // If we still have fewer than 7 visits, try to get more by removing the required constraint on observations
+      if (visits.length < 7) {
+        console.log(`\n⚠️  Only found ${visits.length} visits. Trying to find more visits (up to 7) without strict observation requirements...`);
+        
+        const allVisits = await visit.findAll({
+          where: {
+            patient_id: personId,
+            voided: 0,
+          },
+          attributes: ["visit_id", "uuid", "date_started", "date_stopped"],
+          include: [
+            {
+              model: encounter,
+              as: "encounters",
+              attributes: ["encounter_id", "encounter_datetime", "encounter_type"],
+              where: {
+                voided: 0,
+              },
+              required: false, // Don't require encounters
+              include: [
+                {
+                  model: obs,
+                  as: "obs",
+                  attributes: [
+                    "obs_id",
+                    "concept_id",
+                    "value_numeric",
+                    "value_text",
+                    "obs_datetime",
+                  ],
+                  where: {
+                    voided: 0,
+                    concept_id: {
+                      [Op.in]: Object.values(CONCEPT_IDS),
+                    },
+                  },
+                  required: false, // Don't require observations
+                },
+              ],
+            },
+          ],
+          order: [["date_started", "DESC"]],
+          limit: 7,
+        });
+        
+        // Filter to only include visits that have at least one vital observation
+        const visitsWithVitals = allVisits.filter(v => {
+          const visitJson = v.toJSON();
+          return visitJson.encounters?.some(enc => 
+            enc.obs?.some(obs => Object.values(CONCEPT_IDS).includes(obs.concept_id))
+          );
+        });
+        
+        if (visitsWithVitals.length > visits.length) {
+          console.log(`   ✓ Found ${visitsWithVitals.length} total visits with vitals (including those without strict requirements)`);
+          visits = visitsWithVitals.slice(0, 7); // Limit to 7
+        }
+      }
+
       // Process visits to extract vitals
       // Visits are already ordered by date_started DESC (includes time component)
       // So if multiple visits exist on the same date, they are ordered by time (most recent first)
@@ -640,10 +578,12 @@ console.log("Fetching NCD Report Data for patient:", patientUuid);
       visits.forEach((v, idx) => {
         const visitJson = v.toJSON();
         console.log(`   ${idx + 1}. Visit ${visitJson.uuid.substring(0, 8)}... - Date: ${moment(visitJson.date_started).format("YYYY-MM-DD HH:mm:ss")}`);
+        console.log(`      Encounters in visit: ${visitJson.encounters?.length || 0}`);
       });
       
       const visitVitals = visits.map((v) => {
         const visitJson = v.toJSON();
+        // Only NCD vitals: BP, HB, RBS
         const vitals = {
           visitUuid: visitJson.uuid,
           visitDate: moment(visitJson.date_started).format("DD MMM, YY"),
@@ -653,16 +593,14 @@ console.log("Fetching NCD Report Data for patient:", patientUuid);
           bloodPressure: null, // Combined BP display
           bloodSugar: null,
           hemoglobin: null,
-          weight: null,
-          bmi: null,
-          temperature: null,
-          pulse: null,
         };
 
         // Group observations by concept_id and get the latest one
         const obsMap = {};
+        let allObservations = [];
         visitJson.encounters?.forEach((encounter) => {
           encounter.obs?.forEach((observation) => {
+            allObservations.push(observation);
             const conceptId = observation.concept_id;
             // Keep only the latest observation for each concept
             if (
@@ -675,25 +613,61 @@ console.log("Fetching NCD Report Data for patient:", patientUuid);
           });
         });
 
+        // Debug: Log all observations found in this visit
+        if (allObservations.length > 0) {
+          console.log(`   📋 Visit ${visitJson.uuid.substring(0, 8)} has ${allObservations.length} observations:`);
+          allObservations.forEach(obs => {
+            console.log(`      - concept_id: ${obs.concept_id}, value: ${obs.value_numeric || obs.value_text || 'N/A'}`);
+          });
+        }
+
+        // Debug: Log CONCEPT_IDS for this visit
+        if (visitJson.uuid === visits[0]?.toJSON()?.uuid) {
+          console.log(`   🔍 CONCEPT_IDS mapping:`, {
+            SYSTOLIC_BP: CONCEPT_IDS.SYSTOLIC_BP,
+            DIASTOLIC_BP: CONCEPT_IDS.DIASTOLIC_BP,
+            HEMOGLOBIN: CONCEPT_IDS.HEMOGLOBIN,
+            BLOOD_SUGAR: CONCEPT_IDS.BLOOD_SUGAR,
+            RBS: CONCEPT_IDS.RBS
+          });
+        }
+
         // Extract vitals from the latest observations using dynamically fetched concept IDs
         Object.values(obsMap).forEach((observation) => {
           const conceptId = observation.concept_id;
+          // Use value_numeric if available, otherwise fallback to value_text (parsed as number if possible)
+          const numericValue = observation.value_numeric !== null && observation.value_numeric !== undefined 
+            ? observation.value_numeric 
+            : (observation.value_text ? parseFloat(observation.value_text) : null);
+          const value = numericValue !== null && !isNaN(numericValue) ? numericValue : (observation.value_text || 'N/A');
+          
+          // Debug: Log observation structure for HB and RBS
+          if (conceptId === CONCEPT_IDS.HEMOGLOBIN || conceptId === CONCEPT_IDS.BLOOD_SUGAR || conceptId === CONCEPT_IDS.RBS) {
+            console.log(`   🔍 Observation details for concept_id=${conceptId}:`, {
+              value_numeric: observation.value_numeric,
+              value_text: observation.value_text,
+              computed_numericValue: numericValue,
+              computed_value: value
+            });
+          }
+          
           if (conceptId === CONCEPT_IDS.SYSTOLIC_BP) {
-            vitals.systolicBP = observation.value_numeric;
+            vitals.systolicBP = numericValue;
+            console.log(`   ✅ Matched SYSTOLIC_BP: concept_id=${conceptId}, value=${value}, numericValue=${numericValue}`);
           } else if (conceptId === CONCEPT_IDS.DIASTOLIC_BP) {
-            vitals.diastolicBP = observation.value_numeric;
+            vitals.diastolicBP = numericValue;
+            console.log(`   ✅ Matched DIASTOLIC_BP: concept_id=${conceptId}, value=${value}, numericValue=${numericValue}`);
           } else if (conceptId === CONCEPT_IDS.BLOOD_SUGAR || conceptId === CONCEPT_IDS.RBS) {
-            vitals.bloodSugar = observation.value_numeric;
+            vitals.bloodSugar = numericValue;
+            console.log(`   ✅ Matched BLOOD_SUGAR/RBS: concept_id=${conceptId}, value=${value}, numericValue=${numericValue}, assigned=${vitals.bloodSugar}`);
           } else if (conceptId === CONCEPT_IDS.HEMOGLOBIN) {
-            vitals.hemoglobin = observation.value_numeric;
-          } else if (conceptId === CONCEPT_IDS.WEIGHT) {
-            vitals.weight = observation.value_numeric;
-          } else if (conceptId === CONCEPT_IDS.BMI) {
-            vitals.bmi = observation.value_numeric;
-          } else if (conceptId === CONCEPT_IDS.TEMPERATURE) {
-            vitals.temperature = observation.value_numeric;
-          } else if (conceptId === CONCEPT_IDS.PULSE) {
-            vitals.pulse = observation.value_numeric;
+            vitals.hemoglobin = numericValue;
+            console.log(`   ✅ Matched HEMOGLOBIN: concept_id=${conceptId}, value=${value}, numericValue=${numericValue}, assigned=${vitals.hemoglobin}`);
+          } else {
+            // Log unmatched observations for debugging
+            if (visitJson.uuid === visits[0]?.toJSON()?.uuid) {
+              console.log(`   ⚠️  Unmatched observation: concept_id=${conceptId}, value=${value}`);
+            }
           }
         });
 
@@ -717,10 +691,16 @@ console.log("Fetching NCD Report Data for patient:", patientUuid);
         vitals.rbs = vitals.bloodSugar !== null && vitals.bloodSugar !== undefined ? vitals.bloodSugar : 'N/A';
         vitals.date = vitals.visitDate;
 
-        // Log HB and RBS values for verification
-        if (vitals.hgb !== 'N/A' || vitals.rbs !== 'N/A') {
-          console.log(`   ✓ Visit ${visitJson.uuid.substring(0, 8)}... - HB: ${vitals.hgb}, RBS: ${vitals.rbs}`);
-        }
+        // Log all vitals for verification
+        console.log(`   📊 Visit ${visitJson.uuid.substring(0, 8)}... - Final vitals:`, {
+          systolicBP: vitals.systolicBP,
+          diastolicBP: vitals.diastolicBP,
+          bp: vitals.bp,
+          hemoglobin: vitals.hemoglobin,
+          hgb: vitals.hgb,
+          bloodSugar: vitals.bloodSugar,
+          rbs: vitals.rbs
+        });
 
         // Color coding flags removed - no longer needed
 
