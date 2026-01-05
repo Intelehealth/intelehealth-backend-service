@@ -96,7 +96,7 @@ jobs:
             # Run new container using existing files directly
             docker run -d \
                 --name $DOCKER_IMAGE_NAME \
-                --restart always \
+                --restart unless-stopped \
                 -p 3004:3004 \
                 --env-file $ENV_FILE_PATH \
                 -v $PEM_FOLDER_PATH:/app/.pem \
