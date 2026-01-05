@@ -1,8 +1,16 @@
 const jwt = require("jsonwebtoken");
 const ignoredRoutes = require("../IGNORED_ROUTES");
+const fs = require('fs');
+const path = require('path');
+const privateKEY  = fs.readFileSync(path.join(__dirname, './../', '.pem', 'private_key.pem'), 
+  { encoding: 'utf8', flag: 'r' }
+)
+
+
 
 module.exports = (function () {
   const JWT_SECRET = process.env.JWT_SECRET;
+  
   this.decodeTokenAndGetUser = async (token) => {
     const decoded = jwt.verify(token, JWT_SECRET);
     return decoded;
@@ -41,9 +49,16 @@ module.exports = (function () {
   };
 
   this.getToken = (data, expiresIn = "15 days") => {
-    return jwt.sign(data, JWT_SECRET, {
-      expiresIn,
-    });
+    return jwt.sign(
+      {
+        exp: expiresIn,
+        data,
+      },
+      privateKEY,
+      {
+        algorithm: "RS256",
+      }
+    );
   };
 
   return this;

@@ -2,15 +2,29 @@
 **/settings.json
 **/license
 *.zip
-/config/
 
-/livekit-token-microservice/node_modules
-/livekit-token-microservice/.env
-/public/translate/uploads/*
-/public/translate/translated.xlsx
+/portal/config/config.json
+/portal/config/serviceAccountKey.json
+/portal/public/translate/uploads/*
+/portal/public/translate/translated.xlsx
+
+#.env
+/auth-gateway/.env
+/web-rtc/.env
+/portal/.env
+
+#.pem
+/auth-gateway/.pem
+/web-rtc/.pem
+/portal/.pem
+/configuration-microservice/src/.pem
 
 # Node.js
 node_modules/
+/auth-gateway/node_modules
+/web-rtc/node_modules
+/portal/node_modules
+/configuration-microservice/node_modules
 
 # Logs
 logs
@@ -44,3 +58,4 @@ typings/
 
 # Production build
 dist/
+/configuration-microservice/dist/

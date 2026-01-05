@@ -13,7 +13,7 @@ Node.js
     
 ### Installing
 A step by step series of examples that tell you how to get a development environment running
-1. Clone or download this repository, repo consist of 3 services, auth-gateway, mindmap-service(root folder), livekit-token-microservice; below steps are required for each of the services
+1. Clone or download this repository, repo consist of 3 services, auth-gateway, portal, web-rtc; below steps are required for each of the services
 2. Install all the dependencies.
 ```
 "npm install"
@@ -48,11 +48,12 @@ revert!: drop Node 12 from testing matrix
 
 ## Below .env service wise.
 
-## mindmap-service .env (Create .env in the root folder and use below environment keys)
+## portal .env (Create .env in the portal folder and use below environment keys)
 
 ```
 NODE_ENV=xxxx
 DOMAIN=xxxx
+
 OPENMRS_USERNAME=xxxx
 OPENMRS_PASS=xxxx
 
@@ -62,9 +63,11 @@ MYSQL_DIALECT=xxxx
 MYSQL_USERNAME=xxxx
 MYSQL_PASS=xxxx
 MYSQL_DB=xxxx
+MYSQL_OPENMRS_DB=xxxx
 
 APIKEY_2FACTOR=xxxx
 OPEN_AI_KEY=xxxx
+OPEN_AI_BASE_URL=xxxx
 
 MAIL_USERNAME=xxxx
 MAIL_PASSWORD=xxxx
@@ -85,6 +88,11 @@ AWS_REGION=xxxx
 AWS_BUCKET_NAME=xxxx
 AWS_URL=xxxx
 
+ALLOWED_ORIGINS=[xxxx, xxxx, xxxx]
+
+SSL_PRIVATE_KEY=xxxx
+SSL_CERT=xxxx
+
 ```
 
 ## auth-gateway .env (Create .env in the auth-gateway folder and use below environment keys)
@@ -95,9 +103,10 @@ PORT=xxxx
 SSL_KEY_PATH=xxxx
 SSL_CERT_PATH=xxxx
 DOMAIN=xxxx
+ALLOWED_ORIGINS=[xxxx, xxxx, xxxx]
 ```
 
-## livekit-token-microservice .env (Create .env in the web-rtc folder and use below environment keys)
+## web-rtc .env (Create .env in the web-rtc folder and use below environment keys)
 
 
 ```
@@ -111,3 +120,4 @@ LIVEHOST=xxxx
 TCP=xxxx
 UDP=xxxx
 ```
+
