@@ -315,6 +315,7 @@ function categorizeMedicalHistoryEntries(medicalHistory, drugHistoryIndex = -1) 
     const lifestyle = [];
     const physicalActivity = [];
     const womenHealth = [];
+    const generalAssessment = [];
 
     const isLifestyleKey = (text = '') => {
         const t = text.toLowerCase();
@@ -346,12 +347,22 @@ function categorizeMedicalHistoryEntries(medicalHistory, drugHistoryIndex = -1) 
         );
     };
 
+    const isGeneralAssessment = (text = '') => {
+        const t = text.toLowerCase();
+        return (
+            t.includes('fluid intake') ||
+            t.includes('blood glucose') ||
+            t.includes('general wellness') ||
+            t.includes('mental status')
+        );
+    };
+
     for (let i = 0; i < medicalHistory.length; i++) {
         if (medicalHistory[i] && i !== drugHistoryIndex) {
             const splitByDash = medicalHistory[i].split('-');
             const key = splitByDash[0].replace('• ', '').trim();
             const value = splitByDash.slice(1, splitByDash.length).join('-').trim();
-            
+
             if (!key) continue;
 
             // Extract lifestyle (smoking/alcohol) separately and do not include in medical history
@@ -370,6 +381,11 @@ function categorizeMedicalHistoryEntries(medicalHistory, drugHistoryIndex = -1) 
                 continue;
             }
 
+            if (isGeneralAssessment(key)) {
+                generalAssessment.push({ key, value: value ?? 'None' });
+                continue;
+            }
+
             // Check if this is an allergy entry
             if (key.toLowerCase().includes('allerg')) {
                 allergies.push(`${key}:${value ?? 'None'}`);
@@ -379,7 +395,7 @@ function categorizeMedicalHistoryEntries(medicalHistory, drugHistoryIndex = -1) 
         }
     }
 
-    return { history, allergies, lifestyle, physicalActivity, womenHealth };
+    return { history, allergies, lifestyle, physicalActivity, womenHealth, generalAssessment };
 }
 
 module.exports = {

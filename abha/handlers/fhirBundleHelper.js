@@ -659,35 +659,95 @@ function buildWellnessWomenHealthObservations(womenHealth, wellnessWomenHealth, 
         );
     });
 }
+
+function buildWellnessGeneralAssessmentObservations(generalAssessment, wellnessGeneralAssessment, obs, practitioner, patient) {
+    if (!Array.isArray(generalAssessment) || generalAssessment.length === 0 || !wellnessGeneralAssessment) return;
+    const normalizeGeneralAssessmentType = (key = '') => {
+        const t = key.toLowerCase();
+        if (t.includes('fluid intake')) return 'FluidIntake';
+        if (t.includes('blood glucose')) return 'BloodGlucose';
+        if (t.includes('general wellness')) return 'GeneralWellness';
+        if (t.includes('mental status')) return 'MentalStatus';
+        return 'GeneralAssessment';
+    };
+    generalAssessment.forEach(({ key, value }) => {
+        const type = normalizeGeneralAssessmentType(key);
+        const obsId = `${type.toLowerCase()}-${obs.uuid}`;
+        wellnessGeneralAssessment.entry.push({
+            reference: `Observation/${obsId}`,
+            display: type
+        });
+        wellnessGeneralAssessment.observations.push(
+            createFHIRResource({
+                resourceType: "Observation",
+                id: obsId,
+                meta: {
+                    profile: [
+                        "https://nrces.in/ndhm/fhir/r4/StructureDefinition/ObservationGeneralAssessment"
+                    ]
+                },
+                status: "final",
+                category: [
+                    {
+                        coding: [
+                            {
+                                system: "http://terminology.hl7.org/CodeSystem/observation-category",
+                                code: "exam",
+                                display: "Exam"
+                            }
+                        ],
+                        text: "Exam"
+                    }
+                ],
+                code: {
+                    text: `${key} : ${value}`
+                },
+                subject: {
+                    reference: `Patient/${patient?.uuid}`,
+                    display: patient?.person?.display
+                },
+                effectiveDateTime: convertDataToISO(obs.obsDatetime),
+                performer: [
+                    {
+                        reference: `Practitioner/${practitioner?.practitioner_id}`,
+                        display: practitioner?.name
+                    }
+                ]
+            })
+        );
+    });
+}
             
 
 // ---- Orchestrator that parses and delegates to helpers ----
-function medicalHistoryStructure(obs, medicalHistoryData, allergiesData, medications, practitioner, patient, wellnessLifestyle, wellnessPhysicalActivity, wellnessWomenHealth) {
+function medicalHistoryStructure(obs, medicalHistoryData, allergiesData, medications, practitioner, patient, wellnessLifestyle, wellnessPhysicalActivity, wellnessWomenHealth, wellnessGeneralAssessment) {
     const medicalHistory = getData(obs)?.value.split('<br/>');
     if (!medicalHistory.length) return;
-    
+
     const history = [];
     const allergies = [];
     const lifestyle = [];
     const physicalActivity = [];
     const womenHealth = [];
-        
+    const generalAssessment = [];
+
     // Detect drug history section
-    const drugHistoryIndex = medicalHistory.findIndex(line => 
+    const drugHistoryIndex = medicalHistory.findIndex(line =>
         line && line.toLowerCase().includes('drug history')
     );
     // Process drug history if found
     processDrugHistory(medicalHistory, drugHistoryIndex, medications, obs, practitioner, patient);
-    
+
     // Categorize other medical history entries (excluding drug history)
-    const { history: categorizedHistory, allergies: categorizedAllergies, lifestyle: categorizedLifestyle, physicalActivity: categorizedPhysicalActivity, womenHealth: categorizedWomenHealth } = 
+    const { history: categorizedHistory, allergies: categorizedAllergies, lifestyle: categorizedLifestyle, physicalActivity: categorizedPhysicalActivity, womenHealth: categorizedWomenHealth, generalAssessment: categorizedGeneralAssessment } =
         categorizeMedicalHistoryEntries(medicalHistory, drugHistoryIndex);
-    
+
     history.push(...categorizedHistory);
     allergies.push(...categorizedAllergies);
     lifestyle.push(...categorizedLifestyle);
     physicalActivity.push(...categorizedPhysicalActivity);
     womenHealth.push(...categorizedWomenHealth);
+    generalAssessment.push(...categorizedGeneralAssessment);
 
     // Build lifestyle observations under wellness record
     buildWellnessLifestyleObservations(lifestyle, wellnessLifestyle, obs, practitioner, patient);
@@ -697,6 +757,9 @@ function medicalHistoryStructure(obs, medicalHistoryData, allergiesData, medicat
 
     // Build women health observations under wellness record
     buildWellnessWomenHealthObservations(womenHealth, wellnessWomenHealth, obs, practitioner, patient);
+
+    // Build general assessment observations under wellness record
+    buildWellnessGeneralAssessmentObservations(generalAssessment, wellnessGeneralAssessment, obs, practitioner, patient);
 
     // Build medical history conditions
     buildMedicalHistoryConditions(history, obs, medicalHistoryData, patient);
@@ -1346,6 +1409,11 @@ const initializeFHIRSections = () => ({
             entry: [],
             observations: []
         },
+        generalAssessment: {
+            title: "General Assessment",
+            entry: [],
+            observations: []
+        },
         documentReferences: {
             title: "Vital Report",
             sections: [],
@@ -1415,7 +1483,7 @@ const processObservation = (obs, sections, practitioner, patient) => {
             physicalExaminationStructure(obs, physicalExaminationData, practitioner, patient);
             break;
         case VISIT_TYPES.MEDICAL_HISTORY:
-            medicalHistoryStructure(obs, medicalHistoryData, allergiesData, medications, practitioner, patient, wellnessRecord.lifestyle, wellnessRecord.physicalActivity, wellnessRecord.womenHealth);
+            medicalHistoryStructure(obs, medicalHistoryData, allergiesData, medications, practitioner, patient, wellnessRecord.lifestyle, wellnessRecord.physicalActivity, wellnessRecord.womenHealth, wellnessRecord.generalAssessment);
             break;
         case VISIT_TYPES.FAMILY_HISTORY:
             medicalFamilyHistoryStructure(obs, familyHistoryData, patient);
@@ -2312,6 +2380,10 @@ const createWellnessRecordResource = (wellnessRecord, patient, practitioner, sta
                 title: wellnessRecord?.womenHealth?.title,
                 entry: wellnessRecord?.womenHealth?.entry
             }] : []),
+            ...(wellnessRecord?.generalAssessment?.entry?.length ? [{
+                title: wellnessRecord?.generalAssessment?.title,
+                entry: wellnessRecord?.generalAssessment?.entry
+            }] : []),
             ...(wellnessRecord?.documentReferences?.sections?.length ? [{
                 title: wellnessRecord?.documentReferences?.title,
                 entry: wellnessRecord?.documentReferences?.sections
@@ -2329,14 +2401,15 @@ const createWellnessRecordResource = (wellnessRecord, patient, practitioner, sta
  * @returns {Array} Formatted wellness FHIR bundle entries
  */
 function formatWellnessFHIBundle(wellnessRecord, patient, practitioner, startDatetime, encounterUuid) {
-    const { vitalSigns, lifestyle, documentReferences, physicalActivity, womenHealth } = wellnessRecord
-    if (!vitalSigns?.entry?.length && !lifestyle?.entry?.length && !physicalActivity?.entry?.length && !womenHealth?.entry?.length) return [];
+    const { vitalSigns, lifestyle, documentReferences, physicalActivity, womenHealth, generalAssessment } = wellnessRecord
+    if (!vitalSigns?.entry?.length && !lifestyle?.entry?.length && !physicalActivity?.entry?.length && !womenHealth?.entry?.length && !generalAssessment?.entry?.length) return [];
     return [
         createWellnessRecordResource(wellnessRecord, patient, practitioner, startDatetime, encounterUuid),
         ...vitalSigns?.observations,
         ...lifestyle?.observations,
         ...physicalActivity?.observations,
         ...womenHealth?.observations,
+        ...generalAssessment?.observations,
         ...documentReferences?.entries
     ]
 }
