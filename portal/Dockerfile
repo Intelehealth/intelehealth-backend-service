@@ -3,7 +3,6 @@
 FROM node:18 AS builder
 
 WORKDIR /app
-#A
 # Install package files first
 COPY package*.json ./
 
