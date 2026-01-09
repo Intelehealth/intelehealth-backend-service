@@ -1,42 +1,4 @@
-name: Portal-pathqa
-
-on:
-  push:
-    branches: [development_master]  
-    paths:
-      - 'portal/**'
-  workflow_dispatch:
-
-env:
-  DOCKER_IMAGE_NAME: portal
-  REMOTE_HOST: ${{ secrets.PATHQA_HOST }}
-  REMOTE_USER: ${{ secrets.DEV_USER }}
-  REMOTE_PORT: 22
-  ENV_FILE_PATH: /home/ubuntu/deploy/portal/.env
-  PEM_FOLDER_PATH: /home/ubuntu/deploy/portal/.pem
-
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-24.04-arm
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: portal/package-lock.json
-
-      - name: Build Docker image
-        run: |
-          cd portal
-          docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} .
-          docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > ../app-image.tar
-
-      - name: Deploy to remote host
+- name: Deploy to remote host
         env:
           SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
         run: |
@@ -66,4 +28,5 @@ jobs:
                 ${{ env.DOCKER_IMAGE_NAME }}:${{ github.sha }}
             
             docker image prune -f
+            echo "Portal deployment completed successfully"
           EOF
