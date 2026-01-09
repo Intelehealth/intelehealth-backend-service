@@ -1,73 +1,67 @@
-name: Portal-pathqa
+# --- Stage 1: Builder Stage ---
+# Use a Node image with all necessary tools for compiling native modules (like 'canvas')
+FROM node:18 AS builder
 
-on:
-  push:
-    branches: [development_master]  
-    paths:
-      - 'portal/**'
-  workflow_dispatch:
+WORKDIR /app
+#A
+# Install package files first
+COPY package*.json ./
 
-env:
-  DOCKER_IMAGE_NAME: portal
-  REMOTE_HOST: ${{secrets.PATHQA_HOST}}
-  REMOTE_USER: ${{secrets.DEV_USER}}
-  REMOTE_PORT: 22
-  ENV_FILE_PATH: /home/ubuntu/deploy/portal/.env
-  PEM_FOLDER_PATH: /home/ubuntu/deploy/portal/.pem
+# Install *all* dependencies (including devDependencies if they help compilation)
+# We need g++ and make for packages with native extensions (like canvas)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    g++ \
+    make \
+    pkg-config \
+    # These are the *build* dependencies for canvas and its required libraries
+    libcairo2-dev \
+    libpango1.0-dev \
+    libjpeg-dev \
+    libgif-dev \
+    librsvg2-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-jobs:
-  build-and-deploy:
-    # Use the native ARM64 runner (Free for Public Repos)
-    runs-on: ubuntu-24.04-arm
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+# Install npm dependencies
+RUN npm ci
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: portal/package-lock.json
+# Copy application code
+COPY . .
 
-    - name: Build Docker image
-      run: |
-        cd portal
-        # Native build: No --platform or --load flags needed
-        docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} .
-        docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > ../app-image.tar
+# --- Stage 2: Production/Runtime Stage ---
+# Use the smallest possible image for runtime
+FROM node:18-alpine
 
-    - name: Deploy to remote host
-      env:
-        SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
-      run: |
-        mkdir -p ~/.ssh
-        echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-        chmod 600 ~/.ssh/deploy_key
-        
-        # SCP (Uppercase -P)
-        scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -P $REMOTE_PORT \
-            app-image.tar $REMOTE_USER@$REMOTE_HOST:/tmp/
-        
-        # SSH (Lowercase -p)
-        ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -p $REMOTE_PORT \
-            $REMOTE_USER@$REMOTE_HOST <<'EOF'
-            set -e
-            docker load -i /tmp/app-image.tar
-            rm /tmp/app-image.tar
-            
-            docker stop ${{ env.DOCKER_IMAGE_NAME }} || true
-            docker rm ${{ env.DOCKER_IMAGE_NAME }} || true
-            
-            docker run -d \
-                --name ${{ env.DOCKER_IMAGE_NAME }} \
-                --restart unless-stopped \
-                -p 3004:3004 \
-                --env-file ${{ env.ENV_FILE_PATH }} \
-                -v ${{ env.PEM_FOLDER_PATH }}:/app/.pem \
-                --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
-                ${{ env.DOCKER_IMAGE_NAME }}:${{ github.sha }}
-            
-            docker image prune -f
-EOF
+# Set environment variable
+ENV NODE_ENV production
+
+# Install only essential runtime dependencies and clean up
+# These are the **runtime** dependencies for a compiled package like 'canvas' on Alpine
+RUN apk update && \
+    apk add --no-cache \
+    dumb-init \
+    libc6-compat \
+    # Canvas Runtime Dependencies (Alpine)
+    cairo \
+    pango \
+    libjpeg \
+    giflib \
+    librsvg \
+    libuuid \
+    # The development libraries (e.g., cairo-dev) are NOT needed here, 
+    # only the base runtime libraries (e.g., cairo) are.
+    && rm -rf /var/cache/apk/*
+
+WORKDIR /app
+
+# Copy only the necessary files from the builder stage
+# This includes the node_modules (which now contains the compiled 'canvas' module) 
+# and the application code.
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app ./
+
+# Expose the port your app runs on
+EXPOSE 3004
+
+# Start the application using dumb-init
+CMD ["dumb-init", "npm", "start"]
