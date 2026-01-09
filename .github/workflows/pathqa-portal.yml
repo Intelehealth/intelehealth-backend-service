@@ -43,7 +43,7 @@ jobs:
     - name: Build Docker image from portal directory
       run: |
         cd portal
-        docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} .
+        docker buildx build --platform linux/arm64 -t $DOCKER_IMAGE_NAME:${{ github.sha }} .
         docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > ../app-image.tar
 
     - name: Deploy to remote host
