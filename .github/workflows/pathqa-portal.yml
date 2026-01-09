@@ -1,5 +1,4 @@
 name: Portal-pathqa
-
 on:
   push:
     branches: [development_master]
