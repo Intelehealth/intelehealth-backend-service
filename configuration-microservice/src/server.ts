@@ -99,6 +99,14 @@ app.set('views', viewsDir);
 const staticDir = path.join(__dirname, 'public');
 app.use(express.static(staticDir));
 
+// Also serve dist/public when running compiled code so uploaded assets resolve
+const staticDistDir = path.join(__dirname, '..', 'public');
+app.use(express.static(staticDistDir));
+
+// When running via ts-node from src, also serve project-root/dist/public
+const staticCwdDistDir = path.resolve(process.cwd(), 'dist/public');
+app.use(express.static(staticCwdDistDir));
+
 // Nav to login pg by default
 app.get('/', (_: Request, res: Response) => {
   res.sendFile('login.html', { root: viewsDir });
