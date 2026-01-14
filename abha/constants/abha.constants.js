@@ -72,7 +72,11 @@ const VISIT_TYPES = {
     DOCTOR_DETIALS: "Doctor details",
     ADDITIONAL_INSTURCTION: 'additionalInstruction',
     ABDOMEN_EXAMINATION: 'abdomen_examination',
-    DOCROT_UPLOADED_DOC: 'Doc_Upld_Document'
+    DOCROT_UPLOADED_DOC: 'Doc_Upld_Document',
+    LIFESTYLE: 'Lifestyle',
+    PHYSICAL_ACTIVITY: 'PhysicalActivity',
+    WOMEN_HEALTH: 'WomenHealth',
+    GENERAL_ASSESSMENT: 'GeneralAssessment'
 };
 
 
