@@ -36,6 +36,7 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         defaultValue: 0,
       },
+      hiTypes: DataTypes.STRING
     },
     {
       sequelize,

@@ -2066,6 +2066,16 @@ async function formatCareContextFHIBundle(response) {
         const practitioner = getDoctorDetail(response?.encounters);
         if (!practitioner) return null;
 
+        // get hiTypes from visit uuid from abdm_visit_status table
+        const hiTypesRecords = await abdm_visit_status.findOne({
+            attributes: ['hiTypes'],
+            where: {
+                visitUuid: response?.uuid
+            }
+        });
+
+        const hiTypes = hiTypesRecords?.hiTypes ? hiTypesRecords?.hiTypes.split(',') : [];
+
         const patient = response?.patient;
         const {
             medications,
@@ -2123,7 +2133,7 @@ async function formatCareContextFHIBundle(response) {
 
         const healthInformationBundle = [];
         const encounterUuid = response?.encounters?.length ? response?.encounters[0]?.uuid : uuid();
-        if(OPConsultRecordEntries.length) {
+        if(OPConsultRecordEntries.length && hiTypes.includes('OP Consult Record')) {
             const OPConsultRecordBundle = createFHIRBundle({
                 id: uuid(),
                 type: "document",
@@ -2145,7 +2155,7 @@ async function formatCareContextFHIBundle(response) {
 
 
         const formatWellnessFHIBundleResult = formatWellnessFHIBundle(wellnessRecord, patient, practitioner, response?.startDatetime, encounterUuid);
-        if(formatWellnessFHIBundleResult?.length) {
+        if(formatWellnessFHIBundleResult?.length && hiTypes.includes('Wellness Record')) {
             const wellnessRecordEntries = [
                 ...formatWellnessFHIBundleResult,
                 createPractitionerResource(practitioner),
@@ -2173,7 +2183,7 @@ async function formatCareContextFHIBundle(response) {
         }
         
         const formatHealthRecordFHIBundleResult = formatHealthRecordFHIBundle(healthRecord, patient, practitioner, response?.startDatetime, encounterUuid);
-        if(formatHealthRecordFHIBundleResult?.length) {
+        if(formatHealthRecordFHIBundleResult?.length && hiTypes.includes('Health Document')) {
             const healthRecordEntries = [
                 ...formatHealthRecordFHIBundleResult,
                 createPractitionerResource(practitioner),
@@ -2206,7 +2216,7 @@ async function formatCareContextFHIBundle(response) {
         const completedVisitEncounter = response?.encounters?.find(encounter => encounter.encounterType.display === 'Visit Complete');
         const completedVisitEncounterUuid = completedVisitEncounter?.uuid ? completedVisitEncounter?.uuid : uuid();
         const formatPrescriptionFHIBundleResult = formatPrescriptionFHIBundle(prescriptionRecord, completedVisitEncounter, patient, practitioner, completedVisitEncounterUuid);
-        if(formatPrescriptionFHIBundleResult?.length) {
+        if(formatPrescriptionFHIBundleResult?.length && hiTypes.includes('Prescription Record')) {
             const prescriptionRecordEntries = [
                 ...formatPrescriptionFHIBundleResult,
                 createPractitionerResource(practitioner),

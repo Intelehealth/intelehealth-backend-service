@@ -855,6 +855,7 @@ module.exports = (function () {
         personDisplay,
         startDateTime,
         openMRSID,
+        hiTypes
       } = reqParams;
 
       // Check for existing record
@@ -897,7 +898,8 @@ module.exports = (function () {
       const abdmVisitStatus = await abdm_visit_status.create({
         requestData: requestObj,
         requestId: uniquId,
-        visitUuid: visitUUID
+        visitUuid: visitUUID,
+        hiTypes: hiTypes ? hiTypes.join(',') : "",
       });
 
       // Link care context

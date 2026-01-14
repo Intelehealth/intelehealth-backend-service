@@ -90,7 +90,8 @@ exports.postLinkCareContextSchema = Joi.object({
   gender: Joi.optional(),
   yearOfBirth: Joi.optional(),
   mobileNumber: Joi.optional(),
-  openMRSID: Joi.optional()
+  openMRSID: Joi.optional(),
+  hiTypes: Joi.optional()
 });
 
 

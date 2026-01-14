@@ -521,6 +521,15 @@ function getRecords(encountersRecords, type) {
         case 'Lifestyle':
             records = encountersRecords[VISIT_TYPES.LIFESTYLE];
             break;
+        case 'PhysicalActivity':
+            records = encountersRecords[VISIT_TYPES.PHYSICAL_ACTIVITY];
+            break;
+        case 'WomenHealth':
+            records = encountersRecords[VISIT_TYPES.WOMEN_HEALTH];
+            break;
+        case 'GeneralAssessment':
+            records = encountersRecords[VISIT_TYPES.GENERAL_ASSESSMENT];
+            break;
     }
     return records;
 }
@@ -545,7 +554,10 @@ function getEncountersRecords(encounters = [], doctorDetail = null) {
         [VISIT_TYPES.REQUESTED_TESTS]: [],
         [VISIT_TYPES.DOCTOR_DETIALS]: null,
         [VISIT_TYPES.FOLLOW_UP_VISIT]: null,
-        [VISIT_TYPES.LIFESTYLE]: []
+        [VISIT_TYPES.LIFESTYLE]: [],
+        [VISIT_TYPES.PHYSICAL_ACTIVITY]: [],
+        [VISIT_TYPES.WOMEN_HEALTH]: [],
+        [VISIT_TYPES.GENERAL_ASSESSMENT]: []
     }
     for (const enc of encounters) {
         if (enc.encounterType.display === VISIT_TYPES.ADULTINITIAL) {
@@ -608,12 +620,21 @@ function getEncountersRecords(encounters = [], doctorDetail = null) {
                         }
                     }
 
-                    /** Process lifestyle entries */
-                    const { lifestyle } = categorizeMedicalHistoryEntries(medicalHistory);
+                    /** Process lifestyle, physical activity, women health, and general assessment entries */
+                    const { lifestyle, physicalActivity, womenHealth, generalAssessment } = categorizeMedicalHistoryEntries(medicalHistory);
                     lifestyle?.forEach(item => {
                         encounterType[VISIT_TYPES.LIFESTYLE].push({ text: [{ text: `${item?.key} : `, bold: true }, `${item?.value ? item?.value : 'None'}`], margin: [0, 5, 0, 5] })
                     });
-                    /** End of lifestyle entries */
+                    physicalActivity?.forEach(item => {
+                        encounterType[VISIT_TYPES.PHYSICAL_ACTIVITY].push({ text: [{ text: `${item?.key} : `, bold: true }, `${item?.value ? item?.value : 'None'}`], margin: [0, 5, 0, 5] })
+                    });
+                    womenHealth?.forEach(item => {
+                        encounterType[VISIT_TYPES.WOMEN_HEALTH].push({ text: [{ text: `${item?.key} : `, bold: true }, `${item?.value ? item?.value : 'None'}`], margin: [0, 5, 0, 5] })
+                    });
+                    generalAssessment?.forEach(item => {
+                        encounterType[VISIT_TYPES.GENERAL_ASSESSMENT].push({ text: [{ text: `${item?.key} : `, bold: true }, `${item?.value ? item?.value : 'None'}`], margin: [0, 5, 0, 5] })
+                    });
+                    /** End of lifestyle, physical activity, women health, and general assessment entries */
                     
                     encounterType[VISIT_TYPES.MEDICAL_HISTORY].push([ph_data]);
                 }
@@ -1177,6 +1198,36 @@ async function downloadVitals(visit, doctorDetail = null) {
                                     colSpan: 2,
                                     ul: [
                                         ...getRecords(encountersRecords, 'Lifestyle')
+                                    ]
+                                }
+                            ]
+                        ]),
+                        createSection('vitals', 'Physical Activity', [
+                            [
+                                {
+                                    colSpan: 2,
+                                    ul: [
+                                        ...getRecords(encountersRecords, 'PhysicalActivity')
+                                    ]
+                                }
+                            ]
+                        ]),
+                        createSection('vitals', 'Women Health', [
+                            [
+                                {
+                                    colSpan: 2,
+                                    ul: [
+                                        ...getRecords(encountersRecords, 'WomenHealth')
+                                    ]
+                                }
+                            ]
+                        ]),
+                        createSection('vitals', 'General Assessment', [
+                            [
+                                {
+                                    colSpan: 2,
+                                    ul: [
+                                        ...getRecords(encountersRecords, 'GeneralAssessment')
                                     ]
                                 }
                             ]
