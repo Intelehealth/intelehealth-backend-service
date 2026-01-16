@@ -897,6 +897,18 @@ function createSection(imageName, title, content) {
 }
 
 /**
+ * Check if section has data
+ * @param {array} records - Section records
+ * @returns {boolean} - True if section has data
+ */
+function hasSectionData(records) {
+    if (!records || records.length === 0) {
+        return false;
+    }
+    return true;
+}
+
+/**
  * Generate PDF with error handling
  * @param {object} pdfObj - PDF object
  * @returns {Promise} - Promise resolving to PDF result
@@ -925,152 +937,160 @@ async function downloadPrescription(visit, doctorDetail = null) {
 
         const pdfObj = createCommonPdfConfig('Intelehealth e-Prescription');
 
+        const tableBody = [
+            [
+                {
+                    colSpan: 4,
+                    fillColor: '#E6FFF3',
+                    text: 'Intelehealth e-Prescription',
+                    alignment: 'center',
+                    style: 'header'
+                },
+                '',
+                '',
+                ''
+            ],
+            [getPersonalInfo(visit?.patient)],
+            [getAddress(visit?.patient)],
+            [getOtherInfo(visit?.patient)],
+            createConsultationDetailsSection(visit, consultedDoctor)
+        ];
+
+        // Add Vitals section only if data exists
+        const vitalsData = getRecords(encountersRecords, 'Vitals');
+        if (hasSectionData(vitalsData)) {
+            tableBody.push(createSection('vitals', 'Vitals', [
+                [
+                    {
+                        colSpan: 2,
+                        ul: [...vitalsData]
+                    }
+                ]
+            ]));
+        }
+
+        tableBody.push(
+            createSection('cheifComplaint', 'Chief complaint', [
+                [
+                    {
+                        colSpan: 2,
+                        ul: [
+                            ...getRecords(encountersRecords, 'cheifComplaint')
+                        ]
+                    }
+                ],
+                ...getRecords(encountersRecords, 'symptoms'),
+                ...getRecords(encountersRecords, 'associated_symptoms')
+            ]),
+            createSection('physicalExamination', 'Physical examination', [
+                ...getRecords(encountersRecords, 'physical_examination'),
+                ...getRecords(encountersRecords, 'abdomen_examination')
+            ]),
+            createSection('medicalHistory', 'Medical history', [
+                ...getRecords(encountersRecords, 'medical_history')
+            ]),
+            createSection('diagnosis', 'Diagnosis', [
+                [
+                    {
+                        colSpan: 2,
+                        table: {
+                            widths: ['*', '*', '*'],
+                            headerRows: 1,
+                            body: [
+                                [{ text: 'Diagnosis', style: 'tableHeader' }, { text: 'Type', style: 'tableHeader' }, { text: 'Status', style: 'tableHeader' }],
+                                ...getRecords(encountersRecords, 'diagnosis')
+                            ]
+                        },
+                        layout: 'lightHorizontalLines'
+                    }
+                ]
+            ]),
+            createSection('medication', 'Medication', [
+                [
+                    {
+                        colSpan: 2,
+                        table: {
+                            widths: ['*', 'auto', 'auto', 'auto', 'auto'],
+                            headerRows: 1,
+                            body: [
+                                [{ text: 'Drug name', style: 'tableHeader' }, { text: 'Strength', style: 'tableHeader' }, { text: 'No. of days', style: 'tableHeader' }, { text: 'Timing', style: 'tableHeader' }, { text: 'Remarks', style: 'tableHeader' }],
+                                ...getRecords(encountersRecords, 'medication')
+                            ]
+                        },
+                        layout: 'lightHorizontalLines'
+                    }
+                ],
+                [{ text: 'Additional Instructions:', style: 'sectionheader', colSpan: 2 }, ''],
+                [
+                    {
+                        colSpan: 2,
+                        ul: [
+                            ...getRecords(encountersRecords, 'additionalInstruction')
+                        ]
+                    }
+                ]
+            ]),
+            createSection('advice', 'Advice', [
+                [
+                    {
+                        colSpan: 2,
+                        ul: [
+                            ...getRecords(encountersRecords, 'advice')
+                        ]
+                    }
+                ]
+            ]),
+            createSection('test', 'Test', [
+                [
+                    {
+                        colSpan: 2,
+                        ul: [
+                            ...getRecords(encountersRecords, 'test')
+                        ]
+                    }
+                ]
+            ]),
+            createSection('referral', 'Referral Out', [
+                [
+                    {
+                        colSpan: 2,
+                        table: {
+                            widths: ['30%', '30%', '10%', '30%'],
+                            headerRows: 1,
+                            body: [
+                                [{ text: 'Referral to', style: 'tableHeader' }, { text: 'Referral facility', style: 'tableHeader' }, { text: 'Priority', style: 'tableHeader' }, { text: 'Referral for (Reason)', style: 'tableHeader' }],
+                                ...getRecords(encountersRecords, 'referral')
+                            ]
+                        },
+                        layout: 'lightHorizontalLines'
+                    }
+                ]
+            ]),
+            createSection('followUp', 'Follow-up', [
+                [
+                    {
+                        colSpan: 2,
+                        table: {
+                            widths: ['30%', '30%', '10%', '30%'],
+                            headerRows: 1,
+                            body: [
+                                [{ text: 'Follow-up Requested', style: 'tableHeader' }, { text: 'Date', style: 'tableHeader' }, { text: 'Time', style: 'tableHeader' }, { text: 'Reason', style: 'tableHeader' }],
+                                ...getRecords(encountersRecords, 'followUp')
+                            ]
+                        },
+                        layout: 'lightHorizontalLines'
+                    }
+                ]
+            ]),
+            createDoctorSignatureSection(consultedDoctor)
+        );
+
         pdfObj.content = [
             {
                 style: 'tableExample',
                 table: {
                     widths: ['25%', '30%', '22%', '23%'],
-                    body: [
-                        [
-                            {
-                                colSpan: 4,
-                                fillColor: '#E6FFF3',
-                                text: 'Intelehealth e-Prescription',
-                                alignment: 'center',
-                                style: 'header'
-                            },
-                            '',
-                            '',
-                            ''
-                        ],
-                        [getPersonalInfo(visit?.patient)],
-                        [getAddress(visit?.patient)],
-                        [getOtherInfo(visit?.patient)],
-                        createConsultationDetailsSection(visit, consultedDoctor),
-                        createSection('vitals', 'Vitals', [
-                            [
-                                {
-                                    colSpan: 2,
-                                    ul: [
-                                        ...getRecords(encountersRecords, 'Vitals')
-                                    ]
-                                }
-                            ]
-                        ]),
-                        createSection('cheifComplaint', 'Chief complaint', [
-                            [
-                                {
-                                    colSpan: 2,
-                                    ul: [
-                                        ...getRecords(encountersRecords, 'cheifComplaint')
-                                    ]
-                                }
-                            ],
-                            ...getRecords(encountersRecords, 'symptoms'),
-                            ...getRecords(encountersRecords, 'associated_symptoms')
-                        ]),
-                        createSection('physicalExamination', 'Physical examination', [
-                            ...getRecords(encountersRecords, 'physical_examination'),
-                            ...getRecords(encountersRecords, 'abdomen_examination')
-                        ]),
-                        createSection('medicalHistory', 'Medical history', [
-                            ...getRecords(encountersRecords, 'medical_history')
-                        ]),
-                        createSection('diagnosis', 'Diagnosis', [
-                            [
-                                {
-                                    colSpan: 2,
-                                    table: {
-                                        widths: ['*', '*', '*'],
-                                        headerRows: 1,
-                                        body: [
-                                            [{ text: 'Diagnosis', style: 'tableHeader' }, { text: 'Type', style: 'tableHeader' }, { text: 'Status', style: 'tableHeader' }],
-                                            ...getRecords(encountersRecords, 'diagnosis')
-                                        ]
-                                    },
-                                    layout: 'lightHorizontalLines'
-                                }
-                            ]
-                        ]),
-                        createSection('medication', 'Medication', [
-                            [
-                                {
-                                    colSpan: 2,
-                                    table: {
-                                        widths: ['*', 'auto', 'auto', 'auto', 'auto'],
-                                        headerRows: 1,
-                                        body: [
-                                            [{ text: 'Drug name', style: 'tableHeader' }, { text: 'Strength', style: 'tableHeader' }, { text: 'No. of days', style: 'tableHeader' }, { text: 'Timing', style: 'tableHeader' }, { text: 'Remarks', style: 'tableHeader' }],
-                                            ...getRecords(encountersRecords, 'medication')
-                                        ]
-                                    },
-                                    layout: 'lightHorizontalLines'
-                                }
-                            ],
-                            [{ text: 'Additional Instructions:', style: 'sectionheader', colSpan: 2 }, ''],
-                            [
-                                {
-                                    colSpan: 2,
-                                    ul: [
-                                        ...getRecords(encountersRecords, 'additionalInstruction')
-                                    ]
-                                }
-                            ]
-                        ]),
-                        createSection('advice', 'Advice', [
-                            [
-                                {
-                                    colSpan: 2,
-                                    ul: [
-                                        ...getRecords(encountersRecords, 'advice')
-                                    ]
-                                }
-                            ]
-                        ]),
-                        createSection('test', 'Test', [
-                            [
-                                {
-                                    colSpan: 2,
-                                    ul: [
-                                        ...getRecords(encountersRecords, 'test')
-                                    ]
-                                }
-                            ]
-                        ]),
-                        createSection('referral', 'Referral Out', [
-                            [
-                                {
-                                    colSpan: 2,
-                                    table: {
-                                        widths: ['30%', '30%', '10%', '30%'],
-                                        headerRows: 1,
-                                        body: [
-                                            [{ text: 'Referral to', style: 'tableHeader' }, { text: 'Referral facility', style: 'tableHeader' }, { text: 'Priority', style: 'tableHeader' }, { text: 'Referral for (Reason)', style: 'tableHeader' }],
-                                            ...getRecords(encountersRecords, 'referral')
-                                        ]
-                                    },
-                                    layout: 'lightHorizontalLines'
-                                }
-                            ]
-                        ]),
-                        createSection('followUp', 'Follow-up', [
-                            [
-                                {
-                                    colSpan: 2,
-                                    table: {
-                                        widths: ['30%', '30%', '10%', '30%'],
-                                        headerRows: 1,
-                                        body: [
-                                            [{ text: 'Follow-up Requested', style: 'tableHeader' }, { text: 'Date', style: 'tableHeader' }, { text: 'Time', style: 'tableHeader' }, { text: 'Reason', style: 'tableHeader' }],
-                                            ...getRecords(encountersRecords, 'followUp')
-                                        ]
-                                    },
-                                    layout: 'lightHorizontalLines'
-                                }
-                            ]
-                        ]),
-                        createDoctorSignatureSection(consultedDoctor)
-                    ]
+                    body: tableBody
                 },
                 layout: 'noBorders'
             }
@@ -1159,81 +1179,99 @@ async function downloadVitals(visit, doctorDetail = null) {
         const consultedDoctor = doctorDetail ? doctorDetail : encountersRecords[VISIT_TYPES.DOCTOR_DETIALS];
 
         const pdfObj = createCommonPdfConfig('Intelehealth e-Vitals');
-        
+
+        const tableBody = [
+            [
+                {
+                    colSpan: 4,
+                    fillColor: '#E6FFF3',
+                    text: 'Intelehealth e-Vitals',
+                    alignment: 'center',
+                    style: 'header'
+                },
+                '',
+                '',
+                ''
+            ],
+            [getPersonalInfo(visit?.patient)],
+            [getAddress(visit?.patient)],
+            [getOtherInfo(visit?.patient)],
+            createConsultationDetailsSection(visit, consultedDoctor)
+        ];
+
+        // Add Vitals section only if data exists
+        const vitalsData = getRecords(encountersRecords, 'Vitals');
+        if (hasSectionData(vitalsData)) {
+            tableBody.push(createSection('vitals', 'Vitals', [
+                [
+                    {
+                        colSpan: 2,
+                        ul: [...vitalsData]
+                    }
+                ]
+            ]));
+        }
+
+        // Add Lifestyle section only if data exists
+        const lifestyleData = getRecords(encountersRecords, 'Lifestyle');
+        if (hasSectionData(lifestyleData)) {
+            tableBody.push(createSection('vitals', 'Lifestyle', [
+                [
+                    {
+                        colSpan: 2,
+                        ul: [...lifestyleData]
+                    }
+                ]
+            ]));
+        }
+
+        // Add Physical Activity section only if data exists
+        const physicalActivityData = getRecords(encountersRecords, 'PhysicalActivity');
+        if (hasSectionData(physicalActivityData)) {
+            tableBody.push(createSection('vitals', 'Physical Activity', [
+                [
+                    {
+                        colSpan: 2,
+                        ul: [...physicalActivityData]
+                    }
+                ]
+            ]));
+        }
+
+        // Add Women Health section only if data exists
+        const womenHealthData = getRecords(encountersRecords, 'WomenHealth');
+        if (hasSectionData(womenHealthData)) {
+            tableBody.push(createSection('vitals', 'Women Health', [
+                [
+                    {
+                        colSpan: 2,
+                        ul: [...womenHealthData]
+                    }
+                ]
+            ]));
+        }
+
+        // Add General Assessment section only if data exists
+        const generalAssessmentData = getRecords(encountersRecords, 'GeneralAssessment');
+        if (hasSectionData(generalAssessmentData)) {
+            tableBody.push(createSection('vitals', 'General Assessment', [
+                [
+                    {
+                        colSpan: 2,
+                        ul: [...generalAssessmentData]
+                    }
+                ]
+            ]));
+        }
+
+        tableBody.push(createDoctorSignatureSection(consultedDoctor));
+
         pdfObj.content = [
             {
                 style: 'tableExample',
                 table: {
                     widths: ['25%', '30%', '22%', '23%'],
-                    body: [
-                        [
-                            {
-                                colSpan: 4,
-                                fillColor: '#E6FFF3',
-                                text: 'Intelehealth e-Vitals',
-                                alignment: 'center',
-                                style: 'header'
-                            },
-                            '',
-                            '',
-                            ''
-                        ],
-                        [getPersonalInfo(visit?.patient)],
-                        [getAddress(visit?.patient)],
-                        [getOtherInfo(visit?.patient)],
-                        createConsultationDetailsSection(visit, consultedDoctor),
-                        createSection('vitals', 'Vitals', [
-                            [
-                                {
-                                    colSpan: 2,
-                                    ul: [
-                                        ...getRecords(encountersRecords, 'Vitals')
-                                    ]
-                                }
-                            ]
-                        ]),
-                        createSection('vitals', 'Lifestyle', [
-                            [
-                                {
-                                    colSpan: 2,
-                                    ul: [
-                                        ...getRecords(encountersRecords, 'Lifestyle')
-                                    ]
-                                }
-                            ]
-                        ]),
-                        createSection('vitals', 'Physical Activity', [
-                            [
-                                {
-                                    colSpan: 2,
-                                    ul: [
-                                        ...getRecords(encountersRecords, 'PhysicalActivity')
-                                    ]
-                                }
-                            ]
-                        ]),
-                        createSection('vitals', 'Women Health', [
-                            [
-                                {
-                                    colSpan: 2,
-                                    ul: [
-                                        ...getRecords(encountersRecords, 'WomenHealth')
-                                    ]
-                                }
-                            ]
-                        ]),
-                        createSection('vitals', 'General Assessment', [
-                            [
-                                {
-                                    colSpan: 2,
-                                    ul: [
-                                        ...getRecords(encountersRecords, 'GeneralAssessment')
-                                    ]
-                                }
-                            ]
-                        ]),
-                        createDoctorSignatureSection(consultedDoctor)
-                    ]
+                    body: tableBody
                 },
                 layout: 'noBorders'
             }

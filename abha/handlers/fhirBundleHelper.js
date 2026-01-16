@@ -10,6 +10,7 @@ const { downloadPrescription, downloadMedication, downloadVitals } = require("./
 const openmrsService = require("../services/openmrs.service");
 const { getDoctorDetail, getData, convertDataToISO, getAttributeByName, getIdentifierByName, getGender, sortEncountersByPriority, sortObservationsByPriority } = require("./utilityHelper");
 const { parseDrugHistory, parseMedicationObservation, buildDosageInstruction, buildDispenseRequest, buildFHIRDosage, parseAssociatedSymptoms, parseRegularComplaints, categorizeMedicalHistoryEntries } = require("./parserHelper");
+const { abdm_visit_status } = require("../models");
 
 
 /**

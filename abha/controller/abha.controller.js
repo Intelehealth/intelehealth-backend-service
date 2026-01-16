@@ -902,6 +902,20 @@ module.exports = (function () {
         hiTypes: hiTypes ? hiTypes.join(',') : "",
       });
 
+      const hiTypesMapping = {
+        "OP Consult Record": "OPConsultation",
+        "Wellness Record": "WellnessRecord",
+        "Prescription Record": "Prescription",
+        "Health Document": "HealthDocumentRecord",
+      }
+
+      requestObj.careContexts = hiTypes.map(hiType => ({
+        referenceNumber: visitUUID,
+        display: `${personDisplay} ${hiTypesMapping[hiType]} on ${convertDateToDDMMYYYY(startDateTime)}`,
+        hiType: hiTypesMapping[hiType],
+      }));
+      requestObj.count = requestObj.careContexts.length;
+
       // Link care context
       const abdmResponse = await callABDMWrapperApi(process.env.POST_LINK_CARE_CONTEXT_URL, requestObj);
       
