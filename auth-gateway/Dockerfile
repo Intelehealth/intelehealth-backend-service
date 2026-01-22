@@ -56,5 +56,5 @@ RUN rm -rf \
     /root/.node-gyp
 
 EXPOSE 3030
-RUN apt-get update && apt-get install -y dumb-init
+RUN apk add --no-cache build-base git && \  git clone https://github.com/Yelp/dumb-init.git && \  cd dumb-init && make && \  mv dumb-init /usr/local/bin/ && \  cd .. && rm -rf dumb-init
 CMD ["dumb-init", "npm", "start"]
