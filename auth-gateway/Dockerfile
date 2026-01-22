@@ -56,5 +56,5 @@ RUN rm -rf \
     /root/.node-gyp
 
 EXPOSE 3030
-
+RUN apt-get update && apt-get install -y dumb-init
 CMD ["dumb-init", "npm", "start"]
