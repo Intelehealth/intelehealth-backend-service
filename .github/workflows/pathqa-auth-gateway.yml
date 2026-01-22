@@ -1,11 +1,11 @@
 name: pathqa-auth-gateway
 
 on:
+  workflow_dispatch:
   push:
     branches: [pathqa_development_master_deployment]  
     paths:
       - 'auth-gateway/**'  # Only trigger when changes in portal folder
-  workflow_dispatch:
 env:
   DOCKER_IMAGE_NAME: auth-gateway
   REMOTE_HOST: ${{secrets.PATHQA_HOST}}
