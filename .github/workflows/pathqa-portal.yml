@@ -1,4 +1,4 @@
-name: pathqa-Portal
+name: pathqa-portal
 
 on:
   workflow_dispatch:
@@ -34,15 +34,46 @@ jobs:
         cache-dependency-path: portal/package-lock.json
 
     - name: Install dependencies
-      run: npm ci
-      working-directory: portal
+      run: npm ci --production=false
+      working-directory: auth-gateway
 
    
 
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Detect target platform
+      id: platform
+      env:
+        SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
+      run: |
+        mkdir -p ~/.ssh
+        chmod 700 ~/.ssh
+        echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+        
+        PLATFORM=$(ssh -i ~/.ssh/deploy_key \
+          -o StrictHostKeyChecking=no \
+          -p $REMOTE_PORT \
+          $REMOTE_USER@$REMOTE_HOST \
+          "docker version --format '{{.Server.Arch}}' 2>/dev/null || uname -m" 2>/dev/null || echo "x86_64")
+        
+        if [[ "$PLATFORM" == "aarch64" ]] || [[ "$PLATFORM" == "arm64" ]]; then
+          echo "TARGET_PLATFORM=linux/arm64" >> $GITHUB_ENV
+          echo "Detected ARM64 platform"
+        else
+          echo "TARGET_PLATFORM=linux/amd64" >> $GITHUB_ENV
+          echo "Detected AMD64 platform (default)"
+        fi
+      continue-on-error: true
+    
     - name: Build Docker image from portal directory
       run: |
         cd portal
-        docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} .
+        docker buildx build \
+          --platform ${TARGET_PLATFORM:-linux/amd64} \
+          --load \
+          -t $DOCKER_IMAGE_NAME:${{ github.sha }} .
         docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > ../app-image.tar
 
     - name: Deploy to remote host
@@ -98,7 +129,7 @@ jobs:
             docker run -d \
                 --name $DOCKER_IMAGE_NAME \
                 --restart unless-stopped \
-                -p 3004:3004 \
+                -p 3030:3030 \
                 --env-file $ENV_FILE_PATH \
                 -v $PEM_FOLDER_PATH:/app/.pem \
                 --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
@@ -107,7 +138,7 @@ jobs:
             # Clean up old images
             docker image prune -f
             
-            echo "Portal deployment completed successfully"
+            echo "portal deployment completed successfully"
         EOF
 
     - name: Verify deployment
@@ -122,4 +153,4 @@ jobs:
             -o StrictHostKeyChecking=no \
             -p $REMOTE_PORT \
             $REMOTE_USER@$REMOTE_HOST \
-            "docker ps | grep $DOCKER_IMAGE_NAME && echo 'Portal deployment successful!'"
+            "docker ps | grep $DOCKER_IMAGE_NAME && echo 'auth-gateway deployment successful!'"
