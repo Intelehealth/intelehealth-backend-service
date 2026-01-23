@@ -1,18 +1,18 @@
-name: pathqa-auth-gateway
+name: pathqa-portal
 
 on:
   workflow_dispatch:
   push:
-    branches: [development_master]  
+    branches: [pathqa_development_master_deployment]  
     paths:
-      - 'auth-gateway/**'  # Only trigger when changes in portal folder
+      - 'portal/**'  # Only trigger when changes in portal folder
 env:
-  DOCKER_IMAGE_NAME: auth-gateway
+  DOCKER_IMAGE_NAME: portal
   REMOTE_HOST: ${{secrets.PATHQA_HOST}}
   REMOTE_USER: ${{secrets.DEV_USER}}
   REMOTE_PORT: 22
-  ENV_FILE_PATH: /home/ubuntu/deploy/auth-gateway/.env
-  PEM_FOLDER_PATH: /home/ubuntu/deploy/auth-gateway/.pem
+  ENV_FILE_PATH: /home/ubuntu/deploy/portal/.env
+  PEM_FOLDER_PATH: /home/ubuntu/deploy/portal/.pem
 
 jobs:
   build-and-deploy:
@@ -23,15 +23,15 @@ jobs:
       uses: actions/checkout@v4
      
 
-    - name: Change to auth-gateway directory
-      run: cd auth-gateway
+    - name: Change to portal directory
+      run: cd portal
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '18'
         cache: 'npm'
-        cache-dependency-path: auth-gateway/package-lock.json
+        cache-dependency-path: portal/package-lock.json
 
     - name: Install dependencies
       run: npm ci --production=false
@@ -67,9 +67,9 @@ jobs:
         fi
       continue-on-error: true
     
-    - name: Build Docker image from auth-gateway directory
+    - name: Build Docker image from portal directory
       run: |
-        cd auth-gateway
+        cd portal
         docker buildx build \
           --platform ${TARGET_PLATFORM:-linux/amd64} \
           --load \
@@ -138,7 +138,7 @@ jobs:
             # Clean up old images
             docker image prune -f
             
-            echo "auth-gateway deployment completed successfully"
+            echo "portal deployment completed successfully"
         EOF
 
     - name: Verify deployment
