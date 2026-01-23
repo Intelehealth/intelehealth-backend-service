@@ -1,0 +1,156 @@
+name: pathqa-web-rtc
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [pathqa_development_master_deployment]  
+    paths:
+      - 'web-rtc/**'  # Only trigger when changes in web-rtc folder
+env:
+  DOCKER_IMAGE_NAME: web-rtc
+  REMOTE_HOST: ${{secrets.PATHQA_HOST}}
+  REMOTE_USER: ${{secrets.DEV_USER}}
+  REMOTE_PORT: 22
+  ENV_FILE_PATH: /home/ubuntu/deploy/web-rtc/.env
+  PEM_FOLDER_PATH: /home/ubuntu/deploy/web-rtc/.pem
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+     
+
+    - name: Change to web-rtc directory
+      run: cd web-rtc
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: web-rtc/package-lock.json
+
+    - name: Install dependencies
+      run: npm ci --production=false
+      working-directory: auth-gateway
+
+   
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Detect target platform
+      id: platform
+      env:
+        SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
+      run: |
+        mkdir -p ~/.ssh
+        chmod 700 ~/.ssh
+        echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+        
+        PLATFORM=$(ssh -i ~/.ssh/deploy_key \
+          -o StrictHostKeyChecking=no \
+          -p $REMOTE_PORT \
+          $REMOTE_USER@$REMOTE_HOST \
+          "docker version --format '{{.Server.Arch}}' 2>/dev/null || uname -m" 2>/dev/null || echo "x86_64")
+        
+        if [[ "$PLATFORM" == "aarch64" ]] || [[ "$PLATFORM" == "arm64" ]]; then
+          echo "TARGET_PLATFORM=linux/arm64" >> $GITHUB_ENV
+          echo "Detected ARM64 platform"
+        else
+          echo "TARGET_PLATFORM=linux/amd64" >> $GITHUB_ENV
+          echo "Detected AMD64 platform (default)"
+        fi
+      continue-on-error: true
+    
+    - name: Build Docker image from web-rtc directory
+      run: |
+        cd web-rtc
+        docker buildx build \
+          --platform ${TARGET_PLATFORM:-linux/amd64} \
+          --load \
+          -t $DOCKER_IMAGE_NAME:${{ github.sha }} .
+        docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > ../app-image.tar
+
+    - name: Deploy to remote host
+      env:
+        SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
+      run: |
+        mkdir -p ~/.ssh
+        chmod 700 ~/.ssh
+        echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+        
+        # Copy Docker image to remote host
+        scp -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -P $REMOTE_PORT \
+            app-image.tar \
+            $REMOTE_USER@$REMOTE_HOST:/tmp/
+        
+        # SSH into remote host and deploy
+        ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -P $REMOTE_PORT \
+            $REMOTE_USER@$REMOTE_HOST <<'EOF'
+            DOCKER_IMAGE_NAME="${{ env.DOCKER_IMAGE_NAME }}"
+            ENV_FILE_PATH="${{ env.ENV_FILE_PATH }}"
+            PEM_FOLDER_PATH="${{ env.PEM_FOLDER_PATH }}"
+            GITHUB_SHA="${{ github.sha }}"
+            
+         
+             
+            
+            # Load Docker image
+            docker load -i /tmp/app-image.tar
+            rm /tmp/app-image.tar
+            
+            # Stop and remove existing container if running
+            docker stop $DOCKER_IMAGE_NAME || true
+            docker rm $DOCKER_IMAGE_NAME || true
+            
+            # Verify that the .env file exists
+            if [ ! -f "$ENV_FILE_PATH" ]; then
+                echo "Error: .env file not found at $ENV_FILE_PATH"
+                exit 1
+            fi
+            
+            # Verify that the .pem folder exists
+            if [ ! -d "$PEM_FOLDER_PATH" ]; then
+                echo "Error: .pem folder not found at $PEM_FOLDER_PATH"
+                exit 1
+            fi
+            
+            # Run new container using existing files directly
+            docker run -d \
+                --name $DOCKER_IMAGE_NAME \
+                --restart unless-stopped \
+                -p 3000:3000 \
+                --env-file $ENV_FILE_PATH \
+                -v $PEM_FOLDER_PATH:/app/.pem \
+                --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
+                $DOCKER_IMAGE_NAME:${{ github.sha }}
+            
+            # Clean up old images
+            docker image prune -f
+            
+            echo "web-rtc deployment completed successfully"
+        EOF
+
+    - name: Verify deployment
+      env:
+        SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
+      run: |
+        mkdir -p ~/.ssh
+        echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+        
+        ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -p $REMOTE_PORT \
+            $REMOTE_USER@$REMOTE_HOST \
+            "docker ps | grep $DOCKER_IMAGE_NAME && echo 'auth-gateway deployment successful!'"H
