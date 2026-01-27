@@ -153,4 +153,4 @@ jobs:
             -o StrictHostKeyChecking=no \
             -p $REMOTE_PORT \
             $REMOTE_USER@$REMOTE_HOST \
-            "docker ps | grep $DOCKER_IMAGE_NAME && echo 'auth-gateway deployment successful!'"H
+            "docker ps | grep $DOCKER_IMAGE_NAME && echo 'auth-gateway deployment successful!'"
