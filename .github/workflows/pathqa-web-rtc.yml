@@ -35,7 +35,7 @@ jobs:
 
     - name: Install dependencies
       run: npm ci --production=false
-      working-directory: auth-gateway
+      working-directory: web-rtc
 
    
 
