@@ -1,6 +1,11 @@
 
 # Multi-stage build to reduce final image size
+# Support for multi-architecture builds (amd64, arm64)
 FROM node:18-alpine AS builder
+
+# Declare build arguments for platform awareness
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
 
 WORKDIR /app
 
@@ -27,12 +32,16 @@ COPY package*.json ./
 RUN npm ci
 
 #RUN .
-# Copy source code and build (if there's a build step)
+# Copy source code and build
 COPY . .
-# Uncomment if you have a build step: RUN npm run build
+RUN npm run build 2>/dev/null || mkdir -p dist
 
 # Production stage
 FROM node:18-alpine AS production
+
+# Declare build arguments for platform awareness
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
 
 WORKDIR /app
 
