@@ -14,6 +14,7 @@ RUN apt-get update && \
     g++ \
     make \
     pkg-config \
+    musl-dev \
     # These are the *build* dependencies for canvas and its required libraries
     libcairo2-dev \
     libpango1.0-dev \
