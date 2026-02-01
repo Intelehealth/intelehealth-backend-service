@@ -1,5 +1,4 @@
 name: nas-web-rtc
-
 on:
   workflow_dispatch:
   push:
