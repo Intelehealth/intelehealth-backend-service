@@ -55,7 +55,11 @@ module.exports = (function () {
 
     this.getVisitScore = (encounter_id) => {
         return `SELECT SUM(t1.score) as total_score FROM (SELECT case when (comments = 'R') then COUNT(comments)*2 when (comments = 'Y') then COUNT(comments) else 0 end as score, max(encounter_id) as max_encounter_id, comments FROM openmrs.obs where encounter_id = ${encounter_id} and voided = 0 and comments is not null group by comments) t1 GROUP BY t1.max_encounter_id`;
-        // return `SELECT COUNT(comments) as count, comments FROM obs WHERE encounter_id = ${encounter_id} AND voided = 0 AND comments IS NOT NULL GROUP BY comments`;
+    };
+
+    this.getPreviousEncountersByVisit = (visit_id) => {
+        // Return encounter id and datetime ordered by encounter_id desc (newest first)
+        return `SELECT encounter_id, encounter_datetime FROM openmrs.encounter WHERE visit_id = ${visit_id} AND voided = 0 ORDER BY encounter_id DESC`;
     };
 
     return this;
