@@ -15,7 +15,7 @@ RUN apk add --no-cache \
     libjpeg-turbo-dev \
     giflib-dev \
     librsvg-dev \
-    uuid-dev 
+    ossp-uuid-dev 
     
 COPY package*.json ./
 RUN npm ci
