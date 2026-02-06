@@ -1,50 +1,38 @@
-# No --platform flag needed here; it will detect the runner's architecture
-FROM node:18-alpine AS builder
+
+FROM node:18-alpine
 
 WORKDIR /app
 
-# Install build dependencies
-RUN apk add --no-cache \
+RUN apk update && apk upgrade && \
+    apk add --no-cache \
+    dumb-init \
+    curl \
+    libc6-compat \
     python3 \
     make \
     g++ \
+    gcc \
+    libc-dev \
     pkgconfig \
     pixman-dev \
     cairo-dev \
     pango-dev \
-    libjpeg-turbo-dev \
+    jpeg-dev \
     giflib-dev \
-    util-linux \
     librsvg-dev \
-    ossp-uuid-dev
-    
-    
+    && rm -rf /var/cache/apk/*
+
+# Copy package files first
 COPY package*.json ./
-RUN npm ci
+
+# Install dependencies
+RUN npm ci  --legacy-bundling
+
+# Copy application code
 COPY . .
 
-# Stage 2: Runtime
-FROM node:18-alpine
-
-ENV NODE_ENV production
-
-# Runtime dependencies
-RUN apk add --no-cache \
-    dumb-init \
-    libc6-compat \
-    cairo \
-    pango \
-    libjpeg-turbo \
-    giflib \
-    librsvg \
-    pixman \
-    ossp-uuid
-WORKDIR /app
-
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app ./
-
+# Expose the port your app runs on
 EXPOSE 3004
 
-ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+# Start the application
 CMD ["npm", "start"]
