@@ -59,10 +59,10 @@ module.exports = (function () {
             }
             if (type === "Priority" || type === "Visit In Progress") {
                 if (type === "Priority") {
-                    return Array.isArray(filteredVisits) ? filteredVisits.filter((v) => v.score > 22).map((v) => { return { visit_id: v?.visit_id, score: v?.score } }) : [];
+                    return Array.isArray(filteredVisits) ? filteredVisits.filter((v) => v.score > 3.5).map((v) => { return { visit_id: v?.visit_id, score: v?.score } }) : [];
                 }
                 if (type === "Visit In Progress") {
-                    return Array.isArray(filteredVisits) ? filteredVisits.filter((v) => v.score <= 22).map((v) => { return { visit_id: v?.visit_id, score: v?.score } }) : [];
+                    return Array.isArray(filteredVisits) ? filteredVisits.filter((v) => v.score <= 3.5).map((v) => { return { visit_id: v?.visit_id, score: v?.score } }) : [];
                 }
             } else {
                 return Array.isArray(filteredVisits) ? filteredVisits.map((v) => { return { visit_id: v?.visit_id, score: v?.score } }) : [];
