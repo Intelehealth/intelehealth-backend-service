@@ -14,8 +14,9 @@ RUN apk add --no-cache \
     pango-dev \
     libjpeg-turbo-dev \
     giflib-dev \
-    librsvg-dev
-
+    librsvg-dev \
+    libuuid-dev 
+    
 COPY package*.json ./
 RUN npm ci
 COPY . .
