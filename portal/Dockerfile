@@ -37,8 +37,8 @@ RUN apk add --no-cache \
     libjpeg-turbo \
     giflib \
     librsvg \
-    pixman
-
+    pixman \
+    ossp-uuid
 WORKDIR /app
 
 COPY --from=builder /app/node_modules ./node_modules
