@@ -67,7 +67,7 @@ module.exports = (function () {
                 }
             }
 
-            return score;
+            return Number(score) || 0;
         } catch (error) {
             console.error("Error in getScoreWithFallback:", error);
             return 0;
