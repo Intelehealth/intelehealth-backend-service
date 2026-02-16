@@ -92,17 +92,44 @@ module.exports = (function () {
             });
             let filteredVisits = Array.isArray(visits) ? visits.filter((v) => v?.Status === (type === 'Priority'? 'Visit In Progress': type)) : [];
             
-            if (Array.isArray(filteredVisits)) {
-                for (let i = 0; i < filteredVisits.length; i++) {
-                    // const obs = await sequelize.query(getVisitScore(filteredVisits[i].max_enc), {
-                    //     type: QueryTypes.SELECT,
-                    // });
-                    filteredVisits[i].score = await this.getScoreWithFallback(
-                        filteredVisits[i].max_enc, 
-                        filteredVisits[i].visit_id
-                    );
-                }
+            // Get visit attributes to extract scores
+            const visitIds = filteredVisits.map(v => v.visit_id);
+            if (visitIds.length === 0) {
+                return [];
             }
+            
+            const visitsWithAttributes = await visit.findAll({
+                attributes: ["visit_id"],
+                include: [{
+                    model: visit_attribute,
+                    as: "attributes",
+                    attributes: ["value_reference"],
+                    include: [{
+                        model: visit_attribute_type,
+                        as: "attribute_type",
+                        attributes: ["name"],
+                        where: { name: "Visit Risk" }
+                    }]
+                }],
+                where: {
+                    visit_id: { [Op.in]: visitIds }
+                },
+                raw: false
+            });
+            
+            // Map scores from visit attributes
+            const scoreMap = {};
+            visitsWithAttributes.forEach(v => {
+                const visitData = v.get({ plain: true });
+                const riskAttr = visitData.attributes?.[0];
+                scoreMap[visitData.visit_id] = riskAttr?.value_reference ? parseFloat(riskAttr.value_reference) : 0;
+            });
+            
+            // Add scores to filtered visits
+            filteredVisits.forEach(v => {
+                v.score = scoreMap[v.visit_id] || 0;
+            });
+            
             if (type === "Priority" || type === "Visit In Progress") {
                 if (type === "Priority") {
                     return Array.isArray(filteredVisits) ? filteredVisits.filter((v) => v.score > 3.5).map((v) => { return { visit_id: v?.visit_id, score: v?.score } }) : [];
@@ -281,12 +308,12 @@ module.exports = (function () {
                 limit,
                 offset
             });
-            const currentPageVisitIds = visitIds.slice(offset, offset+limit).map(o => { return { score: o.score } });
             const visitsData1 = visits1.map((v) => v.get({ plain: true }));
-            const visitsData2 = visits2.map((v) => v.get({ plain: true })); 
-            const finalarr1 = visitsData1.map((item, i) => Object.assign({}, item, currentPageVisitIds[i]));
-            const finalarr2 = visitsData2.map((item, i) => Object.assign({}, item, finalarr1[i]));
-            return { totalCount: visitIds.length, currentCount: visits1.length, visits: finalarr2 };
+            const visitsData2 = visits2.map((v) => v.get({ plain: true }));
+            
+            // Merge visit data with attributes
+            const finalarr = visitsData1.map((item, i) => Object.assign({}, item, { attributes: visitsData2[i]?.attributes || [] }));
+            return { totalCount: visitIds.length, currentCount: visits1.length, visits: finalarr };
         } catch (error) {
             throw error;
         }
@@ -417,10 +444,11 @@ module.exports = (function () {
             });
 
             const visitsData1 = visits1.map((v) => v.get({ plain: true })); 
-            const visitsData2 = visits2.map((v) => v.get({ plain: true })); 
-            const finalarr1 = visitsData1.map((item, i) => Object.assign({}, item, visitIds[i]));
-            const finalarr2 = visitsData2.map((item, i) => Object.assign({}, item, finalarr1[i]));
-            return { totalCount: totalCount, currentCount: visits1.length, visits: finalarr2 };
+            const visitsData2 = visits2.map((v) => v.get({ plain: true }));
+            
+            // Merge visit data with attributes
+            const finalarr = visitsData1.map((item, i) => Object.assign({}, item, { attributes: visitsData2[i]?.attributes || [] }));
+            return { totalCount: totalCount, currentCount: visits1.length, visits: finalarr };
         } catch (error) {
             throw error;
         }
