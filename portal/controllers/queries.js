@@ -4,23 +4,29 @@ module.exports = (function () {
             t1.visit_id,
             t1.uuid,
             max_enc,
-            encounter_type,
+            encounter.encounter_type,
+            encounter_type.name as encounter_type_name,
             case
                 when (
-                    encounter_type = 14
-                    or encounter_type = 12
+                    encounter.encounter_type = 14
+                    or encounter.encounter_type = 12
                     or com_enc = 1
                     or ended = 1
                 ) then "Completed Visit"
                 when (
                     (
-                        encounter_type between 100 and 159
+                        encounter.encounter_type between 100 and 159
                     )
+                    or (encounter_type.name is not null and (
+                        lower(encounter_type.name) like "%sos%"
+                        or lower(encounter_type.name) like "%emergency%"
+                    ))
                 ) then "Visit In Progress"
             end as "Status"
         from
-            encounter,
-            (
+            encounter
+            left join encounter_type on encounter.encounter_type = encounter_type.encounter_type_id
+            join (
                 select
                     v.visit_id,
                     v.patient_id,
@@ -40,7 +46,7 @@ module.exports = (function () {
                     ) as ended
                 from
                     visit v
-                    LEFT JOIN encounter e using (visit_id)
+                    left join encounter e using (visit_id)
                 where
                     v.voided = 0
                     and e.voided = 0
@@ -48,8 +54,7 @@ module.exports = (function () {
                     v.visit_id,
                     v.patient_id
             ) as t1
-        where
-            encounter_id = max_enc
+        on encounter.encounter_id = max_enc
         order by visit_id desc`;
     };
 

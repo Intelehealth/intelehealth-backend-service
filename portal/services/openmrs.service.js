@@ -167,28 +167,32 @@ module.exports = (function () {
             const visitIds = await this.getVisits(type, limit, offset);
             
             let visits1 = await visit.findAll({
-                attributes: ["uuid", "date_stopped", "date_started", "voided"],
+                attributes: ["visit_id", "uuid", "date_stopped", "date_started", "voided"],
                 include: [
                     {
                         model: encounter,
                         as: "encounters",
                         attributes: ["encounter_datetime","uuid","voided"],
+                        required: false,
                         order: [["encounter_id","DESC"]],
                         include: [
                             {
                                 model: obs,
                                 as: "obs",
                                 attributes: ["value_text", "value_numeric", "comments","uuid","voided"],
+                                required: false,
                                 include: [
                                     {
                                         model: concept,
                                         as: "concept",
                                         attributes: ["uuid"],
+                                        required: false,
                                         include: [
                                             {
                                                 model: concept_name,
                                                 as: "concept_name",
-                                                attributes: ["name","voided"]
+                                                attributes: ["name","voided"],
+                                                required: false
                                             }
                                         ]
                                     }
@@ -198,6 +202,7 @@ module.exports = (function () {
                                 model: encounter_type,
                                 as: "type",
                                 attributes: ["name"],
+                                required: false
                             },
                             {
                                 model: encounter_provider,
@@ -231,16 +236,19 @@ module.exports = (function () {
                         model: patient_identifier,
                         as: "patient",
                         attributes: ["identifier"],
+                        required: false
                     },
                     {
                         model: person_name,
                         as: "patient_name",
                         attributes: ["given_name", "family_name"],
+                        required: false
                     },
                     {
                         model: person,
                         as: "person",
                         attributes: ["uuid", "gender", "birthdate"],
+                        required: false
                     }
                 ],
                 where: {
@@ -297,27 +305,31 @@ module.exports = (function () {
             const totalCount = compVisits.totalCount;
             const ids = visitIds.map((v) => v?.visit_id);
             let visits1 = await visit.findAll({
-                attributes: ["uuid", "date_stopped", "date_started", "voided"],
+                attributes: ["visit_id", "uuid", "date_stopped", "date_started", "voided"],
                 include: [
                     {
                         model: encounter,
                         as: "encounters",
                         attributes: ["encounter_datetime","uuid","voided"],
+                        required: false,
                         include: [
                             {
                                 model: obs,
                                 as: "obs",
                                 attributes: ["value_text", "value_numeric", "comments","uuid","voided"],
+                                required: false,
                                 include: [
                                     {
                                         model: concept,
                                         as: "concept",
                                         attributes: ["uuid"],
+                                        required: false,
                                         include: [
                                             {
                                                 model: concept_name,
                                                 as: "concept_name",
-                                                attributes: ["name","voided"]
+                                                attributes: ["name","voided"],
+                                                required: false
                                             }
                                         ]
                                     }
@@ -327,6 +339,7 @@ module.exports = (function () {
                                 model: encounter_type,
                                 as: "type",
                                 attributes: ["name"],
+                                required: false
                             },
                             {
                                 model: encounter_provider,
@@ -361,16 +374,19 @@ module.exports = (function () {
                         model: patient_identifier,
                         as: "patient",
                         attributes: ["identifier"],
+                        required: false
                     },
                     {
                         model: person_name,
                         as: "patient_name",
                         attributes: ["given_name", "family_name"],
+                        required: false
                     },
                     {
                         model: person,
                         as: "person",
                         attributes: ["uuid", "gender", "birthdate"],
+                        required: false
                     }
                 ],
                 where: {
