@@ -11,7 +11,7 @@
   "dependencies": {
     "archiver": "^3.1.1",
     "aws-sdk": "^2.1316.0",
-    "axios": "^0.27.2",
+    "axios": "^1.13.5",
     "connect-session-sequelize": "^7.1.5",
     "cookie-parser": "~1.4.4",
     "cors": "^2.8.5",
@@ -27,7 +27,6 @@
     "mysql": "^2.17.1",
     "mysql2": "^3.9.8",
     "node-cron": "^3.0.0",
-    "node-gcm": "^1.0.4",
     "node-turn": "^0.0.6",
     "node-xlsx": "^0.23.0",
     "nodemailer": "^6.9.1",
