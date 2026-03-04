@@ -13,7 +13,7 @@ env:
   REMOTE_PORT: 22
   ENV_FILE_PATH: /home/ubuntu/deploy/web-rtc/.env
   PEM_FOLDER_PATH: /home/ubuntu/deploy/web-rtc/.pem
-
+  
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
