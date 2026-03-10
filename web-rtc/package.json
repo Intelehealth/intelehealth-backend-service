@@ -17,12 +17,12 @@
     "@types/node": "^20.1.2",
     "cors": "^2.8.5",
     "dotenv": "^16.0.3",
-    "express": "^4.18.2",
+    "express": "^5.2.1",
     "jsonwebtoken": "^9.0.2",
     "livekit-server-sdk": "^2.10.2",
     "moment": "^2.30.1",
     "mysql": "^2.17.1",
-    "mysql2": "^2.3.3",
+    "mysql2": "^3.9.8",
     "sequelize": "^6.37.5",
     "sequelize-cli": "^6.2.0",
     "ws": "^8.13.0",
@@ -37,7 +37,6 @@
     "ts-node": "^10.9.1",
     "typescript": "^5.0.4",
     "winston": "^3.11.0",
-    "winston-daily-rotate-file": "^4.7.1",
-    "@types/nodemailer": "^6.4.22"
+    "winston-daily-rotate-file": "^4.7.1"
   }
 }

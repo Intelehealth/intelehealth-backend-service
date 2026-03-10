@@ -169,11 +169,11 @@ export class WebRTCService {
                 throw new Error(error);
             }
 
-            if (!AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY || !AWS_REGION || !S3_BUCKET_NAME) {
-                const error = 'Missing required AWS environment variables';
-                logStream('error', error, 'startRecording');
-                throw new Error(error);
-            }
+            // if (!AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY || !AWS_REGION || !S3_BUCKET_NAME) {
+            //     const error = 'Missing required AWS environment variables';
+            //     logStream('error', error, 'startRecording');
+            //     throw new Error(error);
+            // }
 
             // Use existing egressSvc or initialize if not available
             if (!this.egressSvc) {
