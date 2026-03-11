@@ -3,7 +3,7 @@ name: nas-web-rtc
 on:
   workflow_dispatch:
   push:
-    branches: [nas-ida5-development-master]  
+    branches: [nas-ida5-development-master-2]  
     paths:
       - 'web-rtc/**'  # Only trigger when changes in web-rtc folder
 env:
