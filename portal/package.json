@@ -29,7 +29,7 @@
     "node-cron": "^3.0.0",
     "node-turn": "^0.0.6",
     "node-xlsx": "^0.23.0",
-    "nodemailer": "^6.9.1",
+    "nodemailer": "^8.0.4",
     "openai": "^4.0.0",
     "otp-generator": "^4.0.1",
     "read-excel-file": "^5.6.1",
