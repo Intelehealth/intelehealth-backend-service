@@ -26,6 +26,7 @@ import DropdownRoutes from './DropdownRoutes';
 import AILLMRoutes from './AILLMRoutes';
 import HomeScreenRoutes from './HomeScreenRoutes';
 import AILLMRecordingRoutes from './AILLMRecordingRoutes';
+import UserAIStatusRoutes from './UserAIStatusRoutes';
 
 // **** Variables **** //
 
@@ -626,6 +627,33 @@ homeScreenSectionsRouter.put(
 
 // Add HomeScreenRouter
 apiRouter.use(Paths.HomeScreen.Base, authMw, homeScreenSectionsRouter);
+
+// **** Setup UserAIStatusRouter **** //
+
+const userAIStatusRouter = Router();
+
+// Get all user AI status records
+userAIStatusRouter.get(
+  Paths.UserAIStatus.Get,
+  UserAIStatusRoutes.getAll,
+);
+
+// Add a user AI status record
+userAIStatusRouter.post(
+  Paths.UserAIStatus.Add,
+  validate(['user_uuid', 'string', 'body'], ['name', 'string', 'body'], ['is_enabled', 'boolean', 'body']),
+  UserAIStatusRoutes.add,
+);
+
+// Update one user AI status
+userAIStatusRouter.put(
+  Paths.UserAIStatus.UpdateIsEnabled,
+  validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body']),
+  UserAIStatusRoutes.updateIsEnabled,
+);
+
+// Add UserAIStatusRouter
+apiRouter.use(Paths.UserAIStatus.Base, authMw, userAIStatusRouter);
 
 // **** Export default **** //
 

@@ -132,4 +132,10 @@ export default {
     UpdateIsEnabled: '/updateIsEnabled/:id',
     updateHomeScreenName: '/updateHomeScreenName/:id',
   },
+  UserAIStatus: {
+    Base: '/user-ai-status',
+    Get: '/all',
+    Add: '/add',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+  },
 } as const;
