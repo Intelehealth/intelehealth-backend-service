@@ -401,7 +401,7 @@ const saveTranslation = async (req, res) => {
       source_language_code: "en-IN",
       target_language_code: targetLang,
       mode: "formal",
-      model: "sarvam-translate:v1",
+      model: "mayura:v1",
       numerals_format: "native",
       speaker_gender: speaker_gender,
       enable_preprocessing: true,
