@@ -29,9 +29,11 @@ module.exports = (function () {
         return user;
     };
 
-    this.requestOtp = async function (email, phoneNumber, countryCode, username, otpFor) {
+    this.requestOtp = async function (email, phoneNumber, countryCode, username, otpFor, source = "web") {
         try {
-            let query, data;            
+            let query, data;
+            // Log or use the source parameter as needed
+            // Example: console.log(`OTP request source: ${source}`);
             switch (otpFor) {
                 case 'username':
                     query = `SELECT pa.value_reference AS attributeValue, pat.name AS attributeTypeName, p.provider_id, p.person_id, u.username, u.uuid FROM provider_attribute pa LEFT JOIN provider_attribute_type pat ON pa.attribute_type_id = pat.provider_attribute_type_id LEFT JOIN provider p ON p.provider_id = pa.provider_id LEFT JOIN users u ON u.person_id = p.person_id WHERE (pat.name = 'emailId' OR pat.name = 'phoneNumber') AND pa.value_reference = '${ (phoneNumber) ? phoneNumber : email }' AND p.retired = 0 AND u.retired = 0 AND pa.voided = false`;
@@ -73,14 +75,14 @@ module.exports = (function () {
                             code: 200,
                             success: true,
                             message: "Otp sent successfully!",
-                            data: null
+                            data: { source }
                         };
                     } else {
                         return {
                             code: 200,
                             success: false,
                             message: "No user exists with this phone number/email.",
-                            data: null
+                            data: { source }
                         }
                     }
                     break;
@@ -165,13 +167,62 @@ module.exports = (function () {
                                 }
                             }
 
+                            // Fetch provider role and map to UUID
+                            let role = null;
+                            let roleUuid = null;
+                            const providerRoleQuery = `SELECT provider_role_id FROM provider WHERE provider_id = ${data[0].provider_id}`;
+                            const providerRoleResult = await new Promise((resolve, reject) => {
+                                openMrsDB.query(providerRoleQuery, (err, results, fields) => {
+                                    if (err) reject(err);
+                                    resolve(results);
+                                });
+                            }).catch((err) => {
+                                throw err;
+                            });
+                            if (providerRoleResult && providerRoleResult.length && providerRoleResult[0].provider_role_id) {
+                                const providerRoleId = providerRoleResult[0].provider_role_id;
+                                const roleQuery = `SELECT name, uuid FROM providermanagement_provider_role WHERE provider_role_id = ${providerRoleId}`;
+                                const roleResult = await new Promise((resolve, reject) => {
+                                    openMrsDB.query(roleQuery, (err, results, fields) => {
+                                        if (err) reject(err);
+                                        resolve(results);
+                                    });
+                                }).catch((err) => {
+                                    throw err;
+                                });
+                                if (roleResult && roleResult.length) {
+                                    role = roleResult[0].name;
+                                    roleUuid = roleResult[0].uuid;
+                                }
+                            }
+                            // Skip OTP only if source is mobile AND role is Doctor
+                            if (source === "mobile" && role && role.toLowerCase() === "doctor") {
+                                return {
+                                    code: 200,
+                                    success: true,
+                                    message: "OTP not required for doctor on mobile. Login allowed.",
+                                    data: {
+                                        userUuid: data[0].userUuid,
+                                        providerUuid: data[0].providerUuid,
+                                        role: role,
+                                        roleUuid: roleUuid,
+                                        source: source,
+                                        otpRequired: false
+                                    }
+                                }
+                            }
+                            // Send OTP for all other cases
                             return {
                                 code: 200,
                                 success: true,
                                 message: "Otp sent successfully!",
                                 data: {
                                     userUuid: data[0].userUuid,
-                                    providerUuid: data[0].providerUuid
+                                    providerUuid: data[0].providerUuid,
+                                    role: role,
+                                    roleUuid: roleUuid,
+                                    source: source,
+                                    otpRequired: true
                                 }
                             }
                         } else {
@@ -179,7 +230,7 @@ module.exports = (function () {
                                 code: 200,
                                 success: false,
                                 message: "No phoneNumber/email updated for this username.",
-                                data: null
+                                data: { source }
                             }
                         }
                     } else {
@@ -187,7 +238,7 @@ module.exports = (function () {
                             code: 200,
                             success: false,
                             message: "No user exists with this username.",
-                            data: null
+                            data: { source }
                         }
                     }
                     break;
@@ -232,14 +283,14 @@ module.exports = (function () {
                             code: 200,
                             success: true,
                             message: "Otp sent successfully!",
-                            data: null
+                            data: { source }
                         };
                     } else {
                         return {
                             code: 200,
                             success: false,
                             message: "No user exists with this phone number/email.",
-                            data: null
+                            data: { source }
                         }
                     }
                     break;
