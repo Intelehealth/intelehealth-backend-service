@@ -10,6 +10,7 @@ const { downloadPrescription, downloadMedication, downloadVitals } = require("./
 const openmrsService = require("../services/openmrs.service");
 const { getDoctorDetail, getData, convertDataToISO, getAttributeByName, getIdentifierByName, getGender, sortEncountersByPriority, sortObservationsByPriority } = require("./utilityHelper");
 const { parseDrugHistory, parseMedicationObservation, buildDosageInstruction, buildDispenseRequest, buildFHIRDosage, parseAssociatedSymptoms, parseRegularComplaints, categorizeMedicalHistoryEntries } = require("./parserHelper");
+const { abdm_visit_status } = require("../models");
 
 
 /**
@@ -171,10 +172,16 @@ function cheifComplaintStructure(obs, cheifComplaints, patient) {
  * @returns {Object} Updated physical examination data
  */
 function physicalExaminationVitalStructure(obs, physicalExaminationData, practitioner, patient) {
-    const valueQuantity = {
-        unit: OBSERVATION_TYPE[obs.concept?.display]?.unit,
-        value: obs.value
-    }
+    const rawValue = (typeof(obs.value) === 'object' && obs.value.display) ? obs.value.display : obs.value;
+    const unit = OBSERVATION_TYPE[obs.concept?.display]?.unit ?? "";
+    const isNumericValue = !isNaN(parseFloat(rawValue)) && isFinite(rawValue);
+
+    // Use valueString for non-numeric values (e.g. BLOOD TYPING: "B POSITIVE"), valueQuantity for numeric vitals
+    const valueProp = isNumericValue
+        ? { valueQuantity: { unit, value: parseFloat(rawValue) } }
+        : { valueString: String(rawValue) };
+
+    const displayValue = isNumericValue ? `${rawValue} ${unit}` : String(rawValue);
     const observationId = `${OBSERVATION_TYPE[obs.concept?.display]?.type}${obs.uuid}`
     const observationText = OBSERVATION_TYPE[obs.concept?.display]?.name ?? obs.concept?.display
 
@@ -190,7 +197,7 @@ function physicalExaminationVitalStructure(obs, physicalExaminationData, practit
             id: observationId,
             resourceType: "Observation",
             status: "final",
-            valueQuantity: valueQuantity,
+            ...valueProp,
             subject: {
                 reference: `Patient/${patient?.uuid}`,
                 display: patient?.person?.display
@@ -201,7 +208,7 @@ function physicalExaminationVitalStructure(obs, physicalExaminationData, practit
             }],
             text: {
                 status: "generated",
-                div: `<div xmlns="http://www.w3.org/1999/xhtml">${observationText}: ${valueQuantity.value} ${valueQuantity.unit}</div>`
+                div: `<div xmlns="http://www.w3.org/1999/xhtml">${observationText}: ${displayValue}</div>`
             },
         })
     )
@@ -438,8 +445,9 @@ function buildMedicalHistoryConditions(history, obs, medicalHistoryData, patient
 
 function buildAllergiesResources(allergies, obs, allergiesData, practitioner, patient) {
     if (!Array.isArray(allergies) || allergies.length === 0) return;
+    const allergyId = uuid();
     allergiesData.section.entry.push({
-        reference: `AllergyIntolerance/${obs.uuid}`,
+        reference: `AllergyIntolerance/${allergyId}`,
         display: "AllergyIntolerance"
     });
     allergiesData.allergies.push(createFHIRResource({
@@ -464,7 +472,7 @@ function buildAllergiesResources(allergies, obs, allergiesData, practitioner, pa
             reference: `Practitioner/${practitioner?.practitioner_id}`,
             display: practitioner?.name
         },
-        id: obs.uuid,
+        id: allergyId,
         clinicalStatus: {
             coding: [
                 {
@@ -755,8 +763,10 @@ function medicalHistoryStructure(obs, medicalHistoryData, allergiesData, medicat
     // Build physical activity observations under wellness record
     buildWellnessPhysicalActivityObservations(physicalActivity, wellnessPhysicalActivity, obs, practitioner, patient);
 
-    // Build women health observations under wellness record
-    buildWellnessWomenHealthObservations(womenHealth, wellnessWomenHealth, obs, practitioner, patient);
+    // Build women health observations under wellness record (skip for male patients)
+    if (patient?.person?.gender !== 'M') {
+        buildWellnessWomenHealthObservations(womenHealth, wellnessWomenHealth, obs, practitioner, patient);
+    }
 
     // Build general assessment observations under wellness record
     buildWellnessGeneralAssessmentObservations(generalAssessment, wellnessGeneralAssessment, obs, practitioner, patient);
@@ -1177,6 +1187,14 @@ function referalStructure(obs, serviceRequest, practitioner, patient) {
  */
 function vitalWellnessRecordStructure(obs, wellnessRecordVitals, practitioner, patient) {
     const vitalId = `vital-signs-${OBSERVATION_TYPE[obs.concept?.display]?.type}-${obs.uuid}`;
+    const unit = OBSERVATION_TYPE[obs.concept?.display]?.unit;
+    const isNumericValue = !isNaN(parseFloat(obs.value)) && isFinite(obs.value);
+
+    // Use valueString for non-numeric values (e.g. BLOOD TYPING: "B POSITIVE"), valueQuantity for numeric vitals
+    const valueProp = isNumericValue
+        ? { valueQuantity: { unit, value: parseFloat(obs.value) } }
+        : { valueString: String(obs.value) };
+
     wellnessRecordVitals.entry.push({
         reference: `Observation/${vitalId}`,
         display: OBSERVATION_TYPE[obs.concept?.display]?.name ?? obs.concept?.display
@@ -1217,10 +1235,7 @@ function vitalWellnessRecordStructure(obs, wellnessRecordVitals, practitioner, p
                     display: practitioner?.name
                 }
             ],
-            valueQuantity: {
-                unit: OBSERVATION_TYPE[obs.concept?.display]?.unit,
-                value: obs.value
-            }
+            ...valueProp
         })
     )
     return wellnessRecordVitals

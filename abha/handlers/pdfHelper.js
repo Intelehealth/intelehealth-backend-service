@@ -6,6 +6,25 @@ const { VISIT_TYPES } = require("../constants/abha.constants");
 const { logo, precription, visitImage } = require("./images");
 const { logStream } = require("../logger");
 const { categorizeMedicalHistoryEntries } = require("./parserHelper");
+const axios = require("axios");
+const { json, text } = require("body-parser");
+
+/**
+ * Fetch a remote image and return it as a base64 dataURL
+ * @param {string} url - Remote image URL
+ * @returns {Promise<string|null>} Base64 dataURL or null on failure
+ */
+async function fetchImageAsDataURL(url) {
+    try {
+        const response = await axios.get(url, { responseType: 'arraybuffer' });
+        const contentType = response.headers['content-type'] || 'image/png';
+        const base64 = Buffer.from(response.data).toString('base64');
+        return `data:${contentType};base64,${base64}`;
+    } catch (err) {
+        logStream("error", `Failed to fetch image: ${url}, error: ${err.message}`);
+        return null;
+    }
+}
 
 /**
   * Parse observation data
@@ -53,7 +72,7 @@ function getCheckUpReason(complaints, obs) {
                         colSpan: 2,
                         ul: []
                     };
-                    complaints.symptoms.push([{ text: splitByBr[0].replace('</b>:', ''),  bold: true, style: 'subSectionheader', colSpan: 2  }])
+                    //complaints.symptoms.push([{ text: splitByBr[0].replace('</b>:', ''),  bold: true, style: 'subSectionheader', colSpan: 2  }])
                     for (let k = 1; k < splitByBr.length; k++) {
                         if (splitByBr[k].trim() && splitByBr[k].trim().length > 1) {
                             const splitByDash = splitByBr[k].split('-');
@@ -671,7 +690,7 @@ function getEncountersRecords(encounters = [], doctorDetail = null) {
 
         if (enc.encounterType.display === VISIT_TYPES.VITALS) {
             for (const obs of enc.obs) {
-                encounterType[VISIT_TYPES.VITALS].push({ text: [{ text: `${obs?.concept?.display} : `, bold: true }, `${obs.uuid && obs.value ? obs.value : `No information`}`], margin: [0, 5, 0, 5] })
+                encounterType[VISIT_TYPES.VITALS].push({ text: [{ text: `${obs?.concept?.display} : `, bold: true }, `${obs.uuid && obs.value ? (typeof(obs.value) === 'object' && obs.value.display ? obs.value.display : obs.value) : `No information`}`], margin: [0, 5, 0, 5] })
             }
         }
 
@@ -849,13 +868,17 @@ function createConsultationDetailsSection(visit, consultedDoctor) {
  * @param {object} consultedDoctor - Doctor details
  * @returns {array} - Doctor signature section
  */
-function createDoctorSignatureSection(consultedDoctor) {
+async function createDoctorSignatureSection(consultedDoctor) {
+    let signatureImage = consultedDoctor?.signature;
+    if (signatureImage?.includes("amazonaws.com")) {
+        signatureImage = await fetchImageAsDataURL(consultedDoctor.signature);
+    }
     return [
         {
             colSpan: 4,
             alignment: 'right',
             stack: [
-                consultedDoctor?.signature ? { image: `${consultedDoctor.signature}`, width: 100, height: 100, margin: [0, 5, 0, 5] } : { text: ``, margin: [0, 5, 0, 5] },
+                signatureImage ? { image: signatureImage, width: 100, height: 100, margin: [0, 5, 0, 5] } : { text: ``, margin: [0, 5, 0, 5] },
                 consultedDoctor?.name ? { text: `Dr. ${consultedDoctor?.name}`, margin: [0, -30, 0, 0] } : { text: ``, margin: [0, 5, 0, 5] },
                 consultedDoctor?.typeOfProfession ? { text: `${consultedDoctor?.typeOfProfession}` } : { text: ``, margin: [0, 5, 0, 5] },
                 consultedDoctor?.registrationNumber ? { text: `Registration No. ${consultedDoctor?.registrationNumber}` } : { text: ``, margin: [0, 5, 0, 5] },
@@ -953,17 +976,18 @@ async function downloadPrescription(visit, doctorDetail = null) {
                                     colSpan: 2,
                                     ul: [
                                         ...getRecords(encountersRecords, 'Vitals')
-                                    ]
+                                    ],
                                 }
                             ]
                         ]),
+                        [{pageBreak: "before", colSpan: 4, text:""},"","",""],
                         createSection('cheifComplaint', 'Chief complaint', [
                             [
                                 {
                                     colSpan: 2,
                                     ul: [
                                         ...getRecords(encountersRecords, 'cheifComplaint')
-                                    ]
+                                    ],
                                 }
                             ],
                             ...getRecords(encountersRecords, 'symptoms'),
@@ -1069,7 +1093,7 @@ async function downloadPrescription(visit, doctorDetail = null) {
                                 }
                             ]
                         ]),
-                        createDoctorSignatureSection(consultedDoctor)
+                        await createDoctorSignatureSection(consultedDoctor)
                     ]
                 },
                 layout: 'noBorders'
@@ -1138,7 +1162,7 @@ async function downloadMedication(visit, doctorDetail = null) {
                                 }
                             ]
                         ]),
-                        createDoctorSignatureSection(consultedDoctor)
+                        await createDoctorSignatureSection(consultedDoctor)
                     ]
                 },
                 layout: 'noBorders'
@@ -1232,7 +1256,7 @@ async function downloadVitals(visit, doctorDetail = null) {
                                 }
                             ]
                         ]),
-                        createDoctorSignatureSection(consultedDoctor)
+                        await createDoctorSignatureSection(consultedDoctor)
                     ]
                 },
                 layout: 'noBorders'

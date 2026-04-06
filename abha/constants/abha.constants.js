@@ -6,7 +6,7 @@ const OBSERVATION_TYPE = {
     },
     'BLOOD OXYGEN SATURATION': {
         type: 'bos',
-        unit: 'mmHg',
+        unit: '%',
         name: 'BLOOD OXYGEN SATURATION'
     },
     'Weight (kg)': {
@@ -46,6 +46,11 @@ const OBSERVATION_TYPE = {
         type: 'FBS',
         unit: 'mg/dl',
         name: 'FBS'
+    },
+    "BLOOD TYPING": {
+        type: 'blood_typing',
+        unit: '',
+        name: 'BLOOD TYPING'
     }
 }
 const VISIT_TYPES = {
