@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 
 import HttpStatusCodes from '@src/constants/HttpStatusCodes';
 import { RouteError } from '@src/other/classes';
-import jsonwebtoken from 'jsonwebtoken';
+import jsonwebtoken, { SignOptions } from 'jsonwebtoken';
 
 import EnvVars from '../constants/EnvVars';
 
@@ -16,8 +16,8 @@ const Errors = {
 } as const;
 
 // Options
-const Options = {
-  expiresIn: EnvVars.Jwt.Exp,
+const Options: SignOptions = {
+  expiresIn: EnvVars.Jwt.Exp as SignOptions['expiresIn'],
 };
 
 

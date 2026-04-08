@@ -1,8 +1,8 @@
 # Stage 1: Builder
 FROM node:18-alpine AS builder
-
-WORKDIR /app
 #A
+WORKDIR /app
+ 
 
 
 # Install build dependencies

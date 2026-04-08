@@ -65,12 +65,10 @@ const sendWebPushNotification = async ({
     return await webpush.sendNotification(
       parse ? JSON.parse(webpush_obj) : webpush_obj,
       JSON.stringify({
-        notification: {
-          title,
-          body,
-          vibrate: [100, 50, 100],
-          data,
-        },
+        title,
+        body,
+        vibrate: [100, 50, 100],
+        data,
       })
     );
   } catch (error) {

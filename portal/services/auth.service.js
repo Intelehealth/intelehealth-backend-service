@@ -328,7 +328,7 @@ module.exports = (function () {
             }
 
             if (user) {
-              if (moment().diff(moment(user.updatedAt), "minutes") < 1) {
+              if (moment().diff(moment(user.updatedAt), "minutes") < 3) {
                 //TODO: Code for send otp to phone number.
                 if (phoneNumber) {
                   const body = new URLSearchParams();
