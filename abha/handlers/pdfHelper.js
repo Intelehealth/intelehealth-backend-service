@@ -970,17 +970,6 @@ async function downloadPrescription(visit, doctorDetail = null) {
                         [getAddress(visit?.patient)],
                         [getOtherInfo(visit?.patient)],
                         createConsultationDetailsSection(visit, consultedDoctor),
-                        createSection('vitals', 'Vitals', [
-                            [
-                                {
-                                    colSpan: 2,
-                                    ul: [
-                                        ...getRecords(encountersRecords, 'Vitals')
-                                    ],
-                                }
-                            ]
-                        ]),
-                        [{pageBreak: "before", colSpan: 4, text:""},"","",""],
                         createSection('cheifComplaint', 'Chief complaint', [
                             [
                                 {
@@ -993,28 +982,13 @@ async function downloadPrescription(visit, doctorDetail = null) {
                             ...getRecords(encountersRecords, 'symptoms'),
                             ...getRecords(encountersRecords, 'associated_symptoms')
                         ]),
+                        [{pageBreak: "before", colSpan: 4, text:""},"","",""],
                         createSection('physicalExamination', 'Physical examination', [
                             ...getRecords(encountersRecords, 'physical_examination'),
                             ...getRecords(encountersRecords, 'abdomen_examination')
                         ]),
                         createSection('medicalHistory', 'Medical history', [
                             ...getRecords(encountersRecords, 'medical_history')
-                        ]),
-                        createSection('diagnosis', 'Diagnosis', [
-                            [
-                                {
-                                    colSpan: 2,
-                                    table: {
-                                        widths: ['*', '*', '*'],
-                                        headerRows: 1,
-                                        body: [
-                                            [{ text: 'Diagnosis', style: 'tableHeader' }, { text: 'Type', style: 'tableHeader' }, { text: 'Status', style: 'tableHeader' }],
-                                            ...getRecords(encountersRecords, 'diagnosis')
-                                        ]
-                                    },
-                                    layout: 'lightHorizontalLines'
-                                }
-                            ]
                         ]),
                         createSection('medication', 'Medication', [
                             [
@@ -1029,15 +1003,6 @@ async function downloadPrescription(visit, doctorDetail = null) {
                                         ]
                                     },
                                     layout: 'lightHorizontalLines'
-                                }
-                            ],
-                            [{ text: 'Additional Instructions:', style: 'sectionheader', colSpan: 2 }, ''],
-                            [
-                                {
-                                    colSpan: 2,
-                                    ul: [
-                                        ...getRecords(encountersRecords, 'additionalInstruction')
-                                    ]
                                 }
                             ]
                         ]),
@@ -1058,22 +1023,6 @@ async function downloadPrescription(visit, doctorDetail = null) {
                                     ul: [
                                         ...getRecords(encountersRecords, 'test')
                                     ]
-                                }
-                            ]
-                        ]),
-                        createSection('referral', 'Referral Out', [
-                            [
-                                {
-                                    colSpan: 2,
-                                    table: {
-                                        widths: ['30%', '30%', '10%', '30%'],
-                                        headerRows: 1,
-                                        body: [
-                                            [{ text: 'Referral to', style: 'tableHeader' }, { text: 'Referral facility', style: 'tableHeader' }, { text: 'Priority', style: 'tableHeader' }, { text: 'Referral for (Reason)', style: 'tableHeader' }],
-                                            ...getRecords(encountersRecords, 'referral')
-                                        ]
-                                    },
-                                    layout: 'lightHorizontalLines'
                                 }
                             ]
                         ]),
@@ -1152,15 +1101,15 @@ async function downloadMedication(visit, doctorDetail = null) {
                                     layout: 'lightHorizontalLines'
                                 }
                             ],
-                            [{ text: 'Additional Instructions:', style: 'sectionheader', colSpan: 2 }, ''],
-                            [
-                                {
-                                    colSpan: 2,
-                                    ul: [
-                                        ...getRecords(encountersRecords, 'additionalInstruction')
-                                    ]
-                                }
-                            ]
+                            // [{ text: 'Additional Instructions:', style: 'sectionheader', colSpan: 2 }, ''],
+                            // [
+                            //     {
+                            //         colSpan: 2,
+                            //         ul: [
+                            //             ...getRecords(encountersRecords, 'additionalInstruction')
+                            //         ]
+                            //     }
+                            // ]
                         ]),
                         await createDoctorSignatureSection(consultedDoctor)
                     ]
@@ -1212,10 +1161,11 @@ async function downloadVitals(visit, doctorDetail = null) {
                                     colSpan: 2,
                                     ul: [
                                         ...getRecords(encountersRecords, 'Vitals')
-                                    ]
+                                    ],
                                 }
                             ]
                         ]),
+                        [{pageBreak: "before", colSpan: 4, text:""},"","",""],
                         createSection('vitals', 'Lifestyle', [
                             [
                                 {
@@ -1236,7 +1186,7 @@ async function downloadVitals(visit, doctorDetail = null) {
                                 }
                             ]
                         ]),
-                        createSection('vitals', 'Women Health', [
+                        ...(visit?.patient?.person?.gender === 'F' ? [createSection('vitals', 'Women Health', [
                             [
                                 {
                                     colSpan: 2,
@@ -1245,7 +1195,7 @@ async function downloadVitals(visit, doctorDetail = null) {
                                     ]
                                 }
                             ]
-                        ]),
+                        ])] : []),
                         createSection('vitals', 'General Assessment', [
                             [
                                 {

@@ -1188,12 +1188,13 @@ function referalStructure(obs, serviceRequest, practitioner, patient) {
 function vitalWellnessRecordStructure(obs, wellnessRecordVitals, practitioner, patient) {
     const vitalId = `vital-signs-${OBSERVATION_TYPE[obs.concept?.display]?.type}-${obs.uuid}`;
     const unit = OBSERVATION_TYPE[obs.concept?.display]?.unit;
-    const isNumericValue = !isNaN(parseFloat(obs.value)) && isFinite(obs.value);
+    const rawValue = (typeof(obs.value) === 'object' && obs.value.display) ? obs.value.display : obs.value;
+    const isNumericValue = !isNaN(parseFloat(rawValue)) && isFinite(rawValue);
 
     // Use valueString for non-numeric values (e.g. BLOOD TYPING: "B POSITIVE"), valueQuantity for numeric vitals
     const valueProp = isNumericValue
-        ? { valueQuantity: { unit, value: parseFloat(obs.value) } }
-        : { valueString: String(obs.value) };
+        ? { valueQuantity: { unit, value: parseFloat(rawValue) } }
+        : { valueString: String(rawValue) };
 
     wellnessRecordVitals.entry.push({
         reference: `Observation/${vitalId}`,
@@ -1487,7 +1488,8 @@ const processObservation = (obs, sections, practitioner, patient) => {
         folloupVisit,
         prescriptionRecord,
         healthRecord,
-        wellnessRecord
+        wellnessRecord,
+        referrals
     } = sections;
 
     switch (obs.concept.display) {
@@ -1512,27 +1514,14 @@ const processObservation = (obs, sections, practitioner, patient) => {
             break;
         }
         case VISIT_TYPES.TELEMEDICINE_DIAGNOSIS:
-            physicalExaminationData?.section.entry.push({
-                "reference": `Observation/${obs.uuid}`
-            });
-            physicalExaminationData?.observations.push({
-                "resource": {
-                    "code": { "text": "DIAGNOSIS" },
-                    "valueString": obs.value,
-                    "effectiveDateTime": convertDataToISO(obs.obsDatetime),
-                    "id": obs.uuid,
-                    "resourceType": "Observation",
-                    "status": "final"
-                },
-                "fullUrl": `Observation/${obs.uuid}`
-            });
+            // Diagnosis should not be included in OP Consultation record
             break;
         case VISIT_TYPES.MEDICAL_ADVICE:
         case VISIT_TYPES.REQUESTED_TESTS:
             investigationAdviceStructure(obs, serviceRequest, practitioner, patient);
             break;
         case VISIT_TYPES.REFERRAL:
-            referalStructure(obs, serviceRequest, practitioner, patient);
+            referalStructure(obs, referrals, practitioner, patient);
             break;
         case VISIT_TYPES.DOCROT_UPLOADED_DOC:
             healthRecord.obs.push(obs)
@@ -1564,10 +1553,10 @@ const processEncounterObservations = (encounter, sections, practitioner, patient
             return;
         }
 
-        // Handle VITALS encounter type
+        // Handle VITALS encounter type - vitals only go to wellness record, not physical examination
         if (encounterType === VISIT_TYPES.VITALS) {
             sortedObs.forEach(obs => {
-                physicalExaminationVitalStructure(obs, sections.physicalExaminationData, practitioner, patient);
+                //physicalExaminationVitalStructure(obs, sections.physicalExaminationData, practitioner, patient);
                 vitalWellnessRecordStructure(obs, sections.wellnessRecord.vitalSigns, practitioner, patient);
             });
             return;
@@ -2101,7 +2090,6 @@ async function formatCareContextFHIBundle(response) {
             physicalExamination,
             serviceRequest,
             followUp,
-            referrals,
             prescriptionRecord,
             wellnessRecord,
             healthRecord,
@@ -2122,7 +2110,6 @@ async function formatCareContextFHIBundle(response) {
             physicalExamination?.section,
             serviceRequest?.section,
             followUp?.section,
-            referrals?.section,
             prescriptionDocumentReference?.section,
         ].filter(Boolean);
 
@@ -2140,7 +2127,6 @@ async function formatCareContextFHIBundle(response) {
             ...(physicalExamination?.observations ?? []),
             ...(serviceRequest?.requests ?? []),
             ...(followUp?.followUp ?? []),
-            ...(referrals?.requests ?? []),
             createEncounterResource(response?.encounters[0], patient?.uuid),
             prescriptionDocumentReference?.content,
             cheifComplaintMedicationsCondition
