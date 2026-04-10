@@ -18,7 +18,8 @@ const {
   appointmentPush,
   checkAppointment,
   updateSlotSpeciality,
-  validateDayOff
+  validateDayOff,
+  getAllAppointmentsByLocation
 } = require("../controllers/appointment.controller");
 const authMiddleware = require("../middleware/auth");
 const router = express.Router();
@@ -33,6 +34,7 @@ router.get('/validateDayOff/:userUuid', [authMiddleware, validateDayOff]);
 router.get("/getSlots", [authMiddleware, getSlots]);
 router.get("/getAppointmentSlots", [authMiddleware, getAppointmentSlots]);
 router.get("/getScheduledMonths/:userUuid", [authMiddleware, getScheduledMonths]);
+router.get("/getAllAppointmentsByLocation/:locationUuid", [authMiddleware, getAllAppointmentsByLocation]);
 router.post("/createOrUpdateSchedule", [authMiddleware, upsertSchedule]);
 router.post("/bookAppointment", bookAppointment); // TODO: removed the authMiddleware it's calling from MRS middleware pull/push
 router.post("/rescheduleAppointment", rescheduleAppointment); // TODO: removed the authMiddleware it's calling from MRS middleware pull/push
