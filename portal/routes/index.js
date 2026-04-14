@@ -38,5 +38,6 @@ router.use("/support", require("./support.route"));
 router.use("/openai", require("./openai.route"));
 router.use('/signature', require("./signature.route"));
 router.use('/kaleyra', require('./kaleyra.route'));
+router.use('/pincode', require("./pincode.route"));
 
 module.exports = router;
