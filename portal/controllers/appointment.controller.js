@@ -24,7 +24,8 @@ const {
   _completeAppointment,
   checkAppointment,
   updateSlotSpeciality,
-  validateDayOff
+  validateDayOff,
+  getAllAppointmentsByLocation
 } = require("../services/appointment.service");
 
 module.exports = (function () {
@@ -566,6 +567,31 @@ module.exports = (function () {
         data,
       });
     } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get all appointments by location UUID
+   * @param {*} req
+   * @param {*} res
+   */
+  this.getAllAppointmentsByLocation = async (req, res, next) => {
+    try {
+      logStream('debug', 'API calling', 'Get All Appointments By Location');
+      const keysAndTypeToCheck = [
+        { key: Constant.LOCATION_UUID, type: 'string' },
+      ];
+      if (validateParams(req.params, keysAndTypeToCheck)) {
+        const { locationUuid } = req.params;
+        const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+        const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
+        const data = await getAllAppointmentsByLocation(locationUuid, { page, limit });
+        logStream('debug', 'Got All Appointments By Location', 'Get All Appointments By Location');
+        res.json(data);
+      }
+    } catch (error) {
+      logStream('error', error.message);
       next(error);
     }
   };

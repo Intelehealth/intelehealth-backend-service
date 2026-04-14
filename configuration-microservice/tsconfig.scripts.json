@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "paths": {
+      "@src/*": [
+        "src/*"
+      ]
+    }
+  },
+  "include": [
+    "post-build.ts",
+    "config-generator.ts",
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "src/public/"
+  ]
+}

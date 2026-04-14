@@ -1,17 +1,17 @@
-name: Portal
+name: auth-gateway
 
 on:
   push:
     branches: [development_master]  
     paths:
-      - 'portal/**'  # Only trigger when changes in portal folder
+      - 'auth-gateway/**'  # Only trigger when changes in portal folder
 env:
-  DOCKER_IMAGE_NAME: portal
+  DOCKER_IMAGE_NAME: auth-gateway
   REMOTE_HOST: ${{secrets.DEV_HOST}}
   REMOTE_USER: ${{secrets.DEV_USER}}
   REMOTE_PORT: 22
-  ENV_FILE_PATH: /home/ubuntu/deploy/portal/.env
-  PEM_FOLDER_PATH: /home/ubuntu/deploy/portal/.pem
+  ENV_FILE_PATH: /home/ubuntu/deploy/auth-gateway/.env
+  PEM_FOLDER_PATH: /home/ubuntu/deploy/auth-gateway/.pem
 
 jobs:
   build-and-deploy:
@@ -22,25 +22,25 @@ jobs:
       uses: actions/checkout@v4
      
 
-    - name: Change to portal directory
-      run: cd portal
+    - name: Change to auth-gateway directory
+      run: cd auth-gateway
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '18'
         cache: 'npm'
-        cache-dependency-path: portal/package-lock.json
+        cache-dependency-path: auth-gateway/package-lock.json
 
     - name: Install dependencies
-      run: npm ci
-      working-directory: portal
+      run: npm ci --production=false
+      working-directory: auth-gateway
 
    
 
-    - name: Build Docker image from portal directory
+    - name: Build Docker image from auth-gateway directory
       run: |
-        cd portal
+        cd auth-gateway
         docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} .
         docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > ../app-image.tar
 
@@ -97,7 +97,7 @@ jobs:
             docker run -d \
                 --name $DOCKER_IMAGE_NAME \
                 --restart unless-stopped \
-                -p 3004:3004 \
+                -p 3030:3030 \
                 --env-file $ENV_FILE_PATH \
                 -v $PEM_FOLDER_PATH:/app/.pem \
                 --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
@@ -106,7 +106,7 @@ jobs:
             # Clean up old images
             docker image prune -f
             
-            echo "Portal deployment completed successfully"
+            echo "auth-gateway deployment completed successfully"
         EOF
 
     - name: Verify deployment
@@ -121,4 +121,4 @@ jobs:
             -o StrictHostKeyChecking=no \
             -p $REMOTE_PORT \
             $REMOTE_USER@$REMOTE_HOST \
-            "docker ps | grep $DOCKER_IMAGE_NAME && echo 'Portal deployment successful!'"
+            "docker ps | grep $DOCKER_IMAGE_NAME && echo 'auth-gateway deployment successful!'"

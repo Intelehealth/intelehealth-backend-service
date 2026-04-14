@@ -5,6 +5,7 @@
 
 export default {
   Base: '/api',
+  Health: '/health',
   Auth: {
     Base: '/auth',
     Login: '/login',

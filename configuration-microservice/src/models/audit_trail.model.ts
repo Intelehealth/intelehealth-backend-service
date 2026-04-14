@@ -68,7 +68,8 @@ export class AuditTrail extends Model<AuditTrailAttributes, AuditTrailCreationAt
             'AI LLM CONFIG UPDATED',
             'AI LLM RECORDING CONFIG UPDATED',
             'PLATFORM UPDATED',
-            'LANGUAGE PLATFORM UPDATED'
+            'LANGUAGE PLATFORM UPDATED',
+            'LANGUAGE STATUS UPDATED'
         ],
         allowNull: false
     })

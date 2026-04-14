@@ -1,0 +1,335 @@
+/**
+ * Enhanced config generator script that can handle multiple config records
+ * and create consolidated config files
+ */
+
+import fs from 'fs-extra';
+import path from 'path';
+import dotenv from 'dotenv';
+import logger from 'jet-logger';
+
+// Load environment variables from the correct .env file
+// const envFile = process.env.ENV_FILE_PATH ?? path.join(__dirname, `env/${process.env.NODE_ENV || 'production'}.env`);
+// const result = dotenv.config({ path: envFile });
+
+// if (result.error) {
+  // logger.warn(`Could not load .env file from ${envFile}: ${result.error.message}`);
+  // Try loading from default location
+  dotenv.config();
+// } else {
+  // logger.info(`Loaded environment variables from ${envFile}`);
+// }
+
+// Now import database-related modules after environment is loaded
+import connection from './src/database/connection';
+import { Config } from './src/models/dic_config.model';
+import { Publish } from './src/models/dic_publish.model';
+import ConfigService from '@src/services/ConfigService';
+
+
+function parseValue(type:string, value: string) {
+  let val: unknown;
+  switch (type) {
+  case 'array':
+    val = JSON.parse(value);
+    break;
+  case 'json':
+    val = JSON.parse(value);
+    break;
+  case 'number':
+    val = Number(value);
+    break;
+  case 'string':
+    val = value;
+    break;
+  case 'boolean':
+    if(!Number.isNaN(Number(value))) {
+      val = !!Number(value);
+    } else {
+      val = value === 'true';
+    }
+    break;
+  default:
+    break;
+  }
+  return val;
+}
+
+interface ConfigGeneratorOptions {
+  mode: 'all' | 'published';
+  outputDir?: string;
+  fileName?: string;
+  addMetadata?: boolean;
+}
+
+/**
+ * Main function to generate config files
+ */
+export async function generateConfig(
+  options: ConfigGeneratorOptions = { mode: 'published' },  
+): Promise<string> {
+  try {
+    logger.info('Starting config generation process...');
+    
+    // Check if required environment variables are present
+    const requiredEnvVars = ['NODE_ENV', 'MYSQL_HOST', 'MYSQL_DB', 'MYSQL_USERNAME', 'MYSQL_PASS'];
+    const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+    
+    // Check if we're in a build environment where database might not be available
+    const isBuildTime = process.env.NODE_ENV === 'production' && missingVars.length > 0;
+    
+    if (isBuildTime) {
+      logger.info('Build-time detected: Skipping config generation (database not available)');
+      logger.info('Config generation will happen at runtime when database is available');
+      return '';
+    }
+    
+    // Initialize database connection
+    await connection.sync();
+    logger.info('Database connection established');
+
+    // Check if last config file exists before generating new one
+    const lastFileExists = await checkLastConfigFileExists();
+    if (lastFileExists) {
+      logger.info('Last config file already exists, skipping generation');
+      return '';
+    }
+
+    // Fetch config records based on mode
+    const configs = await fetchConfigRecords(options.mode);
+    if (!configs || configs.length === 0) {
+      logger.warn('No configuration records found');
+      return '';
+    }
+
+    logger.info('Found config records');
+
+    // Generate config file
+    const fileName = await createConfigFile(configs, options);
+    if (fileName) {
+      logger.info(`Config file generated: ${fileName}`);
+
+      // Add entry to dst_publish table only if file was generated successfully
+      await addPublishEntry(fileName);
+      logger.info('Entry added to dst_publish table');
+    } else {
+      logger.warn('No config file generated, skipping database entry');
+      return '';
+    }
+
+    logger.info('Config generation process completed successfully');
+    return fileName || '';
+  } catch (err) {
+    // If it's a database connection error during build time, don't fail
+    if (err instanceof Error && err.message.includes('ECONNREFUSED')) {
+      logger.warn('Database connection failed during build time. This is expected in Docker build context.');
+      logger.warn('Config generation will be handled at runtime when database is available.');
+      return '';
+    }
+    
+    logger.err('Config generation process failed:', true);
+    // eslint-disable-next-line no-console
+    console.error('Detailed error:', err);
+    throw err;
+  } 
+}
+
+/**
+ * Get the last published config record
+ */
+async function getLastPublishedConfig(): Promise<Publish | null> {
+  try {
+    const lastConfig = await Publish.findOne({
+      order: [['createdAt', 'DESC']],
+    });
+    return lastConfig;
+  } catch (error) {
+    logger.err('Error fetching last published config:', true);
+    // eslint-disable-next-line no-console
+    console.error('Detailed error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Check if the last config file exists on disk
+ */
+async function checkLastConfigFileExists(): Promise<boolean> {
+  try {
+    const lastConfig = await getLastPublishedConfig();
+    if (!lastConfig) {
+      logger.info('No previous config file found');
+      return false;
+    }
+
+    const fileExists = await fs.pathExists(lastConfig.path);
+    if (fileExists) {
+      logger.info(`Last config file exists: ${lastConfig.path}`);
+    } else {
+      logger.info(`Last config file does not exist on disk: ${lastConfig.path}`);
+    }
+    
+    return fileExists;
+  } catch (error) {
+    logger.err('Error checking last config file:', true);
+    // eslint-disable-next-line no-console
+    console.error('Detailed error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch config records based on mode
+ */
+async function fetchConfigRecords(
+  mode: 'all' | 'published',
+): Promise<Config[]|null> {
+  try {
+    const queryOptions: {
+      where?: { published?: boolean };
+    } = {};
+
+    switch (mode) {
+    case 'published':
+      queryOptions.where = { published: true };
+      break;
+    case 'all':
+    default:
+      // No where clause - fetch all records
+      break;
+    }
+    
+    const config = await Config.findAll(queryOptions);
+    return config;
+  } catch (error) {
+    logger.err('Error fetching config records:', true);
+    // eslint-disable-next-line no-console
+    console.error('Detailed error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Create config file from the fetched data
+ */
+async function createConfigFile(
+  configs: Config[],
+  options: ConfigGeneratorOptions,
+): Promise<string> {
+  try {
+    const outputDir = options.outputDir || './dist/public/configs';
+    await fs.ensureDir(outputDir);
+
+    // Process single config
+    const configData: Record<string, unknown> = {};
+
+    for (const item of configs) {
+      const key = item.key;
+      try {
+        configData[key] = parseValue(item.type, item.value);
+      } catch (error) {
+        logger.err('Error parsing config value:', true);
+        // eslint-disable-next-line no-console
+        console.error('Detailed error:', error);
+        throw error;
+      }
+    }
+
+    const version = await ConfigService.getMaxIdPublish() ?? 0;
+    configData.version = version + 1;
+    const tmpDir = path.join(__dirname, 'dist/public/configs');
+    await fs.ensureDir(tmpDir);
+    const outputFilename = `config-${new Date().valueOf()}`;
+    const outputFileExtension = 'json';
+    const outputFileDir = path.join(
+      tmpDir,
+      `${outputFilename}.${outputFileExtension}`,
+    );
+    // Write config file
+    await fs.writeJson(outputFileDir, configData, { spaces: 2 });
+    
+    return outputFilename;
+  } catch (error) {
+    logger.err('Error creating config file:', true);
+    // eslint-disable-next-line no-console
+    console.error('Detailed error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Add entry to dst_publish table
+ */
+async function addPublishEntry(fileName: string): Promise<void> {
+  try {
+    const configPath = path.join(
+      __dirname,
+      'dist',
+      'public',
+      'configs',
+      `${fileName}.json`,
+    );
+    
+    // Check if entry already exists
+    const existingEntry = await Publish.findOne({
+      where: {
+        path: configPath,
+      },
+    });
+
+    if (existingEntry) {
+      logger.info(`Publish entry already exists for path: ${configPath}`);
+      return;
+    }
+
+    // Create new publish entry
+    await Publish.create({
+      name: fileName,
+      path: configPath,
+    });
+
+    logger.info(`Publish entry created for: ${configPath}`);
+  } catch (error) {
+    logger.err('Error adding publish entry:', true);
+    // eslint-disable-next-line no-console
+    console.error('Detailed error:', error);
+    throw error;
+  }
+}
+
+/**
+ * CLI interface for the config generator
+ */
+if (require.main === module) {
+  // Get mode from command line argument or default to 'all'
+  const mode = (process.argv[2] || 'published') as 'all' | 'published';
+  
+  // Validate mode
+  const validModes = ['all', 'published'];
+  if (!validModes.includes(mode)) {
+    // eslint-disable-next-line max-len
+    logger.err(`Invalid mode: ${mode}. Valid modes are: ${validModes.join(', ')}`, true);
+    // eslint-disable-next-line no-process-exit
+    process.exit(1);
+  }
+  
+  logger.info(`Generating config for mode: ${mode}`);
+  
+  generateConfig({ mode })
+    .then(fileName => {
+      if (fileName) {
+        logger.info(`Config file generated: ${fileName}`);
+      } else {
+        logger.warn('No config file generated');
+      }
+      // eslint-disable-next-line no-process-exit
+      process.exit(0);
+    })
+    .catch(error => {
+      logger.err('Error:', true);
+      // eslint-disable-next-line no-console
+      console.error('Detailed error:', error);
+      // eslint-disable-next-line no-process-exit
+      process.exit(1);
+    });
+}

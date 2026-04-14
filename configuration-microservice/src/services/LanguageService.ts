@@ -162,7 +162,6 @@ async function updatePlatform(id: string, platform: string, user_id: string, use
     description: `Updated platform for "${language.en_name}" to "${platform}".`
   });
 }
-
 // **** Export default **** //
 
 export default {

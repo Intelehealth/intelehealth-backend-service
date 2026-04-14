@@ -2,8 +2,9 @@
  * Middleware to verify user logged in and is an an admin.
  */
 
-import { Request, Response, NextFunction, ExtendedRequest } from 'express';
+import { Response, NextFunction, ExtendedRequest } from 'express';
 import HttpStatusCodes from '@src/constants/HttpStatusCodes';
+import EnvVars from '@src/constants/EnvVars';
 import jwt from 'jsonwebtoken';
 import fs from 'fs';
 import path from 'path';
@@ -38,9 +39,9 @@ async function authMw(
             .json({ error: TOKEN_MISSING });
     }
     try {
-        const decoded = jwt.verify(token, fs.readFileSync(path.join(__dirname, '../../', '.pem', 'public_key.pem'),
-            { encoding: 'utf8', flag: 'r' }
-        ));
+        const publicKeyPath = path.join(EnvVars.PemFolderPath, 'public_key.pem');
+        const decoded = jwt.verify(token, fs.readFileSync(publicKeyPath, { encoding: 'utf8', flag: 'r' }));
+        console.log(decoded);
         req.user = decoded;
         return next();
     } catch (err) {

@@ -3,6 +3,7 @@ const {
   appointments: Appointment,
   appointment_settings: Setting,
   Sequelize,
+  sequelize: mainSequelize,
 } = require("../models");
 const Op = Sequelize.Op;
 
@@ -407,26 +408,59 @@ WHERE
           },
         ]
       });
-      let mergedArray = []
-      if(pending_visits !== null) {
-        pending_visits = (pending_visits === 'true');
-        mergedArray = data.map(x => ({ ...x, visit: visits.find(y => y.uuid == x.visitUuid)?.dataValues, visitStatus: visitStatus.find(z => z.uuid == x.visitUuid)?.Status }));
-        mergedArray = mergedArray.filter(obj=>{
-          try {
-            let callStatusList = obj.visit.attributes.filter(attr=>attr.attribute_type.name === "Call Status");
-            let callStatus = JSON.parse(callStatusList?.[0]?.dataValues?.value ?? '{}')
-            if(Constant.PENDING_VISIT_BY_CALL_STATUS.includes(callStatus?.callStatus)){
-              return  pending_visits
-            } 
-            return !pending_visits
-          } catch (error) {
-             logStream("error", error.message)
-             return false
-          }
+      // Create lookup maps for O(1) access instead of O(n) find operations
+      const visitMap = new Map(visits.map(visit => [visit.uuid, visit.dataValues]));
+      const visitStatusMap = new Map(visitStatus.map(status => [status.uuid, status.Status]));
+      
+      // Parse pending_visits once
+      const isPendingVisitsFilter = pending_visits !== null ? (pending_visits === 'true') : null;
+      
+      // Single pass: map, filter, and apply pending visits filter
+      const mergedArray = data
+        .map(appointment => {
+          const visit = visitMap.get(appointment.visitUuid);
+          const visitStatus = visitStatusMap.get(appointment.visitUuid);
+          
+          return {
+            ...appointment,
+            visit,
+            visitStatus
+          };
         })
-      }
-      else
-        mergedArray = data.map(x => ({ ...x, visit: visits.find(y => y.uuid == x.visitUuid)?.dataValues, visitStatus: visitStatus.find(z => z.uuid == x.visitUuid)?.Status }));
+        .filter(appointment => {
+          // Early return: remove appointments with missing visits
+          if (!appointment.visit) {
+            return false;
+          }
+
+          // Early return: remove appointments with ended/completed status
+          if (appointment.visitStatus === "Ended Visit" || appointment.visitStatus === "Completed Visit") {
+            return false;
+          }
+
+          // Apply pending visits filter if specified
+          if (isPendingVisitsFilter !== null) {
+            try {
+              const callStatusAttr = appointment.visit.attributes?.find(
+                attr => attr.attribute_type?.name === "Call Status"
+              );
+              
+              if (callStatusAttr?.dataValues?.value) {
+                const callStatus = JSON.parse(callStatusAttr.dataValues.value);
+                const isPendingStatus = Constant.PENDING_VISIT_BY_CALL_STATUS.includes(callStatus?.callStatus);
+                return isPendingStatus === isPendingVisitsFilter;
+              }
+              
+              // If no call status found, return opposite of pending filter
+              return !isPendingVisitsFilter;
+            } catch (error) {
+              logStream("error", `Failed to parse call status for visit ${appointment.visitUuid}: ${error.message}`);
+              return false;
+            }
+          }
+
+          return true;
+        });
       logStream('debug','Success', 'Get User Slots');
       return mergedArray;
     } catch (error) {
@@ -1436,6 +1470,131 @@ WHERE
       }
     }
   }
+
+  /**
+   * Get all appointments by location UUID
+   * @param { string } locationUuid - Location UUID
+   */
+  this.getAllAppointmentsByLocation = async (locationUuid, { page = 1, limit = 20 } = {}) => {
+    try {
+      logStream('debug', 'Appointment Service', 'Get All Appointments By Location');
+      const offset = (page - 1) * limit;
+      const countQuery = `SELECT COUNT(*) AS total FROM appointments WHERE locationUuid = ?`;
+      const totalResult = await mainSequelize.query(countQuery, {
+        replacements: [locationUuid],
+        type: QueryTypes.SELECT,
+      });
+      const total = Number(totalResult?.[0]?.total || 0);
+
+      const query = `SELECT * FROM appointments WHERE locationUuid = ? ORDER BY slotJsDate DESC LIMIT ? OFFSET ?`;
+      const rows = await mainSequelize.query(query, {
+        replacements: [locationUuid, limit, offset],
+        type: QueryTypes.SELECT,
+      });
+
+      const visitUuids = [...new Set(rows.map((row) => row.visitUuid).filter(Boolean))];
+      const visitRecords = visitUuids.length
+        ? await visit.findAll({
+            where: { uuid: { [Op.in]: visitUuids } },
+            attributes: ["uuid"],
+            include: [
+              {
+                model: person_name,
+                as: "patient_name",
+                attributes: ["given_name", "family_name"],
+                required: false,
+              },
+              {
+                model: person,
+                as: "person",
+                attributes: ["gender", "birthdate", "uuid"],
+                required: false,
+              },
+              {
+                model: visit_attribute,
+                as: "attributes",
+                attributes: [["value_reference", "value"]],
+                required: false,
+                include: [
+                  {
+                    model: visit_attribute_type,
+                    as: "attribute_type",
+                    attributes: ["name", "uuid"],
+                  },
+                ],
+              },
+            ],
+          })
+        : [];
+
+      const visitMap = new Map(visitRecords.map((visitItem) => [visitItem.uuid, visitItem]));
+
+      const getPatientName = (visitItem) => {
+        const givenName = visitItem?.patient_name?.given_name || "";
+        const familyName = visitItem?.patient_name?.family_name || "";
+        const fullName = `${givenName} ${familyName}`.trim();
+        return fullName || null;
+      };
+
+      const getPatientAge = (visitItem) => {
+        const birthDate = visitItem?.person?.birthdate;
+        if (!birthDate) return null;
+        return String(moment().diff(moment(birthDate), "years"));
+      };
+
+      const getVisitSpeciality = (visitItem) => {
+        const specialityAttribute = (visitItem?.attributes || []).find((attributeItem) => {
+          return attributeItem?.attribute_type?.name === "Visit Speciality";
+        });
+
+        const specialityValue = specialityAttribute?.dataValues?.value || specialityAttribute?.value;
+        if (typeof specialityValue === "string" && specialityValue.trim()) {
+          return specialityValue.trim();
+        }
+
+        return null;
+      };
+
+      const locationRecord = await location.findOne({
+        where: { uuid: locationUuid },
+        attributes: ['uuid', 'name'],
+      });
+      const clinicName = locationRecord?.name || locationUuid;
+
+      const appointments = rows.map((item) => {
+        const visitItem = visitMap.get(item.visitUuid);
+        return {
+          patientName: getPatientName(visitItem) || item.patientName || null,
+          patientAge: getPatientAge(visitItem) || item.patientAge || null,
+          patientGender: visitItem?.person?.gender || item.patientGender || null,
+          complaint: getVisitSpeciality(visitItem) || item.reason || item.speciality || null,
+          appointmentDate: item.slotDate || null,
+          appointmentTime: item.slotTime || null,
+          locationName: clinicName,
+        };
+      });
+      logStream('debug', 'Got All Appointments By Location', 'Get All Appointments By Location');
+      return {
+        code: 200,
+        success: true,
+        data: appointments,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+          hasNextPage: page * limit < total,
+          hasPreviousPage: page > 1,
+        },
+      };
+    } catch (error) {
+      logStream('error', error.message);
+      if (error.code === null || error.code === undefined) {
+        error.code = 500;
+      }
+      return { code: error.code, success: false, data: error.data, message: error.message };
+    }
+  };
 
   return this;
 })();

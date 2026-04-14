@@ -75,7 +75,9 @@
   "include": [
     "src/**/*.ts",
     "spec/**/*.ts",
-    "build.ts"
+    "build.ts",
+    "post-build.ts",
+    "config-generator.ts"
   ],
   "exclude": [
     "src/public/"

@@ -11,8 +11,6 @@ import cors from 'cors';
 import express, { Request, Response, NextFunction } from 'express';
 import logger from 'jet-logger';
 
-import 'express-async-errors';
-
 import BaseRouter from '@src/routes/api';
 import Paths from '@src/constants/Paths';
 
@@ -58,6 +56,15 @@ app.use(cors({
   credentials: true
 }));
 
+// Health check endpoint
+app.get(Paths.Health, (_: Request, res: Response) => {
+  res.status(HttpStatusCodes.OK).json({ 
+    status: 'healthy', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
 // Add APIs, must be after middleware
 app.use(Paths.Base, BaseRouter);
 
@@ -87,7 +94,7 @@ const viewsDir = path.join(__dirname, 'views');
 app.set('views', viewsDir);
 
 // Set static directory (js and css).
-const staticDir = path.join(__dirname, 'public');
+const staticDir = path.join(__dirname, '../public');
 app.use(express.static(staticDir));
 
 // Nav to login pg by default
