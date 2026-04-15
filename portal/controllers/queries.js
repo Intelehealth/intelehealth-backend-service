@@ -22,40 +22,39 @@ module.exports = (function () {
                         or lower(encounter_type.name) like "%emergency%"
                     ))
                 ) then "Visit In Progress"
+                else "Visit In Progress"
             end as "Status"
         from
-            encounter
-            left join encounter_type on encounter.encounter_type = encounter_type.encounter_type_id
-            join (
+            (
                 select
                     v.visit_id,
                     v.patient_id,
                     v.uuid,
-                    max(encounter_id) as max_enc,
+                    max(e.encounter_id) as max_enc,
                     max(
                         case
-                            when (encounter_type in (12, 14)) then 1
+                            when (e.encounter_type in (12, 14)) then 1
                             else 0
                         end
                     ) as com_enc,
                     max(
-                    case
-                        when (v.date_stopped is not null) then 1
-                        else 0
-                    end
+                        case
+                            when (v.date_stopped is not null) then 1
+                            else 0
+                        end
                     ) as ended
                 from
                     visit v
-                    left join encounter e using (visit_id)
+                    left join encounter e on v.visit_id = e.visit_id and e.voided = 0
                 where
                     v.voided = 0
-                    and e.voided = 0
                 group by
                     v.visit_id,
                     v.patient_id
             ) as t1
-        on encounter.encounter_id = max_enc
-        order by visit_id desc`;
+            left join encounter on encounter.encounter_id = t1.max_enc
+            left join encounter_type on encounter.encounter_type = encounter_type.encounter_type_id
+        order by t1.visit_id desc`;
     };
 
     this.getVisitScore = (encounter_id) => {
