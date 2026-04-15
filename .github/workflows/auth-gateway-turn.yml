@@ -61,13 +61,13 @@ jobs:
             -o StrictHostKeyChecking=no \
             -P $REMOTE_PORT \
             app-image.tar \
-            $REMOTE_USER@$TURN_HOST:/tmp/
+            $REMOTE_USER@REMOTE_HOST:/tmp/
         
         # SSH into remote host and deploy
         ssh -i ~/.ssh/deploy_key \
             -o StrictHostKeyChecking=no \
             -P $REMOTE_PORT \
-            $REMOTE_USER@$TURN_HOST <<'EOF'
+            $REMOTE_USER@REMOTE_HOST <<'EOF'
             DOCKER_IMAGE_NAME="${{ env.DOCKER_IMAGE_NAME }}"
             ENV_FILE_PATH="${{ env.ENV_FILE_PATH }}"
             PEM_FOLDER_PATH="${{ env.PEM_FOLDER_PATH }}"
@@ -123,5 +123,5 @@ jobs:
         ssh -i ~/.ssh/deploy_key \
             -o StrictHostKeyChecking=no \
             -p $REMOTE_PORT \
-            $REMOTE_USER@$TURN_HOST \
+            $REMOTE_USER@$REMOTE_HOST \
             "docker ps | grep $DOCKER_IMAGE_NAME && echo 'auth-gateway deployment successful!'"
