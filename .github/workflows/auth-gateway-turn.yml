@@ -1,11 +1,13 @@
 name: auth-gateway-turn
 
 on:
-  workflow_dispatch: # Allows manual trigger
+  
   push:
     branches: [development_master]  
     paths:
       - 'auth-gateway/**'  # Only trigger when changes in auth-gateway folder
+  workflow_dispatch: # Allows manual trigger
+  
 env:
   DOCKER_IMAGE_NAME: auth-gateway
   REMOTE_HOST: ${{secrets.TURN_HOST}}
