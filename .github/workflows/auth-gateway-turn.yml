@@ -5,7 +5,7 @@ on:
   push:
     branches: [development_master]  
     paths:
-      - 'auth-gateway/**'  # Only trigger when changes in portal folder
+      - 'auth-gateway/**'  # Only trigger when changes in auth-gateway folder
 env:
   DOCKER_IMAGE_NAME: auth-gateway
   REMOTE_HOST: ${{secrets.TURN_HOST}}
