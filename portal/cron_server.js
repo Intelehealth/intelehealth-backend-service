@@ -2,6 +2,7 @@ const cron = require("node-cron");
 const moment = require("moment");
 const mysql = require("./handlers/mysql/mysql");
 const { sendWebPushNotification } = require("./handlers/helper");
+const { cleanupRecords } = require("./services/temp-storage.service");
 
 const cronString = "*/1 * * * *";
 const SQL_DATE_FORMAT = "YYYY-MM-DD HH:mm:ss";
@@ -84,6 +85,23 @@ cron.schedule(cronString, sendAppointmentNotification1min, {
 cron.schedule(cronString, sendAppointmentNotification15min, {
   scheduled: true,
 });
+
+// Temp storage cleanup cron - As dev server gets off 10PM and starts at 9AM will runs daily at 8:00 PM
+const tempStorageCronString = process.env.TEMP_STORAGE_CLEANUP_CRON || "0 20 * * *";
+const tempStorageCleanup = async () => {
+  try {
+    const result = await cleanupRecords();
+    console.log(`Temp storage cleanup completed: ${JSON.stringify(result)}`);
+  } catch (err) {
+    console.error(`Temp storage cleanup failed: ${err.message}`);
+  }
+};
+
+if (cron.validate(tempStorageCronString)) {
+  cron.schedule(tempStorageCronString, tempStorageCleanup, {
+    scheduled: true,
+  });
+}
 
 process.on("uncaughtException", function (err) {
   throw err;

@@ -97,6 +97,21 @@ const MESSAGE = {
     PRESCRIPTION: {
         INVALID_LINK: "Invalid link!",
         INVALID_OTP: "Invalid OTP!"
+    },
+    TEMP_STORAGE: {
+        RESOURCE_CREATED_SUCCESSFULLY: "Resource created successfully!",
+        RESOURCE_UPDATED_SUCCESSFULLY: "Resource updated successfully!",
+        RESOURCE_FETCHED_SUCCESSFULLY: "Resource fetched successfully!",
+        CHILDREN_FETCHED_SUCCESSFULLY: "Child resources fetched successfully!",
+        PENDING_FETCHED_SUCCESSFULLY: "Pending resources fetched successfully!",
+        RESOURCES_SYNCED_SUCCESSFULLY: "Resources synced successfully!",
+        RESOURCE_DELETED_SUCCESSFULLY: "Resource deleted successfully!",
+        RESOURCE_NOT_FOUND: "Resource not found!",
+        IDS_REQUIRED: "ids array is required!",
+        RESOURCE_TYPE_REQUIRED: "resource_type is required!",
+        RESOURCE_ID_REQUIRED: "resource_id is required!",
+        CREATED_BY_REQUIRED: "created_by is required!",
+        FILE_REQUIRED: "File is required for asset upload!"
     }
 }
 

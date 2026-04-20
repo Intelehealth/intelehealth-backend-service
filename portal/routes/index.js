@@ -36,5 +36,6 @@ router.use("/support", require("./support.route"));
 router.use("/openai", require("./openai.route"));
 router.use('/signature', require("./signature.route"));
 router.use('/pincode', require("./pincode.route"));
+router.use('/temp-storage', require("./temp-storage.route"));
 
 module.exports = router;
