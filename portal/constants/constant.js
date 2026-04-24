@@ -56,6 +56,33 @@ module.exports = {
         ENDED: 'Ended Visit',
         FOLLOW_UP:'Follow-Up'
     },
+    RESOURCE_TYPE: 'resource_type',
+    RESOURCE_ID: 'resource_id',
+    PARENT_ID: 'parent_id',
+    PARENT_TYPE: 'parent_type',
+    DATA: 'data',
+    CREATED_BY: 'created_by',
+    SYNC_STATUS: 'sync_status',
+    RESOURCE_TYPES: {
+        PATIENT: 'patient',
+        VISIT: 'visit',
+        ASSET: 'asset'
+    },
+    SYNC_STATUSES: {
+        PENDING: 'pending',
+        SYNCED: 'synced'
+    },
+    TEMP_STORAGE: {
+        UPLOAD_FOLDER: 'temp_storage',
+        DEFAULT_SYNCED_RETENTION_DAYS: 7,
+        DEFAULT_UNSYNCED_RETENTION_DAYS: 30,
+        MS_PER_DAY: 24 * 60 * 60 * 1000,
+        CLEANUP_ORDER: ['asset', 'visit', 'patient']
+    },
+    SORT_ORDER: {
+        ASC: 'ASC',
+        DESC: 'DESC'
+    },
     PENDING_VISIT_BY_CALL_STATUS: [
         "Review of Imaging", 
         "Review with Reports",
