@@ -97,11 +97,12 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix: ${{ fromJson(needs.prepare-matrix.outputs.matrix) }}
-      fail-fast: false
+      fail-fast: false  # a failure on one host should not cancel the other
     env:
       REMOTE_PORT: 22
       ENV_FILE_PATH: /home/ubuntu/deploy/auth-gateway/.env
       PEM_FOLDER_PATH: /home/ubuntu/deploy/auth-gateway/.pem
+      # All host secrets mapped upfront — dynamic secret refs aren't supported in GitHub Actions
       DEV_HOST: ${{ secrets.DEV_HOST }}
       TURN_HOST: ${{ secrets.TURN_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
