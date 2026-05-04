@@ -79,7 +79,7 @@ jobs:
           cache-dependency-path: portal/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm clean-install
         working-directory: portal
 
       - name: Build Docker image
