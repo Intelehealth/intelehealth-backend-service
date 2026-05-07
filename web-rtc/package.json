@@ -3,6 +3,13 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "overrides": {
+    "uuid": "^14.0.0"
+  },
   "scripts": {
     "start": "ts-node src/index.ts",
     "dev": "nodemon src/index.ts",
@@ -33,7 +40,7 @@
     "@types/jsonwebtoken": "^9.0.5",
     "@types/moment": "^2.13.0",
     "@types/ws": "^8.5.4",
-    "nodemon": "^2.0.22",
+    "nodemon": "^3.1.14",
     "ts-node": "^10.9.1",
     "typescript": "^5.0.4",
     "winston": "^3.11.0",
