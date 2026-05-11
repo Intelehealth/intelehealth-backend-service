@@ -27,11 +27,11 @@ on:
       deploy_dev:
         description: 'Deploy to DEV host'
         type: boolean
-        default: true
+        default: false
       deploy_turn:
         description: 'Deploy to TURN host'
         type: boolean
-        default: false
+        default: true
   push:
     branches: [development_master]
     paths:
