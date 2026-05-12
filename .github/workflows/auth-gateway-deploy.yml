@@ -65,9 +65,13 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    outputs:
+      migrations_changed: ${{ steps.check-migrations.outputs.changed }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -79,6 +83,19 @@ jobs:
       - name: Install dependencies
         run: npm i --production=false
         working-directory: auth-gateway
+
+      - name: Check for migration file changes
+        id: check-migrations
+        run: |
+          if [ "${{ github.event_name }}" != "push" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q "^auth-gateway/migrations/" \
+              && echo "changed=true" >> $GITHUB_OUTPUT \
+              || echo "changed=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Build Docker image
         run: |
@@ -170,6 +187,19 @@ jobs:
             docker image prune -f
             echo "Auth-gateway deployment to ${{ matrix.environment }} completed successfully"
           EOF
+
+      - name: Run migrations on ${{ matrix.environment }} host
+        if: needs.build.outputs.migrations_changed == 'true'
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              -p $REMOTE_PORT \
+              $REMOTE_USER@$REMOTE_HOST \
+              "docker exec ${{ env.DOCKER_IMAGE_NAME }} npm run migrate"
 
       - name: Verify deployment on ${{ matrix.environment }}
         run: |
