@@ -132,4 +132,12 @@ export default {
     UpdateIsEnabled: '/updateIsEnabled/:id',
     updateHomeScreenName: '/updateHomeScreenName/:id',
   },
+  IhFhirModule: {
+    Base: '/ih-fhir-module',
+    Get: '/all',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+    UpdateName: '/updateName/:id',
+    UpdateOrder: '/update-order',
+    UpdateSubSectionIsEnabled: '/updateSubSectionIsEnabled/:id',
+  },
 } as const;

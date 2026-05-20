@@ -26,6 +26,7 @@ import DropdownRoutes from './DropdownRoutes';
 import AILLMRoutes from './AILLMRoutes';
 import HomeScreenRoutes from './HomeScreenRoutes';
 import AILLMRecordingRoutes from './AILLMRecordingRoutes';
+import IhFhirModuleRoutes from './IhFhirModuleRoutes';
 
 // **** Variables **** //
 
@@ -626,6 +627,47 @@ homeScreenSectionsRouter.put(
 
 // Add HomeScreenRouter
 apiRouter.use(Paths.HomeScreen.Base, authMw, homeScreenSectionsRouter);
+
+// **** Setup ihFhirModuleRouter **** //
+
+const ihFhirModuleRouter = Router();
+
+// Get all IH FHIR module sections
+ihFhirModuleRouter.get(
+  Paths.IhFhirModule.Get,
+  IhFhirModuleRoutes.getAll,
+);
+
+// Update one IH FHIR module status
+ihFhirModuleRouter.put(
+  Paths.IhFhirModule.UpdateIsEnabled,
+  validate(['id', 'number', 'params'], ['fhir', 'boolean', 'body']),
+  IhFhirModuleRoutes.updateIsEnabled,
+);
+
+// Update one IH FHIR module name
+ihFhirModuleRouter.put(
+  Paths.IhFhirModule.UpdateName,
+  validate(['id', 'number', 'params'], ['lang', 'object', 'body']),
+  IhFhirModuleRoutes.updateName,
+);
+
+// Update IH FHIR module order
+ihFhirModuleRouter.put(
+  Paths.IhFhirModule.UpdateOrder,
+  validate(['order', 'object', 'body']),
+  IhFhirModuleRoutes.updateOrder,
+);
+
+// Update IH FHIR module sub-section status
+ihFhirModuleRouter.put(
+  Paths.IhFhirModule.UpdateSubSectionIsEnabled,
+  validate(['id', 'number', 'params'], ['is_enabled', 'boolean', 'body'], ['sub_section', 'string', 'body']),
+  IhFhirModuleRoutes.updateSubSectionIsEnabled,
+);
+
+// Add IhFhirModuleRouter
+apiRouter.use(Paths.IhFhirModule.Base, authMw, ihFhirModuleRouter);
 
 // **** Export default **** //
 

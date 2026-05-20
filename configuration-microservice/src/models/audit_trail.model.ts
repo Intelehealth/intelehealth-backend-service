@@ -69,7 +69,13 @@ export class AuditTrail extends Model<AuditTrailAttributes, AuditTrailCreationAt
             'AI LLM RECORDING CONFIG UPDATED',
             'PLATFORM UPDATED',
             'LANGUAGE PLATFORM UPDATED',
-            'LANGUAGE STATUS UPDATED'
+            'LANGUAGE STATUS UPDATED',
+            'TRAINING CONTENT ENABLED STATUS UPDATED',
+            'TRAINING CONTENT NAME UPDATED',
+            'IH FHIR MODULE ENABLED STATUS UPDATED',
+            'IH FHIR MODULE NAME UPDATED',
+            'IH FHIR MODULE ORDER UPDATED',
+            'IH FHIR MODULE SUB SECTION ENABLED STATUS UPDATED'
         ],
         allowNull: false
     })
