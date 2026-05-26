@@ -170,7 +170,6 @@ module.exports = function (server) {
     socket.on("bye", async function (data) {
       const socketUser = users[data?.socketId];
 
-      // ✅ If call was already handled in cancel_dr
       if (socketUser && socketUser.callTerminated) {
         console.log("Skipping bye: already handled by cancel_dr");
         return;
@@ -264,7 +263,7 @@ module.exports = function (server) {
 
     socket.on("cancel_dr", async function (data) {
       for (const id in users) {
-        if (users[id].nurseId === data?.nurseId) {
+        if (users[id].nurseId === data?.nurseId || users[id].uuid === data?.nurseId) {
           users[id].callStatus = CALL_STATUSES.DR_CANCELLED;
           users[id].callTerminated = true;
           const usersRecord = {
@@ -288,7 +287,7 @@ module.exports = function (server) {
 
     socket.on("call_time_up", async function (toUserUuid) {
       for (const id in users) {
-        if (users[id].nurseId === toUserUuid) {
+        if (users[id].nurseId === toUserUuid || users[id].uuid === toUserUuid) {
           users[id].callStatus = CALL_STATUSES.IDLE;
           users[id].callTerminated = true;
           const usersRecord = {
@@ -296,7 +295,7 @@ module.exports = function (server) {
             doctorId: users[id].uuid,
             roomId: users[id].room,
             callStatus: CALL_STATUSES.UNSUCCESS,
-            reason: 'Sevika not available to pick the call'
+            reason: 'Sevika not available to pick the call.'
           }
           await updateCallRecordOfWebrtc(usersRecord);
           emitAllUserStatus();
@@ -320,7 +319,7 @@ module.exports = function (server) {
             doctorId: users[id].uuid,
             roomId: users[socket.id].room,
             callStatus: CALL_STATUSES.UNSUCCESS,
-            reason: 'Sevika rejected the call'
+            reason: 'Call rejected by Sevika'
           }
           await updateCallRecordOfWebrtc(usersRecord);
           emitAllUserStatus();
