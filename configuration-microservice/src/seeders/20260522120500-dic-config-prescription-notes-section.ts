@@ -12,7 +12,6 @@ module.exports = {
             value: true,
             type: 'boolean',
             default_value: true,
-            platform: 'Both',
           },
         ],
         { transaction }
