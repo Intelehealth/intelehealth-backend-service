@@ -132,4 +132,10 @@ export default {
     UpdateIsEnabled: '/updateIsEnabled/:id',
     updateHomeScreenName: '/updateHomeScreenName/:id',
   },
+  PrescriptionNotes: {
+    Base: '/prescription-notes',
+    Get: '/all',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+    UpdateNotes: '/updateNotes/:id',
+  },
 } as const;
