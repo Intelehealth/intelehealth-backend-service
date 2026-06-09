@@ -2,6 +2,7 @@ import { QueryInterface } from 'sequelize';
 
 const ihFhirModuleConfig = {
   fhir: true,
+  shr: true,
 };
 
 /** @type {import('sequelize-cli').Migration} */

@@ -12,6 +12,17 @@ const ihFhirModule = [
     sub_sections: JSON.stringify([]),
     platform: 'Both',
   },
+  {
+    name: 'SHR Module',
+    lang: JSON.stringify({ en: 'SHR Module' }),
+    key: 'shr',
+    order: 2,
+    is_editable: true,
+    is_enabled: true,
+    is_locked: false,
+    sub_sections: JSON.stringify([]),
+    platform: 'Both',
+  },
 ];
 
 /** @type {import('sequelize-cli').Migration} */

@@ -641,7 +641,7 @@ ihFhirModuleRouter.get(
 // Update one IH FHIR module status
 ihFhirModuleRouter.put(
   Paths.IhFhirModule.UpdateIsEnabled,
-  validate(['id', 'number', 'params'], ['fhir', 'boolean', 'body']),
+  validate(['id', 'number', 'params']),
   IhFhirModuleRoutes.updateIsEnabled,
 );
 
