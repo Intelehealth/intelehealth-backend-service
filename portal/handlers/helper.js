@@ -2,6 +2,7 @@ const mysql = require("../handlers/mysql/mysql");
 const webpush = require("web-push");
 const axios = require("axios");
 const admin = require("firebase-admin");
+const { logStream } = require("../logger/index");
 
 const {
   FIREBASE_SERVICE_ACCOUNT_KEY,
@@ -129,10 +130,21 @@ const sendCloudNotification = async ({
      // click_action,
     };
   }
+  logStream('debug', `FCM: sending to ${regTokens?.length || 0} token(s), title='${title || ''}', dataOnly=${!title}`, 'sendCloudNotification');
   try {
     const result = await messaging.sendEachForMulticast(payload);
+    logStream('debug', `FCM: result successCount=${result?.successCount}, failureCount=${result?.failureCount}`, 'sendCloudNotification');
+    // sendEachForMulticast does NOT throw on bad tokens; per-token errors live in responses[].
+    if (result?.failureCount) {
+      result.responses?.forEach((r, i) => {
+        if (!r.success) {
+          logStream('error', `FCM: token[${i}] failed - ${r.error?.code}: ${r.error?.message}`, 'sendCloudNotification');
+        }
+      });
+    }
     return result;
   } catch (err) {
+    logStream('error', `FCM: sendEachForMulticast threw - ${err?.message || err}`, 'sendCloudNotification');
     console.error("Cloud notification error:", err);
   }
 };
