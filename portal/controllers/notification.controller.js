@@ -52,6 +52,12 @@ const setUserSettings = async ({ body }, res) => {
     where: { user_uuid: body.user_uuid },
   });
   const dataToUpdate = { ...body.data };
+  // When a device registration token is provided, enable notifications for the
+  // user. Saving a token otherwise leaves `notification` at its default (off),
+  // which silently blocks all push notifications even though the token is valid.
+  if (dataToUpdate.device_reg_token) {
+    dataToUpdate.notification = true;
+  }
   if (data) {
     delete dataToUpdate.user_uuid;
     data = await data.update(dataToUpdate);
