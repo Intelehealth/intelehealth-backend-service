@@ -22,7 +22,7 @@ module.exports = (sequelize, DataTypes) => {
       locale: DataTypes.STRING,
       otp: DataTypes.STRING,
       otpFor: { type: DataTypes.ENUM, values: ['U', 'P', 'A'] },
-      notification: { type: DataTypes.BOOLEAN, defaultValue: 0 }
+      notification: { type: DataTypes.BOOLEAN, defaultValue: 1 }
     },
     {
       sequelize,
