@@ -145,7 +145,7 @@ module.exports = (function () {
           },
         });
         logStream('debug', `Notification: push gate check toUser=${toUser} - notification=${us?.notification}, appType='${appType}', snooze_till=${us?.snooze_till}`, 'Send Message');
-        if (us && us?.notification && appType !== 'webapp') {
+        if (us && us?.notification) {
           if (us?.snooze_till ? new Date().valueOf() > us?.snooze_till : true) {
             logStream('debug', `Notification: sending web push notification to toUser=${toUser}`, 'Send Message');
             notificationResponse = this.sendMessageNotification(req.body);
