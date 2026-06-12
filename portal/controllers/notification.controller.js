@@ -52,12 +52,6 @@ const setUserSettings = async ({ body }, res) => {
     where: { user_uuid: body.user_uuid },
   });
   const dataToUpdate = { ...body.data };
-  // When a device registration token is provided, enable notifications for the
-  // user. Saving a token otherwise leaves `notification` at its default (off),
-  // which silently blocks all push notifications even though the token is valid.
-  if (dataToUpdate.device_reg_token) {
-    dataToUpdate.notification = true;
-  }
   if (data) {
     delete dataToUpdate.user_uuid;
     data = await data.update(dataToUpdate);
@@ -278,10 +272,13 @@ const snoozeNotification = async ( req, res) => {
 const notifyApp = async (req, res, next) => {
   try {
     logStream('debug', 'API call', 'Notify App');
+    console.log('[notifyApp] called for userId:', req.params.userId, '| body:', JSON.stringify(req.body));
     let userSetting = await user_settings.findOne({
       where: { user_uuid: req.params.userId },
     });
     let data = null;
+
+    console.log('[notifyApp] userSetting found:', !!userSetting, '| has device_reg_token:', !!userSetting?.device_reg_token, '| notification flag:', userSetting?.notification);
 
     if (userSetting?.device_reg_token) {
       let notficationObj = {
@@ -293,8 +290,18 @@ const notifyApp = async (req, res, next) => {
       if (req.body.title) notficationObj.title = req.body.title;
       if (req.body.body) notficationObj.body = req.body.body;
 
+      console.log('[notifyApp] sending FCM notification:', JSON.stringify(notficationObj));
+
       data = await sendPrescriptionCloudNotification(notficationObj)
         .then((res) => {
+          console.log('[notifyApp] FCM result - successCount:', res?.successCount, '| failureCount:', res?.failureCount);
+          if (res?.failureCount) {
+            res.responses?.forEach((r, i) => {
+              if (!r.success) {
+                console.log(`[notifyApp] FCM token[${i}] failed -`, r.error?.code, ':', r.error?.message);
+              }
+            });
+          }
           if(res) createNotification({
             type: req.body.type ?? 'prescription',
             user_uuid: req.params.userId,
@@ -304,8 +311,11 @@ const notifyApp = async (req, res, next) => {
           })
         })
         .catch((err) => {
+          console.log('[notifyApp] FCM send error:', err?.message || err);
           logStream("error", err.message);
         });
+    } else {
+      console.log('[notifyApp] skipped - no device_reg_token for userId:', req.params.userId);
     }
     logStream('debug', `Success`, 'Notify App');
     res.json({
@@ -313,6 +323,7 @@ const notifyApp = async (req, res, next) => {
       data,
     });
   } catch (error) {
+    console.log('[notifyApp] caught error:', error?.message || error);
     logStream("error", error.message);
     next(error);
   }

@@ -112,16 +112,14 @@ module.exports = (function () {
           }
         }
         let notificationResponse = "";
-        logStream('debug', `Notification: toUser=${toUser}, appType='${appType}', isLiveMessageSent=${isLiveMessageSent}`, 'Send Message');
         if (!isLiveMessageSent) {
           const userSetting = await user_settings.findOne({
             where: { user_uuid: toUser },
           });
           if (userSetting && userSetting.device_reg_token) {
-            logStream('debug', `Notification: sending FCM cloud notification to device token for toUser=${toUser}`, 'Send Message');
             notificationResponse = await sendCloudNotification({
              // title: "New chat message",
-             title: "",
+             title: "", 
              body: message,
               data: {
                 ...req.body,
@@ -129,14 +127,9 @@ module.exports = (function () {
               },
               regTokens: [userSetting.device_reg_token],
             }).catch((err) => {
-              logStream('error', `Notification: FCM cloud notification failed for toUser=${toUser}: ${err?.message || err}`, 'Send Message');
               console.log("err: ", err);
             });
-          } else {
-            logStream('debug', `Notification: FCM skipped - no device_reg_token for toUser=${toUser}`, 'Send Message');
           }
-        } else {
-          logStream('debug', `Notification: FCM skipped - live message already delivered via socket for toUser=${toUser}`, 'Send Message');
         }
         // Send push notification
         const us = await user_settings.findOne({
@@ -144,16 +137,10 @@ module.exports = (function () {
             user_uuid: toUser,
           },
         });
-        logStream('debug', `Notification: push gate check toUser=${toUser} - notification=${us?.notification}, appType='${appType}', snooze_till=${us?.snooze_till}`, 'Send Message');
-        if (us && us?.notification) {
+        if (us && us?.notification && appType !== 'webapp') {
           if (us?.snooze_till ? new Date().valueOf() > us?.snooze_till : true) {
-            logStream('debug', `Notification: sending web push notification to toUser=${toUser}`, 'Send Message');
             notificationResponse = this.sendMessageNotification(req.body);
-          } else {
-            logStream('debug', `Notification: web push skipped - notifications snoozed until ${us?.snooze_till} for toUser=${toUser}`, 'Send Message');
           }
-        } else {
-          logStream('debug', `Notification: web push skipped - gate failed (notification=${us?.notification}, appType='${appType}') for toUser=${toUser}`, 'Send Message');
         }
         logStream('debug', 'Success', 'Send Message');
         res.json({ ...data, notificationResponse });
@@ -173,7 +160,7 @@ module.exports = (function () {
    * @param {*} res
    */
   this.getMessages = async (req, res) => {
-    const { fromUser, toUser, patientId } = req.params || {};
+    const { fromUser, toUser, patientId } = req.params;
     const visitId = req.query.visitId;
     const keysAndTypeToCheck = [
       { key: Constant.FROM_USER, type: "string" },
@@ -273,7 +260,7 @@ module.exports = (function () {
    * @param {*} res
    */
   this.getVisits = async (req, res) => {
-    const { patientId } = req.params || {};
+    const { patientId } = req.params;
     const keysAndTypeToCheck = [{ key: Constant.PATIENT_ID, type: "string" }];
     try {
       logStream('debug', 'API call', 'Get Visits');
