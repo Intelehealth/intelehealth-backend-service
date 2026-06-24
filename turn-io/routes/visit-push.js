@@ -67,8 +67,66 @@ const ABD_PAIN_FIELDS = [
    ["assoc_injury_abdomen",     "Associated: injury to abdomen"],
 ];
 
+const COUGH_FIELDS = [
+  ["cough_start_time",          "Cough started"],
+  ["onset",                     "Onset"],
+  ["timing",                    "Timing"],
+  ["when_worst",                "When worst"],
+  ["progression",               "Progression"],
+
+  ["nature",                    "Nature"],
+  ["character",                 "Character"],
+  ["severity",                  "Severity"],
+
+  ["aggravating",               "Aggravating factors"],
+  ["aggravating_2",             "Aggravating factors (2)"],
+  ["agg_other",                 "Aggravating factors (other)"],
+  ["agg_another",               "Aggravating factors (other 2)"],
+
+  ["assoc_short_breath",        "Associated: shortness of breath"],
+  ["assoc_fast_breath",         "Associated: fast breathing"],
+  ["assoc_chest_pain",          "Associated: chest pain"],
+  ["assoc_pain_on_cough",       "Associated: pain on coughing"],
+
+  ["assoc_wheezing",            "Associated: wheezing"],
+  ["assoc_stridor",             "Associated: stridor"],
+  ["assoc_hoarseness_voice",    "Associated: hoarseness of voice"],
+  ["assoc_throat_pain",         "Associated: throat pain"],
+
+  ["assoc_sneezing",            "Associated: sneezing"],
+  ["assoc_itchy_eyes",          "Associated: itchy eyes"],
+  ["assoc_nose_runny_block",    "Associated: runny/blocked nose"],
+  ["assoc_post_dripp",          "Associated: post-nasal drip"],
+  ["assoc_sinus_pain",          "Associated: sinus pain"],
+
+  ["assoc_bad_breath",          "Associated: bad breath"],
+  ["assoc_chok_fore_body_aspir","Associated: choking/foreign body aspiration"],
+  ["assoc_lose_smell_sen",      "Associated: loss of smell"],
+
+  ["blood_in_sputum",           "Blood in sputum"],
+  ["blood_amount",              "Blood amount"],
+
+  ["sputum_colour",             "Sputum colour"],
+  ["sputum_quantity",           "Sputum quantity"],
+
+  ["other_symptoms",            "Other symptoms"],
+  ["other_symptoms_2",          "Other symptoms (2)"],
+  ["other_sym_other",           "Other symptoms (other)"],
+  ["other_sym_another",         "Other symptoms (another)"],
+  ["additional",                "Additional information"],
+
+  ["treatment",                 "Treatment"],
+  ["treatment_details",         "Treatment details"],
+
+  ["weight",                    "Weight"]
+];
+
 const symptomDetailRows = (obj = {}) =>
-   ABD_PAIN_FIELDS.map(([key, label]) => ({ label, value: clean(obj[key]) }));
+   [
+  ...ABD_PAIN_FIELDS,
+  ...COUGH_FIELDS,
+].map(([key, label]) => ({ label, value: clean(obj[key]) }));
+
 
 // Doctor-portal obs values are {en, "l-en"} JSON; markup mirrors the HW webapp
 // (visit-upload.service.ts). en = display HTML, l-en = raw structured text.
@@ -134,7 +192,10 @@ const buildPushBundle = (personUuid, symptom, results, symptomData, patientHisto
    // Chief Complaint badge + detail rows. When Turn sends the nested
    // `abdominal_pain` object, its fields are the rows; otherwise fall back to
    // the flat `results.*` fields (older flows).
+
    const complaintName = clean(r.main_problem, symptom);
+
+
    const visitReasonRows = symptomData
       ? symptomDetailRows(symptomData)
       : [
@@ -146,6 +207,7 @@ const buildPushBundle = (personUuid, symptom, results, symptomData, patientHisto
          { label: "Village / Address",        value: clean(r.village_address) },
          { label: "District / Town",          value: clean(r.district_town) },
       ];
+
 
    // Allergies: Turn sends `medication_allergy` (Yes/No) + `allergy_type` (the
    // drug) separately. Show the drug if allergic, else the Yes/No answer.
@@ -274,7 +336,7 @@ router.post("/visit_push", async (req, res) => {
 
       const symptom = req.body.symptom || "Abdominal pain";
       const results = req.body.results || {};
-      const symptomData = req.body.abdominal_pain || null;
+      const symptomData = req.body.symptoms_data || null;
       const patientHistory = req.body.patient_history || {};
       const familyHistory = req.body.family_history || {};
 
