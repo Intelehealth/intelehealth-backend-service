@@ -338,6 +338,7 @@ WHERE
             as: "attributes",
             attributes: [["value_reference","value"]],
             required: false,
+            separate: true, // run as its own batched query to avoid Cartesian-product row explosion
             include: [
               {
                 model: visit_attribute_type,
@@ -350,12 +351,14 @@ WHERE
             model: encounter,
             as: "encounters",
             attributes: ["encounter_datetime"],
+            separate: true, // batched query per visit; prevents visit×encounter fan-out
             include: [
               {
                 model: obs,
                 as: "obs",
                 attributes: ["value_text", "concept_id", "value_numeric"],
-                required: false
+                required: false,
+                separate: true // obs is the biggest multiplier in OpenMRS — load it separately
               },
               {
                 model: encounter_type,
@@ -384,7 +387,8 @@ WHERE
                 model: person_attribute,
                 as: "person_attribute",
                 attributes: ["value", "person_attribute_type_id"],
-                where: {person_attribute_type_id: 8}
+                where: {person_attribute_type_id: 8},
+                separate: true
               }
             ],
           },
@@ -392,6 +396,7 @@ WHERE
             model: person_attribute,
             as: "person_attribute",
             attributes: ["value"],
+            separate: true,
             include: [
               {
                 model: person_attribute_type,
