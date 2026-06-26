@@ -1,5 +1,5 @@
 const mysql = require("../public/javascripts/mysql/mysql");
-const { user_settings } = require("../models");
+const { getModels } = require('../db/context');
 const { RES } = require("../handlers/helper");
 
 Date.prototype.addMinutes = function (m) {
@@ -128,7 +128,8 @@ const getUserSettings = async ({ params }, res) => {
   if (!params.uuid)
     res.status(422).json({ message: "Please pass correct user uuid!" });
 
-  let data = await user_settings.findOne({
+  const models = getModels();
+  let data = await models.user_settings.findOne({
     where: { user_uuid: params.uuid },
   });
   if (!data) data = {};
@@ -144,7 +145,8 @@ const setUserSettings = async ({ body }, res) => {
   if (!body.user_uuid)
     res.status(422).json({ message: "Please pass correct user uuid!" });
 
-  let data = await user_settings.findOne({
+  const models = getModels();
+  let data = await models.user_settings.findOne({
     where: { user_uuid: body.user_uuid },
   });
   let dataToUpdate = { ...body.data };
@@ -152,7 +154,7 @@ const setUserSettings = async ({ body }, res) => {
     delete dataToUpdate.user_uuid;
     data = await data.update(dataToUpdate);
   } else {
-    data = await user_settings.create({
+    data = await models.user_settings.create({
       ...dataToUpdate,
       user_uuid: body.user_uuid,
       snooze_till: "",
@@ -170,7 +172,8 @@ const getNotificationStatus = async ( req, res) => {
   try {
     const { uuid } = req.params;
     if (uuid) {
-      let user = await user_settings.findOne({
+      const models = getModels();
+      let user = await models.user_settings.findOne({
         where: {
           user_uuid: uuid,
         },
@@ -181,7 +184,7 @@ const getNotificationStatus = async ( req, res) => {
           await user.save();
         }
       } else {
-        user = await user_settings.create({
+        user = await models.user_settings.create({
           user_uuid: uuid,
           notification: 1,
           snooze_till: ''
@@ -222,7 +225,8 @@ const toggleNotificationStatus = async ( req, res) => {
   try {
     const { uuid } = req.params;
     if (uuid) {
-      let user = await user_settings.findOne({
+      const models = getModels();
+      let user = await models.user_settings.findOne({
         where: {
           user_uuid: uuid,
         },
@@ -270,7 +274,8 @@ const snoozeNotification = async ( req, res) => {
     const { snooze_for } = req.body;
 
     if (uuid && snooze_for) {
-      let user = await user_settings.findOne({
+      const models = getModels();
+      let user = await models.user_settings.findOne({
         where: {
           user_uuid: uuid,
         },

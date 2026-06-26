@@ -8,3 +8,16 @@
 /livekit-token-microservice/.env
 *.env
 *.pem
+
+# OS / editor junk
+**/.DS_Store
+
+# logs
+**/logs/
+*.log
+
+# build output
+**/dist/
+
+# configuration-microservice: only build output + deps, no source tracked
+/configuration-microservice/

@@ -1,5 +1,5 @@
 const { RES } = require("../handlers/helper");
-const { mindmaps, licences } = require("../models");
+const { getModels } = require('../db/context');
 const { mkDir } = require("../public/javascripts/directory");
 const { rmDir } = require("../public/javascripts/deletefile");
 const { wrMindmap } = require("../public/javascripts/writefile");
@@ -18,8 +18,9 @@ const getMindmapDetails = async (req, res) => {
       message: "Please enter a licence key",
     });
 
+  const models = getModels();
   RES(res, {
-    data: await mindmaps.findAll({
+    data: await models.mindmaps.findAll({
       where: {
         keyName: key,
       },
@@ -38,7 +39,8 @@ const addUpdateLicenceKey = async (req, res) => {
   let message = "";
   let dataToUpdate;
   try {
-    let data = await licences.findOne({
+    const models = getModels();
+    let data = await models.licences.findOne({
       where: { keyName: body.key },
     });
     if ((body.type === "image")) {
@@ -56,7 +58,7 @@ const addUpdateLicenceKey = async (req, res) => {
       data = await data.update(dataToUpdate);
       message = body.type === "image" ? "Image updated" : "Updated successfully!";
     } else {
-      data = await licences.create(dataToUpdate);
+      data = await models.licences.create(dataToUpdate);
       message = body.type === "image" ? "Image uploaded" : "Added successfully!";
     }
     RES(res, { data, success: true, message });
@@ -71,8 +73,9 @@ const addUpdateLicenceKey = async (req, res) => {
  * @param {response} res
  */
 const getMindmapKeys = async (req, res) => {
-  RES(res, {
-    data: await licences.findAll({
+    const models = getModels();
+    RES(res, {
+    data: await models.licences.findAll({
       attributes: ["keyName", "expiry", "imageValue", "imageName"],
     }),
     success: true,
@@ -88,7 +91,8 @@ const addUpdateMindMap = async (req, res) => {
   const body = req.body;
   let message = "";
   try {
-    let data = await mindmaps.findOne({
+    const models = getModels();
+    let data = await models.mindmaps.findOne({
       where: { keyName: body.key, name: body.filename },
     });
     let dataToUpdate = {
@@ -100,7 +104,7 @@ const addUpdateMindMap = async (req, res) => {
       data = await data.update(dataToUpdate);
       message = "Mindmap updated successfully!";
     } else {
-      data = await mindmaps.create(dataToUpdate);
+      data = await models.mindmaps.create(dataToUpdate);
       message = "Mindmap added successfully!";
     }
     RES(res, { data, success: true, message });
@@ -133,7 +137,8 @@ const deleteMindmapKey = async (req, res) => {
       return;
     }
 
-    const data = mindmaps.destroy({
+    const models = getModels();
+    const data = models.mindmaps.destroy({
       where: {
         keyName: key,
         name: mindmapName,
@@ -166,7 +171,8 @@ const downloadMindmaps = async (req, res) => {
       return;
     }
 
-    const licenceData = await licences.findOne({
+    const models = getModels();
+    const licenceData = await models.licences.findOne({
       where: {
         keyName: key,
       },
@@ -186,7 +192,7 @@ const downloadMindmaps = async (req, res) => {
       mkDir("./public/key");
       mkDir("./public/key/Engines");
       mkDir("./public/key/logo");
-      const mindmapsData = await mindmaps.findAll({
+      const mindmapsData = await models.mindmaps.findAll({
         where: {
           keyName: key,
         },

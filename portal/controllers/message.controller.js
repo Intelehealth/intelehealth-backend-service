@@ -7,13 +7,14 @@ const {
   getVisits,
 } = require("../services/message.service");
 const { validateParams, sendWebPushNotification, sendCloudNotification } = require("../handlers/helper");
-const { user_settings, pushnotifications } = require("../models");
+const { getModels } = require('../db/context');
 const { uploadFile } = require("../handlers/file.handler");
 
 module.exports = (function () {
 
   this.sendMessageNotification = async (payload) => {
-    const subscriptions = await pushnotifications.findAll({
+    const models = getModels();
+    const subscriptions = await models.pushnotifications.findAll({
       where: { user_uuid: payload.toUser },
     });
     
@@ -99,7 +100,8 @@ module.exports = (function () {
         }
         let notificationResponse = "";
         if (!isLiveMessageSent) {
-          const userSetting = await user_settings.findOne({
+          const models = getModels();
+          const userSetting = await models.user_settings.findOne({
             where: { user_uuid: toUser },
           });
           if (userSetting?.device_reg_token) {
@@ -121,7 +123,8 @@ module.exports = (function () {
         }
 
         // Send push notification
-        const us = await user_settings.findOne({
+        const models = getModels();
+        const us = await models.user_settings.findOne({
           where: {
             user_uuid: toUser,
           },

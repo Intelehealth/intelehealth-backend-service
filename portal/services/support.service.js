@@ -1,5 +1,6 @@
 const openMrsDB = require("../public/javascripts/mysql/mysqlOpenMrs");
-const { supportmessages, Sequelize, sequelize } = require("../models");
+const { getModels, getSequelize } = require('../db/context');
+const Sequelize = require('sequelize');
 const { QueryTypes } = require('sequelize');
 
 module.exports = (function () {
@@ -49,7 +50,9 @@ module.exports = (function () {
             } else {
                 to = 'System Administrator';
             }
-            const data = await supportmessages.create({
+            const models = getModels();
+            if (!models) throw new Error('Models not available in context');
+            const data = await models.supportmessages.create({
                 from,
                 to,
                 message,
@@ -75,7 +78,9 @@ module.exports = (function () {
             if (await this.checkIfSystemAdmin(userId)) {
                 userId = 'System Administrator';
             }
-            const message = await supportmessages.findAll({
+                        const models = getModels();
+                        if (!models) throw new Error('Models not available in context');
+                        const message = await models.supportmessages.findAll({
                 where: {
                   id: messageId,
                   to: userId
@@ -86,6 +91,7 @@ module.exports = (function () {
                 const toUser = message[0].to;
                 const fromUser = message[0].from;
                 const systemAdministrators = (await this.getSystemAdministrators()).map(u => u.uuid);
+                const sequelize = getSequelize();
                 const unreadcount = await sequelize.query("SELECT COUNT(sm.message) AS unread FROM supportmessages sm WHERE sm.to = 'System Administrator' AND sm.isRead = 0", { type: QueryTypes.SELECT });
                 for (const key in users) {
                     if (Object.hasOwnProperty.call(users, key)) {
@@ -102,7 +108,7 @@ module.exports = (function () {
             }, 1000);
 
             if (message) {
-                const data = await supportmessages.update(
+                                const data = await models.supportmessages.update(
                   { isRead: true },
                   {
                     where: {
@@ -139,7 +145,9 @@ module.exports = (function () {
             } else {
                 to = 'System Administrator';
             }
-            const data = await supportmessages.findAll({
+            const models = getModels();
+            if (!models) throw new Error('Models not available in context');
+            const data = await models.supportmessages.findAll({
                 where: {
                     from: { [Sequelize.Op.in]: [from, to] },
                     to: { [Sequelize.Op.in]: [to, from] },
@@ -171,8 +179,10 @@ module.exports = (function () {
 
     this.getDoctorsList = async function (userId) {
         try {
+            const models = getModels();
+            if (!models) throw new Error('Models not available in context');
             if (await this.checkIfSystemAdmin(userId)) {
-                const data = await supportmessages.findAll({
+                const data = await models.supportmessages.findAll({
                     
                     attributes: [
                         [Sequelize.fn("DISTINCT", Sequelize.col("from")), "from"],
@@ -189,6 +199,7 @@ module.exports = (function () {
                     raw: true
                 });
 
+                const sequelize = getSequelize();
                 const unreadcount = await sequelize.query("SELECT COUNT(sm.message) AS unread, sm.from FROM supportmessages sm WHERE sm.to = 'System Administrator' AND sm.isRead = 0  GROUP BY sm.from", { type: QueryTypes.SELECT });
 
                 const query = "SELECT u.uuid AS userUuid, p.uuid AS personUuid, CONCAT(pn.given_name, ' ', pn.middle_name, ' ', pn.family_name) AS doctorName FROM users u LEFT JOIN person p ON p.person_id = u.person_id LEFT JOIN person_name pn ON pn.person_id = u.person_id WHERE u.uuid IN ('" + data.map(d => d.from).join("','") + "') AND pn.preferred = 1 AND u.retired = 0";

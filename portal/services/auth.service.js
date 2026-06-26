@@ -1,6 +1,6 @@
 const openMrsDB = require("../public/javascripts/mysql/mysqlOpenMrs");
 const axios = require('axios');
-const { user_settings } = require("../models");
+const { getModels } = require('../db/context');
 const { axiosInstance } = require("../handlers/helper");
 const functions = require("../handlers/functions");
 const moment = require("moment");
@@ -8,23 +8,24 @@ const otpGenerator = require('otp-generator');
 const fs = require('fs');
 
 module.exports = (function () {
-    this.saveOtp = async function (userUuid, otp, otpFor) {
-        let user = await user_settings.findOne({
-            where: {
-              user_uuid: userUuid,
-            },
-        });
+        this.saveOtp = async function (userUuid, otp, otpFor) {
+                const models = getModels();
+                let user = await models.user_settings.findOne({
+                        where: {
+                            user_uuid: userUuid,
+                        },
+                });
 
         if (user) {
             user.otp = otp;
             user.otpFor = otpFor;
             await user.save();
-        } else {
-            user = await user_settings.create({
-              user_uuid: userUuid,
-              otp,
-              otpFor
-            });
+                } else {
+                        user = await models.user_settings.create({
+                            user_uuid: userUuid,
+                            otp,
+                            otpFor
+                        });
         }
         return user;
     };
@@ -52,10 +53,10 @@ module.exports = (function () {
                                 const otp = await axios.get(`https://2factor.in/API/V1/${process.env.APIKEY_2FACTOR}/SMS/+${countryCode}${phoneNumber}/AUTOGEN2`).catch(error => {
                                     throw new Error(error.message);
                                 });
-                                if (otp) {
-                                    // Save OTP in database for verification
-                                    await this.saveOtp(data[i].uuid, otp.data.OTP, 'U');
-                                }
+                                        if (otp) {
+                                            // Save OTP in database for verification
+                                            await this.saveOtp(data[i].uuid, otp.data.OTP, 'U');
+                                        }
                             }
 
                             if (data[i].attributeTypeName == 'emailId') {
@@ -143,7 +144,7 @@ module.exports = (function () {
                                 const otp = await axios.get(`https://2factor.in/API/V1/${process.env.APIKEY_2FACTOR}/SMS/+${countryCode}${phoneNumber}/AUTOGEN2`).catch(error => {
                                     throw new Error(error.message);
                                 });
-                                if (otp) {
+                                    if (otp) {
                                     // Save OTP in database for verification
                                     await this.saveOtp(data[0].userUuid, otp.data.OTP, 'P');
 
@@ -315,6 +316,7 @@ module.exports = (function () {
 
     this.verfifyOtp = async function (email, phoneNumber, username, verifyFor, otp) {
         try {
+            const models = getModels();
             let query, data, user;
             switch (verifyFor) {
                 case 'username':
@@ -330,7 +332,7 @@ module.exports = (function () {
                     if (data.length) {
                         let user, index;
                         for (let i = 0; i < data.length; i++) {
-                            user = await user_settings.findOne({
+                            user = await models.user_settings.findOne({
                                 where: {
                                   user_uuid: data[i].uuid,
                                   otp: otp,
@@ -430,7 +432,7 @@ module.exports = (function () {
                     }
 
                     if (data.length) {
-                        let user = await user_settings.findOne({
+                                                let user = await models.user_settings.findOne({
                             where: {
                               user_uuid: data[0].userUuid,
                               otp: otp,
@@ -489,7 +491,7 @@ module.exports = (function () {
                     if (data.length) {
                         let user;
                         for (let i = 0; i < data.length; i++) {
-                            user = await user_settings.findOne({
+                            user = await models.user_settings.findOne({
                                 where: {
                                   user_uuid: data[i].uuid,
                                   otp: otp,
@@ -549,7 +551,8 @@ module.exports = (function () {
     this.resetPassword = async function (userUuid, newPassword) {
         try {
             const url = `/openmrs/ws/rest/v1/password/${userUuid}`;
-            let user = await user_settings.findOne({
+            const models = getModels();
+            let user = await models.user_settings.findOne({
                 where: {
                 user_uuid: userUuid,
                 otpFor: 'P'

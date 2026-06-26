@@ -6,6 +6,7 @@ const logger = require("morgan");
 
 const indexRouter = require("./routes/index");
 const pushRouter = require("./routes/pushNotification");
+const tenantMiddleware = require("./middleware/tenant");
 
 const app = express();
 
@@ -32,6 +33,9 @@ app.use(express.urlencoded({ limit: "50mb", extended: false }));
 app.use(bodyParser.text());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
+
+// tenant middleware - detect ezazi / nezazi by hostname and attach `req.models`
+app.use(tenantMiddleware);
 
 app.use("/api", indexRouter);
 app.use("/notification", pushRouter);

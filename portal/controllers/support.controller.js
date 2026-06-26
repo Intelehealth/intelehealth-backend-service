@@ -1,6 +1,7 @@
 const { RES } = require("../handlers/helper");
 const { sendNotification, getSubscriptions } = require("../handlers/web-push");
-const { user_settings } = require("../models");
+const { getModels, getSequelize } = require('../db/context');
+const Sequelize = require('sequelize');
 
 const {
     sendMessage,
@@ -9,7 +10,6 @@ const {
     getSystemAdministrators,
     getDoctorsList
 } = require("../services/support.service");
-const { Sequelize, sequelize } = require("../models");
 const { QueryTypes } = require('sequelize');
 
 module.exports = (function () {
@@ -26,6 +26,7 @@ module.exports = (function () {
                 const messages = await getMessages(from, to);
                 if (data.data.dataValues.to == 'System Administrator') {
                     const systemAdministrators = (await getSystemAdministrators()).map(u => u.uuid);
+                    const sequelize = getSequelize();
                     const unreadcount = await sequelize.query("SELECT COUNT(sm.message) AS unread FROM supportmessages sm WHERE sm.to = 'System Administrator' AND sm.isRead = 0", { type: QueryTypes.SELECT });
                     for (const key in users) {
                         if (Object.hasOwnProperty.call(users, key)) {
@@ -42,7 +43,8 @@ module.exports = (function () {
                     }
 
                     // Send push notification
-                    const uss = await user_settings.findAll({
+                    const models = getModels();
+                    const uss = await models.user_settings.findAll({
                         where: {
                             user_uuid: { [Sequelize.Op.in]: systemAdministrators },
                         },
@@ -63,6 +65,7 @@ module.exports = (function () {
                     }
                     
                 } else {
+                    const sequelize = getSequelize();
                     const unreadcount = await sequelize.query(`SELECT COUNT(sm.message) AS unread FROM supportmessages sm WHERE sm.to = '${to}' AND sm.isRead = 0`, { type: QueryTypes.SELECT });
                     for (const key in users) {
                         if (Object.hasOwnProperty.call(users, key)) {
@@ -77,7 +80,8 @@ module.exports = (function () {
                     }
 
                     // Send push notification
-                    const us = await user_settings.findOne({
+                    const models = getModels();
+                    const us = await models.user_settings.findOne({
                         where: {
                             user_uuid: to,
                         },

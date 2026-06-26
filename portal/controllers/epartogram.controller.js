@@ -1,5 +1,5 @@
-const { epartogram_configs } = require("../models");
 const { RES } = require("../handlers/helper");
+const { getModels } = require('../db/context');
 
 /**
  * Return epartogram_configs respect to key
@@ -7,8 +7,9 @@ const { RES } = require("../handlers/helper");
  * @param {response} res
  */
  const getConfiguration = async (req, res) => {
+  const models = getModels();
   RES(res, {
-    data: await epartogram_configs.findAll({
+    data: await models.epartogram_configs.findAll({
       attributes: ["name", "value", "id"],
     }),
     success: true,
@@ -24,7 +25,8 @@ const { RES } = require("../handlers/helper");
   const body = req.body;
   let message = "";
   try {
-    let data = await epartogram_configs.findOne({
+    const models = getModels();
+    let data = await models.epartogram_configs.findOne({
       where: { name: body.name},
     });
     let dataToUpdate = {
@@ -35,7 +37,7 @@ const { RES } = require("../handlers/helper");
       data = await data.update(dataToUpdate);
       message = `${body.name} configuration updated successfully!`;
     } else {
-      data = await epartogram_configs.create(dataToUpdate);
+      data = await models.epartogram_configs.create(dataToUpdate);
       message = `${body.name} configurations added successfully!`;
     }
     RES(res, { data, success: true, message });

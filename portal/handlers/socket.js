@@ -1,5 +1,5 @@
-const { user_settings, pushnotifications, sequelize } = require("../models");
-const { QueryTypes } = require("sequelize");
+const { getModels, getSequelize } = require('../db/context');
+const { QueryTypes } = require('sequelize');
 const {
   getFirebaseAdmin,
   sendCloudNotification,
@@ -56,7 +56,8 @@ module.exports = function (server) {
   }
 
   async function sendCallNotification(data) {
-    const subscriptions = await pushnotifications.findAll({
+    const models = getModels();
+    const subscriptions = await models.pushnotifications.findAll({
       where: { user_uuid: data.connectToDrId },
     });
 
@@ -371,9 +372,7 @@ module.exports = function (server) {
 
       let data = "";
       try {
-        data = await user_settings.findOne({
-          where: { user_uuid: nurseId },
-        });
+        try { const models = getModels(); data = await models.user_settings.findOne({ where: { user_uuid: nurseId } }); } catch (err) {}
       } catch (error) {}
 
       // sendCloudNotification({
@@ -415,6 +414,7 @@ module.exports = function (server) {
      * Admin socket events below
      */
     socket.on("getAdminUnreadCount", async function () {
+      const sequelize = getSequelize();
       const unreadcount = await sequelize.query(
         "SELECT COUNT(sm.message) AS unread FROM supportmessages sm WHERE sm.to = 'System Administrator' AND sm.isRead = 0",
         { type: QueryTypes.SELECT }
@@ -423,6 +423,7 @@ module.exports = function (server) {
     });
 
     socket.on("getDrUnreadCount", async function (data) {
+      const sequelize = getSequelize();
       const unreadcount = await sequelize.query(
         `SELECT COUNT(sm.message) AS unread FROM supportmessages sm WHERE sm.to = '${data}' AND sm.isRead = 0`,
         { type: QueryTypes.SELECT }
@@ -434,7 +435,8 @@ module.exports = function (server) {
       try {
         const py = JSON.parse(payload);
         const { toHwUserUuid } = JSON.parse(payload);
-        let userSetting = await user_settings.findOne({
+        const models = getModels();
+        let userSetting = await models.user_settings.findOne({
           where: { user_uuid: toHwUserUuid },
         });
         let notificationResponse;

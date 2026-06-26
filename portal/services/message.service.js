@@ -1,5 +1,6 @@
 const { asyncForEach } = require("../handlers/helper");
-const { messages, Sequelize } = require("../models");
+const { getModels } = require('../db/context');
+const Sequelize = require('sequelize');
 
 module.exports = (function () {
   /**
@@ -37,9 +38,11 @@ module.exports = (function () {
 
       if (type) msg.type = type;
 
+      const models = getModels();
+      if (!models) throw new Error('Models not available in context');
       return {
         success: true,
-        data: await messages.create(msg),
+        data: await models.messages.create(msg),
       };
     } catch (error) {
       console.log("error: sendMessage ", error);
@@ -58,8 +61,10 @@ module.exports = (function () {
    */
   this.getMessages = async (fromUser, toUser, patientId, visitId) => {
     try {
+      const models = getModels();
+      if (!models) throw new Error('Models not available in context');
       if (!visitId) {
-        const latestVisit = await messages.findAll({
+        const latestVisit = await models.messages.findAll({
           where: {
             fromUser: { [Sequelize.Op.in]: [fromUser, toUser] },
             toUser: { [Sequelize.Op.in]: [toUser, fromUser] },
@@ -86,7 +91,7 @@ module.exports = (function () {
         }
       }
 
-      let data = await messages.findAll({
+      let data = await models.messages.findAll({
         where: {
           fromUser: { [Sequelize.Op.in]: [fromUser, toUser] },
           toUser: { [Sequelize.Op.in]: [toUser, fromUser] },
@@ -120,7 +125,9 @@ module.exports = (function () {
    */
   this.getAllMessages = async (fromUser, toUser) => {
     try {
-      const data = await messages.findAll({
+      const models = getModels();
+      if (!models) throw new Error('Models not available in context');
+      const data = await models.messages.findAll({
         where: {
           fromUser: { [Sequelize.Op.in]: [fromUser, toUser] },
           toUser: { [Sequelize.Op.in]: [toUser, fromUser] },
@@ -149,7 +156,9 @@ module.exports = (function () {
    */
   this.getPatientMessageList = async (drUuid) => {
     try {
-      let data = await messages.findAll({
+      const models = getModels();
+      if (!models) throw new Error('Models not available in context');
+      let data = await models.messages.findAll({
         attributes: [
           [
             Sequelize.fn("DISTINCT", Sequelize.col("patientName")),
@@ -181,7 +190,7 @@ module.exports = (function () {
       });
 
       await asyncForEach(data, async (msg, idx) => {
-        data[idx].count = await messages.count({
+        data[idx].count = await models.messages.count({
           where: {
             isRead: false,
             patientId: msg.patientId,
@@ -205,7 +214,9 @@ module.exports = (function () {
    */
   this.readMessagesById = async (messageId) => {
     try {
-      const getMessage = await messages.findAll({
+      const models = getModels();
+      if (!models) throw new Error('Models not available in context');
+      const getMessage = await models.messages.findAll({
         where: {
           id: messageId,
         },
@@ -229,7 +240,7 @@ module.exports = (function () {
       }, 1000);
 
       if (getMessage) {
-        const data = await messages.update(
+        const data = await models.messages.update(
           { isRead: true, isDelivered: true },
           {
             where: {
@@ -272,7 +283,9 @@ module.exports = (function () {
    */
   this.deliveredById = async (messageId) => {
     try {
-      const getMessage = await messages.findAll({
+      const models = getModels();
+      if (!models) throw new Error('Models not available in context');
+      const getMessage = await models.messages.findAll({
         where: {
           id: messageId,
         },
@@ -296,7 +309,7 @@ module.exports = (function () {
       }, 1000);
 
       if (getMessage) {
-        const data = await messages.update(
+        const data = await models.messages.update(
           { isDelivered: true },
           {
             where: {
@@ -338,7 +351,9 @@ module.exports = (function () {
    */
   this.getVisits = async (patientId) => {
     try {
-      const data = await messages.findAll({
+      const models = getModels();
+      if (!models) throw new Error('Models not available in context');
+      const data = await models.messages.findAll({
         attributes: ["visitId", "createdAt"],
         where: { patientId },
         order: [["createdAt", "DESC"]],
