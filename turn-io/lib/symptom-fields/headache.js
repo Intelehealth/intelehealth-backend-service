@@ -1,0 +1,35 @@
+module.exports = [
+  ["onset",                    "Onset"],
+  ["onset_since",              "Onset since"],
+  ["location",                 "Location"],
+  ["site",                     "Site"],
+  ["character",                "Character"],
+  ["progression",              "Progression"],
+  ["severity",                 "Severity"],
+  ["timing",                   "Timing"],
+  ["frequency",                "Frequency"],
+  ["duration_of_episode",      "Duration of episode"],
+  ["diurnal_variation",        "Diurnal variation"],
+
+  ["aggravating",              "Aggravating factors"],
+  ["relieving_factors",        "Relieving factors"],
+  ["radiates",                 "Radiates"],
+  ["radiates_to",              "Radiates to"],
+
+  ["assoc_visual_disturbance", "Associated: visual disturbance"],
+  ["assoc_photophobia",        "Associated: photophobia"],
+  ["assoc_neck_stiffness",     "Associated: neck stiffness"],
+  ["assoc_sleep_disturbance",  "Associated: sleep disturbance"],
+  ["assoc_scalp_pain",         "Associated: scalp pain"],
+  ["assoc_eye_pain",           "Associated: eye pain"],
+  ["assoc_neck_pain",          "Associated: neck pain"],
+  ["assoc_weakness_of_limbs",  "Associated: weakness of limbs"],
+  ["assoc_head_injury",        "Associated: head injury"],
+
+  ["other_symptoms",           "Other symptoms"],
+  ["treatment",                "Treatment"],
+  ["treatment_details",        "Treatment details"],
+  ["additional",               "Additional information"],
+
+  ["weight",                   "Weight"],
+];

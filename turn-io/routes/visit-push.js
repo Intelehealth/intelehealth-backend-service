@@ -1,6 +1,7 @@
 const express = require("express");
 const { randomUUID } = require("crypto");
 const { pushData } = require("../lib/openmrs");
+const { FIELDS_BY_SYMPTOM, ALL_FIELDS } = require("../lib/symptom-fields");
 
 const {
    OPENMRS_LOCATION_UUID,
@@ -28,104 +29,13 @@ const isBlank = (v) =>
 
 const clean = (v, fallback = "") => (isBlank(v) ? fallback : String(v).trim());
 
-// Turn's abdominal-pain journey sends answers nested under `abdominal_pain`.
-// Each entry maps one payload key -> the label shown under the Chief Complaint,
-// in display order.
-const ABD_PAIN_FIELDS = [
-   ["start_time",               "Pain started"],
-   ["hours",                    "Duration (hours)"],
-   ["days",                     "Duration (days)"],
-   ["weeks",                    "Duration (weeks)"],
-   ["onset",                    "Onset"],
-   ["location",                 "Location"],
-   ["site",                     "Site"],
-   ["site_more",                "Site (more)"],
-   ["character",                "Character"],
-   ["severity",                 "Severity"],
-   ["relieving_factors",        "Relieving factors"],
-   ["aggravating_factors",      "Aggravating factors"],
-   ["progression",              "Progression"],
-   ["constant_intermittent",    "Constant / intermittent"],
-   ["diurnal_variation",        "Diurnal variation"],
-   ["radiates",                 "Radiates"],
-   ["radiates_to",              "Radiates to"],
-   ["radiates_to_2",            "Radiates to (2)"],
-   ["radiates_to_3",            "Radiates to (3)"],
-   ["assoc_distention",         "Associated: distention"],
-   ["assoc_vomiting",           "Associated: vomiting"],
-   ["vomit_character",          "Vomit character"],
-   ["assoc_belching",           "Associated: belching"],
-   ["assoc_heartburn",          "Associated: heartburn"],
-   ["assoc_jaundice",           "Associated: jaundice"],
-   ["assoc_constipation",       "Associated: constipation"],
-   ["assoc_diarrhea",           "Associated: diarrhea"],
-   ["assoc_blood_stools",       "Associated: blood in stools"],
-   ["assoc_black_stools",       "Associated: black stools"],
-   ["assoc_loss_appetite",      "Associated: loss of appetite"],
-   ["assoc_increased_appetite", "Associated: increased appetite"],
-   ["assoc_weight_loss",        "Associated: weight loss"],
-   ["assoc_injury_abdomen",     "Associated: injury to abdomen"],
-];
-
-const COUGH_FIELDS = [
-  ["cough_start_time",          "Cough started"],
-  ["onset",                     "Onset"],
-  ["timing",                    "Timing"],
-  ["when_worst",                "When worst"],
-  ["progression",               "Progression"],
-
-  ["nature",                    "Nature"],
-  ["character",                 "Character"],
-  ["severity",                  "Severity"],
-
-  ["aggravating",               "Aggravating factors"],
-  ["aggravating_2",             "Aggravating factors (2)"],
-  ["agg_other",                 "Aggravating factors (other)"],
-  ["agg_another",               "Aggravating factors (other 2)"],
-
-  ["assoc_short_breath",        "Associated: shortness of breath"],
-  ["assoc_fast_breath",         "Associated: fast breathing"],
-  ["assoc_chest_pain",          "Associated: chest pain"],
-  ["assoc_pain_on_cough",       "Associated: pain on coughing"],
-
-  ["assoc_wheezing",            "Associated: wheezing"],
-  ["assoc_stridor",             "Associated: stridor"],
-  ["assoc_hoarseness_voice",    "Associated: hoarseness of voice"],
-  ["assoc_throat_pain",         "Associated: throat pain"],
-
-  ["assoc_sneezing",            "Associated: sneezing"],
-  ["assoc_itchy_eyes",          "Associated: itchy eyes"],
-  ["assoc_nose_runny_block",    "Associated: runny/blocked nose"],
-  ["assoc_post_dripp",          "Associated: post-nasal drip"],
-  ["assoc_sinus_pain",          "Associated: sinus pain"],
-
-  ["assoc_bad_breath",          "Associated: bad breath"],
-  ["assoc_chok_fore_body_aspir","Associated: choking/foreign body aspiration"],
-  ["assoc_lose_smell_sen",      "Associated: loss of smell"],
-
-  ["blood_in_sputum",           "Blood in sputum"],
-  ["blood_amount",              "Blood amount"],
-
-  ["sputum_colour",             "Sputum colour"],
-  ["sputum_quantity",           "Sputum quantity"],
-
-  ["other_symptoms",            "Other symptoms"],
-  ["other_symptoms_2",          "Other symptoms (2)"],
-  ["other_sym_other",           "Other symptoms (other)"],
-  ["other_sym_another",         "Other symptoms (another)"],
-  ["additional",                "Additional information"],
-
-  ["treatment",                 "Treatment"],
-  ["treatment_details",         "Treatment details"],
-
-  ["weight",                    "Weight"]
-];
-
-const symptomDetailRows = (obj = {}) =>
-   [
-  ...ABD_PAIN_FIELDS,
-  ...COUGH_FIELDS,
-].map(([key, label]) => ({ label, value: clean(obj[key]) }));
+// Picks the field list matching the Chief Complaint (Turn's `symptom` /
+// `results.main_problem`) so unrelated symptoms' fields don't get merged into
+// one long, duplicate-prone row list. Field lists live in ../lib/symptom-fields.
+const symptomDetailRows = (complaintName, obj = {}) => {
+   const fields = FIELDS_BY_SYMPTOM[String(complaintName).trim().toLowerCase()] || ALL_FIELDS;
+   return fields.map(([key, label]) => ({ label, value: clean(obj[key]) }));
+};
 
 
 // Doctor-portal obs values are {en, "l-en"} JSON; markup mirrors the HW webapp
@@ -197,7 +107,7 @@ const buildPushBundle = (personUuid, symptom, results, symptomData, patientHisto
 
 
    const visitReasonRows = symptomData
-      ? symptomDetailRows(symptomData)
+      ? symptomDetailRows(complaintName, symptomData)
       : [
          { label: "Other problems",           value: clean(r.other_problem) },
          { label: "Looking consultation for", value: clean(r.looking_consultation_for) },
