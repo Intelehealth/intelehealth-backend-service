@@ -1,6 +1,7 @@
 const express = require("express");
 const { randomUUID } = require("crypto");
 const { pushData } = require("../lib/openmrs");
+const { FIELDS_BY_SYMPTOM, ALL_FIELDS } = require("../lib/symptom-fields");
 
 const {
    OPENMRS_LOCATION_UUID,
@@ -28,47 +29,14 @@ const isBlank = (v) =>
 
 const clean = (v, fallback = "") => (isBlank(v) ? fallback : String(v).trim());
 
-// Turn's abdominal-pain journey sends answers nested under `abdominal_pain`.
-// Each entry maps one payload key -> the label shown under the Chief Complaint,
-// in display order.
-const ABD_PAIN_FIELDS = [
-   ["start_time",               "Pain started"],
-   ["hours",                    "Duration (hours)"],
-   ["days",                     "Duration (days)"],
-   ["weeks",                    "Duration (weeks)"],
-   ["onset",                    "Onset"],
-   ["location",                 "Location"],
-   ["site",                     "Site"],
-   ["site_more",                "Site (more)"],
-   ["character",                "Character"],
-   ["severity",                 "Severity"],
-   ["relieving_factors",        "Relieving factors"],
-   ["aggravating_factors",      "Aggravating factors"],
-   ["progression",              "Progression"],
-   ["constant_intermittent",    "Constant / intermittent"],
-   ["diurnal_variation",        "Diurnal variation"],
-   ["radiates",                 "Radiates"],
-   ["radiates_to",              "Radiates to"],
-   ["radiates_to_2",            "Radiates to (2)"],
-   ["radiates_to_3",            "Radiates to (3)"],
-   ["assoc_distention",         "Associated: distention"],
-   ["assoc_vomiting",           "Associated: vomiting"],
-   ["vomit_character",          "Vomit character"],
-   ["assoc_belching",           "Associated: belching"],
-   ["assoc_heartburn",          "Associated: heartburn"],
-   ["assoc_jaundice",           "Associated: jaundice"],
-   ["assoc_constipation",       "Associated: constipation"],
-   ["assoc_diarrhea",           "Associated: diarrhea"],
-   ["assoc_blood_stools",       "Associated: blood in stools"],
-   ["assoc_black_stools",       "Associated: black stools"],
-   ["assoc_loss_appetite",      "Associated: loss of appetite"],
-   ["assoc_increased_appetite", "Associated: increased appetite"],
-   ["assoc_weight_loss",        "Associated: weight loss"],
-   ["assoc_injury_abdomen",     "Associated: injury to abdomen"],
-];
+// Picks the field list matching the Chief Complaint (Turn's `symptom` /
+// `results.main_problem`) so unrelated symptoms' fields don't get merged into
+// one long, duplicate-prone row list. Field lists live in ../lib/symptom-fields.
+const symptomDetailRows = (complaintName, obj = {}) => {
+   const fields = FIELDS_BY_SYMPTOM[String(complaintName).trim().toLowerCase()] || ALL_FIELDS;
+   return fields.map(([key, label]) => ({ label, value: clean(obj[key]) }));
+};
 
-const symptomDetailRows = (obj = {}) =>
-   ABD_PAIN_FIELDS.map(([key, label]) => ({ label, value: clean(obj[key]) }));
 
 // Doctor-portal obs values are {en, "l-en"} JSON; markup mirrors the HW webapp
 // (visit-upload.service.ts). en = display HTML, l-en = raw structured text.
@@ -134,9 +102,12 @@ const buildPushBundle = (personUuid, symptom, results, symptomData, patientHisto
    // Chief Complaint badge + detail rows. When Turn sends the nested
    // `abdominal_pain` object, its fields are the rows; otherwise fall back to
    // the flat `results.*` fields (older flows).
+
    const complaintName = clean(r.main_problem, symptom);
+
+
    const visitReasonRows = symptomData
-      ? symptomDetailRows(symptomData)
+      ? symptomDetailRows(complaintName, symptomData)
       : [
          { label: "Other problems",           value: clean(r.other_problem) },
          { label: "Looking consultation for", value: clean(r.looking_consultation_for) },
@@ -146,6 +117,7 @@ const buildPushBundle = (personUuid, symptom, results, symptomData, patientHisto
          { label: "Village / Address",        value: clean(r.village_address) },
          { label: "District / Town",          value: clean(r.district_town) },
       ];
+
 
    // Allergies: Turn sends `medication_allergy` (Yes/No) + `allergy_type` (the
    // drug) separately. Show the drug if allergic, else the Yes/No answer.
@@ -274,7 +246,7 @@ router.post("/visit_push", async (req, res) => {
 
       const symptom = req.body.symptom || "Abdominal pain";
       const results = req.body.results || {};
-      const symptomData = req.body.abdominal_pain || null;
+      const symptomData = req.body.symptoms_data || null;
       const patientHistory = req.body.patient_history || {};
       const familyHistory = req.body.family_history || {};
 

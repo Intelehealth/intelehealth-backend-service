@@ -1,0 +1,36 @@
+module.exports = [
+  ["onset",                       "Onset"],
+  ["onset_since",                 "Onset since"],
+  ["location",                    "Location"],
+  ["character",                   "Character"],
+  ["progression",                 "Progression"],
+  ["severity",                    "Severity"],
+  ["timing",                      "Timing"],
+
+  ["aggravating",                 "Aggravating factors"],
+  ["relieving_factors",           "Relieving factors"],
+  ["radiates",                    "Radiates"],
+  ["radiates_to",                 "Radiates to"],
+
+  ["assoc_runny_nose",            "Associated: runny nose"],
+  ["assoc_cough",                 "Associated: cough"],
+  ["assoc_difficulty_swallowing", "Associated: difficulty swallowing"],
+  ["assoc_difficulty_breathing",  "Associated: difficulty breathing"],
+  ["assoc_painful_swallowing",    "Associated: painful swallowing"],
+  ["assoc_drooling",              "Associated: drooling"],
+  ["assoc_loss_of_smell",         "Associated: loss of smell"],
+  ["assoc_hoarseness",            "Associated: hoarseness"],
+  ["assoc_stridor",               "Associated: stridor"],
+  ["assoc_swollen_neck_nodes",    "Associated: swollen neck nodes"],
+  ["assoc_smoke_exposure",        "Associated: smoke exposure"],
+  ["assoc_bad_breath",            "Associated: bad breath"],
+  ["assoc_neck_pain",             "Associated: neck pain"],
+  ["assoc_ear_pain",              "Associated: ear pain"],
+
+  ["other_symptoms",              "Other symptoms"],
+  ["treatment",                   "Treatment"],
+  ["treatment_details",           "Treatment details"],
+  ["additional",                  "Additional information"],
+
+  ["weight",                      "Weight"],
+];
