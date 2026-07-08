@@ -7,6 +7,21 @@ const prescription = require("./prescription");
 
 const app = express();
 
+// CORS (portal-style, driven by ALLOWED_ORIGINS as a JSON array). Needed for
+// browser callers like the doctor webapp. Preflight OPTIONS is answered here
+// with 204 so the browser's preflight check passes.
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS && JSON.parse(process.env.ALLOWED_ORIGINS)) || [];
+app.use((req, res, next) => {
+   const origin = req.headers.origin;
+   const allowed = ALLOWED_ORIGINS.indexOf(origin) >= 0 ? origin : ALLOWED_ORIGINS[0];
+   if (allowed) res.header("Access-Control-Allow-Origin", allowed);
+   res.header("Access-Control-Allow-Credentials", "true");
+   res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, PATCH, DELETE");
+   res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+   if (req.method === "OPTIONS") return res.sendStatus(204);
+   next();
+});
+
 // Capture the raw body so a parse failure can be logged verbatim.
 app.use(express.json({
    verify: (req, _res, buf) => { req.rawBody = buf?.length ? buf.toString("utf8") : ""; },
