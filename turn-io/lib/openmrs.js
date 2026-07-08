@@ -13,4 +13,4 @@ const pushData = (bundle) =>
       headers: { Authorization: basicAuth, "Content-Type": "application/json" },
    });
 
-module.exports = { pushData };
+module.exports = { pushData, basicAuth };

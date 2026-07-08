@@ -19,7 +19,7 @@ const {
    OPENMRS_VISIT_ATTR_SPECIALITY,
    OPENMRS_VISIT_ATTR_COMPLETE_DATETIME,
    OPENMRS_VISIT_ATTR_DOCTOR_NOTES,
-} = process.env;
+} = require("../constants");
 
 const formatDatetime = (d) => d.toISOString().replace("Z", "+0000");
 
