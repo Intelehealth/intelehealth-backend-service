@@ -44,7 +44,11 @@ router.post("/patient_registration", async (req, res) => {
       const middle = pick(r.middle_name, c.middle_name);
       const surname = pick(r.surname, c.surname);
       const gender = pick(r.gender, c.gender);
-      const mobile = pick(r.mobile_number, c.mobile, c.whatsapp_id);
+      // Prefer whatsapp_id: it's the number the patient is chatting from, always
+      // in deliverable wa_id form (country code + digits), so the prescription
+      // push reaches the same chat. A typed mobile_number may be local-format
+      // (leading 0 / no country code) and undeliverable via Turn.
+      const mobile = pick(c.whatsapp_id, r.mobile_number, c.mobile);
 
       const address1       = pick(r.address1, c.address1);
       const address2       = pick(r.address2, c.address2);
