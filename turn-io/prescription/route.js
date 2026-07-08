@@ -56,14 +56,6 @@ router.all("/prescription/status", (req, res) =>
    respondWithStatus(req, res, { ...req.query, ...req.body }, "prescription status")
 );
 
-// No-op: the doctor webapp still calls this on share, but the Turn journey now
-// delivers the PDF (via /prescription/<uuid>.pdf), so there is nothing to push.
-// Return 200 so the webapp doesn't log a failed notification.
-router.post("/prescription/notify", (req, res) => {
-   console.log("\n[prescription notify] received (no-op, journey delivers):", JSON.stringify({ ...req.query, ...req.body }));
-   res.json({ success: true, skipped: true, reason: "delivered-by-journey" });
-});
-
 // Stream the PDF. Always application/pdf + 200 so Turn's document() card never
 // hard-fails; headers make WhatsApp render it as an in-chat document. This is
 // the single prescription-delivery path -- the Turn journey fetches it here.
