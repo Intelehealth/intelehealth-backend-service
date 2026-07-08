@@ -27,7 +27,7 @@ module.exports = [
   ["assoc_sneezing",            "Associated: sneezing"],
   ["assoc_itchy_eyes",          "Associated: itchy eyes"],
   ["assoc_nose_runny_block",    "Associated: runny/blocked nose"],
-  ["assoc_post_dripp",          "Associated: post-nasal drip"],
+  ["assoc_post_dripp",          "Associated: postnasal drip"],
   ["assoc_sinus_pain",          "Associated: sinus pain"],
 
   ["assoc_bad_breath",          "Associated: bad breath"],
