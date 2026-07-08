@@ -33,4 +33,19 @@ app.use("/webhooks/turn", visitPush);
 app.use("/webhooks/turn", prescription);
 
 const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(`Server running on ${port}`));
+
+// In prod, terminate HTTPS here (per-service TLS, like the portal's bin/www):
+// load the cert/key from SSL_CERT / SSL_PRIVATE_KEY. Otherwise serve plain HTTP.
+if (process.env.NODE_ENV === "prod") {
+   const https = require("https");
+   const fs = require("fs");
+   const options = {
+      key: fs.readFileSync(process.env.SSL_PRIVATE_KEY),
+      cert: fs.readFileSync(process.env.SSL_CERT),
+   };
+   https.createServer(options, app).listen(port, () =>
+      console.log(`Server running on ${port} (https)`)
+   );
+} else {
+   app.listen(port, () => console.log(`Server running on ${port} (http)`));
+}
