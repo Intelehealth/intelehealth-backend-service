@@ -1,0 +1,33 @@
+module.exports = [
+  ["since",                     "Since"],
+  ["onset",                     "Onset"],
+  ["location",                  "Location"],
+  ["character",                 "Character"],
+  ["timing",                    "Timing"],
+  ["diurnal_variation",         "Diurnal variation"],
+  ["progression",               "Progression"],
+  ["daily_activities",          "Effect on daily activities"],
+
+  ["assoc_fever",               "Associated: fever"],
+  ["assoc_chills_rigors",       "Associated: chills/rigors"],
+  ["assoc_loss_appetite",       "Associated: loss of appetite"],
+  ["assoc_weight_loss",         "Associated: weight loss"],
+  ["assoc_weight_gain",         "Associated: weight gain"],
+  ["assoc_cold_intolerance",    "Associated: cold intolerance"],
+  ["assoc_heat_intolerance",    "Associated: heat intolerance"],
+  ["assoc_frequency_urination", "Associated: frequency of urination"],
+  ["assoc_night_sweats",        "Associated: night sweats"],
+  ["assoc_itching_skin",        "Associated: itching skin"],
+  ["assoc_tingling_numbness",   "Associated: tingling/numbness"],
+  ["assoc_joint_pains",         "Associated: joint pains"],
+  ["assoc_swelling_joints",     "Associated: swelling of joints"],
+  ["assoc_swollen_lymph_nodes", "Associated: swollen lymph nodes"],
+  ["assoc_breathlessness",      "Associated: breathlessness"],
+
+  ["other_associated_symptoms", "Other associated symptoms"],
+  ["any_treatment_sought",      "Any treatment sought"],
+  ["treatment_details",         "Treatment details"],
+  ["additional",                "Additional information"],
+
+  ["weight",                    "Weight"],
+];
