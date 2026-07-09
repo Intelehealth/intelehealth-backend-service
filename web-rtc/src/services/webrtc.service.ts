@@ -66,6 +66,17 @@ export class WebRTCService {
         return at.toJwt();
     }
 
+    async listParticipants(roomName: string) {
+        const raw = process.env.LIVEKIT_ROOM_HOST || process.env.LIVEHOST || '';
+        const host = /^https?:\/\//.test(raw) ? raw : `https://${raw}`;
+        try {
+            const svc = new RoomServiceClient(host, process.env.API_KEY, process.env.SECRET);
+            return await svc.listParticipants(roomName);
+        } catch (err) {
+            return [];
+        }
+    }
+
     getRoomList() {
 
         // list rooms
