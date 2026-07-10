@@ -26,7 +26,8 @@ export class MagicLinkController {
       exp: Date.now() + ttl * 60 * 1000,
     });
 
-    const base = process.env.HW_WEBAPP_URL || 'http://localhost:3002/';
+    const rawBase = process.env.HW_WEBAPP_URL || 'http://localhost:3002/';
+    const base = rawBase.endsWith('/') ? rawBase : `${rawBase}/`;
     const url = `${base}#/join/${magicToken}`;
 
     return res.json({ success: true, magicToken, url });
