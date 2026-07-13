@@ -5,7 +5,10 @@ const COUGH_FIELDS = require("./cough");
 const THROAT_PAIN_FIELDS = require("./throat-pain");
 const HEADACHE_FIELDS = require("./headache");
 const DIARRHEA_FIELDS = require("./diarrhea");
-
+const FEVER_FIELDS = require("./fever");
+const PIMPLES_FIELDS = require("./pimples");
+const RUNNY_NOSE_FIELDS = require("./runny-nose");
+const SLEEP_PROBLEM_FIELDS = require("./sleep_problem");
 // Maps the Chief Complaint (Turn's `symptom` / `results.main_problem`,
 // lowercased) to the field list that describes its `symptoms_data` shape, so
 // unrelated symptoms' fields don't get merged into one long, duplicate-prone
@@ -16,15 +19,29 @@ const FIELDS_BY_SYMPTOM = {
    "throat pain":    THROAT_PAIN_FIELDS,
    "headache":       HEADACHE_FIELDS,
    "diarrhea":       DIARRHEA_FIELDS,
+   "fever":          FEVER_FIELDS,
+   "pimples":        PIMPLES_FIELDS,
+   "runny nose":     RUNNY_NOSE_FIELDS,
+   "sleep problem":  SLEEP_PROBLEM_FIELDS
 };
 
-// Fallback for symptoms without a dedicated field list.
-const ALL_FIELDS = [
-   ...ABD_PAIN_FIELDS,
-   ...COUGH_FIELDS,
-   ...THROAT_PAIN_FIELDS,
-   ...HEADACHE_FIELDS,
-   ...DIARRHEA_FIELDS,
-];
+// Fallback for symptoms without a dedicated field list. Deduped by key: many
+// symptom files share keys (onset, character, progression, treatment, weight...),
+// so without dedup an unregistered symptom would render the same row many times.
+const ALL_FIELDS = (() => {
+   const seen = new Set();
+   const merged = [];
+   for (const [key, label] of [
+      ...ABD_PAIN_FIELDS, ...COUGH_FIELDS, ...THROAT_PAIN_FIELDS,
+      ...HEADACHE_FIELDS, ...DIARRHEA_FIELDS, ...FEVER_FIELDS, ...PIMPLES_FIELDS,
+      ...RUNNY_NOSE_FIELDS, ...SLEEP_PROBLEM_FIELDS,
+   ]) {
+
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push([key, label]);
+   }
+   return merged;
+})();
 
 module.exports = { FIELDS_BY_SYMPTOM, ALL_FIELDS };

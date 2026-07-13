@@ -5,7 +5,7 @@ const { pushData } = require("../lib/openmrs");
 const {
    OPENMRS_IDENTIFIER_TYPE_UUID,
    OPENMRS_LOCATION_UUID,
-} = require("../constants");
+} = require("../constants");   
 
 // OpenMRS person_attribute_type UUIDs (from HW webapp openmrs_uuids.ts).
 const ATTR = {
