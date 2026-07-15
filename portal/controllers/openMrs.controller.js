@@ -118,9 +118,11 @@ const getPriorityVisits = async (req, res, next) => {
   try {
     let page = req.query.page ? Number(req.query.page) : 1;
     let limit =  req.query.limit ? Number(req.query.limit) : 1000;
+    const facilityUuid = req.query.facilityUuid || null;
     const data = await _getPriorityVisits(
       page,
-      limit
+      limit,
+      facilityUuid
     );
     res.json({
       count: data.currentCount,
@@ -138,9 +140,11 @@ const getInProgressVisits = async (req, res, next) => {
   try {
     let page = req.query.page ? Number(req.query.page) : 1;
     let limit =  req.query.limit ? Number(req.query.limit) : 1000;
+    const facilityUuid = req.query.facilityUuid || null;
     const data = await _getInProgressVisits(
       page,
-      limit
+      limit,
+      facilityUuid
     );
     res.json({
       count: data.currentCount,
@@ -158,9 +162,11 @@ const getCompletedVisits = async (req, res, next) => {
   try {
     let page = req.query.page ? Number(req.query.page) : 1;
     let limit =  req.query.limit ? Number(req.query.limit) : 1000;
+    const facilityUuid = req.query.facilityUuid || null;
     const data = await _getCompletedVisits(
       page,
-      limit
+      limit,
+      facilityUuid
     );
     res.json({
       count: data.currentCount,

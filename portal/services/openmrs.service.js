@@ -74,7 +74,7 @@ module.exports = (function () {
         }
     };
 
-    this.getVisits = async (type, limit, offset) => {
+    this.getVisits = async (type, limit, offset, facilityUuid) => {
         if (!type) {
             return [];
         } else {
@@ -91,7 +91,12 @@ module.exports = (function () {
                 throw err;
             });
             let filteredVisits = Array.isArray(visits) ? visits.filter((v) => v?.Status === (type === 'Priority'? 'Visit In Progress': type)) : [];
-            
+
+            // Only return visits whose location matches the provider's facility (when provided)
+            if (facilityUuid) {
+                filteredVisits = filteredVisits.filter((v) => v?.location_uuid === facilityUuid);
+            }
+
             // Get visit attributes to extract scores
             const visitIds = filteredVisits.map(v => v.visit_id);
             if (visitIds.length === 0) {
@@ -143,7 +148,7 @@ module.exports = (function () {
         }
     };
 
-    this.getCompVisits = async (limit, offset) => {
+    this.getCompVisits = async (limit, offset, facilityUuid) => {
         // let visits = await sequelize.query(getVisitCountV3(), {
         //     type: QueryTypes.SELECT,
         // });
@@ -157,6 +162,12 @@ module.exports = (function () {
             throw err;
         });
         let filteredVisits = Array.isArray(visits) ? visits.filter((v) => v?.Status === 'Completed Visit') : [];
+
+        // Only return visits whose location matches the provider's facility (when provided)
+        if (facilityUuid) {
+            filteredVisits = filteredVisits.filter((v) => v?.location_uuid === facilityUuid);
+        }
+
         let currentPageVisits = [...filteredVisits.slice(offset, offset + limit)];
         if (Array.isArray(currentPageVisits)) {
             for (let i = 0; i < currentPageVisits.length; i++) {
@@ -185,13 +196,14 @@ module.exports = (function () {
     this.getVisitsByType = async (
         type,
         page = 1,
-        limit = 1000
+        limit = 1000,
+        facilityUuid
     ) => {
         try {
             let offset = limit * (page - 1);
 
             if (limit > 5000) limit = 5000;
-            const visitIds = await this.getVisits(type, limit, offset);
+            const visitIds = await this.getVisits(type, limit, offset, facilityUuid);
             
             let visits1 = await visit.findAll({
                 attributes: ["visit_id", "uuid", "date_stopped", "date_started", "voided"],
@@ -321,13 +333,14 @@ module.exports = (function () {
 
     this.getCompletedTypeVisits = async (
         page = 1,
-        limit = 1000
+        limit = 1000,
+        facilityUuid
     ) => {
         try {
             let offset = limit * (page - 1);
 
             if (limit > 5000) limit = 5000;
-            const compVisits = await this.getCompVisits(limit, offset);
+            const compVisits = await this.getCompVisits(limit, offset, facilityUuid);
             const visitIds = compVisits.visits;
             const totalCount = compVisits.totalCount;
             const ids = visitIds.map((v) => v?.visit_id);
@@ -456,13 +469,15 @@ module.exports = (function () {
 
     this._getPriorityVisits = async (
         page = 1,
-        limit = 1000
+        limit = 1000,
+        facilityUuid
     ) => {
         try {
             return await this.getVisitsByType(
                 "Priority",
                 page,
-                limit
+                limit,
+                facilityUuid
             );
         } catch (error) {
             throw error;
@@ -471,13 +486,15 @@ module.exports = (function () {
 
     this._getInProgressVisits = async (
         page = 1,
-        limit = 1000
+        limit = 1000,
+        facilityUuid
     ) => {
         try {
             return await this.getVisitsByType(
                 "Visit In Progress",
                 page,
-                limit
+                limit,
+                facilityUuid
             );
         } catch (error) {
             throw error;
@@ -486,12 +503,14 @@ module.exports = (function () {
 
     this._getCompletedVisits = async (
         page = 1,
-        limit = 1000
+        limit = 1000,
+        facilityUuid
     ) => {
         try {
             return await this.getCompletedTypeVisits(
                 page,
-                limit
+                limit,
+                facilityUuid
             );
         } catch (error) {
             throw error;

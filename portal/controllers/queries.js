@@ -3,6 +3,8 @@ module.exports = (function () {
         return `select
             t1.visit_id,
             t1.uuid,
+            t1.location_id,
+            location.uuid as location_uuid,
             max_enc,
             encounter.encounter_type,
             encounter_type.name as encounter_type_name,
@@ -30,6 +32,7 @@ module.exports = (function () {
                     v.visit_id,
                     v.patient_id,
                     v.uuid,
+                    v.location_id,
                     max(e.encounter_id) as max_enc,
                     max(
                         case
@@ -50,10 +53,12 @@ module.exports = (function () {
                     v.voided = 0
                 group by
                     v.visit_id,
-                    v.patient_id
+                    v.patient_id,
+                    v.location_id
             ) as t1
             left join encounter on encounter.encounter_id = t1.max_enc
             left join encounter_type on encounter.encounter_type = encounter_type.encounter_type_id
+            left join location on location.location_id = t1.location_id
         order by t1.visit_id desc`;
     };
 
