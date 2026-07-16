@@ -27,6 +27,7 @@ module.exports = [
   ["assoc_head_injury",        "Associated: head injury"],
 
   ["other_symptoms",           "Other symptoms"],
+  ["other_symptoms_detail",    "Other symptoms detailS"],
   ["treatment",                "Treatment"],
   ["treatment_details",        "Treatment details"],
   ["additional",               "Additional information"],
