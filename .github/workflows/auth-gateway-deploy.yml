@@ -176,11 +176,7 @@ jobs:
             fi
 
              
-            for cid in $(docker ps --format '{{.ID}} {{.Ports}}' | awk '/0.0.0.0:3030/{print $1}'); do echo "Stopping/removing container $cid that is binding host:3030" docker stop "$cid" || true docker rm "$cid" || true done
-            if ss -ltnp 2>/dev/null | grep -q ':3030'; then echo "Non-docker process found listening on 3030 — listing and killing (best-effort)" ss -ltnp | awk '/:3030/ {print $0}'
-            ss -ltnp | awk '/:3030/ {m=$0; sub(/.pid=/,"",m); sub(/,.$/,"",m); print m}' | xargs -r -n1 sh -c 'echo "killing pid $0"; kill -9 $0' || true fi
-            if ss -ltnp 2>/dev/null | grep -q ':3030'; then echo "ERROR: port 3030 still in use after cleanup. Diagnostics:" echo "docker ps --format '{{.ID}} {{.Names}} {{.Ports}}':" docker ps --format '{{.ID}} {{.Names}} {{.Ports}}' ss -ltnp | awk '/:3030/ {print "ss:",$0}' exit 1 fi
-             
+       
 
             docker run -d \
               --name \$DOCKER_IMAGE_NAME \
