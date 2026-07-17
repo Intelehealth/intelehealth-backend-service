@@ -3,6 +3,7 @@ dotenv.config();
 import express from 'express';
 import IndexRouter from './routes';
 import { WebSocketController } from './controllers/websocket.controller';
+import { startAppointmentCallLinkJob } from './jobs/appointment-call-link.job';
 import * as http from 'http';
 import * as https from 'https';
 const cors = require('cors');
@@ -62,6 +63,7 @@ class Server {
         });
         this.init();
         new WebSocketController(server);
+        startAppointmentCallLinkJob();
 
         // If needed, move this definition to models/session.js
         db.sequelize.define("Session", {

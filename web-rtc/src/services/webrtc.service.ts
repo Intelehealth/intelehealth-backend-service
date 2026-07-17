@@ -45,7 +45,7 @@ export class WebRTCService {
     }
 
 
-    getToken(roomName: string, participantName: string, opts = {}) {
+    getToken(roomName: string, participantName: string, opts = {}, ttl: string | number = '10 days') {
         let options: VideoGrant = {
             recorder: true,
             roomJoin: true,
@@ -59,11 +59,27 @@ export class WebRTCService {
 
         const at = new AccessToken(process.env.API_KEY, process.env.SECRET, {
             identity: participantName,
-            ttl: '10 days',
+            ttl,
         });
         at.addGrant(options);
 
         return at.toJwt();
+    }
+
+    getGuestToken(roomName: string, participantName: string, ttlSeconds: number) {
+        return this.getToken(
+            roomName,
+            participantName,
+            {
+                recorder: false,
+                roomRecord: false,
+                roomJoin: true,
+                room: roomName,
+                canPublish: true,
+                canSubscribe: true,
+            },
+            Math.max(60, Math.floor(ttlSeconds))
+        );
     }
 
     async listParticipants(roomName: string) {
