@@ -175,6 +175,12 @@ jobs:
               exit 1
             fi
 
+            lsof -ti:3000 | xargs kill -9 2>/dev/null || true
+            
+            docker ps -a | grep \$DOCKER_IMAGE_NAME | awk '{print $1}' | xargs docker rm -f 2>/dev/null || true
+            
+            sleep 2
+
             docker run -d \
               --name \$DOCKER_IMAGE_NAME \
               --restart unless-stopped \
