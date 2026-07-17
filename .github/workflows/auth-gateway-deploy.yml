@@ -174,9 +174,11 @@ jobs:
               echo "Error: .pem folder not found at \$PEM_FOLDER_PATH"
               exit 1
             fi
-   
-            fuser -k 3030/tcp || true
 
+            docker ps -a | grep auth-gateway | awk '{print $1}' | xargs -r docker rm -f || true
+        
+            fuser -k 3030/tcp || true
+          
             sleep 2
             
             docker run -d \
