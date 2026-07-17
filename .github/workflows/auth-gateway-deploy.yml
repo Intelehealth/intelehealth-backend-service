@@ -175,7 +175,9 @@ jobs:
               exit 1
             fi
    
-            lsof -ti:3030 | xargs kill -9 || true            
+            fuser -k 3030/tcp || true
+
+            sleep 2
             
             docker run -d \
               --name \$DOCKER_IMAGE_NAME \
