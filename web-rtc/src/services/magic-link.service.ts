@@ -33,6 +33,35 @@ export function encryptMagic(payload: MagicPayload): string {
   return Buffer.concat([iv, tag, data]).toString('base64url');
 }
 
+const SHORT_SIG_LEN = 12;
+
+const shortSig = (id: string): string =>
+  crypto
+    .createHmac('sha256', getKey())
+    .update(id)
+    .digest('base64url')
+    .slice(0, SHORT_SIG_LEN);
+
+export function signShortCode(appointmentId: number | string): string {
+  const id = String(appointmentId);
+  return `${id}.${shortSig(id)}`;
+}
+
+export function verifyShortCode(code: string): string | null {
+  const raw = String(code || '');
+  const dot = raw.lastIndexOf('.');
+  if (dot <= 0) return null;
+
+  const id = raw.slice(0, dot);
+  const provided = Buffer.from(raw.slice(dot + 1));
+  const expected = Buffer.from(shortSig(id));
+
+  if (provided.length !== expected.length) return null;
+  if (!crypto.timingSafeEqual(provided, expected)) return null;
+
+  return id;
+}
+
 export function decryptMagic(token: string): MagicPayload | null {
   try {
     const buf = Buffer.from(token, 'base64url');

@@ -20,6 +20,7 @@ class IndexRoute {
         router.post('/magic-link', [authMiddleware, this.magicLinkController.generate])
         router.get('/magic-link/redeem', this.magicLinkController.redeem)
         router.get('/magic-link/room-status', this.magicLinkController.roomStatus)
+        router.get('/magic-link/j/:code', this.magicLinkController.joinShort)
     }
 }
 
