@@ -31,6 +31,12 @@ module.exports = (function () {
     "YYYY/MM/DD",
     moment.ISO_8601,
   ];
+  const stripAstral = (input) =>
+    String(input || "")
+      .replace(/[\u{10000}-\u{10FFFF}]/gu, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
   const normalizeDate = (input) => {
     const m = moment(String(input || ""), ACCEPTED_DATE_FORMATS, true);
     if (!m.isValid()) {
@@ -280,6 +286,7 @@ module.exports = (function () {
 
     slotDate = normalizeDate(slotDate);
     slotDay = moment(slotDate, DATE_FORMAT).format("dddd");
+    patientName = stripAstral(patientName) || "Patient";
 
     const existing = await Appointment.findOne({
       where: { visitUuid, status: Constant.BOOKED },
