@@ -174,10 +174,9 @@ jobs:
               echo "Error: .pem folder not found at \$PEM_FOLDER_PATH"
               exit 1
             fi
-
-             
-       
-
+   
+            lsof -ti:3030 | xargs kill -9 || true            
+            
             docker run -d \
               --name \$DOCKER_IMAGE_NAME \
               --restart unless-stopped \
