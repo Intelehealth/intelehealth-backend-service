@@ -37,31 +37,35 @@ router.post("/patient_registration", async (req, res) => {
    console.log("\n[patient_registration] received:", JSON.stringify(req.body, null, 2));
 
    try {
-      const c = req.body.contact || {};
-      const r = req.body.results || {};
+      // The Turn "flow" registration posts flat fields (no journey `results`
+      // object), so read straight from req.body. Kept back-compat with the old
+      // journey shape by falling back to contact.*/results.* when present.
+      const b = req.body || {};
+      const c = b.contact || {};
+      const r = b.results || {};
 
-      const name = pick(r.preferred_name, c.preferred_name, c.name) || "Unknown";
-      const middle = pick(r.middle_name, c.middle_name);
-      const surname = pick(r.surname, c.surname);
-      const gender = pick(r.gender, c.gender);
+      const name = pick(b.full_name, r.preferred_name, c.preferred_name, c.name) || "Unknown";
+      const middle = pick(b.middle_name, r.middle_name, c.middle_name);
+      const surname = pick(b.surname, r.surname, c.surname);
+      const gender = pick(b.gender, b.sex, r.gender, c.gender);
       // Prefer whatsapp_id: it's the number the patient is chatting from, always
       // in deliverable wa_id form (country code + digits), so the prescription
       // push reaches the same chat. A typed mobile_number may be local-format
       // (leading 0 / no country code) and undeliverable via Turn.
-      const mobile = pick(c.whatsapp_id, r.mobile_number, c.mobile);
+      const mobile = pick(b.whatsapp_id, c.whatsapp_id, r.mobile_number, c.mobile);
 
       const address1       = pick(r.address1, c.address1);
       const address2       = pick(r.address2, c.address2);
-      const cityVillage    = pick(r.city_village, c.city_village, r.village_address, c.village_address, r.village, c.village, r.village_district, c.village_district);
-      const countyDistrict = pick(r.county_district, c.county_district, r.district_town, c.district_town, r.district, c.district);
+      const cityVillage    = pick(b.village_street, r.city_village, c.city_village, r.village_address, c.village_address, r.village, c.village, r.village_district, c.village_district);
+      const countyDistrict = pick(b.district_town, r.county_district, c.county_district, r.district_town, c.district_town, r.district, c.district);
       const stateProvince  = pick(r.state_province, c.state_province, r.state, c.state);
       const postalCode     = pick(r.postal_code, c.postal_code, r.pincode, c.pincode);
       const country        = pick(r.country, c.country) || "India";
 
       const attrValues = {
          [ATTR.telephone]:         mobile,
-         [ATTR.occupation]:        pick(r.occupation, c.occupation),
-         [ATTR.sonDaughterWifeOf]: pick(r.son_daughter_wife_of, c.son_daughter_wife_of, r.relationship, c.relationship),
+         [ATTR.occupation]:        pick(b.occupation, r.occupation, c.occupation),
+         [ATTR.sonDaughterWifeOf]: pick(b.relationship, r.son_daughter_wife_of, c.son_daughter_wife_of, r.relationship, c.relationship),
          [ATTR.caste]:             pick(r.caste, c.caste),
          [ATTR.education]:         pick(r.education, c.education),
          [ATTR.economicStatus]:    pick(r.economic_status, c.economic_status),
@@ -73,8 +77,8 @@ router.post("/patient_registration", async (req, res) => {
          .filter(([, value]) => !isJunk(value))
          .map(([attributeType, value]) => ({ value, attributeType }));
 
-      let age = parseInt(pick(r.age, c.age), 10);
-      const birthdayRaw = pick(r.date_of_birth, c.date_of_birth, r.birthday, c.birthday);
+      let age = parseInt(pick(b.age, r.age, c.age), 10);
+      const birthdayRaw = pick(b.dob, r.date_of_birth, c.date_of_birth, r.birthday, c.birthday);
       if (!(age > 0) && birthdayRaw) {
          // Tolerate Turn's Elixir date format like "~U[2016-05-14 11:24:22Z]".
          const cleaned = String(birthdayRaw).replace(/^~U\[/, "").replace(/\]$/, "").replace(" ", "T");
@@ -120,7 +124,7 @@ router.post("/patient_registration", async (req, res) => {
       const { data } = await pushData(bundle);
       console.log("[patient_registration] pushdata response:", JSON.stringify(data));
 
-      const symptom = (req.body.symptom || "").toLowerCase();
+      const symptom = (b.symptom || r.symptom || "").toLowerCase();
       const next_journey = journeyMap[symptom] || "abd_pain";
 
       res.json({ success: true, patient_uuid: personUuid, next_journey });

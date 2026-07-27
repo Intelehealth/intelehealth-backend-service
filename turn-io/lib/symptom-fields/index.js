@@ -31,7 +31,7 @@ const FIELDS_BY_SYMPTOM = {
    "sleep problem":  SLEEP_PROBLEM_FIELDS,
    "vomiting":       VOMITING_FIELDS,
    "constipation":   CONSTIPATION_FIELDS,
-   "back pain":      BACK_PAIN_FIELD
+   "back pain":      BACK_PAIN_FIELDS
 };
 
 // Fallback for symptoms without a dedicated field list. Deduped by key: many
