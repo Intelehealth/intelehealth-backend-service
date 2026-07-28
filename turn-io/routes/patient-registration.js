@@ -77,6 +77,13 @@ router.post("/patient_registration", async (req, res) => {
          .filter(([, value]) => !isJunk(value))
          .map(([attributeType, value]) => ({ value, attributeType }));
 
+      // Show what Turn actually sent for relationship vs. what got stored.
+      console.log("[patient_registration] relationship:", JSON.stringify({
+         relationshipSent: req.body.relationship,
+         consultationFor: req.body.consultation_for,
+         relationshipStored: attrValues[ATTR.sonDaughterWifeOf] || "(dropped: blank)",
+      }));
+
       let age = parseInt(pick(b.age, r.age, c.age), 10);
       const birthdayRaw = pick(b.dob, r.date_of_birth, c.date_of_birth, r.birthday, c.birthday);
       if (!(age > 0) && birthdayRaw) {
