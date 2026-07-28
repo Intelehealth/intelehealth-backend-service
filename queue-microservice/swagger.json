@@ -266,16 +266,17 @@
       "post": {
         "tags": ["Call lifecycle"],
         "summary": "Mark COMPLETED (call ended)",
-        "description": "Called by web-rtc at stopRecording (or a LiveKit webhook). Sets status COMPLETED for an ASSIGNED/IN_CALL entry.",
+        "description": "Called by web-rtc at stopRecording (or a LiveKit webhook). Sets status COMPLETED for an ASSIGNED/IN_CALL entry. Provide visitUuid OR roomId (stopRecording only knows the roomId).",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["visitUuid"],
+                "description": "Provide at least one of visitUuid or roomId.",
                 "properties": {
-                  "visitUuid": { "type": "string", "example": "3f1c9e2a-1b7d-4c8e-9a2b-8f6d1c2e4a5b" }
+                  "visitUuid": { "type": "string", "example": "3f1c9e2a-1b7d-4c8e-9a2b-8f6d1c2e4a5b" },
+                  "roomId": { "type": "string", "example": "room-3f1c9e2a" }
                 }
               }
             }

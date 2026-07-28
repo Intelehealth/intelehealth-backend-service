@@ -60,12 +60,12 @@ module.exports = {
     }
   },
 
-  // POST /queue/complete  { visitUuid }  — from WebRTC stopRecording / webhook
+  // POST /queue/complete  { visitUuid | roomId }  — from WebRTC stopRecording / webhook
   async complete(req, res) {
     try {
-      const { visitUuid } = req.body;
-      if (!visitUuid) return fail(res, 400, "Missing visitUuid.");
-      const updated = await queueService.complete({ visitUuid });
+      const { visitUuid, roomId } = req.body;
+      if (!visitUuid && !roomId) return fail(res, 400, "Provide visitUuid or roomId.");
+      const updated = await queueService.complete({ visitUuid, roomId });
       return ok(res, { updated });
     } catch (err) {
       return fail(res, 500, err.message);

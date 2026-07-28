@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { WebRTCService } from "../services/webrtc.service";
+import { qmsCallStarted, qmsCallEnded } from "../services/qms.integration";
 const { logStream } = require("../logger/index");
 
 export class MainController {
@@ -62,6 +63,14 @@ export class MainController {
             };
 
             const response = await new WebRTCService().startRecording(req.body.roomId as string, recordingParams);
+
+            // QMS (feature-flagged, fire-and-forget): mark the queue entry IN_CALL
+            qmsCallStarted({
+                visitId: req.body.visitId,
+                doctorId: req.body.doctorId,
+                roomId: req.body.roomId,
+            });
+
             logStream('debug', 'Success', 'Get Token');
             return res.json(response);
         } catch (error) {
@@ -93,6 +102,10 @@ export class MainController {
             if (response?.success === false) {
                 return res.status(response?.status ?? 500).json(response)
             }
+
+            // QMS (feature-flagged, fire-and-forget): mark the queue entry COMPLETED
+            qmsCallEnded({ roomId: req.query.roomId as string });
+
             logStream('debug', 'Success', 'Get Token');
             return res.json(response);
         } catch (error) {

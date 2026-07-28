@@ -64,11 +64,16 @@ async function markInCall({ visitUuid, doctorId, roomId }) {
   return count > 0;
 }
 
-/** Mark the call/visit complete (driven by WebRTC stopRecording or webhook). */
-async function complete({ visitUuid }) {
+/**
+ * Mark the call/visit complete (driven by WebRTC stopRecording or webhook).
+ * Accepts either visitUuid or roomId — stopRecording only knows the roomId,
+ * which was stored on the entry when the call started (markInCall).
+ */
+async function complete({ visitUuid, roomId }) {
+  const key = visitUuid ? { visitUuid } : { roomId };
   const [count] = await QueueEntry.update(
     { status: "COMPLETED", completedAt: new Date() },
-    { where: { visitUuid, status: { [Op.in]: ["ASSIGNED", "IN_CALL"] } } }
+    { where: { ...key, status: { [Op.in]: ["ASSIGNED", "IN_CALL"] } } }
   );
   return count > 0;
 }

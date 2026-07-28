@@ -37,7 +37,10 @@ export function qmsCallStarted(p: { visitId: string; doctorId: string; roomId: s
   void post("/queue/in-call", { visitUuid: p.visitId, doctorId: p.doctorId, roomId: p.roomId });
 }
 
-/** Call ended -> mark the queue entry COMPLETED. Wire into stopRecording. */
-export function qmsCallEnded(p: { visitId: string }): void {
-  void post("/queue/complete", { visitUuid: p.visitId });
+/**
+ * Call ended -> mark the queue entry COMPLETED. Wire into stopRecording.
+ * stopRecording only knows the roomId, so either identifier is accepted.
+ */
+export function qmsCallEnded(p: { visitId?: string; roomId?: string }): void {
+  void post("/queue/complete", { visitUuid: p.visitId, roomId: p.roomId });
 }
