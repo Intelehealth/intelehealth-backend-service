@@ -1,0 +1,29 @@
+{
+  "name": "queue-microservice",
+  "version": "1.0.0",
+  "description": "Queue Management System (QMS) for Intelehealth — specialty-wise patient queue",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "migrate": "npx sequelize db:migrate",
+    "migrate:undo": "npx sequelize db:migrate:undo",
+    "migrate:status": "npx sequelize db:migrate:status",
+    "seed": "npx sequelize db:seed:all"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "mysql2": "^3.9.7",
+    "node-cron": "^3.0.3",
+    "sequelize": "^6.37.3",
+    "swagger-ui-express": "^5.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0",
+    "sequelize-cli": "^6.6.2"
+  }
+}

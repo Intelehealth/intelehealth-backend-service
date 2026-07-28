@@ -1,0 +1,6 @@
+node_modules/
+.env
+*.log
+
+# JWT public key (copy from another service — never commit)
+.pem/

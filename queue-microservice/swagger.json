@@ -1,0 +1,356 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Queue Microservice (QMS)",
+    "version": "1.0.0",
+    "description": "Specialty-wise patient queue for the Intelehealth telemedicine platform. Health worker enqueues a visit; doctors claim the next patient (concurrency-safe via FOR UPDATE SKIP LOCKED); status is driven by the WebRTC call lifecycle."
+  },
+  "servers": [
+    { "url": "http://localhost:3600", "description": "Local" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "User JWT (doctor / patient / health worker), signed by OpenMRS/auth. Same token the other Intelehealth services accept."
+      },
+      "serviceSecret": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-qms-secret",
+        "description": "Shared service-to-service secret (QMS_SERVICE_SECRET) — for internal callers like web-rtc that have no user token."
+      }
+    },
+    "schemas": {
+      "QueueEntry": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 42 },
+          "visitUuid": { "type": "string", "example": "3f1c9e2a-1b7d-4c8e-9a2b-8f6d1c2e4a5b" },
+          "patientId": { "type": "string", "example": "PID-10023" },
+          "patientName": { "type": "string", "example": "Ramesh Patil" },
+          "specialty": { "type": "string", "example": "Cardiology" },
+          "status": {
+            "type": "string",
+            "enum": ["WAITING", "ASSIGNED", "IN_CALL", "COMPLETED", "CANCELLED", "STALE"],
+            "example": "WAITING"
+          },
+          "priority": { "type": "integer", "example": 0 },
+          "doctorId": { "type": "string", "nullable": true, "example": "DOC-501" },
+          "roomId": { "type": "string", "nullable": true, "example": "room-3f1c9e2a" },
+          "enqueuedAt": { "type": "string", "format": "date-time" },
+          "assignedAt": { "type": "string", "format": "date-time", "nullable": true },
+          "startedAt": { "type": "string", "format": "date-time", "nullable": true },
+          "completedAt": { "type": "string", "format": "date-time", "nullable": true }
+        }
+      },
+      "Position": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "visitUuid": { "type": "string" },
+          "status": { "type": "string", "example": "WAITING" },
+          "position": { "type": "integer", "example": 3, "description": "1 = next to be seen" },
+          "aheadCount": { "type": "integer", "example": 2 },
+          "estimatedWaitSeconds": { "type": "integer", "example": 960 }
+        }
+      },
+      "SpecialtyList": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "specialty": { "type": "string", "example": "Cardiology" },
+          "waitingCount": { "type": "integer", "example": 3 },
+          "assignedCount": { "type": "integer", "example": 1 },
+          "inCallCount": { "type": "integer", "example": 1 },
+          "entries": { "type": "array", "items": { "$ref": "#/components/schemas/QueueEntry" } }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "message": { "type": "string", "example": "Missing visitUuid." }
+        }
+      }
+    }
+  },
+  "security": [{ "bearerAuth": [] }, { "serviceSecret": [] }],
+  "tags": [
+    { "name": "Queue", "description": "Enqueue and claim patients" },
+    { "name": "Call lifecycle", "description": "Status transitions driven by WebRTC" },
+    { "name": "Read", "description": "Position and dashboard reads (poll these)" },
+    { "name": "System", "description": "Health check" }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["System"],
+        "summary": "Health check",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Service is up",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "service": { "type": "string", "example": "queue-microservice" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/queue": {
+      "post": {
+        "tags": ["Queue"],
+        "summary": "Enqueue a visit",
+        "description": "Adds a visit to its specialty queue. Idempotent on visitUuid — re-enqueuing returns the existing row.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["visitUuid", "specialty"],
+                "properties": {
+                  "visitUuid": { "type": "string", "example": "3f1c9e2a-1b7d-4c8e-9a2b-8f6d1c2e4a5b" },
+                  "patientId": { "type": "string", "example": "PID-10023" },
+                  "patientName": { "type": "string", "example": "Ramesh Patil" },
+                  "specialty": { "type": "string", "example": "Cardiology" },
+                  "priority": { "type": "integer", "example": 0, "description": "higher = more urgent" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Enqueued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "entry": { "$ref": "#/components/schemas/QueueEntry" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Validation error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/queue/{specialty}/next": {
+      "get": {
+        "tags": ["Queue"],
+        "summary": "Claim the next waiting patient",
+        "description": "Atomically claims the next WAITING patient in the specialty using FOR UPDATE SKIP LOCKED. Two doctors calling simultaneously each get a different patient. Sets status to ASSIGNED.",
+        "parameters": [
+          { "name": "specialty", "in": "path", "required": true, "schema": { "type": "string" }, "example": "Cardiology" },
+          { "name": "doctorId", "in": "query", "required": true, "schema": { "type": "string" }, "example": "DOC-501" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Next patient (or null if queue empty)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "entry": { "allOf": [{ "$ref": "#/components/schemas/QueueEntry" }], "nullable": true },
+                    "message": { "type": "string", "example": "Queue is empty." }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Missing doctorId", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/queue/{id}/claim": {
+      "post": {
+        "tags": ["Queue"],
+        "summary": "Claim a specific entry",
+        "description": "Doctor picks a specific entry from the list. Succeeds only if still WAITING (compare-and-swap); if already taken, allocates the next patient instead.",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" }, "example": 42 }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["doctorId"],
+                "properties": {
+                  "doctorId": { "type": "string", "example": "DOC-501" },
+                  "specialty": { "type": "string", "example": "Cardiology", "description": "used to fetch the next patient if this one was already taken" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Claimed (or reallocated to next)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "entry": { "allOf": [{ "$ref": "#/components/schemas/QueueEntry" }], "nullable": true },
+                    "taken": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Already taken; allocated next patient." }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/queue/in-call": {
+      "post": {
+        "tags": ["Call lifecycle"],
+        "summary": "Mark IN_CALL (call started)",
+        "description": "Called by web-rtc at startRecording. Sets status IN_CALL for a WAITING/ASSIGNED entry.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["visitUuid"],
+                "properties": {
+                  "visitUuid": { "type": "string", "example": "3f1c9e2a-1b7d-4c8e-9a2b-8f6d1c2e4a5b" },
+                  "doctorId": { "type": "string", "example": "DOC-501" },
+                  "roomId": { "type": "string", "example": "room-3f1c9e2a" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated flag",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "updated": { "type": "boolean", "example": true }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/queue/complete": {
+      "post": {
+        "tags": ["Call lifecycle"],
+        "summary": "Mark COMPLETED (call ended)",
+        "description": "Called by web-rtc at stopRecording (or a LiveKit webhook). Sets status COMPLETED for an ASSIGNED/IN_CALL entry.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["visitUuid"],
+                "properties": {
+                  "visitUuid": { "type": "string", "example": "3f1c9e2a-1b7d-4c8e-9a2b-8f6d1c2e4a5b" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated flag",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "updated": { "type": "boolean", "example": true }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/queue/busy/{visitUuid}": {
+      "get": {
+        "tags": ["Call lifecycle"],
+        "summary": "Is this visit in a call?",
+        "description": "Busy check — true if the visit is currently IN_CALL.",
+        "parameters": [
+          { "name": "visitUuid", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Busy flag",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "busy": { "type": "boolean", "example": false }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/queue/position/{visitUuid}": {
+      "get": {
+        "tags": ["Read"],
+        "summary": "Position + estimated wait",
+        "description": "For the patient app. position 1 = next. estimatedWaitSeconds = aheadCount x avg consult time for the specialty. Poll every few seconds.",
+        "parameters": [
+          { "name": "visitUuid", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Position info", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Position" } } } },
+          "404": { "description": "Visit not found in queue", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/queue/{specialty}": {
+      "get": {
+        "tags": ["Read"],
+        "summary": "Pending list + counts for a specialty",
+        "description": "For the doctor / health-worker dashboard. Returns WAITING + ASSIGNED entries and counts. Poll every 5-10s.",
+        "parameters": [
+          { "name": "specialty", "in": "path", "required": true, "schema": { "type": "string" }, "example": "Cardiology" }
+        ],
+        "responses": {
+          "200": { "description": "Specialty queue", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SpecialtyList" } } } }
+        }
+      }
+    }
+  }
+}
