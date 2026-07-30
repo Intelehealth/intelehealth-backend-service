@@ -16,6 +16,14 @@ module.exports = (function () {
   const DATE_FORMAT = "DD/MM/YYYY";
   const TIME_FORMAT = "LT";
   const FILTER_TIME_DATE_FORMAT = "DD/MM/YYYY HH:mm:ss";
+  // Slots are IST-based. Use a fixed +05:30 offset so "now" and each slot's
+  // start time are compared on the same clock, regardless of the server's
+  // timezone. Dependency-free (no moment-timezone needed).
+  const APP_UTC_OFFSET = "+05:30";
+  // A slot's absolute start time, anchored to IST.
+  const slotMoment = (slotDate, slotTime) =>
+    moment.utc(`${slotDate} ${slotTime}`, `${DATE_FORMAT} ${TIME_FORMAT}`, true)
+      .utcOffset(APP_UTC_OFFSET, true);
 
   const getFilterDates = (fromDate, toDate) => {
     return [
@@ -94,13 +102,13 @@ module.exports = (function () {
   const computeOpenSlots = async ({ userUuid, speciality, fromDate, toDate }) => {
     fromDate = normalizeDate(fromDate);
     toDate = normalizeDate(toDate);
-    console.log("[computeOpenSlots] params:", JSON.stringify({ userUuid, speciality, fromDate, toDate }));
+    console.log("computeOpenSlots params:", JSON.stringify({ userUuid, speciality, fromDate, toDate }));
 
     const scheduleWhere = { speciality };
     if (userUuid) scheduleWhere.userUuid = userUuid;
 
     const schedules = await Schedule.findAll({ where: scheduleWhere, raw: true });
-    console.log("[computeOpenSlots] schedules found:", schedules.length);
+    console.log("schedules found:", schedules.length);
     if (!schedules.length) return [];
 
     const setting = await Setting.findOne({ where: {}, raw: true });
@@ -108,7 +116,7 @@ module.exports = (function () {
       setting && setting.slotDuration ? setting.slotDuration : 30;
     const SLOT_DURATION_UNIT =
       setting && setting.slotDurationUnit ? setting.slotDurationUnit : "minutes";
-    console.log("[computeOpenSlots] slot duration:", SLOT_DURATION, SLOT_DURATION_UNIT);
+    console.log("slot duration:", SLOT_DURATION, SLOT_DURATION_UNIT);
 
     const startDate = moment(fromDate, DATE_FORMAT);
     const endDate = moment(toDate, DATE_FORMAT);
@@ -137,7 +145,7 @@ module.exports = (function () {
         getMonthSlots({ schedule, days, SLOT_DURATION, SLOT_DURATION_UNIT })
       );
     });
-    console.log("[computeOpenSlots] candidate slots generated:", dates.length);
+    console.log("candidate slots generated:", dates.length);
 
     const appointmentWhere = {
       speciality,
@@ -161,14 +169,13 @@ module.exports = (function () {
       if (idx !== -1) dates.splice(idx, 1);
     });
     console.log(
-      "[computeOpenSlots] booked removed:",
+      "booked removed:",
       appointments.length,
       "| remaining candidates:",
       dates.length
     );
 
     const now = moment();
-    const today = now.format(DATE_FORMAT);
     const openSlots = [];
     dates.forEach((slot) => {
       const seen = openSlots.find(
@@ -179,24 +186,22 @@ module.exports = (function () {
       );
       if (seen) return;
 
-      const slotDay = moment(slot.slotDate, DATE_FORMAT);
-      if (slotDay.isBefore(now, "day")) return;
-      if (slot.slotDate === today && moment(slot.slotTime, TIME_FORMAT) <= now) {
-        return;
-      }
+      // Single, timezone-consistent "is this slot in the past?" check.
+      // Compare the slot's absolute IST start time against the current
+      // instant — no fragile slotDate===today string branch.
+      const slotStart = slotMoment(slot.slotDate, slot.slotTime);
+      if (!slotStart.isValid() || slotStart.isSameOrBefore(now)) return;
+
       openSlots.push({
         ...slot,
-        startsAt: moment(
-          `${slot.slotDate} ${slot.slotTime}`,
-          `${DATE_FORMAT} ${TIME_FORMAT}`
-        ).valueOf(),
-        label: `${slotDay.format("ddd D MMM")}, ${slot.slotTime}`,
+        startsAt: slotStart.valueOf(),
+        label: `${slotStart.format("ddd D MMM")}, ${slot.slotTime}`,
       });
     });
 
     openSlots.sort((a, b) => a.startsAt - b.startsAt);
     console.log(
-      "[computeOpenSlots] open slots:",
+      "open slots:",
       openSlots.length,
       openSlots.map((s) => s.label)
     );
