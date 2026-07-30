@@ -94,11 +94,13 @@ module.exports = (function () {
   const computeOpenSlots = async ({ userUuid, speciality, fromDate, toDate }) => {
     fromDate = normalizeDate(fromDate);
     toDate = normalizeDate(toDate);
+    console.log("[computeOpenSlots] params:", JSON.stringify({ userUuid, speciality, fromDate, toDate }));
 
     const scheduleWhere = { speciality };
     if (userUuid) scheduleWhere.userUuid = userUuid;
 
     const schedules = await Schedule.findAll({ where: scheduleWhere, raw: true });
+    console.log("[computeOpenSlots] schedules found:", schedules.length);
     if (!schedules.length) return [];
 
     const setting = await Setting.findOne({ where: {}, raw: true });
@@ -106,6 +108,7 @@ module.exports = (function () {
       setting && setting.slotDuration ? setting.slotDuration : 30;
     const SLOT_DURATION_UNIT =
       setting && setting.slotDurationUnit ? setting.slotDurationUnit : "minutes";
+    console.log("[computeOpenSlots] slot duration:", SLOT_DURATION, SLOT_DURATION_UNIT);
 
     const startDate = moment(fromDate, DATE_FORMAT);
     const endDate = moment(toDate, DATE_FORMAT);
@@ -134,6 +137,7 @@ module.exports = (function () {
         getMonthSlots({ schedule, days, SLOT_DURATION, SLOT_DURATION_UNIT })
       );
     });
+    console.log("[computeOpenSlots] candidate slots generated:", dates.length);
 
     const appointmentWhere = {
       speciality,
@@ -156,6 +160,12 @@ module.exports = (function () {
       );
       if (idx !== -1) dates.splice(idx, 1);
     });
+    console.log(
+      "[computeOpenSlots] booked removed:",
+      appointments.length,
+      "| remaining candidates:",
+      dates.length
+    );
 
     const now = moment();
     const today = now.format(DATE_FORMAT);
@@ -185,6 +195,11 @@ module.exports = (function () {
     });
 
     openSlots.sort((a, b) => a.startsAt - b.startsAt);
+    console.log(
+      "[computeOpenSlots] open slots:",
+      openSlots.length,
+      openSlots.map((s) => s.label)
+    );
     return openSlots;
   };
 
