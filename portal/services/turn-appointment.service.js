@@ -16,9 +16,7 @@ module.exports = (function () {
   const DATE_FORMAT = "DD/MM/YYYY";
   const TIME_FORMAT = "LT";
   const FILTER_TIME_DATE_FORMAT = "DD/MM/YYYY HH:mm:ss";
-  // Slots are IST-based. Use a fixed +05:30 offset so "now" and each slot's
-  // start time are compared on the same clock, regardless of the server's
-  // timezone. Dependency-free (no moment-timezone needed).
+  // Slots are IST-based. 
   const APP_UTC_OFFSET = "+05:30";
   // A slot's absolute start time, anchored to IST.
   const slotMoment = (slotDate, slotTime) =>
@@ -102,13 +100,11 @@ module.exports = (function () {
   const computeOpenSlots = async ({ userUuid, speciality, fromDate, toDate }) => {
     fromDate = normalizeDate(fromDate);
     toDate = normalizeDate(toDate);
-    console.log("computeOpenSlots params:", JSON.stringify({ userUuid, speciality, fromDate, toDate }));
 
     const scheduleWhere = { speciality };
     if (userUuid) scheduleWhere.userUuid = userUuid;
 
     const schedules = await Schedule.findAll({ where: scheduleWhere, raw: true });
-    console.log("schedules found:", schedules.length);
     if (!schedules.length) return [];
 
     const setting = await Setting.findOne({ where: {}, raw: true });
@@ -116,7 +112,6 @@ module.exports = (function () {
       setting && setting.slotDuration ? setting.slotDuration : 30;
     const SLOT_DURATION_UNIT =
       setting && setting.slotDurationUnit ? setting.slotDurationUnit : "minutes";
-    console.log("slot duration:", SLOT_DURATION, SLOT_DURATION_UNIT);
 
     const startDate = moment(fromDate, DATE_FORMAT);
     const endDate = moment(toDate, DATE_FORMAT);
@@ -145,7 +140,6 @@ module.exports = (function () {
         getMonthSlots({ schedule, days, SLOT_DURATION, SLOT_DURATION_UNIT })
       );
     });
-    console.log("candidate slots generated:", dates.length);
 
     const appointmentWhere = {
       speciality,
@@ -168,12 +162,6 @@ module.exports = (function () {
       );
       if (idx !== -1) dates.splice(idx, 1);
     });
-    console.log(
-      "booked removed:",
-      appointments.length,
-      "| remaining candidates:",
-      dates.length
-    );
 
     const now = moment();
     const openSlots = [];
@@ -185,10 +173,6 @@ module.exports = (function () {
           us.slotDate === slot.slotDate
       );
       if (seen) return;
-
-      // Single, timezone-consistent "is this slot in the past?" check.
-      // Compare the slot's absolute IST start time against the current
-      // instant — no fragile slotDate===today string branch.
       const slotStart = slotMoment(slot.slotDate, slot.slotTime);
       if (!slotStart.isValid() || slotStart.isSameOrBefore(now)) return;
 
@@ -200,11 +184,6 @@ module.exports = (function () {
     });
 
     openSlots.sort((a, b) => a.startsAt - b.startsAt);
-    console.log(
-      "open slots:",
-      openSlots.length,
-      openSlots.map((s) => s.label)
-    );
     return openSlots;
   };
 
