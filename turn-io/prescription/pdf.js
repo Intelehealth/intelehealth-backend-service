@@ -387,7 +387,7 @@ const buildDocDefinition = (data, opts) => {
                            { text: "Reason", style: "tableHeader" },
                         ],
                         [
-                           val(f.wantFollowUp || "Yes"),
+                           val(f.wantFollowUp || "No"),
                            val(f.followUpType),
                            val(f.followUpDate),
                            val(f.followUpTime),

@@ -123,6 +123,8 @@ const parseFollowUp = (obs) => {
          const v = m.value;
          return (typeof v === "object" ? v?.display : v) || m.display || null;
       };
+      // A grouped follow-up obs only exists when the doctor actually scheduled
+      // one, so this branch is genuinely "Yes".
       return {
          wantFollowUp: "Yes",
          followUpDate: get("date") || get("follow up date"),
@@ -131,21 +133,26 @@ const parseFollowUp = (obs) => {
          followUpType: get("type") || get("visit type"),
       };
    }
+   // Mirror the doctor portal (diagnosis.component.ts checkIfFollowUpPresent):
+   // the follow-up is "Yes" ONLY when the obs value carries "Time:" or "Remark:".
+   // A "No" answer still writes an obs (e.g. plain "No"/blank), so defaulting to
+   // "Yes" here wrongly showed follow-up on the prescription.
    const obsValue = String(obs.value || obs.display || "");
-   if (obsValue.includes("Time:")) {
-      const parts = obsValue.split(",").filter(Boolean);
-      const extract = (key) => parts.find((v) => v.includes(key))?.split(key)?.[1]?.trim() ?? null;
-      const remark = extract("Remark:");
-      const type = extract("Type:");
-      return {
-         wantFollowUp: "Yes",
-         followUpDate: parts[0]?.trim() || null,
-         followUpTime: extract("Time:"),
-         followUpReason: remark === "null" ? null : remark,
-         followUpType: type === "null" ? null : type,
-      };
+   const isYes = obsValue.includes("Time:") || obsValue.includes("Remark:");
+   if (!isYes) {
+      return { wantFollowUp: "No", followUpDate: null, followUpTime: null, followUpReason: null, followUpType: null };
    }
-   return { wantFollowUp: "Yes", followUpDate: obsValue || null, followUpTime: null, followUpReason: null, followUpType: null };
+   const parts = obsValue.split(",").filter(Boolean);
+   const extract = (key) => parts.find((v) => v.includes(key))?.split(key)?.[1]?.trim() ?? null;
+   const remark = extract("Remark:");
+   const type = extract("Type:");
+   return {
+      wantFollowUp: "Yes",
+      followUpDate: parts[0]?.trim() || null,
+      followUpTime: extract("Time:"),
+      followUpReason: remark === "null" ? null : remark,
+      followUpType: type === "null" ? null : type,
+   };
 };
 
 // Turn an OpenMRS visit object (custom rep from openmrs.getVisit) into the flat
