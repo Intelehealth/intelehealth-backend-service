@@ -41,12 +41,32 @@ const humanize = (key, protocolId = "") => {
    if (prefix && k.startsWith(prefix)) k = k.slice(prefix.length);
    return titleize(k);
 };
-// None wins: WhatsApp Flows can DISABLE a checklist when the "None"
 
+// ---------------------------------------------------------------------------
+// None wins: WhatsApp Flows can DISABLE a checklist when the "None" toggle is
+// ticked, but cannot CLEAR values the patient ticked beforehand -- those stale
+// selections still arrive in the payload. This scrubber enforces the intended
+// semantics server-side: whenever a `<prefix>no_<block>` marker is ticked
+// (e.g. ear_pain_no_relieving_factors), every other answer belonging to that
+// block (checklist, Other toggle, Other/Medication describe texts) is dropped,
+// so the doctor sees only "None".
+//
+// Block matching: keys starting with `<prefix><block>` are dropped. When the
+// block ends in "_factors" the bare stem is also matched (relieving_factors ->
+// relieving_*), which catches relieving_medication / relieving_other_toggle
+// style fields that share the stem but not the full block name.
+// ---------------------------------------------------------------------------
 const applyNoneOverrides = (answers = {}) => {
    for (const key of Object.keys(answers)) {
-      const m = key.match(/^(.*?)no_(.+)$/); // e.g. "ear_pain_" + "relieving_factors"
-      if (!m) continue;
+      // Two marker styles are in use:
+      //   prefix style: <proto>_no_<block>      e.g. ear_pain_no_relieving_factors
+      //   suffix style: <block>_none            e.g. existing_conditions_none (patient history)
+      let prefix, block;
+      const mPre = key.match(/^(.*?)no_(.+)$/);
+      const mSuf = key.match(/^(.+?)_none$/);
+      if (mPre) { prefix = mPre[1]; block = mPre[2]; }
+      else if (mSuf) { prefix = ""; block = mSuf[1]; }
+      else continue;
 
       const val = answers[key];
       const ticked = Array.isArray(val)
@@ -54,8 +74,6 @@ const applyNoneOverrides = (answers = {}) => {
          : String(val || "").toLowerCase().includes("none");
       if (!ticked) continue;
 
-      const prefix = m[1]; // "ear_pain_" (may be "" for unprefixed keys)
-      const block = m[2];  // "relieving_factors"
       const stems = [block];
       if (block.endsWith("_factors")) stems.push(block.replace(/_factors$/, ""));
 
