@@ -58,13 +58,13 @@ jobs:
           else
             includes='[]'
             if [ "${{ inputs.deploy_dev }}" == "true" ]; then
-              includes=$(echo "$includes" | jq '. += [{"environment":"dev"}]')
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"dev"}]')
             fi
             if [ "${{ inputs.deploy_turn }}" == "true" ]; then
-              includes=$(echo "$includes" | jq '. += [{"environment":"turn"}]')
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"turn"}]')
             fi
             if [ "${{ inputs.deploy_ttxai }}" == "true" ]; then
-              includes=$(echo "$includes" | jq '. += [{"environment":"ttxai"}]')
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"ttxai"}]')
             fi
             matrix="{\"include\":$includes}"
           fi
