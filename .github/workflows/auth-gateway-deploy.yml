@@ -54,7 +54,7 @@ jobs:
         id: set-matrix
         run: |
           if [ "${{ github.event_name }}" == "push" ]; then
-            matrix='{"include":[{"environment":"dev"},{"environment":"turn"}]}'
+            matrix='{"include":[{"environment":"dev"},{"environment":"turn"},{"environment":"ttxai"}]}'
           else
             includes='[]'
             if [ "${{ inputs.deploy_dev }}" == "true" ]; then
