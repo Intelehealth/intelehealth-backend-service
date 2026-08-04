@@ -1,6 +1,6 @@
 const express = require("express");
 const { randomUUID } = require("crypto");
-const { pushData } = require("../lib/openmrs");
+const { pushData, getOpenmrsId } = require("../lib/openmrs");
 
 const {
    OPENMRS_LOCATION_UUID,
@@ -28,9 +28,6 @@ const isBlank = (v) =>
 
 const clean = (v, fallback = "") => (isBlank(v) ? fallback : String(v).trim());
 
-// Build detail rows generically from whatever keys the flow returned -- no
-// per-protocol field files. Strips the "<protocol>_" prefix, titleizes the key,
-// comma-joins arrays (multi-select via @json), drops the "submitted" marker.
 const titleize = (s) =>
    String(s).replace(/_/g, " ").replace(/\s+/g, " ").trim()
             .replace(/\b\w/g, (c) => c.toUpperCase());
@@ -42,25 +39,11 @@ const humanize = (key, protocolId = "") => {
    return titleize(k);
 };
 
-// ---------------------------------------------------------------------------
-// None wins: WhatsApp Flows can DISABLE a checklist when the "None" toggle is
-// ticked, but cannot CLEAR values the patient ticked beforehand -- those stale
-// selections still arrive in the payload. This scrubber enforces the intended
-// semantics server-side: whenever a `<prefix>no_<block>` marker is ticked
-// (e.g. ear_pain_no_relieving_factors), every other answer belonging to that
-// block (checklist, Other toggle, Other/Medication describe texts) is dropped,
-// so the doctor sees only "None".
-//
-// Block matching: keys starting with `<prefix><block>` are dropped. When the
-// block ends in "_factors" the bare stem is also matched (relieving_factors ->
-// relieving_*), which catches relieving_medication / relieving_other_toggle
-// style fields that share the stem but not the full block name.
-// ---------------------------------------------------------------------------
+// "None wins": Flows can disable a checklist when "None" is ticked but can't
+// clear earlier selections, so stale answers still arrive. When a marker
+// (<proto>_no_<block> or <block>_none) is ticked, drop the rest of that block.
 const applyNoneOverrides = (answers = {}) => {
    for (const key of Object.keys(answers)) {
-      // Two marker styles are in use:
-      //   prefix style: <proto>_no_<block>      e.g. ear_pain_no_relieving_factors
-      //   suffix style: <block>_none            e.g. existing_conditions_none (patient history)
       let prefix, block;
       const mPre = key.match(/^(.*?)no_(.+)$/);
       const mSuf = key.match(/^(.+?)_none$/);
@@ -74,17 +57,13 @@ const applyNoneOverrides = (answers = {}) => {
          : String(val || "").toLowerCase().includes("none");
       if (!ticked) continue;
 
+      // "_factors" blocks also match the bare stem (relieving_medication etc).
       const stems = [block];
       if (block.endsWith("_factors")) stems.push(block.replace(/_factors$/, ""));
 
       for (const k of Object.keys(answers)) {
-         if (k === key) continue; // keep the marker itself -> renders as "None"
-         for (const s of stems) {
-            if (k.startsWith(prefix + s)) {
-               delete answers[k];
-               break;
-            }
-         }
+         // Keep the marker itself -- it renders as "None".
+         if (k !== key && stems.some((s) => k.startsWith(prefix + s))) delete answers[k];
       }
    }
    return answers;
@@ -102,15 +81,24 @@ const answerRows = (protocolId, answers = {}) =>
 
 // Doctor-portal obs values are {en, "l-en"} JSON; markup mirrors the HW webapp
 // (visit-upload.service.ts). en = display HTML, l-en = raw structured text.
-const visitReasonObs = (complaintName, detailRows) => {
-   const complaint = clean(complaintName, "Abdominal pain");
+
+// Rows -> the bullet markup both history obs share. `blankAs` fills empty
+// values; when unset, blank rows are skipped instead.
+const renderRows = (rows, blankAs) => {
    let displayHtml = "";
    let rawHtml = "";
-   for (const { label, value } of detailRows) {
-      if (isBlank(value)) continue;
-      displayHtml += `• ${label} - ${value}.<br/>`;
-      rawHtml += `● ${label}<br/>•${value}<br/>`;
+   for (const { label, value } of rows) {
+      const v = blankAs === undefined ? value : clean(value, blankAs);
+      if (isBlank(v)) continue;
+      displayHtml += `• ${label} - ${v}.<br/>`;
+      rawHtml += `● ${label}<br/>•${v}<br/>`;
    }
+   return { displayHtml, rawHtml };
+};
+
+const visitReasonObs = (complaintName, detailRows) => {
+   const complaint = clean(complaintName, "Abdominal pain");
+   let { displayHtml, rawHtml } = renderRows(detailRows);
    if (!displayHtml) {
       displayHtml = `• Symptom - ${complaint}.<br/>`;
       rawHtml = `● ${complaint}<br/>•${complaint}<br/>`;
@@ -122,13 +110,7 @@ const visitReasonObs = (complaintName, detailRows) => {
 };
 
 const medicalHistoryObs = (rows) => {
-   let displayHtml = "";
-   let rawHtml = "";
-   for (const { label, value } of rows) {
-      const v = clean(value, "None");
-      displayHtml += `• ${label} - ${v}.<br/>`;
-      rawHtml += `● ${label}<br/>•${v}<br/>`;
-   }
+   let { displayHtml, rawHtml } = renderRows(rows, "None");
    if (!displayHtml) {
       displayHtml = "• Medical History - None.<br/>";
       rawHtml = "● Do you have a history of any of the following?*<br/>•None<br/>";
@@ -149,46 +131,35 @@ const familyHistoryObs = (familyMembers) => {
 // doctor fills it in.
 const physicalExamObs = () => JSON.stringify({ en: "", "l-en": "" });
 
-// Build the EMR-Middleware /push/pushdata bundle from a Turn webhook body.
-// Generates UUIDs for the visit/encounters/obs and cross-references them.
+// Build the /push/pushdata bundle, generating and cross-referencing UUIDs.
 const buildPushBundle = (personUuid, protocolId, answers, patientHistory, familyHistory) => {
    const now = new Date();
    const encounterDatetime = formatDatetime(now);
    const visitCompleteDatetime = formatDatetime(new Date(now.getTime() + 1000));
 
    const r = answers || {};
-   const s = answers || {};
    const ph = patientHistory || {};
    const fh = familyHistory || {};
 
    const complaintName = titleize(protocolId) || "Consultation";
    const visitReasonRows = answerRows(protocolId, answers);
 
-
    // Allergies: Turn sends `medication_allergy` (Yes/No) + `allergy_type` (the
    // drug) separately. Show the drug if allergic, else the Yes/No answer.
-   const allergyValue = (() => {
-      const type = clean(ph.allergy_type ?? ph.allergy_other ?? r.allergies);
-      if (!isBlank(type)) return type;
-      return clean(ph.medication_allergy ?? r.medication_allergy);
-   })();
+   const allergyValue =
+      clean(ph.allergy_type ?? ph.allergy_other ?? r.allergies) ||
+      clean(ph.medication_allergy ?? r.medication_allergy);
 
-   // Risk factors (Turn's `risk_type`, e.g. "Smoking") feed both the smoking and
-   // chewing-tobacco rows when relevant; otherwise the explicit results.* keys.
+   // Turn's `risk_type` (e.g. "Smoking") feeds the smoking/tobacco rows when
+   // risk_factors is Yes; explicit results.* keys win.
    const riskType = clean(ph.risk_type ?? ph.risk_other);
    const riskActive = clean(ph.risk_factors).toLowerCase() === "yes";
-   const smokingValue = clean(
-      r.smoking_history ?? r.smoking ??
-      (riskActive && /smok/i.test(riskType) ? riskType : "")
-   );
-   const tobaccoValue = clean(
-      r.tobacco_status ?? r.chewing_tobacco ??
-      (riskActive && /tobacco|chew/i.test(riskType) ? riskType : "")
-   );
+   const riskFor = (re) => (riskActive && re.test(riskType) ? riskType : "");
+   const smokingValue = clean(r.smoking_history ?? r.smoking ?? riskFor(/smok/i));
+   const tobaccoValue = clean(r.tobacco_status ?? r.chewing_tobacco ?? riskFor(/tobacco|chew/i));
 
-   // Medical-history rows mirror the 8 canonical rows the doctor portal renders.
-   // Blank values render as "None". Turn nests these under `patient_history`
-   // (ph.*); results.* aliases keep older flat payloads working.
+   // The 8 canonical rows the doctor portal renders; blanks show as "None".
+   // Turn nests these under `patient_history`; results.* keeps old payloads working.
    const medHistRows = [
       { label: "Current Vaccinations status", value: clean(r.vaccination_status ?? r.vaccinations) },
       { label: "Pregnancy status",            value: clean(r.pregnancy_status ?? r.pregnancy) },
@@ -200,32 +171,22 @@ const buildPushBundle = (personUuid, protocolId, answers, patientHistory, family
       { label: "Alcohol use",                 value: clean(r.alcohol_use ?? r.alcohol) },
    ];
 
-   // Family history: Turn nests it under `family_history` as
-   // {fam_history_present, fam_condition, fam_member}. Build a "Condition
-   // (Member)" entry when a condition is present; fall back to flat r.family_history.
-   const familyHistList = (() => {
-      const condition = clean(fh.fam_condition);
-      if (!isBlank(condition)) {
-         const member = clean(fh.fam_member);
-         return [member ? `${condition} (${member})` : condition];
-      }
-      return String(clean(r.family_history))
-         .split(/[,;]+/).map((x) => x.trim()).filter(Boolean);
-   })();
+   // Nested {fam_condition, fam_member} -> "Condition (Member)"; else the flat
+   // comma/semicolon-separated r.family_history.
+   const famCondition = clean(fh.fam_condition);
+   const famMember = clean(fh.fam_member);
+   const familyHistList = famCondition
+      ? [famMember ? `${famCondition} (${famMember})` : famCondition]
+      : clean(r.family_history).split(/[,;]+/).map((x) => x.trim()).filter(Boolean);
 
-   // Vitals obs: included only when Turn sent a value. Concept UUIDs mirror the
-   // HW reference (CIEL 5090 height, 5089 weight). Height/weight may arrive on
-   // `results` or nested in the symptom object -- check both.
+   // Vitals obs: only when Turn sent a value (CIEL 5090 height, 5089 weight).
    const obs = (concept, raw) => {
       const value = clean(raw);
       return value ? { concept, value, comments: "" } : null;
    };
    const vitalsObs = [
-      obs(OPENMRS_CONCEPT_HEIGHT,
-         r.body_height ?? r.height ?? r.height_cm ?? s.body_height ?? s.height ?? s.height_cm),
-      obs(OPENMRS_CONCEPT_WEIGHT,
-         r.body_weight_value ?? r.body_weight ?? r.weight ?? r.weight_kg ??
-         s.body_weight_value ?? s.body_weight ?? s.weight ?? s.weight_kg),
+      obs(OPENMRS_CONCEPT_HEIGHT, r.body_height ?? r.height ?? r.height_cm),
+      obs(OPENMRS_CONCEPT_WEIGHT, r.body_weight_value ?? r.body_weight ?? r.weight ?? r.weight_kg),
    ].filter(Boolean);
 
    const visitUuid = randomUUID();
@@ -290,7 +251,7 @@ router.post("/visit_push", async (req, res) => {
          return res.status(400).json({ success: false, error: "patient_uuid is required" });
       }
 
-      // NEW dynamic shape { protocol_id, answers }; old shape kept as fallback.
+      // Dynamic shape { protocol_id, answers }; older shapes kept as fallbacks.
       const protocolId = clean(req.body.protocol_id || req.body.symptom);
       const answers = applyNoneOverrides({
          ...(req.body.answers || req.body.symptoms_data || req.body.results || {}),
@@ -304,10 +265,20 @@ router.post("/visit_push", async (req, res) => {
       const { data } = await pushData(bundle);
       console.log("[visit_push] pushdata response:", JSON.stringify(data));
 
+      // Visit is already saved, so a failed ID lookup must not fail the push.
+      let openmrsId = "";
+      try {
+         openmrsId = await getOpenmrsId(personUuid);
+      } catch (idErr) {
+         console.error("[visit_push] openmrs id lookup failed:", idErr.response?.data || idErr.message);
+      }
+
       res.json({
          success: true,
          visit_uuid: bundle.visits[0].uuid,
          visit_id: bundle.visits[0].uuid,
+         patient_uuid: personUuid,
+         openmrs_id: openmrsId,
          encounter_uuids: bundle.encounters.map((e) => e.uuid),
       });
    } catch (err) {
