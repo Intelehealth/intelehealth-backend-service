@@ -90,7 +90,6 @@ const createTicket = async (req, res, next) => {
     }
 
     const payload = { data: { incident: incidentData } };
-    console.log("payload=====", payload);
     if (jiraServiceId) {
       const incident = await pd.post("/incidents", payload);
       await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -115,7 +114,6 @@ const createTicket = async (req, res, next) => {
         status:"triggered",
         resolvedAt: null,
       };
-      console.log("localIncident==", localIncident);
       await createTicketDatabase(localIncident, userId, localIncident.priority);
       return res.status(200).json({
         message: "Ticket saved  (PagerDuty disabled)",

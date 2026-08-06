@@ -333,7 +333,6 @@ export class WebRTCService {
                 success: true
             };
         } catch (err: any) {
-            console.log('error', `Stop recording error: ${err.message}`, 'stopRecording');
             throw new Error(err?.message ?? 'Something went wrong!')
         }
     }

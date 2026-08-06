@@ -42,7 +42,6 @@ async function authMw(
         // const publicKeyPath = path.join(EnvVars.PemFolderPath, 'public_key.pem');
         const publicKeyPath = path.join(__dirname, "../../..", EnvVars.PemFolderPath, 'public_key.pem');
         const decoded = jwt.verify(token, fs.readFileSync(publicKeyPath, { encoding: 'utf8', flag: 'r' }));
-        console.log(decoded);
         req.user = decoded;
         return next();
     } catch (err) {

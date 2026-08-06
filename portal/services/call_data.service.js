@@ -22,9 +22,8 @@ module.exports = (function () {
   this.createCallRecordOfWebrtc = async (doctorId, nurseId, roomId, visitId, callStatus, callType) => {
     try {
       const startTime = new Date(new Date().getTime() + (5.5 * 60 * 60 * 1000));
-      console.log('startTime:', startTime);
 
-      const data = await call_data.create({ 
+      const data = await call_data.create({
         doctor_id: doctorId,
         chw_id: nurseId,
         room_id: roomId,
@@ -37,7 +36,6 @@ module.exports = (function () {
         call_type: callType
       }
       );
-      console.log('Call Record Created:', data);
       return { success: true, data: data };
     } catch (error) {
       logStream("error", error);
@@ -48,7 +46,6 @@ module.exports = (function () {
   this.updateCallRecordOfWebrtc = async (usersRecord) => {
     try {
       let endTime = new Date(new Date().getTime() + (5.5 * 60 * 60 * 1000));
-      console.log('endTime:', endTime);
 
       const callRecord = await call_data.findOne({
         where: { id: usersRecord.recordId }

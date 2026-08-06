@@ -235,7 +235,6 @@ module.exports = (function () {
           });
           
         const visitTypeId = visitType[0]['visit_type_id'];
-        console.log(visitTypeId, 'Video consultation');
         visits = await sequelize.query(getVisitCountV3(visitTypeId), {
           type: QueryTypes.SELECT,
         });
@@ -541,7 +540,6 @@ this._getFollowUpVisits = async (
   this.getObsValue = async (obsUuid) => {
     const url = `/openmrs/ws/rest/v1/obs/${obsUuid}/value`;
     const data = await axiosInstance.get(url, { responseType: 'arraybuffer' }).catch((err) => {
-      console.log(err);
       return null;
     });
 
