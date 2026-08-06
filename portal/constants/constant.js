@@ -83,6 +83,8 @@ module.exports = {
         ASC: 'ASC',
         DESC: 'DESC'
     },
+    // OpenMRS patient_identifier_type id for "OpenMRS ID" (distinct from ABHA Number/Address types added by the abha module)
+    OPENMRS_ID_IDENTIFIER_TYPE: 3,
     PENDING_VISIT_BY_CALL_STATUS: [
         "Review of Imaging", 
         "Review with Reports",
