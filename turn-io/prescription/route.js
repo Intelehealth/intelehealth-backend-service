@@ -48,41 +48,48 @@ const notifyForVisit = async (visitUuid, { number: overrideNumber, baseUrl } = {
    return { ok: true, notified: number };
 };
 
-// Deferred retry: when /notify fires before the doctor's Visit-Complete encounter
-// has committed (race between "share" and OpenMRS write), poll in the background
-// and push as soon as the visit becomes shared. Retries every RETRY_INTERVAL_MS
-// up to MAX_RETRIES (~10 min total). Stops early once sent (notifiedVisits guards
-// against double-send). Visits already being retried aren't queued twice.
-const RETRY_INTERVAL_MS = 60_000;
-const MAX_RETRIES = 10;
-const retryingVisits = new Set();
-
-const scheduleNotifyRetry = (visitUuid, opts, attempt = 1) => {
-   if (notifiedVisits.has(visitUuid)) { retryingVisits.delete(visitUuid); return; }
-   if (attempt > MAX_RETRIES) {
-      console.log(`[notify retry] ${visitUuid}: gave up after ${MAX_RETRIES} attempts (never shared)`);
-      retryingVisits.delete(visitUuid);
-      return;
-   }
-   retryingVisits.add(visitUuid);
-   setTimeout(async () => {
-      try {
-         const result = await notifyForVisit(visitUuid, opts);
-         if (result.ok && !result.skipped) {
-            console.log(`[notify retry] ${visitUuid}: sent on attempt ${attempt} to ${result.notified}`);
-            retryingVisits.delete(visitUuid);
-         } else if (result.skipped) {
-            retryingVisits.delete(visitUuid);
-         } else {
-            console.log(`[notify retry] ${visitUuid}: attempt ${attempt} still not shared, retrying`);
-            scheduleNotifyRetry(visitUuid, opts, attempt + 1);
-         }
-      } catch (err) {
-         console.error(`[notify retry] ${visitUuid}: attempt ${attempt} error:`, err.response?.data || err.message);
-         scheduleNotifyRetry(visitUuid, opts, attempt + 1);
-      }
-   }, RETRY_INTERVAL_MS);
-};
+// DISABLED -- deferred "reshare a missed prescription" retry.
+//
+// This covered the race where /notify fires before the doctor's Visit-Complete
+// encounter has committed to OpenMRS: it polled in the background and pushed as
+// soon as the visit became shared, so a prescription that looked "not shared
+// yet" still reached the patient minutes later.
+//
+// Now we only share on the spot: if the visit isn't shared when /notify fires,
+// we report it and stop. Nothing is delivered later.
+//
+// To re-enable: uncomment this block and the 409 branch in /prescription/notify.
+//
+// const RETRY_INTERVAL_MS = 60_000;
+// const MAX_RETRIES = 10;
+// const retryingVisits = new Set();
+//
+// const scheduleNotifyRetry = (visitUuid, opts, attempt = 1) => {
+//    if (notifiedVisits.has(visitUuid)) { retryingVisits.delete(visitUuid); return; }
+//    if (attempt > MAX_RETRIES) {
+//       console.log(`[notify retry] ${visitUuid}: gave up after ${MAX_RETRIES} attempts (never shared)`);
+//       retryingVisits.delete(visitUuid);
+//       return;
+//    }
+//    retryingVisits.add(visitUuid);
+//    setTimeout(async () => {
+//       try {
+//          const result = await notifyForVisit(visitUuid, opts);
+//          if (result.ok && !result.skipped) {
+//             console.log(`[notify retry] ${visitUuid}: sent on attempt ${attempt} to ${result.notified}`);
+//             retryingVisits.delete(visitUuid);
+//          } else if (result.skipped) {
+//             retryingVisits.delete(visitUuid);
+//          } else {
+//             console.log(`[notify retry] ${visitUuid}: attempt ${attempt} still not shared, retrying`);
+//             scheduleNotifyRetry(visitUuid, opts, attempt + 1);
+//          }
+//       } catch (err) {
+//          console.error(`[notify retry] ${visitUuid}: attempt ${attempt} error:`, err.response?.data || err.message);
+//          scheduleNotifyRetry(visitUuid, opts, attempt + 1);
+//       }
+//    }, RETRY_INTERVAL_MS);
+// };
 
 const errDetail = (err) => err.response?.data || err.message;
 const fail = (res, tag, err) => {
@@ -140,12 +147,19 @@ router.post("/prescription/notify", async (req, res) => {
          return res.json({ success: true, skipped: true, visit_uuid: visitUuid });
       }
       if (result.status === 409) {
-         // Not shared yet -- the Visit-Complete encounter may not have committed
-         // to OpenMRS yet (race with the doctor's share). Retry in the background
-         // and deliver as soon as it becomes shared, so the patient still gets it.
-         if (!retryingVisits.has(visitUuid)) scheduleNotifyRetry(visitUuid, opts);
-         console.log(`[prescription notify] ${visitUuid} not shared yet -- scheduled background retry`);
-         return res.json({ success: true, pending: true, reason: "not-shared-yet-will-retry", visit_uuid: visitUuid });
+         // Not shared yet. Share-only mode: we no longer queue a background
+         // retry, so nothing is delivered later -- the doctor must share again.
+         //
+         // Previous deliver-later behaviour (re-enable with scheduleNotifyRetry):
+         // if (!retryingVisits.has(visitUuid)) scheduleNotifyRetry(visitUuid, opts);
+         // console.log(`[prescription notify] ${visitUuid} not shared yet -- scheduled background retry`);
+         // return res.json({ success: true, pending: true, reason: "not-shared-yet-will-retry", visit_uuid: visitUuid });
+         console.log(`[prescription notify] ${visitUuid} not shared yet -- no retry (share-only mode)`);
+         return res.status(409).json({
+            success: false,
+            error: "Visit is not shared yet.",
+            visit_uuid: visitUuid,
+         });
       }
       if (result.status === 422) {
          return res.status(422).json({ success: false, error: "No WhatsApp number found for this patient." });
