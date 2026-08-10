@@ -1,6 +1,6 @@
 const express = require("express");
 const { randomUUID } = require("crypto");
-const { pushData, getOpenmrsId } = require("../lib/openmrs");
+const { pushData, getOpenmrsId, uploadComplexObs } = require("../lib/openmrs");
 const {
   OPENMRS_LOCATION_UUID,
   OPENMRS_VISIT_TYPE_UUID,
@@ -17,7 +17,11 @@ const {
   OPENMRS_VISIT_ATTR_SPECIALITY,
   OPENMRS_VISIT_ATTR_COMPLETE_DATETIME,
   OPENMRS_VISIT_ATTR_DOCTOR_NOTES,
+  OPENMRS_CONCEPT_ADDITIONAL_DOCUMENT,
 } = require("../constants");
+
+// Turn API token (Settings -> API & Webhooks); its media links need a Bearer.
+const TURN_API_TOKEN = process.env.TURN_API_TOKEN;
 
 const formatDatetime = (d) => d.toISOString().replace("Z", "+0000");
 
@@ -66,6 +70,90 @@ const applyNoneOverrides = (answers = {}) => {
     }
   }
   return answers;
+};
+
+// The WhatsApp Flow media components post metadata, not links:
+//   images:    { images:    [{ file_name, id, mime_type, sha256 }, ...] }
+//   documents: { documents: [{ file_name, id, mime_type, sha256 }, ...] }
+// `id` is a WhatsApp media id resolved via the Turn media API. A plain string
+// ("url|url") or bare array is still accepted so older payloads keep working.
+const normalizeAttachments = (v, listKey) => {
+  if (!v) return [];
+
+  // Legacy: "url1|url2" or ["url1", ...].
+  if (typeof v === "string" || Array.isArray(v)) {
+    const parts = (Array.isArray(v) ? v : v.split("|")).map((s) => String(s).trim()).filter(Boolean);
+    const urls = parts.filter((s) => s.startsWith("http"));
+    if (parts.length && !urls.length) {
+      console.warn(`[visit_push] ${listKey} has no URLs or media ids:`, parts.join("|"));
+    }
+    return urls.map((url) => ({ url, mime: "", name: "" }));
+  }
+
+  const list = Array.isArray(v[listKey]) ? v[listKey] : [];
+  return list
+    .map((item) => ({
+      mediaId: clean(item?.id) || (item?.id != null ? String(item.id) : ""),
+      mime: clean(item?.mime_type),
+      name: clean(item?.file_name),
+    }))
+    .filter((a) => a.mediaId);
+};
+
+const extForMime = (mime) =>
+  ({
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+    "application/pdf": ".pdf",
+  }[mime] || "");
+
+// Turn exposes the WhatsApp media API alongside /v1/messages; GET /v1/media/<id>
+// streams the binary back (no separate URL lookup step).
+const TURN_MEDIA_URL = (process.env.TURN_MEDIA_URL || "https://whatsapp.turn.io/v1/media").replace(/\/+$/, "");
+
+// Direct link (legacy payloads) or a media id resolved through Turn.
+const fetchAttachment = async ({ url, mediaId }) => {
+  const target = url || `${TURN_MEDIA_URL}/${mediaId}`;
+  let resp = await fetch(target, { headers: { Authorization: `Bearer ${TURN_API_TOKEN}` } });
+  if (url && (resp.status === 401 || resp.status === 403)) resp = await fetch(url); // pre-signed
+  if (!resp.ok) throw new Error(`download failed ${resp.status} for ${target.slice(0, 120)}`);
+  return {
+    buf: Buffer.from(await resp.arrayBuffer()),
+    mime: (resp.headers.get("content-type") || "").split(";")[0].trim(),
+  };
+};
+
+// Runs AFTER the response is sent: the journey's post() times out at 10s, and
+// attachments must never make a saved visit look failed. Each file becomes a
+// complex obs on the adult-initial encounter, which is what puts it in the
+// portal's "Additional Documents" section (it filters obs by visit uuid).
+const uploadVisitAttachments = async (personUuid, encounterUuid, attachments) => {
+  if (!attachments.length) return;
+  if (!TURN_API_TOKEN) {
+    console.error("[visit_push] TURN_API_TOKEN is not set -- cannot download attachments");
+    return;
+  }
+  let ok = 0;
+  for (const [i, att] of attachments.entries()) {
+    try {
+      const { buf, mime: served } = await fetchAttachment(att);
+      const mime = served || att.mime || "application/octet-stream";
+      await uploadComplexObs({
+        personUuid,
+        encounterUuid,
+        concept: OPENMRS_CONCEPT_ADDITIONAL_DOCUMENT,
+        buffer: buf,
+        filename: att.name || `attachment_${i + 1}${extForMime(mime)}`,
+        mime,
+        comment: att.name || "Additional Document",
+      });
+      ok += 1;
+    } catch (err) {
+      console.error("[visit_push] attachment upload failed (continuing):", err.message);
+    }
+  }
+  console.log(`[visit_push] uploaded ${ok}/${attachments.length} attachments to encounter ${encounterUuid}`);
 };
 
 const answerRows = (protocolId, answers = {}) =>
@@ -255,6 +343,11 @@ router.post("/visit_push", async (req, res) => {
     });
     const patientHistory = applyNoneOverrides({ ...(req.body.patient_history || {}) });
     const familyHistory = req.body.family_history || {};
+    // Both Flow media blocks land in the same "Additional Documents" section.
+    const attachments = [
+      ...normalizeAttachments(req.body.images, "images"),
+      ...normalizeAttachments(req.body.documents, "documents"),
+    ];
 
     const bundle = buildPushBundle(
       personUuid, protocolId, answers, patientHistory, familyHistory
@@ -278,7 +371,15 @@ router.post("/visit_push", async (req, res) => {
       patient_uuid: personUuid,
       openmrs_id: openmrsId,
       encounter_uuids: bundle.encounters.map((e) => e.uuid),
+      attachments_received: attachments.length,
     });
+
+    // Upload after responding -- the journey's 10s post() timeout must never
+    // trip because a patient sent five photos.
+    const adultInitial = bundle.encounters.find(
+      (e) => e.encounterType === OPENMRS_ENCOUNTER_TYPE_ADULT_INITIAL
+    );
+    setImmediate(() => uploadVisitAttachments(personUuid, adultInitial?.uuid, attachments));
   } catch (err) {
     const detail = err.response?.data || err.message;
     console.error("[visit_push] error:", detail);

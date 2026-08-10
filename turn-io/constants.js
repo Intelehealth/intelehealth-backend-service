@@ -24,6 +24,10 @@ module.exports = {
    OPENMRS_CONCEPT_MEDICAL_HISTORY: "62bff84b-795a-45ad-aae1-80e7f5163a82",
    OPENMRS_CONCEPT_FAMILY_HISTORY: "d63ae965-47fb-40e8-8f08-1f46a8a60b2b",
 
+   // Complex obs: patient photos render under "Additional Documents" in the
+   // doctor portal (conceptAdditionlDocument in the webapp's config/constant.ts).
+   OPENMRS_CONCEPT_ADDITIONAL_DOCUMENT: "07a816ce-ffc0-49b9-ad92-a1bf9bf5e2ba",
+
    // Vitals concept UUIDs (standard OpenMRS concepts)
    OPENMRS_CONCEPT_HEIGHT: "5090AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
    OPENMRS_CONCEPT_WEIGHT: "5089AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
