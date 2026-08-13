@@ -112,7 +112,7 @@ jobs:
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
-          name: web-rtc-image
+          name: web-rtc
           path: app-image.tar
           retention-days: 3
 
