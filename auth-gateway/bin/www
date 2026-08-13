@@ -9,7 +9,6 @@ const app = require("../app");
 
 let server;
 const isDevelopment = process.env.NODE_ENV !== "production";
-console.log(process.env)
 if (isDevelopment) {
   let http = require("http");
   server = http.createServer(app);
