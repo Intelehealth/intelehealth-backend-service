@@ -3,39 +3,13 @@
 /**
  * Module dependencies.
  */
-NODE_ENV=production
-PORT=3030
-JWT_SECRET=2F71938658EE929orsomehash
-DOMAIN=dev.intelehealth.org
-OPENMRS_USERNAME=admin
-OPENMRS_PASS=apple@1Mango
-
-MYSQL_HOST=172.17.0.1
-MYSQL_PORT=3306
-MYSQL_DIALECT=mysql
-MYSQL_USERNAME=root
-MYSQL_PASS=i10hi1c
-MYSQL_DB=mindmap_server
-MYSQL_OPENMRS_DB=openmrs
-
-DOCTOR_ROLES=["a5df6aa5-d6e5-4b56-b0e7-315ee0899f97"]
-NURSE_ROLES=["f4c6152c-50cf-4055-b842-557baa0c5e30","8d94f280-c2cc-11de-8d13-0010c6dffd0f"]
-MCC_ROLES=["6bcd9a23-a087-4d98-bbcd-07879fd43840"]
-EMAIL_PROVIDER_ATTRIBUTE_TYPE=226c0494-d67e-47b4-b7ec-b368064844bd
-PHONE_NUMBER_PROVIDER_ATTRIBUTE_TYPE=e3a7e03a-5fd0-4e6c-b2e3-938adb3bbb37
-COUNTRY_CODE_PROVIDER_ATTRIBUTE_TYPE=2d4d8e6d-21c4-4710-a3ad-4daf5c0dfbbb
-SSL_KEY_PATH=/etc/letsencrypt/live/dev.intelehealth.org/privkey.pem
-SSL_CERT_PATH=/etc/letsencrypt/live/dev.intelehealth.org/fullchain.pem
-
-ALLOWED_ORIGINS=["http://172.17.0.1:4200","http://172.17.0.1:3000","https://dev.intelehealth.org","http://172.17.0.1:3030","https://dev.intelehealth.org:3030","http://172.17.0.1.:3030","https://hwwebapp.intelehealth.org"]
-
-
 
 require("dotenv").config();
 const app = require("../app");
 
 let server;
 const isDevelopment = process.env.NODE_ENV !== "production";
+console.log(process.env)
 if (isDevelopment) {
   let http = require("http");
   server = http.createServer(app);
