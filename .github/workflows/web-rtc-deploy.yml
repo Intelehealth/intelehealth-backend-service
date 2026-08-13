@@ -193,4 +193,23 @@ jobs:
             echo "Web-rtc deployment to ${{ matrix.environment }} completed successfully"
           EOF
       - name: Run migrations on ${{ matrix.environment }} host
-        if:
+        if: needs.build.outputs.migrations_changed == 'true'
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              -p $REMOTE_PORT \
+              $REMOTE_USER@$REMOTE_HOST \
+              "docker exec ${{ env.DOCKER_IMAGE_NAME }} npm run migrate"
+      - name: Verify deployment on ${{ matrix.environment }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              -p $REMOTE_PORT \
+              $REMOTE_USER@$REMOTE_HOST \
+              "docker ps | grep $DOCKER_IMAGE_NAME && echo 'Web-rtc deployment on ${{ matrix.environment }} successful!'"
