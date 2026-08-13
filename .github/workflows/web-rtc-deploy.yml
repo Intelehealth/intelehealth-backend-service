@@ -142,10 +142,12 @@ jobs:
             *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
 
-      - name: Download image artifact
-        uses: actions/download-artifact@v4
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: web-rtc-image
+        name: web-rtc-image
+        path: app-image.tar
+        retention-days: 1
 
       - name: Deploy to ${{ matrix.environment }} host
         run: |
