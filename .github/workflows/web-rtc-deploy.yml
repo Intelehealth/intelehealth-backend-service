@@ -114,7 +114,7 @@ jobs:
         with:
           name: web-rtc-image
           path: app-image.tar
-          retention-days: 1
+          retention-days: 3
 
   deploy:
     needs: [prepare-matrix, build]
@@ -141,13 +141,6 @@ jobs:
             ttxai) echo "REMOTE_HOST=$TTXAI_HOST" >> $GITHUB_ENV ;;
             *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
-
-      - name: Upload image artifact
-        uses: actions/upload-artifact@v4
-        with:
-        name: web-rtc-image
-        path: app-image.tar
-        retention-days: 1
 
       - name: Deploy to ${{ matrix.environment }} host
         run: |
