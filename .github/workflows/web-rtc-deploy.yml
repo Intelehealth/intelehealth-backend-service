@@ -149,20 +149,23 @@ jobs:
           chmod 700 ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+          REMOTE_TAR="/tmp/app-image-${{ matrix.environment }}-${{ github.run_id }}.tar"
           scp -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=no \
               -P $REMOTE_PORT \
               app-image.tar \
-              $REMOTE_USER@$REMOTE_HOST:/tmp/
+              $REMOTE_USER@$REMOTE_HOST:$REMOTE_TAR
           ssh -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=no \
               -p $REMOTE_PORT \
               $REMOTE_USER@$REMOTE_HOST <<EOF
+            set -e
             DOCKER_IMAGE_NAME="${{ env.DOCKER_IMAGE_NAME }}"
             ENV_FILE_PATH="${{ env.ENV_FILE_PATH }}"
             PEM_FOLDER_PATH="${{ env.PEM_FOLDER_PATH }}"
-            docker load -i /tmp/app-image.tar
-            rm /tmp/app-image.tar
+            REMOTE_TAR="$REMOTE_TAR"
+            docker load -i "\$REMOTE_TAR"
+            rm "\$REMOTE_TAR"
             docker stop \$DOCKER_IMAGE_NAME || true
             docker rm \$DOCKER_IMAGE_NAME || true
             if [ ! -f "\$ENV_FILE_PATH" ]; then
@@ -174,9 +177,9 @@ jobs:
               exit 1
             fi
             lsof -ti:3000 | xargs kill -9 2>/dev/null || true
-            
+
             docker ps -a | grep \$DOCKER_IMAGE_NAME | awk '{print $1}' | xargs docker rm -f 2>/dev/null || true
-            
+
             sleep 2
             docker run -d \
               --name \$DOCKER_IMAGE_NAME \
@@ -190,23 +193,4 @@ jobs:
             echo "Web-rtc deployment to ${{ matrix.environment }} completed successfully"
           EOF
       - name: Run migrations on ${{ matrix.environment }} host
-        if: needs.build.outputs.migrations_changed == 'true'
-        run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh -i ~/.ssh/deploy_key \
-              -o StrictHostKeyChecking=no \
-              -p $REMOTE_PORT \
-              $REMOTE_USER@$REMOTE_HOST \
-              "docker exec ${{ env.DOCKER_IMAGE_NAME }} npm run migrate"
-      - name: Verify deployment on ${{ matrix.environment }}
-        run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh -i ~/.ssh/deploy_key \
-              -o StrictHostKeyChecking=no \
-              -p $REMOTE_PORT \
-              $REMOTE_USER@$REMOTE_HOST \
-              "docker ps | grep $DOCKER_IMAGE_NAME && echo 'Web-rtc deployment on ${{ matrix.environment }} successful!'"
+        if:
