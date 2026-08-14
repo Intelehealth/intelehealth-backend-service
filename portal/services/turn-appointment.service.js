@@ -110,7 +110,7 @@ module.exports = (function () {
     const setting = await Setting.findOne({ where: {}, raw: true });
     const SLOT_DURATION =
       setting && setting.slotDuration ? setting.slotDuration : 30;
-    const SLOT_GAP = 5; // 5 minutes gap between slots .
+    const SLOT_GAP = 5; // added 5 minutes more (10 min +5min breaktime).
     const SLOT_DURATION_UNIT =
       setting && setting.slotDurationUnit ? setting.slotDurationUnit : "minutes";
 
