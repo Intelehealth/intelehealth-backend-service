@@ -87,7 +87,7 @@ module.exports = (function () {
                 drName: schedule.drName,
               });
             }
-            now.add(SLOT_DURATION,SLOT_GAP,SLOT_DURATION_UNIT);
+            now.add(SLOT_DURATION + SLOT_GAP,SLOT_DURATION_UNIT);
           }
         }
       });
