@@ -53,7 +53,7 @@ module.exports = (function () {
     return m.format(DATE_FORMAT);
   };
 
-  const getMonthSlots = ({ schedule, days, SLOT_DURATION, SLOT_DURATION_UNIT }) => {
+  const getMonthSlots = ({ schedule, days, SLOT_DURATION,SLOT_GAP,SLOT_DURATION_UNIT }) => {
     let dates = [];
     const slots = schedule.slotSchedule.filter((s) => s.startTime && s.endTime);
     const slotDays = slots
@@ -87,7 +87,7 @@ module.exports = (function () {
                 drName: schedule.drName,
               });
             }
-            now.add(SLOT_DURATION, SLOT_DURATION_UNIT);
+            now.add(SLOT_DURATION,SLOT_GAP,SLOT_DURATION_UNIT);
           }
         }
       });
@@ -110,6 +110,7 @@ module.exports = (function () {
     const setting = await Setting.findOne({ where: {}, raw: true });
     const SLOT_DURATION =
       setting && setting.slotDuration ? setting.slotDuration : 30;
+    const SLOT_GAP = 5; // 5 minutes gap between slots .
     const SLOT_DURATION_UNIT =
       setting && setting.slotDurationUnit ? setting.slotDurationUnit : "minutes";
 
@@ -137,7 +138,7 @@ module.exports = (function () {
     let dates = [];
     schedules.forEach((schedule) => {
       dates = dates.concat(
-        getMonthSlots({ schedule, days, SLOT_DURATION, SLOT_DURATION_UNIT })
+        getMonthSlots({ schedule, days, SLOT_DURATION,SLOT_GAP, SLOT_DURATION_UNIT })
       );
     });
 
