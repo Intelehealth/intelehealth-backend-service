@@ -35,7 +35,11 @@ on:
       deploy_ttxai:
         description: 'Deploy to TTXAI host'
         type: boolean
-        default: false    
+        default: false
+      deploy_testturn:
+        description: 'Deploy to TESTTURN host'
+        type: boolean
+        default: false      
   push:
     branches: [development_master]
     paths:
@@ -55,7 +59,7 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" == "push" ]; then
             # On push, deploy to all hosts
-            matrix='{"include":[{"environment":"dev"},{"environment":"turn"} ,{"environment":"ttxai"}]}'
+            matrix='{"include":[{"environment":"dev"},{"environment":"turn"} ,{"environment":"ttxai"},{"environment":"testturn"}]}'
           else
             # On manual dispatch, deploy only to selected hosts
             includes='[]'
@@ -67,6 +71,9 @@ jobs:
             fi
             if [ "${{ inputs.deploy_ttxai }}" == "true" ]; then
               includes=$(echo "$includes" | jq -c '. += [{"environment":"ttxai"}]')
+            fi
+            if [ "${{ inputs.deploy_testturn }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"testturn"}]')
             fi
             matrix="{\"include\":$includes}"
           fi
@@ -133,6 +140,7 @@ jobs:
       DEV_HOST: ${{ secrets.DEV_HOST }}
       TURN_HOST: ${{ secrets.TURN_HOST }}
       TTXAI_HOST: ${{ secrets.TTXAI_HOST }}
+      TESTTURN_HOST: ${{ secrets.TESTTURN_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
@@ -142,6 +150,7 @@ jobs:
             dev)  echo "REMOTE_HOST=$DEV_HOST"  >> $GITHUB_ENV ;;
             turn) echo "REMOTE_HOST=$TURN_HOST" >> $GITHUB_ENV ;;
             ttxai) echo "REMOTE_HOST=$TTXAI_HOST" >> $GITHUB_ENV ;;
+            testturn) echo "REMOTE_HOST=$TESTTURN_HOST" >> $GITHUB_ENV ;;
             *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
 
