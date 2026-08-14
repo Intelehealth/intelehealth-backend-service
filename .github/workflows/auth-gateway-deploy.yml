@@ -36,7 +36,7 @@ on:
         description: 'Deploy to TTXAI host'
         type: boolean
         default: false  
-       deploy_testturn:
+      deploy_testturn:
         description: 'Deploy to TESTTURN host'
         type: boolean
         default: true 
