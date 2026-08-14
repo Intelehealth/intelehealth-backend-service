@@ -39,7 +39,7 @@ on:
       deploy_testturn:
         description: 'Deploy to TESTTURN host'
         type: boolean
-        default: true 
+        default: false 
   push:
     branches: [development_master]
     paths:
