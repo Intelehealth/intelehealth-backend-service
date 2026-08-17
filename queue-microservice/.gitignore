@@ -1,0 +1,9 @@
+# Dependencies
+node_modules/
+
+# Local config. The root .gitignore excludes .env*, which would take
+# .env.example with it — that file is documentation and must be committed.
+!.env.example
+
+# Shared RSA public key, copied in per deployment (see README).
+.pem/
