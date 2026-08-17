@@ -457,7 +457,7 @@ module.exports = function (server) {
           roomId,
           type: "video_call",
           timestamp: Date.now().toString(),
-          device_token: data?.device_reg_token || "",
+          device_token: data?.device_reg_token || 'eiEZ48nMSF-kFD18avOqQs:APA91bFe9dTLS312f9v0lMqvlVATdvs1KS45tuzeBK4QEE59rd5CQGwGQSufOSNZWNI73kFZiwm04L69FfMB8k138EPzNnIt5YWH9XAhTFCOfKB_1bCkKDA',
         },
       });
 

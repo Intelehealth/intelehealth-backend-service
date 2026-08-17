@@ -169,11 +169,29 @@ export class WebRTCService {
                 throw new Error(error);
             }
 
-            // if (!AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY || !AWS_REGION || !S3_BUCKET_NAME) {
-            //     const error = 'Missing required AWS environment variables';
-            //     logStream('error', error, 'startRecording');
-            //     throw new Error(error);
-            // }
+            if (!AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY || !AWS_REGION || !S3_BUCKET_NAME) {
+                const error = 'Missing required AWS environment variables';
+                logStream('error', error, 'startRecording');
+                throw new Error(error);
+            }
+
+            // racing another INSERT into call_recordings.
+            const existingRecording = await call_recordings.findOne({
+                where: { room_id: roomName, end_time: null },
+                order: [['id', 'DESC']]
+            });
+
+            if (existingRecording) {
+                logStream('debug', `Recording already in progress for room ${roomName}, returning existing recording`, 'startRecording');
+                return {
+                    egressId: existingRecording.egress_id,
+                    filePath: existingRecording.file_path,
+                    recordingId: existingRecording.id,
+                    startTime: existingRecording.start_time,
+                    s3_url: existingRecording.s3_url,
+                    success: true
+                };
+            }
 
             // Use existing egressSvc or initialize if not available
             if (!this.egressSvc) {
@@ -198,11 +216,12 @@ export class WebRTCService {
             const strlocation = (params?.location) ? (params.location) : "Other";
             const timestamp = new Date();
             const formattedTime = moment().format('DD-MM-YYYY_HH:mm:ss');
+            const filePath = `${BRANDNAME}/${DOMAIN}/${strlocation}/recording-${formattedTime}.mp4`;
+            console.log('filePath:', filePath);
             const output = {
                 file: new EncodedFileOutput({
                     fileType: EncodedFileType.MP4,
-                    // filepath: `${params?.visitId}_${BRANDNAME}_{room_name}_{time}`,
-                    filepath: `${BRANDNAME}/${DOMAIN}/${strlocation}/recording-${formattedTime}`,
+                    filepath: filePath,
                     output: {
                         case: "s3",
                         value: {
@@ -241,9 +260,9 @@ export class WebRTCService {
 
             logStream('debug', `Recording started successfully with egressId: ${startEgressResponse.egressId}`, 'startRecording');
 
-            // Construct the S3 URL
+            // Construct the S3 URL from the filepath we requested (see note above)
             const fileName = startEgressResponse?.fileResults?.[0]?.filename;
-            const s3Url = `https://${S3_BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com/${fileName}`;
+            const s3Url = `https://${S3_BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com/${filePath}`;
 
             // Store recording in call_recordings table with all required fields
             const recordingData = {
@@ -253,17 +272,24 @@ export class WebRTCService {
                 visit_id: params?.visitId,
                 chw_id: params?.chwId,
                 egress_id: startEgressResponse.egressId,
-                file_path: fileName,
+                file_path: filePath,
                 s3_url: s3Url,
                 start_time: timestamp,
                 end_time: null,
                 nurse_name: params?.nurseName
             };
 
-            const recording = await call_recordings.create(recordingData);
+            const recording = await call_recordings.create(recordingData, {
+                retry: {
+                    max: 3,
+                    match: [/Lock wait timeout/i, /Deadlock/i],
+                    backoffBase: 500,
+                    backoffExponent: 1.5
+                }
+            });
             return {
                 egressId: startEgressResponse.egressId,
-                filePath: fileName,
+                filePath: filePath,
                 recordingId: recording.id,
                 startTime: timestamp,
                 s3_url: s3Url,
@@ -317,12 +343,22 @@ export class WebRTCService {
                 if (!this.egressSvc) {
                     return Promise.resolve();
                 }
-                this.egressSvc.stopEgress(info.egressId);
+                await this.egressSvc.stopEgress(info.egressId).catch((err: any) => {
+                    logStream('debug', `stopEgress ignored for ${info.egressId}: ${err?.message}`, 'stopRecording');
+                });
 
                 // Update the recording end time in database
                 await call_recordings.update(
                     { end_time: endTime },
-                    { where: { egress_id: info.egressId } }
+                    {
+                        where: { egress_id: info.egressId },
+                        retry: {
+                            max: 3,
+                            match: [/Lock wait timeout/i, /Deadlock/i],
+                            backoffBase: 500,
+                            backoffExponent: 1.5
+                        }
+                    }
                 );
             })).catch(() => { });
 
