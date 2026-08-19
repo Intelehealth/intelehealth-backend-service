@@ -113,6 +113,14 @@ const parseReferral = (value) => {
    return { speciality: p[0] || "", reason: p[3] || p[1] || "" };
 };
 
+// Normalise a follow-up date to YYYY-MM-DD (matches the webapp's toDateInput).
+const toDateInput = (d) => {
+   if (!d) return "";
+   const date = new Date(d);
+   if (isNaN(date.getTime())) return "";
+   return date.toISOString().slice(0, 10);
+};
+
 const parseFollowUp = (obs) => {
    const members = obs.groupMembers || [];
    if (members.length > 0) {
@@ -125,9 +133,11 @@ const parseFollowUp = (obs) => {
       };
       // A grouped follow-up obs only exists when the doctor actually scheduled
       // one, so this branch is genuinely "Yes".
+      const groupedDate = get("date") || get("follow up date");
       return {
          wantFollowUp: "Yes",
-         followUpDate: get("date") || get("follow up date"),
+         followUpDate: groupedDate,
+         followUpDateIso: toDateInput(groupedDate),
          followUpTime: get("time") || get("follow up time"),
          followUpReason: get("reason") || get("remark") || get("comment"),
          followUpType: get("type") || get("visit type"),
@@ -140,7 +150,7 @@ const parseFollowUp = (obs) => {
    const obsValue = String(obs.value || obs.display || "");
    const isYes = obsValue.includes("Time:") || obsValue.includes("Remark:");
    if (!isYes) {
-      return { wantFollowUp: "No", followUpDate: null, followUpTime: null, followUpReason: null, followUpType: null };
+      return { wantFollowUp: "No", followUpDate: null, followUpDateIso: "", followUpTime: null, followUpReason: null, followUpType: null };
    }
    const parts = obsValue.split(",").filter(Boolean);
    const extract = (key) => parts.find((v) => v.includes(key))?.split(key)?.[1]?.trim() ?? null;
@@ -149,6 +159,7 @@ const parseFollowUp = (obs) => {
    return {
       wantFollowUp: "Yes",
       followUpDate: parts[0]?.trim() || null,
+      followUpDateIso: toDateInput(parts[0]?.trim()),
       followUpTime: extract("Time:"),
       followUpReason: remark === "null" ? null : remark,
       followUpType: type === "null" ? null : type,
@@ -216,6 +227,10 @@ const buildPrescriptionData = (visit) => {
       return raw ? String(raw) : null;
    };
    const followUpObs = byConceptId(CONCEPT.FOLLOW_UP);
+   console.log(
+      "[prescription data] follow-up obs:", visit?.uuid,
+      followUpObs.length ? JSON.stringify(followUpObs.map((o) => obsStr(o))) : "(none found)"
+   );
    // The visit-reason obs value is a {en,"l-en"} JSON string (doctor-portal obs
    // format); parse it and use the `en` display HTML for chief complaints.
    const visitReasonObs = allObs.find((o) => o.concept?.uuid === CONCEPT.VISIT_REASON);
@@ -268,7 +283,11 @@ const buildPrescriptionData = (visit) => {
       advices: byConceptId(CONCEPT.ADVICE).map((o) => obsStr(o)),
       tests: byConceptId(CONCEPT.TEST).map((o) => obsStr(o)),
       referrals: byConceptId(CONCEPT.REFERRAL).map((o) => parseReferral(obsStr(o))),
-      followUp: followUpObs.length ? parseFollowUp(followUpObs[0]) : null,
+      followUp: (() => {
+         const parsed = followUpObs.length ? parseFollowUp(followUpObs[0]) : null;
+         console.log("[prescription data] follow-up parsed:", visit?.uuid, JSON.stringify(parsed));
+         return parsed;
+      })(),
    };
 };
 
@@ -279,4 +298,4 @@ const buildPrescriptionData = (visit) => {
 // sharing, so a fallback there leaks the PDF to the patient prematurely.
 const hasPrescription = (data) => Boolean(data.shared);
 
-module.exports = { buildPrescriptionData, hasPrescription, CONCEPT };
+module.exports = { buildPrescriptionData, hasPrescription, toDateInput, CONCEPT };

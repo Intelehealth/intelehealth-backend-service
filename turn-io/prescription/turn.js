@@ -38,4 +38,18 @@ const notifyPrescriptionReady = async ({ number, pdfUrl, filename, name }) => {
    });
 };
 
-module.exports = { notifyPrescriptionReady, normalizeNumber };
+// Tell the patient a follow-up visit has been scheduled (sent inside the session window).
+const notifyFollowUpScheduled = async ({ number, patientName, date }) => {
+   if (!TURN_API_TOKEN) throw new Error("TURN_API_TOKEN is not set");
+   const to = normalizeNumber(number);
+   if (!to) throw new Error("recipient number is required");
+
+   const forWhom = patientName ? ` for ${patientName}` : "";
+   await postMessage({
+      to,
+      type: "text",
+      text: { body: `Doctor has advised a follow-up visit on ${date}${forWhom}.` },
+   });
+};
+
+module.exports = { notifyPrescriptionReady, notifyFollowUpScheduled, normalizeNumber };
