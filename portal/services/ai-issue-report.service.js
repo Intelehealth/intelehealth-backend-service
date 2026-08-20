@@ -1,6 +1,7 @@
 'use strict';
 const crypto = require('crypto');
 const { ai_issue_report } = require('../models');
+const slackService = require('./slack.service');
 
 const RAW_SUGGESTION_LIMIT = 8000;
 
@@ -47,9 +48,15 @@ async function create(payload) {
     status: 'open'
   });
 
-  // Slack notification lands here in a follow-up PR, fired after this create
-  // resolves and never awaited - it must not delay or fail the doctor's
-  // submission if Slack is slow or unreachable.
+  // doctor_name / patient_openmrs_id are display-only context for the Slack
+  // card - never persisted on the report row, since the table is meant to
+  // stay de-identified (refs/uuids only).
+  // Fired after the create resolves and deliberately not awaited - a slow or
+  // unreachable Slack must never delay or fail the doctor's submission.
+  slackService.notifyAiIssueReport(row, {
+    doctor_name: payload.doctor_name,
+    patient_openmrs_id: payload.patient_openmrs_id,
+  }).catch(() => {});
 
   return row;
 }
