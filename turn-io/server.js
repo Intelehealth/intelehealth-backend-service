@@ -4,6 +4,7 @@ const express = require("express");
 const patientRegistration = require("./routes/patient-registration");
 const visitPush = require("./routes/visit-push");
 const prescription = require("./prescription");
+const followUpCron = require("./prescription/followup-cron");
 
 const app = express();
 
@@ -46,6 +47,8 @@ app.get("/", (_req, res) => res.send("Server working"));
 app.use("/webhooks/turn", patientRegistration);
 app.use("/webhooks/turn", visitPush);
 app.use("/webhooks/turn", prescription);
+
+followUpCron.start();
 
 const port = process.env.PORT || 3000;
 

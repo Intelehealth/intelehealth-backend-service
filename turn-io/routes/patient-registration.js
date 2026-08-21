@@ -56,6 +56,10 @@ router.post("/patient_registration", async (req, res) => {
 
       const address1       = pick(r.address1, c.address1);
       const address2       = pick(r.address2, c.address2);
+      // "Block" (rural administrative sub-district unit) maps onto OpenMRS's
+      // address3 -- same slot the doctor webapp labels "Block" (visit-summary
+      // patient-info section), so it round-trips to the same UI field.
+      const block          = pick(b.block, r.block, c.block, b.block_address, r.block_address, c.block_address);
       const cityVillage    = pick(b.village_street, r.city_village, c.city_village, r.village_address, c.village_address, r.village, c.village, r.village_district, c.village_district);
       const countyDistrict = pick(b.district_town, r.county_district, c.county_district, r.district_town, c.district_town, r.district, c.district);
       const stateProvince  = pick(r.state_province, c.state_province, r.state, c.state);
@@ -113,7 +117,7 @@ router.post("/patient_registration", async (req, res) => {
             birthdate: `${new Date().getFullYear() - safeAge}-01-01`,
             names: [{ givenName, middleName: middle || "", familyName }],
             addresses: [{
-               address1, address2, address3: "", address6: "",
+               address1, address2, address3: block, address6: "",
                cityVillage, country, countyDistrict, postalCode, stateProvince,
             }],
             attributes,

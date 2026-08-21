@@ -27,4 +27,15 @@ const getVisit = async (visitUuid) => {
    return data;
 };
 
-module.exports = { getVisit };
+// Custom rep for the follow-up obs search: value plus the visit it belongs to.
+const FOLLOWUP_OBS_CUSTOM_REP = "custom:(uuid,value,encounter:(uuid,visit:(uuid)))";
+
+// All obs recorded against a concept, across all patients/visits -- turn-io has
+// no doctor JWT for the mindmap service's getFollowUpVisits, so it reads the
+// same underlying obs straight from OpenMRS REST instead.
+const getFollowUpObs = async (conceptUuid) => {
+   const { data } = await openmrsGet("/obs", { concept: conceptUuid, v: FOLLOWUP_OBS_CUSTOM_REP });
+   return data?.results || [];
+};
+
+module.exports = { getVisit, getFollowUpObs };

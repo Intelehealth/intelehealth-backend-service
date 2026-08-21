@@ -52,4 +52,31 @@ const notifyFollowUpScheduled = async ({ number, patientName, date }) => {
    });
 };
 
-module.exports = { notifyPrescriptionReady, notifyFollowUpScheduled, normalizeNumber };
+// Approved WhatsApp template send (works outside the 24h session window). bodyParams fill {{1}}, {{2}}, ... in order.
+const sendTemplate = async ({ number, name, language, bodyParams = [] }) => {
+   if (!TURN_API_TOKEN) throw new Error("TURN_API_TOKEN is not set");
+   const to = normalizeNumber(number);
+   if (!to) throw new Error("recipient number is required");
+
+   await postMessage({
+      to,
+      type: "template",
+      template: {
+         name,
+         language: { policy: "deterministic", code: language },
+         components: [{ type: "body", parameters: bodyParams.map((text) => ({ type: "text", text: String(text) })) }],
+      },
+   });
+};
+
+// Same-day follow-up reminder (approved template: followup_reminder). {{1}} patient, {{2}} doctor, {{3}} date.
+const notifyFollowUpReminder = ({ number, patientName, doctorName, date }) =>
+   sendTemplate({ number, name: "followup_reminder", language: "en", bodyParams: [patientName || "", doctorName || "", date] });
+
+module.exports = {
+   notifyPrescriptionReady,
+   notifyFollowUpScheduled,
+   sendTemplate,
+   notifyFollowUpReminder,
+   normalizeNumber,
+};
