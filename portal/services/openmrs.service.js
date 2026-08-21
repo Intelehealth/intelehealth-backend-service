@@ -3,7 +3,7 @@ const openMrsDB = require("../handlers/mysql/mysqlOpenMrs");
 const { user_settings, appointments: Appointment } = require("../models");
 const { axiosInstance } = require("../handlers/helper");
 const { QueryTypes } = require("sequelize");
-const { getVisitCountV3, getVisitCountForEndedVisits } = require("../controllers/queries");
+const { getVisitCountV3, getVisitCountForEndedVisits, getVisitCountForReferredVisits } = require("../controllers/queries");
 const {
   visit,
   encounter,
@@ -21,7 +21,8 @@ const {
   concept,
   concept_name,
   person_attribute,
-  person_attribute_type
+  person_attribute_type,
+  visit_attribute_type
 } = require("../openmrs_models");
 const { MESSAGE } = require("../constants/messages");
 const { logStream } = require("../logger/index");
@@ -527,6 +528,144 @@ this._getFollowUpVisits = async (
         limit,
         "Ended Visit"
       );
+    } catch (error) {
+      logStream("error", error.message);
+      throw error;
+    }
+  };
+
+  /**
+  * Get referred visit ids for a doctor's speciality
+  * @param { string } speciality - Doctor speciality
+  */
+  this.getReferredVisitIds = async (speciality) => {
+    const visits = await sequelize.query(getVisitCountForReferredVisits(), {
+      type: QueryTypes.SELECT,
+    });
+    return Array.isArray(visits)
+      ? visits.filter((v) => v?.speciality == speciality).map((v) => v?.visit_id)
+      : [];
+  };
+
+  /**
+  * Get referred visits (hydrated) for a doctor's speciality, paginated
+  * @param { string } speciality - Doctor speciality
+  * @param { number } page - Page number
+  * @param { number } limit - Limit
+  * @param { boolean } countOnly - Whether to return only the total count
+  */
+  this.getReferredVisitsData = async (
+    speciality,
+    page = 1,
+    limit = 25,
+    countOnly = false
+  ) => {
+    try {
+      logStream('debug','Openmrs Service', 'Get Referred Visits Data');
+      let offset = limit * (Number(page) - 1);
+      let visits = [];
+      const resp = {};
+
+      if (limit > 200) limit = 200;
+      const visitIds = await this.getReferredVisitIds(speciality);
+
+      if (!countOnly) {
+        visits = await visit.findAll({
+          where: {
+            visit_id: { [Op.in]: visitIds },
+            voided: 0,
+          },
+          attributes: ["uuid", "date_stopped", "date_created"],
+          include: [
+            {
+              model: encounter,
+              as: "encounters",
+              attributes: ["encounter_datetime"],
+              include: [
+                {
+                  model: obs,
+                  as: "obs",
+                  attributes: ["value_text", "concept_id", "value_numeric"],
+                  where: { voided: 0, concept_id: 163212 },
+                  required: false,
+                },
+                {
+                  model: encounter_type,
+                  as: "type",
+                  attributes: ["name"],
+                },
+              ],
+              where: {
+                voided: 0,
+              }
+            },
+            {
+              model: patient_identifier,
+              as: "patient",
+              attributes: ["identifier"],
+            },
+            {
+              model: person_name,
+              as: "patient_name",
+              attributes: ["given_name", "family_name", "middle_name"],
+            },
+            {
+              model: person,
+              as: "person",
+              attributes: ["uuid", "gender", "birthdate"],
+            },
+            {
+              model: location,
+              as: "location",
+              attributes: ["name"],
+            },
+            {
+              model: visit_attribute,
+              as: "attributes",
+              attributes: ["value_reference"],
+              where: { voided: 0 },
+              required: false,
+              include: [
+                {
+                  model: visit_attribute_type,
+                  as: "attribute_type",
+                  attributes: ["name"],
+                },
+              ],
+            },
+          ],
+          order: [["visit_id", "DESC"]],
+          limit,
+          offset,
+        });
+        resp.currentCount = visits.length;
+        resp.visits = visits;
+      }
+      resp.totalCount = visitIds.length;
+
+      return resp;
+    } catch (error) {
+      logStream("error", error.message);
+      throw error;
+    }
+  };
+
+  /**
+  * Get referred visits
+  * @param { string } speciality - Doctor speciality
+  * @param { number } page - Page number
+  * @param { number } limit - Limit
+  * @param { boolean } countOnly - Whether to return only the total count
+  */
+  this._getReferredVisits = async (
+    speciality,
+    page = 1,
+    limit = 25,
+    countOnly
+  ) => {
+    try {
+      logStream('debug','Openmrs Service', 'Get Referred Visits');
+      return await this.getReferredVisitsData(speciality, page, limit, countOnly);
     } catch (error) {
       logStream("error", error.message);
       throw error;

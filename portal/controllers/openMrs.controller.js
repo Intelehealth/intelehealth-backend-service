@@ -9,6 +9,7 @@ const {
   _getCompletedVisits,
   _getEndedVisits
 } = require("../services/openmrs.service");
+const { _getReferredVisits } = require("../services/openmrs.service");
 
 const getVisitCountQuery = ({ speciality = "General Physician" }) => {
   return `select count(t1.visit_id) as Total,
@@ -370,6 +371,31 @@ const getEndedVisits = async (req, res, next) => {
   }
 };
 
+/**
+ * Get referred visit.
+ * @param {request} req
+ * @param {response} res
+ * @returns visits
+ */
+const getReferredVisits = async (req, res, next) => {
+  try {
+    logStream('debug', 'API call', 'Get Referred Visits');
+    const { speciality, page, countOnly, limit } = req.query;
+    const data = await _getReferredVisits(speciality, page, limit, countOnly === 'true');
+    logStream('debug', 'Success', 'Get Referred Visits');
+    res.json({
+      count: data.currentCount,
+      totalCount: data.totalCount,
+      data: data.visits,
+      success: true,
+    });
+  } catch (error) {
+    logStream("error", error.message);
+    res.statusCode = 422;
+    res.json({ status: false, message: error.message });
+  }
+};
+
 module.exports = {
   getVisitCounts,
   getFollowUpVisit,
@@ -380,5 +406,6 @@ module.exports = {
   getInProgressVisits,
   getCompletedVisits,
   getEndedVisits,
-  getFollowUpVisits
+  getFollowUpVisits,
+  getReferredVisits
 };
