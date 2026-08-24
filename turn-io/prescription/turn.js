@@ -3,7 +3,7 @@ const axios = require("axios");
 // Turn WhatsApp API. TURN_API_TOKEN is the workspace API token (app.turn.io ->
 // Settings -> API). Proactive free-form messages only deliver inside the patient's
 // 24h WhatsApp session window (open right after they chat with the bot).
-const { TURN_API_TOKEN } = process.env;
+const { TURN_API_TOKEN, TURN_TEMPLATE_NAMESPACE } = process.env;
 const TURN_API_URL = process.env.TURN_API_URL || "https://whatsapp.turn.io/v1/messages";
 
 // WhatsApp wants digits only (no "+", spaces, or "whatsapp:").
@@ -55,6 +55,7 @@ const notifyFollowUpScheduled = async ({ number, patientName, date }) => {
 // Approved WhatsApp template send (works outside the 24h session window). bodyParams fill {{1}}, {{2}}, ... in order.
 const sendTemplate = async ({ number, name, language, bodyParams = [] }) => {
    if (!TURN_API_TOKEN) throw new Error("TURN_API_TOKEN is not set");
+   if (!TURN_TEMPLATE_NAMESPACE) throw new Error("TURN_TEMPLATE_NAMESPACE is not set");
    const to = normalizeNumber(number);
    if (!to) throw new Error("recipient number is required");
 
@@ -62,6 +63,7 @@ const sendTemplate = async ({ number, name, language, bodyParams = [] }) => {
       to,
       type: "template",
       template: {
+         namespace: TURN_TEMPLATE_NAMESPACE,
          name,
          language: { policy: "deterministic", code: language },
          components: [{ type: "body", parameters: bodyParams.map((text) => ({ type: "text", text: String(text) })) }],

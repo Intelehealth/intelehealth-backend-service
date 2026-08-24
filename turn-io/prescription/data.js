@@ -121,6 +121,14 @@ const toDateInput = (d) => {
    return date.toISOString().slice(0, 10);
 };
 
+// "2026-08-25" -> "25 Aug 2026" for patient-facing messages.
+const fmtFollowUpDate = (iso) => {
+   const d = new Date(`${iso}T00:00:00Z`);
+   return isNaN(d.getTime())
+      ? iso
+      : d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+};
+
 const parseFollowUp = (obs) => {
    const members = obs.groupMembers || [];
    if (members.length > 0) {
@@ -143,10 +151,7 @@ const parseFollowUp = (obs) => {
          followUpType: get("type") || get("visit type"),
       };
    }
-   // Mirror the doctor portal (diagnosis.component.ts checkIfFollowUpPresent):
-   // the follow-up is "Yes" ONLY when the obs value carries "Time:" or "Remark:".
-   // A "No" answer still writes an obs (e.g. plain "No"/blank), so defaulting to
-   // "Yes" here wrongly showed follow-up on the prescription.
+   // yes/no
    const obsValue = String(obs.value || obs.display || "");
    const isYes = obsValue.includes("Time:") || obsValue.includes("Remark:");
    if (!isYes) {
@@ -165,8 +170,6 @@ const parseFollowUp = (obs) => {
       followUpType: type === "null" ? null : type,
    };
 };
-
-// Turn an OpenMRS visit object (custom rep from openmrs.getVisit) into the flat
 // PrescriptionData used by the PDF builder.
 const buildPrescriptionData = (visit) => {
    const patient = visit?.patient;
@@ -187,12 +190,10 @@ const buildPrescriptionData = (visit) => {
       : null;
 
    const encounters = visit?.encounters || [];
-   // The doctor's "Share Prescription" writes a Visit-Complete encounter; its
-   // presence is the explicit signal that the prescription has been shared.
+   // The doctor's "Share Prescription" writes a Visit-Complete encounter;
    const shared = encounters.some(
       (enc) => enc.encounterType?.uuid === VISIT_COMPLETE_ENCOUNTER_TYPE
    );
-   console.log("is shared", shared, visit?.uuid, encounters.map((e) => e.encounterType?.uuid));
    const consultationDate = encounters.length
       ? new Date([...encounters].sort((a, b) =>
             new Date(b.encounterDatetime).getTime() - new Date(a.encounterDatetime).getTime())[0].encounterDatetime)
@@ -298,4 +299,4 @@ const buildPrescriptionData = (visit) => {
 // sharing, so a fallback there leaks the PDF to the patient prematurely.
 const hasPrescription = (data) => Boolean(data.shared);
 
-module.exports = { buildPrescriptionData, hasPrescription, toDateInput, CONCEPT };
+module.exports = { buildPrescriptionData, hasPrescription, toDateInput, fmtFollowUpDate, CONCEPT };

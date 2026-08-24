@@ -23,36 +23,85 @@ const getVisit = async (visitUuid) => {
    return data;
 };
 
-// Follow-up obs search: just the value and which visit it belongs to.
-const FOLLOWUP_OBS_CUSTOM_REP = "custom:(uuid,value,encounter:(uuid,visit:(uuid)))";
-const OBS_PAGE_SIZE = Number(process.env.OPENMRS_OBS_PAGE_SIZE || 100);
-const OBS_MAX_PAGES = Number(process.env.OPENMRS_OBS_MAX_PAGES || 500);
+// Fetching Follow-ups from mindmap service
+// (GET /obs?concept=... returns nothing on this server, for any concept).
+const AUTH_GATEWAY_URL = (process.env.AUTH_GATEWAY_URL || "").replace(/\/+$/, "");
+const mindmapBase = () => (process.env.MIND_MAP_URL || "").replace(/\/+$/, "");
+const configBase = () => (process.env.CONFIG_URL || "").replace(/\/+$/, "");
+const MAX_PAGES = Number(process.env.FOLLOWUP_MAX_PAGES || 500);
+const CACHE_TTL_MS = 30 * 60 * 1000;
 
-// All obs recorded against a concept, across every patient/visit, paged until the server stops returning new rows.
-const getFollowUpObs = async (conceptUuid) => {
-   const all = [];
-   const seen = new Set(); // guards a server that ignores startIndex and repeats a page
-   let startIndex = 0;
+// A doctor JWT for the mindmap/config services, minted from turn-io's own OpenMRS login, cached until due to expire.
+let cachedToken = null;
+let tokenExpiresAt = 0;
 
-   for (let page = 0; page < OBS_MAX_PAGES; page++) {
-      const { data } = await openmrsGet("/obs", { concept: conceptUuid, v: FOLLOWUP_OBS_CUSTOM_REP, limit: OBS_PAGE_SIZE, startIndex });
-      const results = data?.results || [];
-      if (!results.length) break;
+const getMindmapToken = async () => {
+   if (cachedToken && Date.now() < tokenExpiresAt) return cachedToken;
 
-      const before = all.length;
-      for (const obs of results) {
-         const key = obs?.uuid || JSON.stringify(obs);
-         if (seen.has(key)) continue;
-         seen.add(key);
-         all.push(obs);
-      }
+   const { data } = await axios.post(`${AUTH_GATEWAY_URL}/auth/login`, {
+      username: process.env.OPENMRS_USERNAME,
+      password: process.env.OPENMRS_PASSWORD,
+   });
+   if (!data?.token) throw new Error("auth-gateway login did not return a token");
 
-      if (results.length < OBS_PAGE_SIZE || all.length === before) break; // last page, or server repeating itself
-      startIndex += results.length;
+   cachedToken = data.token;
+   tokenExpiresAt = Date.now() + CACHE_TTL_MS;
+   return cachedToken;
+};
+
+// Enabled speciality names, from the same "Refer Specialisation" dropdown the doctor webapp's referral form uses.
+let cachedSpecialities = null;
+let specialitiesExpireAt = 0;
+
+const getEnabledSpecialities = async (token) => {
+   if (cachedSpecialities && Date.now() < specialitiesExpireAt) return cachedSpecialities;
+   if (!configBase()) {
+      console.warn("[followup mindmap] CONFIG_URL is not set -- no specialities to query");
+      return [];
    }
 
-   console.log(`[followup obs] fetched ${all.length} follow-up obs in pages of ${OBS_PAGE_SIZE}`);
+   const { data } = await axios.get(`${configBase()}/dropdown/all`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+   });
+   const referSpecialisation = data?.dropdown?.["refer specialisation"] || [];
+   cachedSpecialities = referSpecialisation.filter((s) => s.is_enabled).map((s) => s.name);
+   specialitiesExpireAt = Date.now() + CACHE_TTL_MS;
+   return cachedSpecialities;
+};
+
+const FOLLOWUP_VISITS_PAGE_SIZE = 25; // fixed by the mindmap service, not configurable
+
+// One speciality's full follow-up list; getFollowUpVisits has no "all specialities" option.
+const getFollowUpVisitsForSpeciality = async (speciality, token) => {
+   const all = [];
+   for (let page = 1; page <= MAX_PAGES; page++) {
+      const { data } = await axios.get(`${mindmapBase()}/openmrs/getFollowUpVisits`, {
+         params: { speciality, page },
+         headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      });
+      const results = data?.data || [];
+      all.push(...results);
+      if (results.length < FOLLOWUP_VISITS_PAGE_SIZE) break; // short page = last page
+   }
    return all;
 };
 
-module.exports = { getVisit, getFollowUpObs };
+// All follow-up visits across every enabled speciality; each item's `uuid` feeds straight into getVisit.
+const getFollowUpVisits = async () => {
+   if (!mindmapBase()) {
+      console.warn("[followup mindmap] MIND_MAP_URL is not set -- skipping mindmap lookup");
+      return [];
+   }
+
+   const token = await getMindmapToken();
+   const specialities = await getEnabledSpecialities(token);
+   const all = [];
+   for (const speciality of specialities) {
+      all.push(...(await getFollowUpVisitsForSpeciality(speciality, token)));
+   }
+
+   console.log(`[followup mindmap] fetched ${all.length} follow-up visits across ${specialities.length} specialities`);
+   return all;
+};
+
+module.exports = { getVisit, getFollowUpVisits };

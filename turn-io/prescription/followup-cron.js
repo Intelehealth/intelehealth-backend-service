@@ -1,14 +1,14 @@
-// Sends WhatsApp follow-up reminders. Re-scans all follow-up obs on every run and nudges whoever is due.
+// Sends WhatsApp follow-up reminders. Re-fetches the mindmap follow-up list on every run and nudges whoever is due.
 
 const fs = require("fs");
 const path = require("path");
 const cron = require("node-cron");
-const { getVisit, getFollowUpObs } = require("./openmrs");
-const { buildPrescriptionData, CONCEPT } = require("./data");
+const { getVisit, getFollowUpVisits } = require("./openmrs");
+const { buildPrescriptionData, fmtFollowUpDate } = require("./data");
 const { notifyFollowUpReminder } = require("./turn");
 const { recordPending, daysBetween } = require("./followup-pending");
 
-// TESTING: fires every 30 min. Real schedule is "50 9 * * *" (09:50 daily) -- switch back before shipping.
+// TESTING: fires every 30 min. Real schedule is "50 9 * * *" (09:50 daily)
 const CRON_SCHEDULE = "*/30 * * * *";
 const CRON_TIMEZONE = "Asia/Kolkata";
 
@@ -32,11 +32,29 @@ const loadSentLog = (today) => {
 
 const saveSentLog = (log) => fs.writeFileSync(SENT_LOG_PATH, JSON.stringify(log), "utf8");
 
-// A specific visit skips the obs scan (cheap single-patient testing); otherwise scan and dedupe by visit.
-const collectVisitUuids = async (onlyVisitUuid) => {
+// mindmap's own concept id for the follow-up obs
+const MINDMAP_FOLLOWUP_CONCEPT_ID = 163345;
+const followUpDateFromMindmap = (visit) => {
+   const value = visit.encounters?.flatMap((e) => e.obs || [])
+      .find((o) => o.concept_id === MINDMAP_FOLLOWUP_CONCEPT_ID)?.value_text;
+   return value?.split(",")[0]?.trim() || null;
+};
+
+// A specific visit skips the mindmap scan entirely (cheap single-patient testing).
+// Otherwise, fetch every candidate but only keep the ones due today/tomorrow --
+const collectVisitUuids = async (onlyVisitUuid, today, force) => {
    if (onlyVisitUuid) return [onlyVisitUuid];
-   const obsList = await getFollowUpObs(CONCEPT.FOLLOW_UP);
-   return [...new Set(obsList.map((obs) => obs?.encounter?.visit?.uuid).filter(Boolean))];
+
+   const visits = await getFollowUpVisits();
+   if (force) return [...new Set(visits.map((v) => v?.uuid).filter(Boolean))];
+
+   const due = visits.filter((v) => {
+      const dueDate = followUpDateFromMindmap(v);
+      return dueDate && REMINDER_OFFSETS.includes(daysBetween(today, dueDate));
+   });
+
+   console.log(`[followup mindmap] ${due.length}/${visits.length} visits due today/tomorrow -- skipping getVisit for the rest`);
+   return [...new Set(due.map((v) => v?.uuid).filter(Boolean))];
 };
 
 // Runs one pass: find due visits and send each a reminder, one at a time.
@@ -48,9 +66,9 @@ const runFollowUpReminders = async ({ visitUuid: onlyVisitUuid = null, force = f
    const sentLog = loadSentLog(today);
    let visitUuids;
    try {
-      visitUuids = await collectVisitUuids(onlyVisitUuid);
+      visitUuids = await collectVisitUuids(onlyVisitUuid, today, force);
    } catch (err) {
-      console.error(`${tag} failed to fetch follow-up obs:`, errDetail(err));
+      console.error(`${tag} failed to fetch follow-up visits:`, errDetail(err));
       return { ok: false, today, error: errDetail(err), considered: 0, sent: 0, skipped: 0, failed: 0, results: [] };
    }
 
@@ -108,7 +126,7 @@ const runFollowUpReminders = async ({ visitUuid: onlyVisitUuid = null, force = f
       try {
          await notifyFollowUpReminder({
             number: data.phone, patientName: data.patientName, doctorName: data.doctorName,
-            openmrsId: data.patientId, date: fu.followUpDateIso, payload: visitUuid,
+            date: fmtFollowUpDate(fu.followUpDateIso),
          });
          sentLog[logKey] = true;
          sent++;

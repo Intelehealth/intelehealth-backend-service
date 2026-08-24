@@ -1,28 +1,18 @@
 const express = require("express");
 const { getVisit } = require("./openmrs");
-const { buildPrescriptionData, hasPrescription } = require("./data");
+const { buildPrescriptionData, hasPrescription, fmtFollowUpDate } = require("./data");
 const { generatePrescriptionPdf } = require("./pdf");
 const { notifyPrescriptionReady, notifyFollowUpScheduled } = require("./turn");
 const { runFollowUpReminders, getCronInfo } = require("./followup-cron");
 
 const NOT_READY_MSG =
    "Prescription not generated yet. Once it's ready, the doctor will send it to you.";
-
-// Not-ready reply (no PDF); the Turn journey branches on /prescription/status first.
 const sendNotReady = (res) => res.status(200).type("text/plain").send(NOT_READY_MSG);
 
 // Blank/unresolved Turn placeholders ("@results.foo") count as missing.
 const isBlank = (v) =>
    v == null || (typeof v === "string" && (v.trim() === "" || v.trim().startsWith("@")));
 const clean = (v) => (isBlank(v) ? "" : String(v).trim());
-
-// "2026-08-25" -> "25 Aug 2026" for the patient-facing follow-up message.
-const fmtFollowUpDate = (iso) => {
-   const d = new Date(`${iso}T00:00:00Z`);
-   return isNaN(d.getTime())
-      ? iso
-      : d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
-};
 
 const publicBase = (req) =>
    (clean(process.env.PUBLIC_BASE_URL) || `${req.protocol}://${req.get("host")}`).replace(/\/+$/, "");
@@ -49,7 +39,7 @@ const notifyForVisit = async (visitUuid, { number: overrideNumber, baseUrl } = {
    });
    notifiedVisits.add(visitUuid); // only after a successful send, so a failed push can retry
 
-   // Send the follow-up message too, if the doctor scheduled one; a failure here shouldn't fail the prescription push.
+   // Send the follow-up message.
    const fu = data.followUp;
    let followUpNotified = null;
    if (fu?.wantFollowUp === "Yes" && fu.followUpDateIso) {
@@ -63,8 +53,6 @@ const notifyForVisit = async (visitUuid, { number: overrideNumber, baseUrl } = {
 
    return { ok: true, notified: number, followUp: followUpNotified };
 };
-
-// Deferred "reshare a missed prescription" background retry was removed -- see git history to restore it.
 
 const errDetail = (err) => err.response?.data || err.message;
 const fail = (res, tag, err) => {
@@ -104,7 +92,7 @@ router.all("/prescription/status", (req, res) =>
    respondWithStatus(req, res, { ...req.query, ...req.body }, "prescription status")
 );
 
-// Doctor-share push: sends the PDF (and follow-up message) via Turn. Body: { visit_uuid, number? }; idempotent per visit.
+// Doctor-share push: sends the PDF (and follow-up message) via Turn. Body: { visit_uuid, number? };
 router.post("/prescription/notify", async (req, res) => {
    const src = { ...req.query, ...req.body };
    console.log("\n[prescription notify] received:", JSON.stringify(src));
@@ -165,13 +153,13 @@ router.get("/prescription/:visitUuid.pdf", async (req, res) => {
 });
 
 // Manual trigger for the follow-up reminder cron -- lets Postman/curl run a pass
-// on demand instead of waiting for 09:50. Body: { visitUuid?, force?, dryRun? }.
+// on demand instead of waiting for 09:50. Body: { visit_uuid?, force?, dryRun? }.
 router.post("/followup/run", async (req, res) => {
    const src = { ...req.query, ...req.body };
    console.log("\n[followup run] received:", JSON.stringify(src));
    try {
       const result = await runFollowUpReminders({
-         visitUuid: clean(src.visitUuid) || null,
+         visitUuid: clean(src.visit_uuid || src.visitUuid) || null,
          force: Boolean(src.force),
          dryRun: Boolean(src.dryRun),
          trigger: "manual",
