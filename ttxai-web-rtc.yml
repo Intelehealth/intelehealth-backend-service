@@ -7,7 +7,7 @@ on:
       - 'web-rtc/**'  # Only trigger when changes in portal folder
 env:
   DOCKER_IMAGE_NAME: web-rtc
-  REMOTE_HOST: ${{secrets.DEV_HOST}}
+  REMOTE_HOST: ${{secrets.TTX_HOST}}
   REMOTE_USER: ${{secrets.DEV_USER}}
   REMOTE_PORT: 22
   ENV_FILE_PATH: /home/ubuntu/deploy/web-rtc/.env

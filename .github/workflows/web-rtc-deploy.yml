@@ -32,6 +32,10 @@ on:
         description: 'Deploy to TURN host'
         type: boolean
         default: false
+      deploy_ttxai:
+        description: 'Deploy to TTXAI host'
+        type: boolean
+        default: false  
   push:
     branches: [development_master]
     paths:
@@ -50,24 +54,30 @@ jobs:
         id: set-matrix
         run: |
           if [ "${{ github.event_name }}" == "push" ]; then
-            matrix='{"include":[{"environment":"dev"},{"environment":"turn"}]}'
+            matrix='{"include":[{"environment":"dev"},{"environment":"turn"},{"environment":"ttxai"}]}'
           else
             includes='[]'
             if [ "${{ inputs.deploy_dev }}" == "true" ]; then
-              includes=$(echo "$includes" | jq '. += [{"environment":"dev"}]')
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"dev"}]')
             fi
             if [ "${{ inputs.deploy_turn }}" == "true" ]; then
-              includes=$(echo "$includes" | jq '. += [{"environment":"turn"}]')
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"turn"}]')
+            fi
+            if [ "${{ inputs.deploy_ttxai }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"ttxai"}]')
             fi
             matrix="{\"include\":$includes}"
           fi
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
-
   build:
     runs-on: ubuntu-latest
+    outputs:
+      migrations_changed: ${{ steps.check-migrations.outputs.changed }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -77,20 +87,31 @@ jobs:
           cache-dependency-path: web-rtc/package-lock.json
 
       - name: Install dependencies
-        run: npm ci --production=false
+        run: npm i --production=false
         working-directory: web-rtc
 
+      - name: Check for migration file changes
+        id: check-migrations
+        run: |
+          if [ "${{ github.event_name }}" != "push" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q "^web-rtc/migrations/" \
+              && echo "changed=true" >> $GITHUB_OUTPUT \
+              || echo "changed=false" >> $GITHUB_OUTPUT
+          fi
       - name: Build Docker image
         run: |
           docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} ./web-rtc
           docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > app-image.tar
-
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
-          name: web-rtc-image
+          name: web-rtc
           path: app-image.tar
-          retention-days: 1
+          retention-days: 3
 
   deploy:
     needs: [prepare-matrix, build]
@@ -105,59 +126,61 @@ jobs:
       # All host secrets mapped upfront — dynamic secret refs aren't supported in GitHub Actions
       DEV_HOST: ${{ secrets.DEV_HOST }}
       TURN_HOST: ${{ secrets.TURN_HOST }}
+      TTXAI_HOST: ${{ secrets.TTXAI_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: web-rtc
+
       - name: Resolve host for environment
         run: |
           case "${{ matrix.environment }}" in
             dev)  echo "REMOTE_HOST=$DEV_HOST"  >> $GITHUB_ENV ;;
             turn) echo "REMOTE_HOST=$TURN_HOST" >> $GITHUB_ENV ;;
+            ttxai) echo "REMOTE_HOST=$TTXAI_HOST" >> $GITHUB_ENV ;;
             *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
-
-      - name: Download image artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: web-rtc-image
-
       - name: Deploy to ${{ matrix.environment }} host
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-
+          REMOTE_TAR="/tmp/app-image-${{ matrix.environment }}-${{ github.run_id }}.tar"
           scp -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=no \
               -P $REMOTE_PORT \
               app-image.tar \
-              $REMOTE_USER@$REMOTE_HOST:/tmp/
-
+              $REMOTE_USER@$REMOTE_HOST:$REMOTE_TAR
           ssh -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=no \
               -p $REMOTE_PORT \
               $REMOTE_USER@$REMOTE_HOST <<EOF
+            set -e
             DOCKER_IMAGE_NAME="${{ env.DOCKER_IMAGE_NAME }}"
             ENV_FILE_PATH="${{ env.ENV_FILE_PATH }}"
             PEM_FOLDER_PATH="${{ env.PEM_FOLDER_PATH }}"
-
-            docker load -i /tmp/app-image.tar
-            rm /tmp/app-image.tar
-
+            REMOTE_TAR="$REMOTE_TAR"
+            docker load -i "\$REMOTE_TAR"
+            rm "\$REMOTE_TAR"
             docker stop \$DOCKER_IMAGE_NAME || true
             docker rm \$DOCKER_IMAGE_NAME || true
-
             if [ ! -f "\$ENV_FILE_PATH" ]; then
               echo "Error: .env file not found at \$ENV_FILE_PATH"
               exit 1
             fi
-
             if [ ! -d "\$PEM_FOLDER_PATH" ]; then
               echo "Error: .pem folder not found at \$PEM_FOLDER_PATH"
               exit 1
             fi
+            lsof -ti:3000 | xargs kill -9 2>/dev/null || true
 
+            docker ps -a | grep \$DOCKER_IMAGE_NAME | awk '{print $1}' | xargs docker rm -f 2>/dev/null || true
+
+            sleep 2
             docker run -d \
               --name \$DOCKER_IMAGE_NAME \
               --restart unless-stopped \
@@ -166,17 +189,25 @@ jobs:
               -v \$PEM_FOLDER_PATH:/app/.pem \
               --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
               \$DOCKER_IMAGE_NAME:${{ github.sha }}
-
             docker image prune -f
             echo "Web-rtc deployment to ${{ matrix.environment }} completed successfully"
           EOF
-
+      - name: Run migrations on ${{ matrix.environment }} host
+        if: needs.build.outputs.migrations_changed == 'true'
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              -p $REMOTE_PORT \
+              $REMOTE_USER@$REMOTE_HOST \
+              "docker exec ${{ env.DOCKER_IMAGE_NAME }} npm run migrate"
       - name: Verify deployment on ${{ matrix.environment }}
         run: |
           mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-
           ssh -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=no \
               -p $REMOTE_PORT \

@@ -1,5 +1,5 @@
 const { user_settings } = require("../models");
-const { RES, sendPrescriptionCloudNotification } = require("../handlers/helper");
+const { RES, sendPrescriptionCloudNotification, sendCloudNotification } = require("../handlers/helper");
 const { MESSAGE } = require("../constants/messages");
 const { logStream } = require("../logger/index");
 const { createNotification, readNotificationById, deleteNotifications, getNotifications} = require("../services/notifications.service");
@@ -276,6 +276,33 @@ const notifyApp = async (req, res, next) => {
       where: { user_uuid: req.params.userId },
     });
     let data = null;
+console.log("device_reg_token==",userSetting?.device_reg_token);
+    if (userSetting?.device_reg_token && req.body.silent) {
+      const silentData = { ...(req.body.data ?? {}), type: req.body.type ?? "silent" };
+      Object.keys(silentData).forEach((k) => {
+        silentData[k] = silentData[k] == null ? "" : String(silentData[k]);
+      });
+
+      data = await sendCloudNotification({
+        data: silentData,
+        regTokens: [userSetting.device_reg_token],
+      });
+
+      data?.responses?.forEach((resp) => {
+        if (!resp.success) {
+          logStream("error", `Silent FCM error for ${req.params.userId}: ${resp.error?.code} - ${resp.error?.message}`);
+        }
+      });
+
+      logStream('debug', `Success (silent, type: ${silentData.type}, sent: ${data?.successCount ?? 0}, failed: ${data?.failureCount ?? 0})`, 'Notify App');
+      return res.json({
+        success: true,
+        sent: data?.successCount ?? 0,
+        failed: data?.failureCount ?? 0,
+        data,
+      });
+    }
+
     if (userSetting?.device_reg_token) {
       let notficationObj = {
         title: req.body.title,

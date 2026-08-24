@@ -6,7 +6,7 @@
 require("dotenv").config();
 const app = require("../app");
 const debug = require("debug")("mindmapbackend:server");
-
+const x = 0;
 /**
  * Get port from environment and store in Express.
  */
@@ -36,7 +36,7 @@ if (process.env.NODE_ENV === "prod") {
  * Initializing socket
  */
 require("../handlers/socket")(server);
-
+require("../services/webrtc.service")();
 /**
  * Listen on provided port, on all network interfaces.
  */

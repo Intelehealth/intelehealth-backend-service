@@ -27,11 +27,19 @@ on:
       deploy_dev:
         description: 'Deploy to DEV host'
         type: boolean
-        default: true
+        default: false
       deploy_turn:
         description: 'Deploy to TURN host'
         type: boolean
+        default: true
+      deploy_ttxai:
+        description: 'Deploy to TTXAI host'
+        type: boolean
         default: false
+      deploy_testturn:
+        description: 'Deploy to TESTTURN host'
+        type: boolean
+        default: false      
   push:
     branches: [development_master]
     paths:
@@ -51,15 +59,21 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" == "push" ]; then
             # On push, deploy to all hosts
-            matrix='{"include":[{"environment":"dev"},{"environment":"turn"}]}'
+            matrix='{"include":[{"environment":"dev"},{"environment":"turn"} ,{"environment":"ttxai"},{"environment":"testturn"}]}'
           else
             # On manual dispatch, deploy only to selected hosts
             includes='[]'
             if [ "${{ inputs.deploy_dev }}" == "true" ]; then
-              includes=$(echo "$includes" | jq '. += [{"environment":"dev"}]')
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"dev"}]')
             fi
             if [ "${{ inputs.deploy_turn }}" == "true" ]; then
-              includes=$(echo "$includes" | jq '. += [{"environment":"turn"}]')
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"turn"}]')
+            fi
+            if [ "${{ inputs.deploy_ttxai }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"ttxai"}]')
+            fi
+            if [ "${{ inputs.deploy_testturn }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"testturn"}]')
             fi
             matrix="{\"include\":$includes}"
           fi
@@ -67,9 +81,13 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    outputs:
+      migrations_changed: ${{ steps.check-migrations.outputs.changed }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -81,6 +99,19 @@ jobs:
       - name: Install dependencies
         run: npm i --production=false
         working-directory: portal
+
+      - name: Check for migration file changes
+        id: check-migrations
+        run: |
+          if [ "${{ github.event_name }}" != "push" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q "^portal/migrations/" \
+              && echo "changed=true" >> $GITHUB_OUTPUT \
+              || echo "changed=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Build Docker image
         run: |
@@ -108,6 +139,8 @@ jobs:
       # All host secrets mapped upfront — dynamic secret refs aren't supported in GitHub Actions
       DEV_HOST: ${{ secrets.DEV_HOST }}
       TURN_HOST: ${{ secrets.TURN_HOST }}
+      TTXAI_HOST: ${{ secrets.TTXAI_HOST }}
+      TESTTURN_HOST: ${{ secrets.TESTTURN_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
@@ -116,6 +149,8 @@ jobs:
           case "${{ matrix.environment }}" in
             dev)  echo "REMOTE_HOST=$DEV_HOST"  >> $GITHUB_ENV ;;
             turn) echo "REMOTE_HOST=$TURN_HOST" >> $GITHUB_ENV ;;
+            ttxai) echo "REMOTE_HOST=$TTXAI_HOST" >> $GITHUB_ENV ;;
+            testturn) echo "REMOTE_HOST=$TESTTURN_HOST" >> $GITHUB_ENV ;;
             *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
 
@@ -175,6 +210,19 @@ jobs:
             docker image prune -f
             echo "Portal deployment to ${{ matrix.environment }} completed successfully"
           EOF
+
+      - name: Run migrations on ${{ matrix.environment }} host
+        if: needs.build.outputs.migrations_changed == 'true'
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              -p $REMOTE_PORT \
+              $REMOTE_USER@$REMOTE_HOST \
+              "docker exec ${{ env.DOCKER_IMAGE_NAME }} npm run migrate"
 
       - name: Verify deployment on ${{ matrix.environment }}
         run: |

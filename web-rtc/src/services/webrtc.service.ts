@@ -131,7 +131,7 @@ export class WebRTCService {
     }
 
 
-    async getToken(roomName: string, participantName: string, opts = {}) {
+    async getToken(roomName: string, participantName: string, opts = {}, ttl: string | number = '10 days') {
         try {
             let options: VideoGrant = {
                 recorder: true,
@@ -146,7 +146,7 @@ export class WebRTCService {
 
             const at = new AccessToken(process.env.API_KEY, process.env.SECRET, {
                 identity: participantName,
-                ttl: '10 days',
+                ttl,
             });
             at.addGrant(options);
 
@@ -155,6 +155,33 @@ export class WebRTCService {
             logStream('error', `Failed to generate token: ${err?.message}`, 'getToken');
             Sentry.captureException(err, { tags: { roomName } });
             throw err;
+        }
+    }
+
+    getGuestToken(roomName: string, participantName: string, ttlSeconds: number) {
+        return this.getToken(
+            roomName,
+            participantName,
+            {
+                recorder: false,
+                roomRecord: false,
+                roomJoin: true,
+                room: roomName,
+                canPublish: true,
+                canSubscribe: true,
+            },
+            Math.max(60, Math.floor(ttlSeconds))
+        );
+    }
+
+    async listParticipants(roomName: string) {
+        const raw = process.env.LIVEKIT_ROOM_HOST || process.env.LIVEHOST || '';
+        const host = /^https?:\/\//.test(raw) ? raw : `https://${raw}`;
+        try {
+            const svc = new RoomServiceClient(host, process.env.API_KEY, process.env.SECRET);
+            return await svc.listParticipants(roomName);
+        } catch (err) {
+            return [];
         }
     }
 
