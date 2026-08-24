@@ -28,6 +28,7 @@ const { MESSAGE } = require("../constants/messages");
 const { logStream } = require("../logger/index");
 const Constant = require("../constants/constant");
 const Op = Sequelize.Op;
+const { matchesEffectiveSpeciality } = require("../handlers/namcoRouting");
 
 module.exports = (function () {
   /**
@@ -263,7 +264,7 @@ module.exports = (function () {
         appointmentVisitIds = data.map(i=>i.visitUuid);
       }
       return Array.isArray(visits)
-        ? visits.filter((v) => v?.Status === type && v.speciality == speciality && !appointmentVisitIds.includes(v.uuid)).map((v) => v?.visit_id)
+        ? visits.filter((v) => v?.Status === type && matchesEffectiveSpeciality(v, speciality) && !appointmentVisitIds.includes(v.uuid)).map((v) => v?.visit_id)
         : [];
     }
   };

@@ -26,7 +26,8 @@
     "start": "node bin/www",
     "dev": "npx nodemon bin/www",
     "migrate": "node_modules/sequelize-cli/lib/sequelize db:migrate",
-    "debug": "nodemon --inspect bin/www"
+    "debug": "nodemon --inspect bin/www",
+    "test": "node --test test/"
   },
   "dependencies": {
     "archiver": "^3.1.1",
