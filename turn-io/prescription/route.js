@@ -3,6 +3,7 @@ const { getVisit } = require("./openmrs");
 const { buildPrescriptionData, hasPrescription } = require("./data");
 const { generatePrescriptionPdf } = require("./pdf");
 const { notifyPrescriptionReady, notifyFollowUpScheduled } = require("./turn");
+const { runFollowUpReminders, getCronInfo } = require("./followup-cron");
 
 const NOT_READY_MSG =
    "Prescription not generated yet. Once it's ready, the doctor will send it to you.";
@@ -160,6 +161,33 @@ router.get("/prescription/:visitUuid.pdf", async (req, res) => {
    } catch (err) {
       console.error("[prescription pdf] error:", errDetail(err));
       sendNotReady(res);
+   }
+});
+
+// Manual trigger for the follow-up reminder cron -- lets Postman/curl run a pass
+// on demand instead of waiting for 09:50. Body: { visitUuid?, force?, dryRun? }.
+router.post("/followup/run", async (req, res) => {
+   const src = { ...req.query, ...req.body };
+   console.log("\n[followup run] received:", JSON.stringify(src));
+   try {
+      const result = await runFollowUpReminders({
+         visitUuid: clean(src.visitUuid) || null,
+         force: Boolean(src.force),
+         dryRun: Boolean(src.dryRun),
+         trigger: "manual",
+      });
+      res.json(result);
+   } catch (err) {
+      fail(res, "followup run", err);
+   }
+});
+
+// Is the cron alive, when does it fire next, what did today's sent-log record.
+router.get("/followup/status", (_req, res) => {
+   try {
+      res.json(getCronInfo());
+   } catch (err) {
+      fail(res, "followup status", err);
    }
 });
 

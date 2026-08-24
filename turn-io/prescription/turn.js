@@ -73,10 +73,21 @@ const sendTemplate = async ({ number, name, language, bodyParams = [] }) => {
 const notifyFollowUpReminder = ({ number, patientName, doctorName, date }) =>
    sendTemplate({ number, name: "followup_reminder", language: "en", bodyParams: [patientName || "", doctorName || "", date] });
 
+// Buttoned reminder with a "Start follow-up" quick reply (template: followup_start /
+// followup_start_hi). {{1}} patient, {{2}} doctor, {{3}} date -- same order as followup_reminder.
+const notifyFollowUpStart = ({ number, patientName, doctorName, date, language = "en" }) =>
+   sendTemplate({
+      number,
+      name: language === "hi" ? "followup_start_hi" : "followup_start",
+      language: language === "hi" ? "hi" : "en",
+      bodyParams: [patientName || "", doctorName || "", date],
+   });
+
 module.exports = {
    notifyPrescriptionReady,
    notifyFollowUpScheduled,
    sendTemplate,
    notifyFollowUpReminder,
+   notifyFollowUpStart,
    normalizeNumber,
 };
