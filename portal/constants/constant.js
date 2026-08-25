@@ -56,6 +56,10 @@ module.exports = {
         ENDED: 'Ended Visit',
         FOLLOW_UP:'Follow-Up'
     },
+    REFERRED_VISIT_STATUS: 'Referred Visit',
+    REFERRAL_ENCOUNTER_TYPE_UUID: '95f4ae7f-6caa-4c66-950f-7f3d6072ce56',
+    ROUTING_SPECIALIZATION_ATTRIBUTE_TYPE_UUID: '8128ee6a-af76-4c79-8c99-b7de54e13f8d',
+    SPECIALIST_VISIT_NOTE_ENCOUNTER_TYPE_UUID: '086f323a-b90b-49aa-a3ca-fb9ed8ab7426',
     RESOURCE_TYPE: 'resource_type',
     RESOURCE_ID: 'resource_id',
     PARENT_ID: 'parent_id',
@@ -83,6 +87,8 @@ module.exports = {
         ASC: 'ASC',
         DESC: 'DESC'
     },
+    // OpenMRS patient_identifier_type id for "OpenMRS ID" (distinct from ABHA Number/Address types added by the abha module)
+    OPENMRS_ID_IDENTIFIER_TYPE: 3,
     PENDING_VISIT_BY_CALL_STATUS: [
         "Review of Imaging", 
         "Review with Reports",

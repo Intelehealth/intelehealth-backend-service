@@ -22,6 +22,12 @@ const sequelize = new Sequelize({
   username: MYSQL_USERNAME || "root",
   password: MYSQL_PASS,
   database: MYSQL_DB || "mindmap_server",
+  pool: {
+    max: 20,
+    min: 0,
+    acquire: 30000,
+    idle: 10000
+  },
 });
 
 fs.readdirSync(__dirname)

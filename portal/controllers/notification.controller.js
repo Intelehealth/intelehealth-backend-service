@@ -310,7 +310,6 @@ console.log("device_reg_token==",userSetting?.device_reg_token);
         regTokens: [userSetting?.device_reg_token],
       }; 
       if (req.body.data) notficationObj.data = req.body.data;
-     console.log("notficationObj.data==",notficationObj.data);
       data = await sendPrescriptionCloudNotification(notficationObj)
         .then((res) => {
           if(res) createNotification({

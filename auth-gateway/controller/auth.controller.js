@@ -195,7 +195,7 @@ module.exports = (function () {
         message: "User created successfully",
       });
     } catch (error) {
-      console.log("Create user error=============>",error.toString());
+      console.log("error",error.toString());
       next(error);
     }
   };

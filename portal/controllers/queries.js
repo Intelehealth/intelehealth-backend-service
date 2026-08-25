@@ -1,3 +1,5 @@
+const Constant = require("../constants/constant");
+
 module.exports = (function () {
     this.getVisitCountQuery = ({ speciality = "General Physician" }) => {
         return `select count(t1.visit_id) as Total,
@@ -194,6 +196,11 @@ module.exports = (function () {
                 or encounter_type = 12
                 or com_enc = 1
             ) then "Completed Visit"
+            when (
+                encounter_type = 9
+                and hasReferral = 1
+                and hasSpecialistNote = 0
+            ) then "Awaiting Consult"
             when (encounter_type = 9) then "Visit In Progress"
             when (encounter_type) = 15 then "Priority"
             when (
@@ -203,7 +210,8 @@ module.exports = (function () {
                 )
             ) then "Awaiting Consult"
         end as "Status",
-        t1.speciality
+        t1.speciality,
+        t1.routingSpeciality
     from
         encounter,
         (
@@ -229,7 +237,32 @@ module.exports = (function () {
                       when (v.date_stopped is not null) then 1
                       else 0
                   end
-              ) as ended
+              ) as ended,
+                (
+                    select va2.value_reference from visit_attribute va2
+                    where va2.visit_id = v.visit_id and va2.voided = 0
+                        and va2.attribute_type_id = (
+                            select visit_attribute_type_id from visit_attribute_type
+                            where uuid = '${Constant.ROUTING_SPECIALIZATION_ATTRIBUTE_TYPE_UUID}'
+                        )
+                    limit 1
+                ) as "routingSpeciality",
+                (
+                    select count(1) from encounter re
+                    where re.visit_id = v.visit_id and re.voided = 0
+                        and re.encounter_type = (
+                            select encounter_type_id from encounter_type
+                            where uuid = '${Constant.REFERRAL_ENCOUNTER_TYPE_UUID}'
+                        )
+                ) > 0 as hasReferral,
+                (
+                    select count(1) from encounter se
+                    where se.visit_id = v.visit_id and se.voided = 0
+                        and se.encounter_type = (
+                            select encounter_type_id from encounter_type
+                            where uuid = '${Constant.SPECIALIST_VISIT_NOTE_ENCOUNTER_TYPE_UUID}'
+                        )
+                ) > 0 as hasSpecialistNote
             from
                 visit v
                 LEFT JOIN encounter e on e.visit_id = v.visit_id and (e.encounter_type IN (1,6,9,12,14,15))
@@ -328,6 +361,42 @@ module.exports = (function () {
           or value_reference = 'General Physician'
       )
       group by v.visit_id
+    `;
+    };
+
+    this.getVisitCountForReferredVisits = () => {
+      return `select
+        v.visit_id,
+        v.uuid,
+        "${Constant.REFERRED_VISIT_STATUS}" as "Status",
+        max(vaSpeciality.value_reference) as speciality,
+        max(vaRouting.value_reference) as routingSpecialization
+    from
+                visit v
+                JOIN visit_attribute vaRouting on (
+                    vaRouting.visit_id = v.visit_id
+                    and vaRouting.voided = 0
+                    and vaRouting.attribute_type_id = (
+                        select visit_attribute_type_id from visit_attribute_type
+                        where uuid = '${Constant.ROUTING_SPECIALIZATION_ATTRIBUTE_TYPE_UUID}'
+                    )
+                )
+                JOIN encounter e on (
+                    e.visit_id = v.visit_id
+                    and e.voided = 0
+                    and e.encounter_type = (
+                        select encounter_type_id from encounter_type
+                        where uuid = '${Constant.REFERRAL_ENCOUNTER_TYPE_UUID}'
+                    )
+                )
+                LEFT JOIN visit_attribute vaSpeciality on (
+                    vaSpeciality.visit_id = v.visit_id
+                    and vaSpeciality.voided = 0
+                    and vaSpeciality.attribute_type_id = 5
+                )
+            where
+                v.voided = 0
+      group by v.visit_id, v.uuid
     `;
     };
 
