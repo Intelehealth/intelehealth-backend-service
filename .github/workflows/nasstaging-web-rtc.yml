@@ -152,5 +152,5 @@ jobs:
         ssh -i ~/.ssh/deploy_key \
             -o StrictHostKeyChecking=no \
             -p $REMOTE_PORT \
-            $REMOTE_USER@$NASSTAGINGNEW_HOST \
+            $REMOTE_USER@$REMOTE_HOST \
             "docker ps | grep $DOCKER_IMAGE_NAME && echo 'web-rtc deployment successful!'"
