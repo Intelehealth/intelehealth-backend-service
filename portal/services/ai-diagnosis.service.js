@@ -7,18 +7,34 @@ const axios = require('axios');
  */
 const REQUEST_TIMEOUT_MS = 150000;
 
-function client() {
-  const baseURL = process.env.AI_MIDDLEWARE_BASE_URL;
-  if (!baseURL) {
-    const err = new Error('AI_MIDDLEWARE_BASE_URL is not configured');
-    err.code = 'CONFIG_MISSING';
-    throw err;
+function envValue(name) {
+  const raw = process.env[name];
+  if (!raw) {
+    return '';
   }
-  const apiKey = process.env.AI_MIDDLEWARE_API_KEY;
+  return raw.trim().replace(/^(['"])([\s\S]*)\1$/, '$2');
+}
+
+function configMissing(name) {
+  const err = new Error(`${name} is not configured`);
+  err.code = 'CONFIG_MISSING';
+  err.configKey = name;
+  return err;
+}
+
+function client() {
+  const baseURL = envValue('AI_MIDDLEWARE_BASE_URL');
+  if (!baseURL) {
+    throw configMissing('AI_MIDDLEWARE_BASE_URL');
+  }
+  const apiKey = envValue('AI_MIDDLEWARE_API_KEY');
+  if (!apiKey) {
+    throw configMissing('AI_MIDDLEWARE_API_KEY');
+  }
   return axios.create({
     baseURL,
     timeout: REQUEST_TIMEOUT_MS,
-    headers: apiKey ? { 'X-API-Key': apiKey } : {},
+    headers: { 'X-API-Key': apiKey },
   });
 }
 
