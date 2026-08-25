@@ -895,9 +895,10 @@ WHERE
       patientName,
       locationUuid,
       hwUUID,
+      // slotDate/slotTime are entered in IST -- 
       slotJsDate: moment(
-        `${slotDate} ${slotTime}`,
-        "DD/MM/YYYY HH:mm A"
+        `${slotDate} ${slotTime} +05:30`,
+        "DD/MM/YYYY HH:mm A Z"
       ).format(),
       createdBy: hwUUID,
       ...rest,
