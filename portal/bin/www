@@ -6,7 +6,9 @@
 require("dotenv").config();
 const app = require("../app");
 const debug = require("debug")("mindmapbackend:server");
-const x = 0;
+//const x = 0;
+console.log(process.env);
+
 /**
  * Get port from environment and store in Express.
  */
