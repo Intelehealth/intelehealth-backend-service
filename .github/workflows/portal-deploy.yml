@@ -122,7 +122,7 @@ jobs:
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
-          name: portal-image
+          name: portal
           path: app-image.tar
           retention-days: 1
 
@@ -157,7 +157,7 @@ jobs:
       - name: Download image artifact
         uses: actions/download-artifact@v4
         with:
-          name: portal-image
+          name: portal
 
       - name: Deploy to ${{ matrix.environment }} host
         run: |
