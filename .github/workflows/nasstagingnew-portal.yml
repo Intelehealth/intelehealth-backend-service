@@ -90,13 +90,13 @@ jobs:
             -o StrictHostKeyChecking=no \
             -P $REMOTE_PORT \
             app-image.tar \
-            $REMOTE_USER@$NASSTAGING_HOST:/tmp/
+            "$REMOTE_USER@$NASSTAGING_HOST:/tmp/"
         
         # SSH into remote host and deploy
         ssh -i ~/.ssh/deploy_key \
             -o StrictHostKeyChecking=no \
             -P $REMOTE_PORT \
-            $REMOTE_USER@$NASSTAGING_HOST <<'EOF'
+            "$REMOTE_USER@$NASSTAGING_HOST" <<'EOF'
             DOCKER_IMAGE_NAME="${{ env.DOCKER_IMAGE_NAME }}"
             ENV_FILE_PATH="${{ env.ENV_FILE_PATH }}"
             PEM_FOLDER_PATH="${{ env.PEM_FOLDER_PATH }}"
