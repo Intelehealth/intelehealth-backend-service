@@ -6,21 +6,37 @@ const axios = require('axios');
  * 60s model-call timeout rather than racing it.
  */
 const REQUEST_TIMEOUT_MS = 150000;
+function envValue(name) {
+  const raw = process.env[name];
+  if (!raw) {
+    return '';
+  }
+  return raw.trim().replace(/^(['"])([\s\S]*)\1$/, '$2');
+}
+
+function configMissing(name) {
+  const err = new Error(`${name} is not configured`);
+  err.code = 'CONFIG_MISSING';
+  err.configKey = name;
+  return err;
+}
 
 function client() {
-  const baseURL = process.env.AI_MIDDLEWARE_BASE_URL;
+  const baseURL = envValue('AI_MIDDLEWARE_BASE_URL');
   if (!baseURL) {
-    const err = new Error('AI_MIDDLEWARE_BASE_URL is not configured');
-    err.code = 'CONFIG_MISSING';
-    throw err;
+    throw configMissing('AI_MIDDLEWARE_BASE_URL');
   }
-  const apiKey = process.env.AI_MIDDLEWARE_API_KEY;
+  const apiKey = envValue('AI_MIDDLEWARE_API_KEY');
+  if (!apiKey) {
+    throw configMissing('AI_MIDDLEWARE_API_KEY');
+  }
   return axios.create({
     baseURL,
     timeout: REQUEST_TIMEOUT_MS,
-    headers: apiKey ? { 'X-API-Key': apiKey } : {},
+    headers: { 'X-API-Key': apiKey },
   });
 }
+
 
 /*
  * Forwards the body and returns the response unchanged, so existing frontend
