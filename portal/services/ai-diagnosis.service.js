@@ -39,4 +39,20 @@ async function ttxv1(body) {
   return forward('/ttxv1', body);
 }
 
-module.exports = { ddx, ttxv1 };
+async function ddxmanual(body) {
+  return forward('/ddx/manual', body);
+}
+
+async function ttxmanual(body) {
+  return forward('/ttx/manual', body);
+}
+
+async function ddxfinal(body) {
+  return forward('/ddxfinal', body);
+}
+
+async function ttxfinal(body) {
+  return forward('/ttxfinal', body);
+}
+
+module.exports = { ddx, ttxv1, ddxmanual, ttxmanual, ddxfinal, ttxfinal };

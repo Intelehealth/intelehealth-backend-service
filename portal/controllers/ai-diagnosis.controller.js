@@ -62,4 +62,40 @@ const ttxv1 = async (req, res) => {
   }
 };
 
-module.exports = { ddx, ttxv1 };
+const ddxmanual = async (req, res) => {
+  try {
+    const data = await aiDiagnosisService.ddxmanual(req.body);
+    return res.status(200).json(data);
+  } catch (err) {
+    return respondWithError(res, '/ddx/manual', err);
+  }
+};
+
+const ttxmanual = async (req, res) => {
+  try {
+    const data = await aiDiagnosisService.ttxmanual(req.body);
+    return res.status(200).json(data);
+  } catch (err) {
+    return respondWithError(res, '/ttx/manual', err);
+  }
+};
+
+const ddxfinal = async (req, res) => {
+  try {
+    const data = await aiDiagnosisService.ddxfinal(req.body);
+    return res.status(200).json(data);
+  } catch (err) {
+    return respondWithError(res, '/ddxfinal', err);
+  }
+};
+
+const ttxfinal = async (req, res) => {
+  try {
+    const data = await aiDiagnosisService.ttxfinal(req.body);
+    return res.status(200).json(data);
+  } catch (err) {
+    return respondWithError(res, '/ttxfinal', err);
+  }
+};
+
+module.exports = { ddx, ttxv1, ddxmanual, ttxmanual, ddxfinal, ttxfinal };
