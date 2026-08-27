@@ -8,7 +8,7 @@ import * as http from 'http';
 import * as https from 'https';
 const cors = require('cors');
 const db = require("./models");
-const Dummy = 'dummy'; 
+const Dummy = 'dummy';
 
 class Server {
     app: express.Application;
