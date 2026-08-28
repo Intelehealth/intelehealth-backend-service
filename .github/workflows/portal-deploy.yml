@@ -159,7 +159,7 @@ jobs:
             turn) echo "REMOTE_HOST=$TURN_HOST" >> $GITHUB_ENV ;;
             ttxai) echo "REMOTE_HOST=$TTXAI_HOST" >> $GITHUB_ENV ;;
             testturn) echo "REMOTE_HOST=$TESTTURN_HOST" >> $GITHUB_ENV ;;
-            naspro) echo "REMOTE_HOST=$NAS_PROD_HOST" >> $GITHUB_ENV ;;
+            nasprod) echo "REMOTE_HOST=$NAS_PROD_HOST" >> $GITHUB_ENV ;;
             *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
 
