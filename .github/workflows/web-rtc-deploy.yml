@@ -36,10 +36,7 @@ on:
         description: 'Deploy to TTXAI host'
         type: boolean
         default: false
-      deploy_nasprod:
-        description: 'Deploy to NASPROD host'
-        type: boolean
-        default: false  
+    
   push:
     branches: [development_master]
     paths:
@@ -70,9 +67,7 @@ jobs:
             if [ "${{ inputs.deploy_ttxai }}" == "true" ]; then
               includes=$(echo "$includes" | jq -c '. += [{"environment":"ttxai"}]')
             fi
-            if [ "${{ inputs.deploy_nasprod }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c '. += [{"environment":"nasprod"}]')
-            fi
+ 
             matrix="{\"include\":$includes}"
           fi
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
@@ -149,8 +144,7 @@ jobs:
             dev)  echo "REMOTE_HOST=$DEV_HOST"  >> $GITHUB_ENV ;;
             turn) echo "REMOTE_HOST=$TURN_HOST" >> $GITHUB_ENV ;;
             ttxai) echo "REMOTE_HOST=$TTXAI_HOST" >> $GITHUB_ENV ;;
-            nasprod) echo "REMOTE_HOST=$NAS_PROD_HOST" >> $GITHUB_ENV ;;
-            *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
+             *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
       - name: Deploy to ${{ matrix.environment }} host
         run: |
