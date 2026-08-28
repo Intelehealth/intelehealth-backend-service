@@ -39,7 +39,11 @@ on:
       deploy_testturn:
         description: 'Deploy to TESTTURN host'
         type: boolean
-        default: false      
+        default: false
+      deploy_nasprod:
+        description: 'Deploy to NASPROD host'
+        type: boolean
+        default: false   
   push:
     branches: [development_master]
     paths:
@@ -74,6 +78,9 @@ jobs:
             fi
             if [ "${{ inputs.deploy_testturn }}" == "true" ]; then
               includes=$(echo "$includes" | jq -c '. += [{"environment":"testturn"}]')
+            fi
+            if [ "${{ inputs.deploy_nasprod }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"nasprod"}]')
             fi
             matrix="{\"include\":$includes}"
           fi
@@ -141,6 +148,7 @@ jobs:
       TURN_HOST: ${{ secrets.TURN_HOST }}
       TTXAI_HOST: ${{ secrets.TTXAI_HOST }}
       TESTTURN_HOST: ${{ secrets.TESTTURN_HOST }}
+      NAS_PROD_HOST: ${{ secrets.NAS_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
@@ -211,18 +219,18 @@ jobs:
             echo "Portal deployment to ${{ matrix.environment }} completed successfully"
           EOF
 
-      - name: Run migrations on ${{ matrix.environment }} host
-        if: needs.build.outputs.migrations_changed == 'true'
-        run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
+#      - name: Run migrations on ${{ matrix.environment }} host
+#        if: needs.build.outputs.migrations_changed == 'true'
+#        run: |
+#          mkdir -p ~/.ssh
+#          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+#          chmod 600 ~/.ssh/deploy_key
 
-          ssh -i ~/.ssh/deploy_key \
-              -o StrictHostKeyChecking=no \
-              -p $REMOTE_PORT \
-              $REMOTE_USER@$REMOTE_HOST \
-              "docker exec ${{ env.DOCKER_IMAGE_NAME }} npm run migrate"
+#          ssh -i ~/.ssh/deploy_key \
+#              -o StrictHostKeyChecking=no \
+#              -p $REMOTE_PORT \
+#              $REMOTE_USER@$REMOTE_HOST \
+#              "docker exec ${{ env.DOCKER_IMAGE_NAME }} npm run migrate"
 
       - name: Verify deployment on ${{ matrix.environment }}
         run: |
