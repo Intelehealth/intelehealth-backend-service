@@ -231,8 +231,8 @@ const forgetPasswordResetPassword = async (req, res, next) => {
 const getAwaitingVisits = async (req, res, next) => {
   try {
     logStream('debug', 'API call', 'Get Awaiting Visits');
-    const { speciality, page, limit } = req.query;
-    const data = await _getAwaitingVisits(speciality, page, limit);
+    const { speciality, page, limit, countOnly } = req.query;
+    const data = await _getAwaitingVisits(speciality, page, limit, countOnly === 'true');
     logStream('debug', 'Success', 'Get Awaiting Visits');
     res.json({
       count: data.currentCount,
@@ -255,8 +255,8 @@ const getAwaitingVisits = async (req, res, next) => {
 const getPriorityVisits = async (req, res, next) => {
   try {
     logStream('debug', 'API call', 'Get Priority Visits');
-    const { speciality, page, limit } = req.query;
-    const data = await _getPriorityVisits(speciality, page, limit);
+    const { speciality, page, limit, countOnly } = req.query;
+    const data = await _getPriorityVisits(speciality, page, limit, countOnly === 'true');
     logStream('debug', 'Success', 'Get Priority Visits');
     res.json({
       count: data.currentCount,
@@ -279,8 +279,8 @@ const getPriorityVisits = async (req, res, next) => {
 const getInProgressVisits = async (req, res, next) => {
   try {
     logStream('debug', 'API call', 'Get In Progress Visits');
-    const { speciality, page, limit } = req.query;
-    const data = await _getInProgressVisits(speciality, page, limit);
+    const { speciality, page, limit, countOnly } = req.query;
+    const data = await _getInProgressVisits(speciality, page, limit, countOnly === 'true');
     logStream('debug', 'Success', 'Get In Progress Visits');
     res.json({
       count: data.currentCount,

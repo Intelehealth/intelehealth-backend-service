@@ -391,15 +391,17 @@ module.exports = (function () {
   this._getPriorityVisits = async (
     speciality,
     page = 1,
-    limit = 25
+    limit = 25,
+    countOnly
   ) => {
     try {
       logStream('debug','Openmrs Service', 'Get Priority Visits');
       return await getVisitsByType(
-        speciality, 
-        page, 
-        limit, 
-        "Priority");
+        speciality,
+        page,
+        limit,
+        "Priority",
+        countOnly);
     } catch (error) {
       logStream("error", error.message);
       throw error;
@@ -415,7 +417,8 @@ module.exports = (function () {
   this._getAwaitingVisits = async (
     speciality,
     page = 1,
-    limit = 25
+    limit = 25,
+    countOnly
   ) => {
     try {
       logStream('debug','Openmrs Service', 'Get Awaiting Visits');
@@ -423,7 +426,8 @@ module.exports = (function () {
         speciality,
         page,
         limit,
-        "Awaiting Consult"
+        "Awaiting Consult",
+        countOnly
       );
     } catch (error) {
       logStream("error", error.message);
@@ -440,7 +444,8 @@ module.exports = (function () {
   this._getInProgressVisits = async (
     speciality,
     page = 1,
-    limit = 25
+    limit = 25,
+    countOnly
   ) => {
     try {
       logStream('debug','Openmrs Service', 'Get In Progress Visits');
@@ -448,7 +453,8 @@ module.exports = (function () {
         speciality,
         page,
         limit,
-        "Visit In Progress"
+        "Visit In Progress",
+        countOnly
       );
     } catch (error) {
       logStream("error", error.message);
