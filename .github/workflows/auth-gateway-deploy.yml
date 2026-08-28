@@ -148,7 +148,7 @@ jobs:
       TURN_HOST: ${{ secrets.TURN_HOST }}
       TTXAI_HOST: ${{ secrets.TTXAI_HOST }}
       TESTTURN_HOST: ${{ secrets.TESTTURN_HOST }}
-      NAS_PROD_HOST: ${{ secrets.NAS_PROD_HOST }}
+      NAS_PROD_HOST: ${{ secrets.NAS_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
