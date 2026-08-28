@@ -39,7 +39,11 @@ on:
       deploy_testturn:
         description: 'Deploy to TESTTURN host'
         type: boolean
-        default: false 
+        default: false
+      deploy_as:
+        description: 'Deploy to NAS Prod host'
+        type: boolean
+        default: false   
   push:
     branches: [development_master]
     paths:
@@ -74,6 +78,11 @@ jobs:
             if [ "${{ inputs.deploy_testturn }}" == "true" ]; then
               includes=$(echo "$includes" | jq -c '. += [{"environment":"testturn"}]')
             fi
+
+            if [ "${{ inputs.deploy_as }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"nasprod"}]')
+            fi
+            
             matrix="{\"include\":$includes}"
           fi
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
@@ -139,6 +148,7 @@ jobs:
       TURN_HOST: ${{ secrets.TURN_HOST }}
       TTXAI_HOST: ${{ secrets.TTXAI_HOST }}
       TESTTURN_HOST: ${{ secrets.TESTTURN_HOST }}
+      NAS_PROD_HOST: ${{ secrets.NAS_PROD_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
@@ -149,6 +159,7 @@ jobs:
             turn) echo "REMOTE_HOST=$TURN_HOST" >> $GITHUB_ENV ;;
             ttxai) echo "REMOTE_HOST=$TTXAI_HOST" >> $GITHUB_ENV ;;
             testturn) echo "REMOTE_HOST=$TESTTURN_HOST" >> $GITHUB_ENV ;;
+            nasprod) echo "REMOTE_HOST=$NAS_PROD_HOST" >> $GITHUB_ENV ;;
             *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
 
