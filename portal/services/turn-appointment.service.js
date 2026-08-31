@@ -190,7 +190,8 @@ module.exports = (function () {
     JSON.stringify(
       dates.map((s) => ({
         id: `${s.slotTime}|${s.userUuid}`,
-        title: s.label,
+        title: s.slotTime,
+        description: s.drName,
       }))
     );
 
