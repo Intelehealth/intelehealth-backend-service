@@ -95,8 +95,6 @@ module.exports = (function () {
     return dates;
   };
 
-  const MAX_SLOTS = 6;
-
   const computeOpenSlots = async ({ userUuid, speciality, fromDate, toDate }) => {
     fromDate = normalizeDate(fromDate);
     toDate = normalizeDate(toDate);
@@ -193,7 +191,6 @@ module.exports = (function () {
     speciality,
     fromDate,
     toDate,
-    limit,
   }) => {
     logStream("debug", "Turn Appointment Service", "Get User Appointment Slots");
     const openSlots = await computeOpenSlots({
@@ -202,10 +199,9 @@ module.exports = (function () {
       fromDate,
       toDate,
     });
-    const cap = Math.min(Math.max(parseInt(limit, 10) || MAX_SLOTS, 1), MAX_SLOTS);
-    const capped = openSlots.slice(0, cap).map(({ startsAt, ...s }) => s);
+    const dates = openSlots.map(({ startsAt, ...s }) => s);
     logStream("debug", "Success", "Get User Appointment Slots");
-    return { dates: capped, count: capped.length };
+    return { dates, count: dates.length };
   };
 
   const buildCallLink = async (appointment) => {
