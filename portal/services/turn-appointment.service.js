@@ -186,6 +186,14 @@ module.exports = (function () {
     return openSlots;
   };
 
+  const buildFlowSlots = (dates) =>
+    JSON.stringify(
+      dates.map((s) => ({
+        id: `${s.slotTime}|${s.userUuid}`,
+        title: s.label,
+      }))
+    );
+
   this.getUserAppointmentSlots = async ({
     userUuid,
     speciality,
@@ -201,7 +209,7 @@ module.exports = (function () {
     });
     const dates = openSlots.map(({ startsAt, ...s }) => s);
     logStream("debug", "Success", "Get User Appointment Slots");
-    return { dates, count: dates.length };
+    return { dates, count: dates.length, flowSlots: buildFlowSlots(dates) };
   };
 
   const buildCallLink = async (appointment) => {
