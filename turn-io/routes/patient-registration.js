@@ -18,18 +18,18 @@ const ATTR = {
    emergContactName:  "9b37e244-2cf5-4bd8-af32-b85ed4f919aa",
    emergContactNum:   "6c25becf-1bdd-4b2e-98dd-558a4becf4a4",
    emergContactType:  "5fde1411-801c-49b9-93d4-abeefd8e1164",
-   consent:           "11b990b9-2798-477a-9aad-073e5459f5d3",
+   // consent:           "11b990b9-2798-477a-9aad-073e5459f5d3",
 };
 
-// DD-MM-YYYY HH:mm:ss, no extra date library needed for this one field.
-const formatConsentDate = (d) => {
-   const pad = (n) => String(n).padStart(2, "0");
-   return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-};
+// // DD-MM-YYYY HH:mm:ss, no extra date library needed for this one field.
+// const formatConsentDate = (d) => {
+//    const pad = (n) => String(n).padStart(2, "0");
+//    return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+// };
 
-// Reaching registration means the patient accepted consent on WhatsApp,
-const buildConsentValue = ({ patientUuid, language }) =>
-   [formatConsentDate(new Date()), patientUuid || "", language || "", "active", "Turn-whatsapp"].join(" | ");
+// // Reaching registration means the patient accepted consent on WhatsApp,
+// const buildConsentValue = ({ patientUuid, language }) =>
+//    [formatConsentDate(new Date()), patientUuid || "", language || "", "active", "Turn-whatsapp"].join(" | ");
 
 const genderMap = { male: "M", female: "F", other: "O" };
 const journeyMap = { "abdominal pain": "abd_pain", "fever": "fever", "diabetes": "diabetes" };
@@ -83,7 +83,7 @@ router.post("/patient_registration", async (req, res) => {
          [ATTR.emergContactName]:  pick(r.contact_name, c.contact_name, r.emergency_contact_name, c.emergency_contact_name),
          [ATTR.emergContactNum]:   pick(r.secondary_phone, c.secondary_phone, r.emergency_contact_number, c.emergency_contact_number),
          [ATTR.emergContactType]:  pick(r.contact_type, c.contact_type, r.emergency_contact_type, c.emergency_contact_type),
-         [ATTR.consent]:           buildConsentValue({ patientUuid: personUuid, language }),
+         // [ATTR.consent]:           buildConsentValue({ patientUuid: personUuid, language }),
       };
       const attributes = Object.entries(attrValues)
          .filter(([, value]) => !isJunk(value))
