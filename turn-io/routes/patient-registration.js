@@ -18,7 +18,18 @@ const ATTR = {
    emergContactName:  "9b37e244-2cf5-4bd8-af32-b85ed4f919aa",
    emergContactNum:   "6c25becf-1bdd-4b2e-98dd-558a4becf4a4",
    emergContactType:  "5fde1411-801c-49b9-93d4-abeefd8e1164",
+   consent:           "11b990b9-2798-477a-9aad-073e5459f5d3",
 };
+
+// DD-MM-YYYY HH:mm:ss, no extra date library needed for this one field.
+const formatConsentDate = (d) => {
+   const pad = (n) => String(n).padStart(2, "0");
+   return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+};
+
+// Reaching registration means the patient accepted consent on WhatsApp,
+const buildConsentValue = ({ patientUuid, language }) =>
+   [formatConsentDate(new Date()), patientUuid || "", language || "", "active", "Turn-whatsapp"].join(" | ");
 
 const genderMap = { male: "M", female: "F", other: "O" };
 const journeyMap = { "abdominal pain": "abd_pain", "fever": "fever", "diabetes": "diabetes" };
@@ -34,37 +45,33 @@ const pick = (...values) => values.find((v) => !isJunk(v)) || "";
 const router = express.Router();
 
 router.post("/patient_registration", async (req, res) => {
-   console.log("\n[patient_registration] received:", JSON.stringify(req.body, null, 2));
-
    try {
-      // The Turn "flow" registration posts flat fields (no journey `results`
-      // object), so read straight from req.body. Kept back-compat with the old
-      // journey shape by falling back to contact.*/results.* when present.
+      // Turn posts flat fields; fall back to contact.*/results.* for the older journey shape.
       const b = req.body || {};
       const c = b.contact || {};
       const r = b.results || {};
+      const personUuid = randomUUID();
 
       const name = pick(b.full_name, r.preferred_name, c.preferred_name, c.name) || "Unknown";
       const middle = pick(b.middle_name, r.middle_name, c.middle_name);
       const surname = pick(b.surname, r.surname, c.surname);
       const gender = pick(b.gender, b.sex, r.gender, c.gender);
       // Prefer whatsapp_id: it's the number the patient is chatting from, always
-      // in deliverable wa_id form (country code + digits), so the prescription
-      // push reaches the same chat. A typed mobile_number may be local-format
-      // (leading 0 / no country code) and undeliverable via Turn.
+      // in deliverable wa_id form (country code + digits), 
       const mobile = pick(b.whatsapp_id, c.whatsapp_id, r.mobile_number, c.mobile);
 
       const address1       = pick(r.address1, c.address1);
       const address2       = pick(r.address2, c.address2);
-      // "Block" (rural administrative sub-district unit) maps onto OpenMRS's
-      // address3 -- same slot the doctor webapp labels "Block" (visit-summary
-      // patient-info section), so it round-trips to the same UI field.
+      // "Block"maps onto OpenMRS's
+      // address3
       const block          = pick(b.block, r.block, c.block, b.block_address, r.block_address, c.block_address);
       const cityVillage    = pick(b.village_street, r.city_village, c.city_village, r.village_address, c.village_address, r.village, c.village, r.village_district, c.village_district);
       const countyDistrict = pick(b.district_town, r.county_district, c.county_district, r.district_town, c.district_town, r.district, c.district);
       const stateProvince  = pick(r.state_province, c.state_province, r.state, c.state);
       const postalCode     = pick(r.postal_code, c.postal_code, r.pincode, c.pincode);
       const country        = pick(r.country, c.country) || "India";
+
+      const language = pick(b.language, r.language, c.language) || "hi";
 
       const attrValues = {
          [ATTR.telephone]:         mobile,
@@ -76,17 +83,11 @@ router.post("/patient_registration", async (req, res) => {
          [ATTR.emergContactName]:  pick(r.contact_name, c.contact_name, r.emergency_contact_name, c.emergency_contact_name),
          [ATTR.emergContactNum]:   pick(r.secondary_phone, c.secondary_phone, r.emergency_contact_number, c.emergency_contact_number),
          [ATTR.emergContactType]:  pick(r.contact_type, c.contact_type, r.emergency_contact_type, c.emergency_contact_type),
+         [ATTR.consent]:           buildConsentValue({ patientUuid: personUuid, language }),
       };
       const attributes = Object.entries(attrValues)
          .filter(([, value]) => !isJunk(value))
          .map(([attributeType, value]) => ({ value, attributeType }));
-
-      // Show what Turn actually sent for relationship vs. what got stored.
-      console.log("[patient_registration] relationship:", JSON.stringify({
-         relationshipSent: req.body.relationship,
-         consultationFor: req.body.consultation_for,
-         relationshipStored: attrValues[ATTR.sonDaughterWifeOf] || "(dropped: blank)",
-      }));
 
       let age = parseInt(pick(b.age, r.age, c.age), 10);
       const birthdayRaw = pick(b.dob, r.date_of_birth, c.date_of_birth, r.birthday, c.birthday);
@@ -103,8 +104,6 @@ router.post("/patient_registration", async (req, res) => {
       const [givenName, ...rest] = name.trim().split(/\s+/);
       const restJoined = rest.join(" ");
       const familyName = !isJunk(surname) ? surname : (!isJunk(restJoined) ? restJoined : ".");
-
-      const personUuid = randomUUID();
 
       const bundle = {
          appointments: [],
@@ -132,8 +131,7 @@ router.post("/patient_registration", async (req, res) => {
          }],
       };
 
-      const { data } = await pushData(bundle);
-      console.log("[patient_registration] pushdata response:", JSON.stringify(data));
+      await pushData(bundle);
 
       const symptom = (b.symptom || r.symptom || "").toLowerCase();
       const next_journey = journeyMap[symptom] || "abd_pain";

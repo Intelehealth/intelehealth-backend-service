@@ -1,10 +1,10 @@
 // Build the e-prescription PDF from PrescriptionData (see prescription-data.js)
 // using pdfmake server-side. Layout mirrors the Intelehealth doctor web portal
 // prescription (view-visit-prescription.component.ts -> downloadPrescription):
-// an outer bordered table titled "Intelehealth e-Prescription", patient +
-// personal + address + other info, chief complaint, vitals, consultation
-// details, diagnosis, medications, advice, tests, referral, follow-up and a
-// right-aligned doctor signature block, with an INTELEHEALTH watermark and a
+// an outer bordered table titled "ArogyaPath 2.0 e-Prescription", patient +
+// consultation details, personal + address + other info, chief complaint,
+// vitals, diagnosis, medications, advice, tests, referral, follow-up and a
+// right-aligned doctor signature block, with an AROGYAPATH 2.0 watermark and a
 // telemedicine-disclaimer footer.
 
 const PdfPrinter = require("pdfmake");
@@ -428,7 +428,7 @@ const buildDocDefinition = (data, opts) => {
       [
          {
             colSpan: 4,
-            text: "Intelehealth e-Prescription",
+            text: "ArogyaPath 2.0 e-Prescription",
             alignment: "center",
             style: "header",
          },
@@ -437,12 +437,13 @@ const buildDocDefinition = (data, opts) => {
          "",
       ],
       [nameRow],
+      [consultation],
       [personalInfo],
       [address],
    ];
    if (otherInfo) body.push([otherInfo]);
    if (chiefComplaint) body.push(chiefComplaint);
-   body.push(vitals, consultation, diagnosis, medications, advice, tests);
+   body.push(vitals, diagnosis, medications, advice, tests);
    if (referral) body.push(referral);
    if (followUp) body.push(followUp);
    body.push(signature);
@@ -459,7 +460,7 @@ const buildDocDefinition = (data, opts) => {
       pageOrientation: "portrait",
       pageMargins: [20, 50, 20, 40],
       watermark: {
-         text: "INTELEHEALTH",
+         text: "AROGYAPATH 2.0",
          color: "#808080",
          opacity: 0.1,
          bold: true,
@@ -481,7 +482,7 @@ const buildDocDefinition = (data, opts) => {
                   margin: [10, 0, 0, 0],
                },
                {
-                  text: "Copyright ©2023 Intelehealth, a 501 (c)(3) & Section 8 non-profit organisation",
+                  text: "Copyright ©2023 ArogyaPath 2.0, a 501 (c)(3) & Section 8 non-profit organisation",
                   fontSize: 8,
                   margin: [5, 0, 0, 0],
                },
