@@ -27,6 +27,10 @@ module.exports = {
    // Complex obs: patient photos render under "Additional Documents" in the
    // doctor portal (conceptAdditionlDocument in the webapp's config/constant.ts).
    OPENMRS_CONCEPT_ADDITIONAL_DOCUMENT: "07a816ce-ffc0-49b9-ad92-a1bf9bf5e2ba",
+   // Complex obs on this concept render under "Physical examination" instead,
+   // grouped by matching the obs comment to a parsed section title
+   // (conceptPhysicalExamination in the webapp's config/constant.ts).
+   OPENMRS_CONCEPT_PHYSICAL_EXAM_IMAGE: "200b7a45-77bc-4986-b879-cc727f5f7d5b",
 
    // Vitals concept UUIDs (standard OpenMRS concepts)
    OPENMRS_CONCEPT_HEIGHT: "5090AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",

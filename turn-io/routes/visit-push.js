@@ -18,6 +18,7 @@ const {
   OPENMRS_VISIT_ATTR_COMPLETE_DATETIME,
   OPENMRS_VISIT_ATTR_DOCTOR_NOTES,
   OPENMRS_CONCEPT_ADDITIONAL_DOCUMENT,
+  OPENMRS_CONCEPT_PHYSICAL_EXAM_IMAGE,
 } = require("../constants");
 
 // Turn API token (Settings -> API & Webhooks); its media links need a Bearer.
@@ -126,9 +127,16 @@ const fetchAttachment = async ({ url, mediaId }) => {
 
 // Runs AFTER the response is sent: the journey's post() times out at 10s, and
 // attachments must never make a saved visit look failed. Each file becomes a
-// complex obs on the adult-initial encounter, which is what puts it in the
-// portal's "Additional Documents" section (it filters obs by visit uuid).
-const uploadVisitAttachments = async (personUuid, encounterUuid, attachments) => {
+// complex obs on the adult-initial encounter. Which portal section it renders
+// under is decided by `concept` -- OPENMRS_CONCEPT_ADDITIONAL_DOCUMENT for
+// "Additional Documents", OPENMRS_CONCEPT_PHYSICAL_EXAM_IMAGE for "Physical
+// examination" (grouped by matching `comment` to a parsed section title).
+const uploadVisitAttachments = async (
+  personUuid,
+  encounterUuid,
+  attachments,
+  { concept = OPENMRS_CONCEPT_ADDITIONAL_DOCUMENT, comment, label = "Additional Document" } = {}
+) => {
   if (!attachments.length) return;
   if (!TURN_API_TOKEN) {
     console.error("[visit_push] TURN_API_TOKEN is not set -- cannot download attachments");
@@ -142,11 +150,11 @@ const uploadVisitAttachments = async (personUuid, encounterUuid, attachments) =>
       await uploadComplexObs({
         personUuid,
         encounterUuid,
-        concept: OPENMRS_CONCEPT_ADDITIONAL_DOCUMENT,
+        concept,
         buffer: buf,
         filename: att.name || `attachment_${i + 1}${extForMime(mime)}`,
         mime,
-        comment: att.name || "Additional Document",
+        comment: comment || att.name || label,
       });
       ok += 1;
     } catch (err) {
@@ -212,12 +220,24 @@ const familyHistoryObs = (familyMembers) => {
   });
 };
 
-// Turn doesn't collect a structured physical exam -- send an empty obs so the
-// doctor fills it in.
-const physicalExamObs = () => JSON.stringify({ en: "", "l-en": "" });
+// The physical-exam checklist (jaundice/pallor/etc.) isn't collected by Turn.
+// Per doctor-webapp's visit-summary.component.ts (getPhysicalExamination /
+// getEyeImages / getImagesBySection), exam photos only render when they're
+// grouped under a section title parsed from THIS obs's "<b>Title:</b>" markup
+// -- there's no fallback path for images with no matching title. So a
+// "General Exams" title with no checklist rows is included only when photos
+// are attached, just so that section exists for the photos to group under.
+const physicalExamObs = (hasImages) => {
+  if (!hasImages) return JSON.stringify({ en: "", "l-en": "" });
+  return JSON.stringify({ en: "<b>General Exams:</b>", "l-en": "<b>General Exams:</b>" });
+};
+
+// Section title the physical-exam photos are grouped under (must match the
+// title physicalExamObs produces -- getImagesBySection compares case-insensitively).
+const PHYSICAL_EXAM_IMAGE_SECTION = "General Exams";
 
 // Build the /push/pushdata bundle, generating and cross-referencing UUIDs.
-const buildPushBundle = (personUuid, protocolId, answers, patientHistory, familyHistory) => {
+const buildPushBundle = (personUuid, protocolId, answers, patientHistory, familyHistory, hasExamImages) => {
   const now = new Date();
   const encounterDatetime = formatDatetime(now);
   const visitCompleteDatetime = formatDatetime(new Date(now.getTime() + 1000));
@@ -317,7 +337,7 @@ const buildPushBundle = (personUuid, protocolId, answers, patientHistory, family
         encounterType: OPENMRS_ENCOUNTER_TYPE_ADULT_INITIAL,
         obs: withUuid([
           { concept: OPENMRS_CONCEPT_VISIT_REASON, value: visitReasonObs(complaintName, visitReasonRows) },
-          { concept: OPENMRS_CONCEPT_PHYSICAL_EXAM, value: physicalExamObs() },
+          { concept: OPENMRS_CONCEPT_PHYSICAL_EXAM, value: physicalExamObs(hasExamImages) },
           { concept: OPENMRS_CONCEPT_MEDICAL_HISTORY, value: medicalHistoryObs(medHistRows) },
           { concept: OPENMRS_CONCEPT_FAMILY_HISTORY, value: familyHistoryObs(familyHistList) },
         ]),
@@ -343,14 +363,16 @@ router.post("/visit_push", async (req, res) => {
     });
     const patientHistory = applyNoneOverrides({ ...(req.body.patient_history || {}) });
     const familyHistory = req.body.family_history || {};
-    // Both Flow media blocks land in the same "Additional Documents" section.
+    // images + documents both land in "Additional Documents".
     const attachments = [
       ...normalizeAttachments(req.body.images, "images"),
       ...normalizeAttachments(req.body.documents, "documents"),
     ];
+    // document_images (physical-exam photos) render under "Physical examination" instead.
+    const examImages = normalizeAttachments(req.body.document_images, "document_images");
 
     const bundle = buildPushBundle(
-      personUuid, protocolId, answers, patientHistory, familyHistory
+      personUuid, protocolId, answers, patientHistory, familyHistory, examImages.length > 0
     );
 
     const { data } = await pushData(bundle);
@@ -372,6 +394,7 @@ router.post("/visit_push", async (req, res) => {
       openmrs_id: openmrsId,
       encounter_uuids: bundle.encounters.map((e) => e.uuid),
       attachments_received: attachments.length,
+      exam_images_received: examImages.length,
     });
 
     // Upload after responding -- the journey's 10s post() timeout must never
@@ -380,6 +403,13 @@ router.post("/visit_push", async (req, res) => {
       (e) => e.encounterType === OPENMRS_ENCOUNTER_TYPE_ADULT_INITIAL
     );
     setImmediate(() => uploadVisitAttachments(personUuid, adultInitial?.uuid, attachments));
+    setImmediate(() =>
+      uploadVisitAttachments(personUuid, adultInitial?.uuid, examImages, {
+        concept: OPENMRS_CONCEPT_PHYSICAL_EXAM_IMAGE,
+        comment: PHYSICAL_EXAM_IMAGE_SECTION,
+        label: "Physical Exam Photo",
+      })
+    );
   } catch (err) {
     const detail = err.response?.data || err.message;
     console.error("[visit_push] error:", detail);
