@@ -437,10 +437,9 @@ const buildDocDefinition = (data, opts) => {
          "",
       ],
       [nameRow],
-      [consultation],
-      [personalInfo],
-      [address],
    ];
+   body.push(consultation);
+   body.push([personalInfo], [address]);
    if (otherInfo) body.push([otherInfo]);
    if (chiefComplaint) body.push(chiefComplaint);
    body.push(vitals, diagnosis, medications, advice, tests);
