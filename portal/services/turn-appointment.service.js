@@ -347,10 +347,7 @@ module.exports = (function () {
       patientName,
       locationUuid,
       hwUUID: hwUUID || null,
-      slotJsDate: moment(
-        `${slotDate} ${slotTime}`,
-        "DD/MM/YYYY HH:mm A"
-      ).format(),
+      slotJsDate: slotMoment(slotDate, slotTime).format(),
       createdBy: hwUUID || userUuid,
       type: "appointment",
     });
