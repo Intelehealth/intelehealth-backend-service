@@ -1,5 +1,25 @@
 # Doctor-WebApp-Mindmap-Service
 
+## Service health APIs
+
+Every microservice exposes two lightweight, unauthenticated-by-default probe
+endpoints:
+
+- `GET /health` checks only that the service process is online. It does not
+  contact MySQL.
+- `GET /ready` checks every MySQL database used by that service. It returns
+  HTTP `200` when all connections succeed and HTTP `503` otherwise.
+
+Readiness results are cached for five seconds and concurrent requests share one
+database check. Set `HEALTHCHECK_CACHE_TTL_MS` to customize the cache between
+1,000 and 60,000 milliseconds.
+
+For networks where probe endpoints are not isolated, set `HEALTHCHECK_TOKEN`.
+Clients must then send either `X-Healthcheck-Token: <token>` or
+`Authorization: Bearer <token>`. Token comparison is constant-time, responses
+do not expose database errors or connection details, and all probe responses
+use `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`.
+
 ## Getting Started
 
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
@@ -120,4 +140,3 @@ LIVEHOST=xxxx
 TCP=xxxx
 UDP=xxxx
 ```
-

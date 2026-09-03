@@ -12,6 +12,7 @@ const { errorHandler } = require("./handlers/errorHandller");
 const cors = require("cors");
 const Sequelize = require("sequelize");
 const db = require("./models");
+const { createHealthRouter } = require("./handlers/health");
 //const z = 0;
 const app = express();
 app.set("view engine", "html");
@@ -44,6 +45,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
+
+app.use(createHealthRouter({
+  service: "auth-gateway",
+  databases: { portal: db.sequelize },
+}));
 
 app.use("/auth", authRouter);
 app.use("/v2", authMiddleware, indexRouter);
