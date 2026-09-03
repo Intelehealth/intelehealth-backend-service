@@ -22,7 +22,7 @@ const argument = (name, fallback) => {
   return match ? match.slice(name.length + 3) : fallback;
 };
 
-const bucket = argument("bucket", process.env.WEBRTC_RECORDINGS_S3_BUCKET || process.env.AWS_BUCKET_NAME);
+const bucket = argument("bucket", process.env.WEBRTC_RECORDINGS_S3_BUCKET);
 const prefix = argument("prefix", process.env.WEBRTC_RECORDINGS_S3_PREFIX || "");
 const timezone = argument("timezone", process.env.CRON_TIMEZONE || "UTC");
 const days = Number(argument("days", "7"));
