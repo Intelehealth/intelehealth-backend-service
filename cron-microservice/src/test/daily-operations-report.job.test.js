@@ -33,7 +33,9 @@ test("persists metrics before Slack delivery and prevents duplicates", async () 
   };
 
   await runDailyOperationsReport({ dependencies });
-  assert.equal(updates[0].metrics.length, 2);
+  assert.deepEqual(updates[0].metrics, { counts: { visits: 12, recordings: 5 } });
+  assert.equal(updates[0].message, undefined, "renderings are not persisted");
+  assert.equal(updates[0].slack_payload, undefined, "renderings are not persisted");
   assert.deepEqual(updates[1], { status: "completed", slack_status: "sent" });
 
   const existing = { id: 1, status: "completed" };
@@ -86,4 +88,37 @@ test("a second instance that cannot take the lock does no work", async () => {
 
   assert.deepEqual(result, { skipped: true, reason: "locked" });
   assert.equal(collected, false, "a locked-out instance must not query, list or post");
+});
+
+test("persists counts and measured breakdowns, but nothing derivable from config", async () => {
+  const updates = [];
+  await runDailyOperationsReport({
+    dependencies: {
+      withLock: (run) => run(),
+      repository: { findOrCreate: async () => [{ update: async (v) => updates.push(v) }, true] },
+      collectDatabaseMetrics: async () => [
+        { name: "start_calls", label: "Start Call actions today", section: "Calls", value: 81, source: "Portal DB" },
+        { name: "recordings_avg_duration", label: "Average", section: "Calls", value: 37, unit: "s", source: "Portal DB" },
+      ],
+      collectS3Metrics: async () => [
+        {
+          name: "webrtc_recordings", label: "WebRTC recordings today", section: "Calls",
+          value: 35, source: "S3", detail: "Badagi 31 · Remote 2",
+          breakdown: { Badagi: 31, Jambhulpada: 2, Remote: 2 },
+        },
+      ],
+      collectGaMetrics: async () => [],
+      sendSlackReport: async () => "sent",
+    },
+  });
+
+  assert.deepEqual(updates[0].metrics, {
+    counts: { start_calls: 81, recordings_avg_duration: 37, webrtc_recordings: 35 },
+    breakdowns: { webrtc_recordings: { Badagi: 31, Jambhulpada: 2, Remote: 2 } },
+  });
+
+  const stored = JSON.stringify(updates[0].metrics);
+  for (const derivable of ["label", "section", "source", "unit", "detail", "Portal DB"]) {
+    assert.ok(!stored.includes(derivable), `${derivable} must not be persisted`);
+  }
 });

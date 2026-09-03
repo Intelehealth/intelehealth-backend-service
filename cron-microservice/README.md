@@ -272,3 +272,30 @@ visible. With neither configured it prints the payload and records `debug`.
 
 The routing and the message marking come from one `slackTarget()` call, so a
 message can never be marked one way and routed the other.
+
+## What is stored
+
+`cron_reports` keeps one row per `report_date` and stores **counts only**:
+
+```json
+{
+  "counts": { "start_calls": 81, "webrtc_recordings": 35, "recordings_avg_duration": 37 },
+  "breakdowns": { "webrtc_recordings": { "Badagi": 31, "Jambhulpada": 2, "Remote": 2 } }
+}
+```
+
+Labels, sections, sources and units are **not** persisted — they come from the
+metric configuration at render time. Storing them would copy the config into
+every row and freeze wording that is meant to stay editable; renaming a label
+would then leave history disagreeing with the present.
+
+Per-location `breakdowns` are kept because they are measurements rather than
+configuration, and cannot be recovered once the bucket is pruned.
+
+The rendered Slack message and Block Kit payload are not stored either. Both are
+pure functions of the counts and the period, nothing read them back, and keeping
+them meant maintaining two derived copies of the same report. Dropping them took
+a row from 4,219 to 373 bytes — about 133 KB a year instead of 1.5 MB.
+
+To show a metric later, read `metrics->>'$.counts.<name>'` and take the label
+from the current configuration.

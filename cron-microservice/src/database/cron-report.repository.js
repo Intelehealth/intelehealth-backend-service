@@ -12,7 +12,7 @@ class CronReportRecord {
     const assignments = entries.map(([column]) => `\`${column}\` = :${column}`).join(", ");
     const replacements = { id: this.id, updated_at: new Date() };
     for (const [column, value] of entries) {
-      replacements[column] = ["metrics", "slack_payload"].includes(column) && value != null
+      replacements[column] = ["metrics"].includes(column) && value != null
         ? JSON.stringify(value)
         : value;
     }

@@ -4,8 +4,27 @@ const SQL_DATETIME_FORMAT = "YYYY-MM-DD HH:mm:ss";
 const { CronReportRepository } = require("../../database/cron-report.repository");
 const { collectDatabaseMetrics, collectS3Metrics } = require("../services/report-metrics.service");
 const { collectGaMetrics } = require("../services/report-ga.service");
-const { buildMessage, buildSlackPayload, sendSlackReport, slackTarget } = require("../services/report-slack.service");
+const { buildSlackPayload, sendSlackReport, slackTarget } = require("../services/report-slack.service");
 const { withAdvisoryLock, DAILY_REPORT_LOCK } = require("../../database/advisory-lock");
+
+/*
+  Only the counts are persisted. Labels, sections, sources and units all come
+  from the metric configuration, so storing them would copy the config into every
+  row and freeze wording that is meant to be editable. Per-location breakdowns
+  are kept because they are measurements, not configuration, and cannot be
+  recovered once the bucket is pruned.
+*/
+const persistableMetrics = (metrics) => {
+  const counts = {};
+  const breakdowns = {};
+  for (const metric of metrics) {
+    counts[metric.name] = metric.value;
+    if (metric.breakdown && Object.keys(metric.breakdown).length) {
+      breakdowns[metric.name] = metric.breakdown;
+    }
+  }
+  return Object.keys(breakdowns).length ? { counts, breakdowns } : { counts };
+};
 
 const reportPeriod = (now = moment()) => {
   const timezone = process.env.CRON_TIMEZONE || "UTC";
@@ -54,10 +73,9 @@ const collectAndDeliver = async ({ now, force, dependencies }) => {
     ]);
     const metrics = [...database, ...s3, ...ga];
     const { debug } = slackTarget();
-    const message = buildMessage({ ...period, metrics });
     const slackPayload = buildSlackPayload({ ...period, metrics, debug });
 
-    await report.update({ message, metrics, slack_payload: slackPayload });
+    await report.update({ metrics: persistableMetrics(metrics) });
     const deliver = dependencies.sendSlackReport || sendSlackReport;
     const slackStatus = await deliver(slackPayload, dependencies);
     await report.update({ status: "completed", slack_status: slackStatus });
