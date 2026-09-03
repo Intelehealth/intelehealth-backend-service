@@ -1,0 +1,245 @@
+# Cron Microservice Deploy
+#
+# Builds the cron-microservice Docker image once and deploys it to one or more remote hosts.
+#
+# Triggers:
+#   - push to development_master (cron-microservice/** changes) → deploys to ALL hosts
+#   - workflow_dispatch (manual) → deploys to selected hosts via checkboxes
+#
+# Jobs:
+#   1. prepare-matrix  Decides which environments to deploy based on trigger/inputs
+#   2. build           Runs the test suite, builds the image and uploads it as an artifact
+#   3. deploy          Matrix job — downloads the artifact and deploys to each host in parallel
+#
+# Required secrets:
+#   DEV_HOST, TURN_HOST   — SSH hostnames/IPs
+#   DEV_USER              — SSH username
+#   DEV_SSH_KEY           — SSH private key
+#
+# To add a new host: add a secret for the hostname, map it in the deploy job env block,
+# add a case in "Resolve host", add a boolean input, and add it to the push matrix.
+#
+# NOTE ON SCHEDULING: this service schedules its own jobs in-process, so every host it
+# runs on will fire the daily report. Hosts with separate databases are separate
+# deployments and each will post its own report — give each host its own
+# SLACK_DAILY_REPORT_WEBHOOK_URL, or set CRONS_ENABLED=false on the ones that should
+# only serve the health endpoints. Replicas sharing one database are deduplicated by a
+# MySQL advisory lock, so only one of those posts.
+
+name: Cron Microservice Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_dev:
+        description: 'Deploy to DEV host'
+        type: boolean
+        default: true
+      deploy_turn:
+        description: 'Deploy to TURN host'
+        type: boolean
+        default: false
+      deploy_ttxai:
+        description: 'Deploy to TTXAI host'
+        type: boolean
+        default: false
+      deploy_testturn:
+        description: 'Deploy to TESTTURN host'
+        type: boolean
+        default: false
+      deploy_pathqa:
+        description: 'Deploy to PATHQA host'
+        type: boolean
+        default: false
+  push:
+    branches: [development_master]
+    paths:
+      - 'cron-microservice/**'
+
+env:
+  DOCKER_IMAGE_NAME: cron-microservice
+
+jobs:
+  prepare-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Build deployment matrix
+        id: set-matrix
+        run: |
+          if [ "${{ github.event_name }}" == "push" ]; then
+            matrix='{"include":[{"environment":"dev"},{"environment":"turn"},{"environment":"ttxai"},{"environment":"testturn"},{"environment":"pathqa"}]}'
+          else
+            includes='[]'
+            if [ "${{ inputs.deploy_dev }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"dev"}]')
+            fi
+            if [ "${{ inputs.deploy_turn }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"turn"}]')
+            fi
+            if [ "${{ inputs.deploy_ttxai }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"ttxai"}]')
+            fi
+            if [ "${{ inputs.deploy_testturn }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"testturn"}]')
+            fi
+            if [ "${{ inputs.deploy_pathqa }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"pathqa"}]')
+            fi
+            matrix="{\"include\":$includes}"
+          fi
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
+
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      migrations_changed: ${{ steps.check-migrations.outputs.changed }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: cron-microservice/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: cron-microservice
+
+      - name: Run tests
+        run: npm test
+        working-directory: cron-microservice
+
+      - name: Check for migration file changes
+        id: check-migrations
+        run: |
+          if [ "${{ github.event_name }}" != "push" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q "^cron-microservice/src/database/migrations/" \
+              && echo "changed=true" >> $GITHUB_OUTPUT \
+              || echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build Docker image
+        run: |
+          docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} ./cron-microservice
+          docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > app-image.tar
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cron-microservice-image
+          path: app-image.tar
+          retention-days: 1
+
+  deploy:
+    needs: [prepare-matrix, build]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJson(needs.prepare-matrix.outputs.matrix) }}
+      fail-fast: false  # a failure on one host should not cancel the other
+    env:
+      REMOTE_PORT: 22
+      ENV_FILE_PATH: /home/ubuntu/deploy/cron-microservice/.env
+      # All host secrets mapped upfront — dynamic secret refs aren't supported in GitHub Actions
+      DEV_HOST: ${{ secrets.DEV_HOST }}
+      TURN_HOST: ${{ secrets.TURN_HOST }}
+      TTXAI_HOST: ${{ secrets.TTXAI_HOST }}
+      TESTTURN_HOST: ${{ secrets.TESTTURN_HOST }}
+      PATHQA_HOST: ${{ secrets.PATHQA_HOST }}
+      REMOTE_USER: ${{ secrets.DEV_USER }}
+      SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
+    steps:
+      - name: Resolve host for environment
+        run: |
+          case "${{ matrix.environment }}" in
+            dev)  echo "REMOTE_HOST=$DEV_HOST"  >> $GITHUB_ENV ;;
+            turn) echo "REMOTE_HOST=$TURN_HOST" >> $GITHUB_ENV ;;
+            ttxai) echo "REMOTE_HOST=$TTXAI_HOST" >> $GITHUB_ENV ;;
+            testturn) echo "REMOTE_HOST=$TESTTURN_HOST" >> $GITHUB_ENV ;;
+            pathqa) echo "REMOTE_HOST=$PATHQA_HOST" >> $GITHUB_ENV ;;
+            *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
+          esac
+
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cron-microservice-image
+
+      - name: Deploy to ${{ matrix.environment }} host
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          scp -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              -P $REMOTE_PORT \
+              app-image.tar \
+              $REMOTE_USER@$REMOTE_HOST:/tmp/
+
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              -p $REMOTE_PORT \
+              $REMOTE_USER@$REMOTE_HOST <<EOF
+            DOCKER_IMAGE_NAME="${{ env.DOCKER_IMAGE_NAME }}"
+            ENV_FILE_PATH="${{ env.ENV_FILE_PATH }}"
+
+            docker load -i /tmp/app-image.tar
+            rm /tmp/app-image.tar
+
+            docker stop \$DOCKER_IMAGE_NAME || true
+            docker rm \$DOCKER_IMAGE_NAME || true
+
+            if [ ! -f "\$ENV_FILE_PATH" ]; then
+              echo "Error: .env file not found at \$ENV_FILE_PATH"
+              exit 1
+            fi
+
+            docker ps -a | grep \$DOCKER_IMAGE_NAME | awk '{print \$1}' | xargs -r docker rm -f || true
+
+            docker run -d \
+              --name \$DOCKER_IMAGE_NAME \
+              --restart unless-stopped \
+              -p 3010:3010 \
+              --env-file \$ENV_FILE_PATH \
+              \$DOCKER_IMAGE_NAME:${{ github.sha }}
+
+            docker image prune -f
+            echo "Cron-microservice deployment to ${{ matrix.environment }} completed successfully"
+          EOF
+
+      - name: Run migrations on ${{ matrix.environment }} host
+        if: needs.build.outputs.migrations_changed == 'true'
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              -p $REMOTE_PORT \
+              $REMOTE_USER@$REMOTE_HOST \
+              "docker exec ${{ env.DOCKER_IMAGE_NAME }} npm run migrate"
+
+      - name: Verify deployment on ${{ matrix.environment }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              -p $REMOTE_PORT \
+              $REMOTE_USER@$REMOTE_HOST \
+              "docker ps | grep $DOCKER_IMAGE_NAME && curl -fsS http://127.0.0.1:3010/health && echo 'Cron-microservice deployment on ${{ matrix.environment }} successful!'"
