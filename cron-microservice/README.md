@@ -201,3 +201,25 @@ plausible number rather than as a misconfiguration.
 fails part-way leaves a row behind; the next run retries it in place and only a
 report already marked `completed` is skipped. Without this, one transient S3
 error would make that date permanently unreportable without `--force`.
+
+## Running on more than one host
+
+The deploy workflows push each service to several hosts, so the scheduled job
+fires on all of them at the same moment. The unique key on `cron_reports`
+prevents a duplicate row but not duplicate work — without a lock every instance
+would still query the databases, list the bucket and post its own Slack message.
+
+`runDailyOperationsReport` therefore takes a MySQL advisory lock
+(`cron_microservice_daily_report`) for the length of the run, held on a single
+pooled connection exactly as the migration runner holds its own lock. The
+timeout is 0: an instance that loses the race returns
+`{ skipped: true, reason: "locked" }` immediately and does no work, because
+waiting and then running would recreate the duplicate the lock exists to stop.
+
+This assumes the hosts share one portal database, which is what makes the lock
+mutual. Hosts pointing at *separate* databases are separate deployments and each
+will correctly produce its own report — set `SLACK_DAILY_REPORT_WEBHOOK_URL` per
+environment so they do not all post into the same channel.
+
+`CRONS_ENABLED=false` remains the simplest way to run the HTTP endpoints on a
+host without scheduling anything there.

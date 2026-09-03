@@ -4,6 +4,7 @@ const { collectDatabaseMetrics, collectS3Metrics } = require("../services/report
 const { collectGaMetrics } = require("../services/report-ga.service");
 const { buildMessage, buildSlackPayload, sendSlackReport } = require("../services/report-slack.service");
 const { parseBoolean } = require("../../config");
+const { withAdvisoryLock, DAILY_REPORT_LOCK } = require("../../database/advisory-lock");
 
 const reportPeriod = (now = moment()) => {
   const timezone = process.env.CRON_TIMEZONE || "UTC";
@@ -18,6 +19,12 @@ const reportPeriod = (now = moment()) => {
 };
 
 const runDailyOperationsReport = async ({ now, force = false, dependencies = {} } = {}) => {
+  const withLock = dependencies.withLock
+    || ((run) => withAdvisoryLock(DAILY_REPORT_LOCK, run));
+  return withLock(() => collectAndDeliver({ now, force, dependencies }));
+};
+
+const collectAndDeliver = async ({ now, force, dependencies }) => {
   const period = reportPeriod(now);
   const repository = dependencies.repository || new CronReportRepository();
   const [report, created] = await repository.findOrCreate({

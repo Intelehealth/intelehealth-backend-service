@@ -21,6 +21,7 @@ test("persists metrics before Slack delivery and prevents duplicates", async () 
   const updates = [];
   const row = { update: async (values) => updates.push(values) };
   const dependencies = {
+    withLock: (run) => run(),
     repository: { findOrCreate: async () => [row, true] },
     collectDatabaseMetrics: async () => [
       { name: "visits", label: "Visits", section: "Patients & Visits", value: 12, source: "OpenMRS DB" },
@@ -37,7 +38,7 @@ test("persists metrics before Slack delivery and prevents duplicates", async () 
 
   const existing = { id: 1, status: "completed" };
   const duplicate = await runDailyOperationsReport({
-    dependencies: { repository: { findOrCreate: async () => [existing, false] } },
+    dependencies: { withLock: (run) => run(), repository: { findOrCreate: async () => [existing, false] } },
   });
   assert.deepEqual(duplicate, { skipped: true, report: existing });
 });
@@ -52,6 +53,7 @@ test("retries a report left behind by a failed run, but not a completed one", as
   const run = async (report) => runDailyOperationsReport({
     now: moment.tz("2026-09-02 23:55:00", "Asia/Kolkata"),
     dependencies: {
+      withLock: (run) => run(),
       repository: { findOrCreate: async () => [report, false] },
       collectDatabaseMetrics: async () => [{ name: "m", label: "M", section: "S", value: 1, source: "Portal DB" }],
       collectS3Metrics: async () => [],
@@ -67,4 +69,21 @@ test("retries a report left behind by a failed run, but not a completed one", as
 
   const completed = build("completed");
   assert.equal((await run(completed)).skipped, true);
+});
+
+test("a second instance that cannot take the lock does no work", async () => {
+  let collected = false;
+  const result = await runDailyOperationsReport({
+    dependencies: {
+      withLock: async () => ({ skipped: true, reason: "locked" }),
+      repository: { findOrCreate: async () => { collected = true; return [{}, true]; } },
+      collectDatabaseMetrics: async () => { collected = true; return []; },
+      collectS3Metrics: async () => [],
+      collectGaMetrics: async () => [],
+      sendSlackReport: async () => { collected = true; return "sent"; },
+    },
+  });
+
+  assert.deepEqual(result, { skipped: true, reason: "locked" });
+  assert.equal(collected, false, "a locked-out instance must not query, list or post");
 });
