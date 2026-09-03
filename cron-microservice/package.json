@@ -1,0 +1,26 @@
+{
+  "name": "intelehealth-cron-microservice",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "migrate": "node src/database/migrate.js",
+    "cron:daily-report": "node src/scripts/run-daily-report.js",
+    "cron:daily-report:preview": "node src/scripts/preview-daily-report.js",
+    "test": "node --test src/**/*.test.js",
+    "s3:inspect-recordings": "node src/scripts/inspect-s3-recordings.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.1123.0",
+    "@google-analytics/data": "^5.2.0",
+    "dotenv": "^16.4.5",
+    "moment-timezone": "^0.5.48",
+    "mysql2": "^3.11.0",
+    "node-cron": "4.6.0"
+  }
+}
