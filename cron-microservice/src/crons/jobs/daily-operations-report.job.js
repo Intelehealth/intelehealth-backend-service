@@ -4,8 +4,7 @@ const SQL_DATETIME_FORMAT = "YYYY-MM-DD HH:mm:ss";
 const { CronReportRepository } = require("../../database/cron-report.repository");
 const { collectDatabaseMetrics, collectS3Metrics } = require("../services/report-metrics.service");
 const { collectGaMetrics } = require("../services/report-ga.service");
-const { buildMessage, buildSlackPayload, sendSlackReport } = require("../services/report-slack.service");
-const { parseBoolean } = require("../../config");
+const { buildMessage, buildSlackPayload, sendSlackReport, slackTarget } = require("../services/report-slack.service");
 const { withAdvisoryLock, DAILY_REPORT_LOCK } = require("../../database/advisory-lock");
 
 const reportPeriod = (now = moment()) => {
@@ -54,7 +53,7 @@ const collectAndDeliver = async ({ now, force, dependencies }) => {
       collectGa(period, dependencies),
     ]);
     const metrics = [...database, ...s3, ...ga];
-    const debug = parseBoolean(process.env.DAILY_REPORT_SLACK_DEBUG);
+    const { debug } = slackTarget();
     const message = buildMessage({ ...period, metrics });
     const slackPayload = buildSlackPayload({ ...period, metrics, debug });
 

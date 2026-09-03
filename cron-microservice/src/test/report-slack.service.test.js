@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { buildMessage, buildSlackPayload, sendSlackReport } = require("../crons/services/report-slack.service");
+const { buildMessage, buildSlackPayload, sendSlackReport, slackTarget } = require("../crons/services/report-slack.service");
 
 const report = {
   reportDate: "2026-09-01",
@@ -39,5 +39,45 @@ test("prints the exact payload in debug mode without a webhook", async () => {
     else process.env.DAILY_REPORT_SLACK_DEBUG = priorDebug;
     if (priorWebhook == null) delete process.env.SLACK_DAILY_REPORT_DEBUG_WEBHOOK_URL;
     else process.env.SLACK_DAILY_REPORT_DEBUG_WEBHOOK_URL = priorWebhook;
+  }
+});
+
+test("sends whenever a report webhook is configured; debug is an explicit override", async () => {
+  const keys = ["DAILY_REPORT_SLACK_DEBUG", "SLACK_DAILY_REPORT_WEBHOOK_URL", "SLACK_DAILY_REPORT_DEBUG_WEBHOOK_URL"];
+  const prior = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
+  const set = (values) => {
+    for (const k of keys) delete process.env[k];
+    Object.assign(process.env, values);
+  };
+
+  try {
+    set({ SLACK_DAILY_REPORT_WEBHOOK_URL: "https://hooks.example/report" });
+    assert.deepEqual(slackTarget(), { debug: false, webhook: "https://hooks.example/report" });
+
+    set({});
+    assert.deepEqual(slackTarget(), { debug: false, webhook: undefined });
+
+    set({
+      DAILY_REPORT_SLACK_DEBUG: "true",
+      SLACK_DAILY_REPORT_WEBHOOK_URL: "https://hooks.example/report",
+      SLACK_DAILY_REPORT_DEBUG_WEBHOOK_URL: "https://hooks.example/debug",
+    });
+    assert.deepEqual(slackTarget(), { debug: true, webhook: "https://hooks.example/debug" });
+
+    set({ DAILY_REPORT_SLACK_DEBUG: "true", SLACK_DAILY_REPORT_WEBHOOK_URL: "https://hooks.example/report" });
+    assert.deepEqual(slackTarget(), { debug: true, webhook: "https://hooks.example/report" });
+
+    set({ SLACK_DAILY_REPORT_WEBHOOK_URL: "https://hooks.example/report" });
+    const calls = [];
+    const status = await sendSlackReport({ text: "x" }, {
+      fetch: async (url) => { calls.push(url); return { ok: true }; },
+    });
+    assert.equal(status, "sent");
+    assert.deepEqual(calls, ["https://hooks.example/report"]);
+  } finally {
+    for (const k of keys) {
+      if (prior[k] == null) delete process.env[k];
+      else process.env[k] = prior[k];
+    }
   }
 });

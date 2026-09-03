@@ -250,3 +250,25 @@ instant correct when a host runs UTC and the database does not.
 timezone, so the stored value matches the `timezone` column on every host. Passing
 JS `Date` objects would have let the driver serialise them in the host's zone,
 making the same report read differently depending on which server produced it.
+
+## Slack delivery
+
+Setting `SLACK_DAILY_REPORT_WEBHOOK_URL` is all it takes — the report sends, and
+`slack_status` records `sent`. Delivery is the job's purpose, not something to
+opt into.
+
+`DAILY_REPORT_SLACK_DEBUG=true` is an explicit override for trial runs. It marks
+the message (🧪 header, `[DEBUG]` fallback text) so it cannot be mistaken for a
+real report, and prefers `SLACK_DAILY_REPORT_DEBUG_WEBHOOK_URL` — falling back to
+the normal webhook when no debug one is set, so a test still lands somewhere
+visible. With neither configured it prints the payload and records `debug`.
+
+| `SLACK_DAILY_REPORT_WEBHOOK_URL` | `DAILY_REPORT_SLACK_DEBUG` | Result |
+| --- | --- | --- |
+| set | `false` | posts unmarked, `sent` |
+| set | `true` | posts marked to the debug webhook, or to this one if no debug URL, `debug` |
+| unset | `false` | `skipped` |
+| unset | `true` | payload printed to the log, `debug` |
+
+The routing and the message marking come from one `slackTarget()` call, so a
+message can never be marked one way and routed the other.

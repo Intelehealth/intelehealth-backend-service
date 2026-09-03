@@ -66,11 +66,22 @@ const buildSlackPayload = ({ reportDate, timezone, metrics, debug = false }) => 
   };
 };
 
-const sendSlackReport = async (payload, dependencies = {}) => {
+/*
+  Delivering the report is the point of the job, so configuring
+  SLACK_DAILY_REPORT_WEBHOOK_URL is all it takes to send one.
+  DAILY_REPORT_SLACK_DEBUG is an explicit override for trial runs: it marks the
+  message and prefers the debug webhook, falling back to the normal one so a test
+  still lands somewhere visible instead of vanishing.
+*/
+const slackTarget = () => {
   const debug = parseBoolean(process.env.DAILY_REPORT_SLACK_DEBUG);
-  const webhook = debug
-    ? process.env.SLACK_DAILY_REPORT_DEBUG_WEBHOOK_URL
-    : process.env.SLACK_DAILY_REPORT_WEBHOOK_URL;
+  const webhook = process.env.SLACK_DAILY_REPORT_WEBHOOK_URL;
+  if (!debug) return { debug: false, webhook };
+  return { debug: true, webhook: process.env.SLACK_DAILY_REPORT_DEBUG_WEBHOOK_URL || webhook };
+};
+
+const sendSlackReport = async (payload, dependencies = {}) => {
+  const { debug, webhook } = slackTarget();
 
   if (debug && !webhook) {
     (dependencies.logger || console).info(JSON.stringify(payload, null, 2));
@@ -89,4 +100,4 @@ const sendSlackReport = async (payload, dependencies = {}) => {
   return debug ? "debug" : "sent";
 };
 
-module.exports = { buildMessage, buildSlackPayload, sendSlackReport };
+module.exports = { buildMessage, buildSlackPayload, sendSlackReport, slackTarget };
