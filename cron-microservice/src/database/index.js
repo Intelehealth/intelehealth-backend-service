@@ -20,10 +20,10 @@ const database = createPool({
 });
 
 const openMrsDatabase = createPool({
-  host: process.env.OPENMRS_MYSQL_HOST || process.env.MYSQL_HOST || "localhost",
-  port: Number(process.env.OPENMRS_MYSQL_PORT || process.env.MYSQL_PORT || 3306),
-  user: process.env.OPENMRS_MYSQL_USERNAME || process.env.MYSQL_USERNAME || "root",
-  password: process.env.OPENMRS_MYSQL_PASS || process.env.MYSQL_PASS,
+  host: process.env.MYSQL_HOST || "localhost",
+  port: Number(process.env.MYSQL_PORT || 3306),
+  user: process.env.MYSQL_USERNAME || "root",
+  password: process.env.MYSQL_PASS,
   name: process.env.MYSQL_OPENMRS_DB || "openmrs",
 });
 

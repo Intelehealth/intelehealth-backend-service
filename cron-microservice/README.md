@@ -11,6 +11,15 @@ npm run migrate
 npm start
 ```
 
+Both the portal (`MYSQL_DB`) and OpenMRS (`MYSQL_OPENMRS_DB`) pools use the
+shared `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USERNAME`, and `MYSQL_PASS` connection
+settings.
+
+S3 clients use the AWS SDK default credential provider chain. On EC2, leave
+static access-key variables unset so the SDK obtains temporary credentials from
+the instance profile. `AWS_REGION` and the recording bucket/prefix variables
+remain required deployment configuration.
+
 Add jobs to `src/crons/jobs` and register them in `src/crons/index.js`. Every job owns its schedule and enable flag.
 
 ```bash

@@ -6,6 +6,7 @@
 export default {
   Base: '/api',
   Health: '/health',
+  Ready: '/ready',
   Auth: {
     Base: '/auth',
     Login: '/login',

@@ -4,6 +4,8 @@ const Sequelize = require("sequelize");
 const session = require("express-session");
 const SequelizeStore = require("connect-session-sequelize")(session.Store);
 const db = require("./models");
+const openMrsDb = require("./openmrs_models");
+const { createHealthRouter } = require("./handlers/health");
 const morganMiddleware = require("./middleware/morgan");
 const swaggerUi = require('swagger-ui-express');
 const swaggerDocument = require('./swagger.json');
@@ -35,6 +37,14 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 app.use(cookieParser());
+
+app.use(createHealthRouter({
+  service: "portal",
+  databases: {
+    portal: db.sequelize,
+    openmrs: openMrsDb.sequelize,
+  },
+}));
 
 app.set("trust proxy", 1); // trust first proxy
 

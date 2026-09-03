@@ -34,6 +34,10 @@ COPY . .
 # Expose the port your app runs on
 EXPOSE 3000
 
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD curl -fsS -H "X-Healthcheck-Token: ${HEALTHCHECK_TOKEN:-}" \
+  http://127.0.0.1:${PORT:-3000}/health || exit 1
+
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 
 # Start the application
