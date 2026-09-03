@@ -160,11 +160,16 @@ Settings, not the `G-XXXXXXXXXX` measurement ID the browser uses.
 report into one property. Without a host filter the report returns the sum of
 every environment; the job warns when it is unset.
 
-`GA_SERVICE_ACCOUNT_JSON` may be replaced by `GOOGLE_APPLICATION_CREDENTIALS`
-pointing at a key file. The service account needs only **Viewer** on the GA4
-property. A key file path is fine locally, but a deployed container should
-receive the JSON through the secret store rather than a path that only exists on
-one machine.
+`GA_SERVICE_ACCOUNT_JSON` holds the service account key as a **single-line
+JSON** value — the whole key file, `JSON.stringify`-ed onto one line. Keep the
+`\n` sequences in `private_key` escaped rather than expanding them, and do not
+wrap the value in quotes; `JSON.parse` turns them back into real newlines. The
+service account needs only **Viewer** on the GA4 property.
+
+Inline JSON is the form to use: a container gets it from the secret store like
+any other variable, with no key file to mount and no path that exists on one
+machine only. `GOOGLE_APPLICATION_CREDENTIALS` still works as a fallback when
+nothing is set inline, but inline takes precedence.
 
 The property is shared by more than the NAS sites. Events observed over 90 days:
 
