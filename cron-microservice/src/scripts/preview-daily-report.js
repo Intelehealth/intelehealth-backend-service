@@ -3,13 +3,11 @@ require("dotenv").config();
 const moment = require("moment-timezone");
 const { buildMessage, buildSlackPayload, sendSlackReport } = require("../crons/services/report-slack.service");
 
-process.env.DAILY_REPORT_SLACK_DEBUG = "true";
 
 const timezone = process.env.CRON_TIMEZONE || "UTC";
 const report = {
   reportDate: moment().tz(timezone).format("YYYY-MM-DD"),
   timezone,
-  debug: true,
   metrics: [
     { name: "total_patients", label: "Patients registered today", section: "Patients & Visits", value: 36, source: "OpenMRS DB" },
     { name: "visits_with_prescription", label: "Visits with prescriptions today", section: "Patients & Visits", value: 128, source: "OpenMRS DB" },

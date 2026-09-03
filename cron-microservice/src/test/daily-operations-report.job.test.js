@@ -60,7 +60,7 @@ test("retries a report left behind by a failed run, but not a completed one", as
       collectDatabaseMetrics: async () => [{ name: "m", label: "M", section: "S", value: 1, source: "Portal DB" }],
       collectS3Metrics: async () => [],
       collectGaMetrics: async () => [],
-      sendSlackReport: async () => "debug",
+      sendSlackReport: async () => "sent",
     },
   });
 

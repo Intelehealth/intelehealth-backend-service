@@ -4,7 +4,7 @@ const SQL_DATETIME_FORMAT = "YYYY-MM-DD HH:mm:ss";
 const { CronReportRepository } = require("../../database/cron-report.repository");
 const { collectDatabaseMetrics, collectS3Metrics } = require("../services/report-metrics.service");
 const { collectGaMetrics } = require("../services/report-ga.service");
-const { buildSlackPayload, sendSlackReport, slackTarget } = require("../services/report-slack.service");
+const { buildSlackPayload, sendSlackReport } = require("../services/report-slack.service");
 const { withAdvisoryLock, DAILY_REPORT_LOCK } = require("../../database/advisory-lock");
 
 /*
@@ -92,8 +92,7 @@ const collectAndDeliver = async ({ now, force, dependencies }) => {
     if (!metrics.length) {
       throw new Error(`No metric source succeeded: ${failures.map(describeFailure).join("; ")}`);
     }
-    const { debug } = slackTarget();
-    const slackPayload = buildSlackPayload({ ...period, metrics, debug, failures });
+    const slackPayload = buildSlackPayload({ ...period, metrics, failures });
 
     await report.update({ metrics: persistableMetrics(metrics) });
     const deliver = dependencies.sendSlackReport || sendSlackReport;

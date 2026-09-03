@@ -1,4 +1,3 @@
-const { parseBoolean } = require("../../config");
 
 const groupMetrics = (metrics) => metrics.reduce((groups, metric) => {
   const section = metric.section || "Other";
@@ -31,7 +30,7 @@ const buildMessage = ({ reportDate, timezone, metrics, failures = [] }) => {
   return lines.join("\n");
 };
 
-const buildSlackPayload = ({ reportDate, timezone, metrics, debug = false, failures = [] }) => {
+const buildSlackPayload = ({ reportDate, timezone, metrics, failures = [] }) => {
   const sections = [];
   if (failures.length) {
     sections.push({
@@ -61,11 +60,11 @@ const buildSlackPayload = ({ reportDate, timezone, metrics, debug = false, failu
   }
 
   return {
-    text: `${debug ? "[DEBUG] " : ""}Daily Visits & Calls Report for ${reportDate}`,
+    text: `Daily Visits & Calls Report for ${reportDate}`,
     blocks: [
       {
         type: "header",
-        text: { type: "plain_text", text: `${debug ? "🧪 " : ""}Daily Visits & Calls Report`, emoji: true },
+        text: { type: "plain_text", text: "Daily Visits & Calls Report", emoji: true },
       },
       {
         type: "context",
@@ -81,26 +80,13 @@ const buildSlackPayload = ({ reportDate, timezone, metrics, debug = false, failu
 };
 
 /*
-  Delivering the report is the point of the job, so configuring
-  SLACK_DAILY_REPORT_WEBHOOK_URL is all it takes to send one.
-  DAILY_REPORT_SLACK_DEBUG is an explicit override for trial runs: it marks the
-  message and prefers the debug webhook, falling back to the normal one so a test
-  still lands somewhere visible instead of vanishing.
+  A configured webhook is the whole switch: set SLACK_DAILY_REPORT_WEBHOOK_URL and
+  the report is delivered, leave it unset and the run still completes and stores
+  its counts, recording "skipped". There is no separate mode to keep in step with
+  the routing.
 */
-const slackTarget = () => {
-  const debug = parseBoolean(process.env.DAILY_REPORT_SLACK_DEBUG);
-  const webhook = process.env.SLACK_DAILY_REPORT_WEBHOOK_URL;
-  if (!debug) return { debug: false, webhook };
-  return { debug: true, webhook: process.env.SLACK_DAILY_REPORT_DEBUG_WEBHOOK_URL || webhook };
-};
-
 const sendSlackReport = async (payload, dependencies = {}) => {
-  const { debug, webhook } = slackTarget();
-
-  if (debug && !webhook) {
-    (dependencies.logger || console).info(JSON.stringify(payload, null, 2));
-    return "debug";
-  }
+  const webhook = process.env.SLACK_DAILY_REPORT_WEBHOOK_URL;
   if (!webhook) return "skipped";
 
   const request = dependencies.fetch || fetch;
@@ -111,7 +97,7 @@ const sendSlackReport = async (payload, dependencies = {}) => {
     signal: AbortSignal.timeout(5000),
   });
   if (!response.ok) throw new Error(`Slack webhook returned ${response.status}`);
-  return debug ? "debug" : "sent";
+  return "sent";
 };
 
-module.exports = { buildMessage, buildSlackPayload, sendSlackReport, slackTarget };
+module.exports = { buildMessage, buildSlackPayload, sendSlackReport };

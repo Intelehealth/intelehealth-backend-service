@@ -20,7 +20,7 @@ npm run cron:daily-report -- --force
 npm test
 ```
 
-Debug mode sends to `SLACK_DAILY_REPORT_DEBUG_WEBHOOK_URL`. Without a debug webhook, the exact Slack payload is printed without sending a request.
+Leave `SLACK_DAILY_REPORT_WEBHOOK_URL` unset to run the collection without posting; `npm run cron:daily-report:preview` renders a sample report without touching a database.
 
 ## Recording counts in S3
 
@@ -258,25 +258,15 @@ making the same report read differently depending on which server produced it.
 
 ## Slack delivery
 
-Setting `SLACK_DAILY_REPORT_WEBHOOK_URL` is all it takes — the report sends, and
-`slack_status` records `sent`. Delivery is the job's purpose, not something to
-opt into.
+`SLACK_DAILY_REPORT_WEBHOOK_URL` is the whole switch. Set it and the report is
+delivered and recorded as `sent`; leave it unset and the run still completes and
+stores its counts, recording `skipped`.
 
-`DAILY_REPORT_SLACK_DEBUG=true` is an explicit override for trial runs. It marks
-the message (🧪 header, `[DEBUG]` fallback text) so it cannot be mistaken for a
-real report, and prefers `SLACK_DAILY_REPORT_DEBUG_WEBHOOK_URL` — falling back to
-the normal webhook when no debug one is set, so a test still lands somewhere
-visible. With neither configured it prints the payload and records `debug`.
-
-| `SLACK_DAILY_REPORT_WEBHOOK_URL` | `DAILY_REPORT_SLACK_DEBUG` | Result |
-| --- | --- | --- |
-| set | `false` | posts unmarked, `sent` |
-| set | `true` | posts marked to the debug webhook, or to this one if no debug URL, `debug` |
-| unset | `false` | `skipped` |
-| unset | `true` | payload printed to the log, `debug` |
-
-The routing and the message marking come from one `slackTarget()` call, so a
-message can never be marked one way and routed the other.
+There is deliberately no debug mode. A second flag and a second webhook meant the
+message could be marked one way and routed the other, and it made delivery — the
+point of the job — conditional on a variable unrelated to it. To try the
+rendering without posting, use `npm run cron:daily-report:preview`; to post
+somewhere harmless, point the webhook at a test channel.
 
 ## What is stored
 
