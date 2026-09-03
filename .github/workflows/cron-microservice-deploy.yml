@@ -51,6 +51,10 @@ on:
         description: 'Deploy to PATHQA host'
         type: boolean
         default: false
+      deploy_nasstaging:
+        description: 'Deploy to NASSTAGING host'
+        type: boolean
+        default: false  
   push:
     branches: [development_master]
     paths:
@@ -86,6 +90,9 @@ jobs:
             fi
             if [ "${{ inputs.deploy_pathqa }}" == "true" ]; then
               includes=$(echo "$includes" | jq -c '. += [{"environment":"pathqa"}]')
+            fi
+            if [ "${{ inputs.deploy_nasstaging }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"nasstaging"}]')
             fi
             matrix="{\"include\":$includes}"
           fi
@@ -156,7 +163,9 @@ jobs:
       TTXAI_HOST: ${{ secrets.TTXAI_HOST }}
       TESTTURN_HOST: ${{ secrets.TESTTURN_HOST }}
       PATHQA_HOST: ${{ secrets.PATHQA_HOST }}
+      NASSTAGING_HOST: ${{ secrets.NASSTAGING_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
+      
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
       - name: Resolve host for environment
@@ -167,6 +176,7 @@ jobs:
             ttxai) echo "REMOTE_HOST=$TTXAI_HOST" >> $GITHUB_ENV ;;
             testturn) echo "REMOTE_HOST=$TESTTURN_HOST" >> $GITHUB_ENV ;;
             pathqa) echo "REMOTE_HOST=$PATHQA_HOST" >> $GITHUB_ENV ;;
+            nasstaging) echo "REMOTE_HOST=$NASSTAGING_HOST" >> $GITHUB_ENV ;;
             *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
 
