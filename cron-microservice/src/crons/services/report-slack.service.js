@@ -13,8 +13,13 @@ const sectionDetails = (sectionMetrics) => sectionMetrics
   .filter(({ detail }) => detail)
   .map(({ label, detail }) => `*${label}* — ${detail}`);
 
-const buildMessage = ({ reportDate, timezone, metrics }) => {
+const failureLines = (failures = []) => failures.map(
+  ({ source, message }) => `${source} unavailable — ${message}`
+);
+
+const buildMessage = ({ reportDate, timezone, metrics, failures = [] }) => {
   const lines = [`Daily Visits & Calls Report — ${reportDate}`, `Timezone: ${timezone}`];
+  if (failures.length) lines.push("", ...failureLines(failures));
   for (const [section, sectionMetrics] of groupMetrics(metrics)) {
     lines.push("", section, ...sectionMetrics.map((metric) => (
       `${metric.label}: ${formatValue(metric)}`
@@ -26,8 +31,17 @@ const buildMessage = ({ reportDate, timezone, metrics }) => {
   return lines.join("\n");
 };
 
-const buildSlackPayload = ({ reportDate, timezone, metrics, debug = false }) => {
+const buildSlackPayload = ({ reportDate, timezone, metrics, debug = false, failures = [] }) => {
   const sections = [];
+  if (failures.length) {
+    sections.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `:warning: *Incomplete report* — ${failureLines(failures).join("\n")}`,
+      },
+    });
+  }
   for (const [section, sectionMetrics] of groupMetrics(metrics)) {
     sections.push({ type: "section", text: { type: "mrkdwn", text: `*${section}*` } });
     const fields = sectionMetrics.map((metric) => ({

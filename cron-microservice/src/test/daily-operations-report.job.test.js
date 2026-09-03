@@ -36,7 +36,7 @@ test("persists metrics before Slack delivery and prevents duplicates", async () 
   assert.deepEqual(updates[0].metrics, { counts: { visits: 12, recordings: 5 } });
   assert.equal(updates[0].message, undefined, "renderings are not persisted");
   assert.equal(updates[0].slack_payload, undefined, "renderings are not persisted");
-  assert.deepEqual(updates[1], { status: "completed", slack_status: "sent" });
+  assert.deepEqual(updates[1], { status: "completed", slack_status: "sent", error: null });
 
   const existing = { id: 1, status: "completed" };
   const duplicate = await runDailyOperationsReport({
@@ -121,4 +121,51 @@ test("persists counts and measured breakdowns, but nothing derivable from config
   for (const derivable of ["label", "section", "source", "unit", "detail", "Portal DB"]) {
     assert.ok(!stored.includes(derivable), `${derivable} must not be persisted`);
   }
+});
+
+test("delivers what succeeded when one source fails, and names the failure", async () => {
+  const updates = [];
+  let delivered;
+  const report = await runDailyOperationsReport({
+    dependencies: {
+      withLock: (run) => run(),
+      repository: { findOrCreate: async () => [{ update: async (v) => { updates.push(v); } }, true] },
+      collectDatabaseMetrics: async () => [
+        { name: "start_calls", label: "Start Call actions today", section: "Calls", value: 81, source: "Portal DB" },
+      ],
+      collectS3Metrics: async () => [
+        { name: "webrtc_recordings", label: "WebRTC recordings today", section: "Calls", value: 35, source: "S3" },
+      ],
+      collectGaMetrics: async () => { throw new Error("7 PERMISSION_DENIED"); },
+      sendSlackReport: async (payload) => { delivered = payload; return "sent"; },
+    },
+  });
+
+  assert.ok(delivered, "the report must still be delivered");
+  assert.deepEqual(updates[0].metrics, { counts: { start_calls: 81, webrtc_recordings: 35 } });
+
+  const final = updates[updates.length - 1];
+  assert.equal(final.status, "partial");
+  assert.match(final.error, /GA4: 7 PERMISSION_DENIED/);
+
+  const warning = JSON.stringify(delivered.blocks);
+  assert.match(warning, /Incomplete report/);
+  assert.match(warning, /GA4 unavailable/);
+});
+
+test("aborts only when every source fails", async () => {
+  const fail = async () => { throw new Error("down"); };
+  await assert.rejects(
+    runDailyOperationsReport({
+      dependencies: {
+        withLock: (run) => run(),
+        repository: { findOrCreate: async () => [{ update: async () => {} }, true] },
+        collectDatabaseMetrics: fail,
+        collectS3Metrics: fail,
+        collectGaMetrics: fail,
+        sendSlackReport: async () => assert.fail("must not deliver an empty report"),
+      },
+    }),
+    /No metric source succeeded/
+  );
 });

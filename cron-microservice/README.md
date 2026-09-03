@@ -299,3 +299,24 @@ a row from 4,219 to 373 bytes — about 133 KB a year instead of 1.5 MB.
 
 To show a metric later, read `metrics->>'$.counts.<name>'` and take the label
 from the current configuration.
+
+## When a source is down
+
+Metric sources are collected independently and settled separately. If one fails,
+the report is still delivered with whatever succeeded, the failing source is
+named in the message (`:warning: Incomplete report — GA4 unavailable — ...`) and
+the row is stored with `status = 'partial'` and the reason in `error`.
+
+The failed source's metrics are **omitted, not zeroed** — a zero would read as
+"nothing happened today", which is a worse answer than a visible gap.
+
+Only a total failure aborts: if no source succeeds, the job throws, the row is
+marked `failed`, and nothing is posted rather than an empty report.
+
+This matters most for GA4, the one source reached over the network from a third
+party. A revoked key or a quota error at 23:55 previously discarded the database
+and S3 numbers that had been collected successfully.
+
+The service exits on start-up if MySQL is unreachable rather than serving a
+degraded process. Deploys run with `--restart unless-stopped`, so a container
+that starts before the database simply retries until it connects.

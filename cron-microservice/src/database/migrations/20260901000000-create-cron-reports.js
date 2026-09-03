@@ -7,7 +7,7 @@ module.exports = {
     period_start DATETIME NOT NULL,
     period_end DATETIME NOT NULL,
     metrics JSON NULL,
-    status ENUM('running', 'completed', 'failed') NOT NULL DEFAULT 'running',
+    status ENUM('running', 'completed', 'partial', 'failed') NOT NULL DEFAULT 'running',
     slack_status ENUM('pending', 'sent', 'debug', 'skipped', 'failed') NOT NULL DEFAULT 'pending',
     error TEXT NULL,
     created_at DATETIME NOT NULL,

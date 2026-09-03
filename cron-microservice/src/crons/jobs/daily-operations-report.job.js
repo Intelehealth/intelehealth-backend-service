@@ -26,6 +26,17 @@ const persistableMetrics = (metrics) => {
   return Object.keys(breakdowns).length ? { counts, breakdowns } : { counts };
 };
 
+/*
+  A source that is down must not cost the whole report. GA4 in particular is a
+  third party reached over the network - a revoked key or a quota error at 23:55
+  would otherwise discard the database and S3 numbers that were collected fine.
+  Sources are settled independently, whatever succeeded is delivered, and the
+  ones that failed are named in the message so a missing metric is never read as
+  a zero. Only a total failure aborts.
+*/
+const errorText = (reason) => (reason instanceof Error ? reason.message : String(reason));
+const describeFailure = ({ source, message }) => `${source}: ${message}`;
+
 const reportPeriod = (now = moment()) => {
   const timezone = process.env.CRON_TIMEZONE || "UTC";
   if (!moment.tz.zone(timezone)) throw new Error(`Invalid CRON_TIMEZONE: ${timezone}`);
@@ -63,22 +74,35 @@ const collectAndDeliver = async ({ now, force, dependencies }) => {
   if (!created) await report.update({ status: "running", error: null });
 
   try {
-    const collectDatabase = dependencies.collectDatabaseMetrics || collectDatabaseMetrics;
-    const collectS3 = dependencies.collectS3Metrics || collectS3Metrics;
-    const collectGa = dependencies.collectGaMetrics || collectGaMetrics;
-    const [database, s3, ga] = await Promise.all([
-      collectDatabase(period, dependencies),
-      collectS3(period, dependencies),
-      collectGa(period, dependencies),
-    ]);
-    const metrics = [...database, ...s3, ...ga];
+    const sources = [
+      { name: "Databases", collect: dependencies.collectDatabaseMetrics || collectDatabaseMetrics },
+      { name: "S3", collect: dependencies.collectS3Metrics || collectS3Metrics },
+      { name: "GA4", collect: dependencies.collectGaMetrics || collectGaMetrics },
+    ];
+    const settled = await Promise.allSettled(
+      sources.map(({ collect }) => collect(period, dependencies))
+    );
+
+    const metrics = [];
+    const failures = [];
+    settled.forEach((result, index) => {
+      if (result.status === "fulfilled") metrics.push(...result.value);
+      else failures.push({ source: sources[index].name, message: errorText(result.reason) });
+    });
+    if (!metrics.length) {
+      throw new Error(`No metric source succeeded: ${failures.map(describeFailure).join("; ")}`);
+    }
     const { debug } = slackTarget();
-    const slackPayload = buildSlackPayload({ ...period, metrics, debug });
+    const slackPayload = buildSlackPayload({ ...period, metrics, debug, failures });
 
     await report.update({ metrics: persistableMetrics(metrics) });
     const deliver = dependencies.sendSlackReport || sendSlackReport;
     const slackStatus = await deliver(slackPayload, dependencies);
-    await report.update({ status: "completed", slack_status: slackStatus });
+    await report.update({
+      status: failures.length ? "partial" : "completed",
+      slack_status: slackStatus,
+      error: failures.length ? failures.map(describeFailure).join("; ") : null,
+    });
     return report;
   } catch (error) {
     await report.update({ status: "failed", slack_status: "failed", error: error.message });
