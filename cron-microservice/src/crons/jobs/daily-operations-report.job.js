@@ -1,4 +1,6 @@
 const moment = require("moment-timezone");
+
+const SQL_DATETIME_FORMAT = "YYYY-MM-DD HH:mm:ss";
 const { CronReportRepository } = require("../../database/cron-report.repository");
 const { collectDatabaseMetrics, collectS3Metrics } = require("../services/report-metrics.service");
 const { collectGaMetrics } = require("../services/report-ga.service");
@@ -30,8 +32,8 @@ const collectAndDeliver = async ({ now, force, dependencies }) => {
   const [report, created] = await repository.findOrCreate({
     reportDate: period.reportDate,
     timezone: period.timezone,
-    periodStart: period.start.toDate(),
-    periodEnd: period.end.toDate(),
+    periodStart: period.start.format(SQL_DATETIME_FORMAT),
+    periodEnd: period.end.format(SQL_DATETIME_FORMAT),
   });
 
   /*

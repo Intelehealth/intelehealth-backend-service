@@ -223,3 +223,30 @@ environment so they do not all post into the same channel.
 
 `CRONS_ENABLED=false` remains the simplest way to run the HTTP endpoints on a
 host without scheduling anything there.
+
+## Timezones across hosts
+
+`CRON_TIMEZONE` is the single source of truth for *when a day starts*. It drives
+the node-cron schedule and `reportPeriod`, which builds the window with
+moment-timezone rather than the host clock — so a container running UTC and one
+running IST produce the same window.
+
+Each source is then queried in the zone it actually stores:
+
+| Source | Stores | Bound with |
+| --- | --- | --- |
+| Portal (`call_data`, `call_recordings`) | UTC | `:startUtc` / `:endUtc` |
+| OpenMRS (`patient`, `visit`, `visit_attribute`) | database-server local | `:startLocal` / `:endLocal` |
+| S3 recording keys | producer local | parsed in `CRON_TIMEZONE` |
+| GA4 | property timezone | `GA_PROPERTY_TIMEZONE`, asserted |
+
+The local bounds are derived from the database's own clock
+(`TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(), NOW())`), read once per connection per
+run, not from `CRON_TIMEZONE`. Assuming the two agree holds only while the app
+container and MySQL keep the same zone; deriving the offset keeps the same
+instant correct when a host runs UTC and the database does not.
+
+`period_start` and `period_end` are written as formatted strings in the report
+timezone, so the stored value matches the `timezone` column on every host. Passing
+JS `Date` objects would have let the driver serialise them in the host's zone,
+making the same report read differently depending on which server produced it.

@@ -57,6 +57,7 @@ test("collects patient and visit metrics from OpenMRS and call metrics from port
   delete process.env.DAILY_REPORT_DB_METRICS;
   const queries = [];
   const query = (source) => async (statement, replacements) => {
+    if (statement.includes("offset_seconds")) return [[{ offset_seconds: 19800 }]];
     queries.push({ source, statement, replacements });
     if (statement.includes("AS total_patients")) return [[{ total_patients: 500 }]];
     if (statement.includes("AS total_visits_with_prescription")) {
@@ -177,6 +178,7 @@ test("binds UTC period bounds for call_recordings, whose timestamps are stored i
   const queries = [];
   const connection = {
     query: async (statement, replacements) => {
+      if (statement.includes("offset_seconds")) return [[{ offset_seconds: 19800 }]];
       queries.push({ statement, replacements });
       return [[{ count: 7, total_patients: 7, total_visits_with_prescription: 7 }]];
     },
@@ -261,5 +263,42 @@ test("skips a recordings metric whose bucket is unset instead of using AWS_BUCKE
       if (value == null) delete process.env[key];
       else process.env[key] = value;
     }
+  }
+});
+
+test("derives OpenMRS local bounds from the database clock, not the app timezone", async () => {
+  const prior = process.env.DAILY_REPORT_DB_METRICS;
+  delete process.env.DAILY_REPORT_DB_METRICS;
+  const period = {
+    timezone: "Asia/Kolkata",
+    start: moment.tz("2026-09-02 00:00:00", "Asia/Kolkata"),
+    end: moment.tz("2026-09-03 00:00:00", "Asia/Kolkata"),
+  };
+
+  const runWithOffset = async (offsetSeconds) => {
+    const seen = [];
+    const connection = {
+      query: async (statement, replacements) => {
+        if (statement.includes("offset_seconds")) return [[{ offset_seconds: offsetSeconds }]];
+        seen.push(replacements);
+        return [[{ count: 1, total_patients: 1, total_visits_with_prescription: 1 }]];
+      },
+    };
+    await collectDatabaseMetrics(period, { databases: { portal: connection, openmrs: connection } });
+    return seen[0];
+  };
+
+  try {
+    const ist = await runWithOffset(19800);
+    const utc = await runWithOffset(0);
+
+    assert.equal(ist.startUtc, "2026-09-01 18:30:00");
+    assert.equal(utc.startUtc, "2026-09-01 18:30:00");
+
+    assert.equal(ist.startLocal, "2026-09-02 00:00:00");
+    assert.equal(utc.startLocal, "2026-09-01 18:30:00");
+  } finally {
+    if (prior == null) delete process.env.DAILY_REPORT_DB_METRICS;
+    else process.env.DAILY_REPORT_DB_METRICS = prior;
   }
 });

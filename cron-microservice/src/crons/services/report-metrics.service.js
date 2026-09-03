@@ -180,19 +180,45 @@ const assertReadOnlyQuery = (statement) => {
   }
 };
 
+/*
+  OpenMRS writes its timestamps in the database server's local zone. Assuming
+  that zone equals CRON_TIMEZONE holds only while the app and MySQL agree, which
+  a container running UTC breaks silently. The offset is therefore read from the
+  database's own clock and the local bounds derived from it, so the same instant
+  is expressed correctly whatever zone the server keeps.
+*/
+const databaseOffsetMinutes = async (connection) => {
+  const [rows] = await connection.query(
+    "SELECT TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(), NOW()) AS offset_seconds"
+  );
+  const seconds = Number(rows[0]?.offset_seconds);
+  if (!Number.isFinite(seconds)) throw new Error("Could not read the database timezone offset");
+  return seconds / 60;
+};
+
+const offsetCache = (connections) => {
+  const pending = new Map();
+  return (connection) => {
+    if (!pending.has(connection)) pending.set(connection, databaseOffsetMinutes(connection));
+    return pending.get(connection);
+  };
+};
+
 const collectDatabaseMetrics = async (period, dependencies = {}) => {
   const databases = dependencies.databases || { portal: database, openmrs: openMrsDatabase };
+  const offsetFor = offsetCache(databases);
   return Promise.all(databaseMetrics().map(async (metric) => {
     assertReadOnlyQuery(metric.query);
     const connection = databases[metric.database || "portal"];
     if (!connection) throw new Error(`Unknown database for metric ${metric.name}: ${metric.database}`);
+    const offsetMinutes = await offsetFor(connection);
     const [rows] = await connection.query(metric.query, {
       start: period.start.toDate(),
       end: period.end.toDate(),
       startUtc: period.start.clone().utc().format(SQL_DATETIME_FORMAT),
       endUtc: period.end.clone().utc().format(SQL_DATETIME_FORMAT),
-      startLocal: period.start.clone().format(SQL_DATETIME_FORMAT),
-      endLocal: period.end.clone().format(SQL_DATETIME_FORMAT),
+      startLocal: period.start.clone().utc().add(offsetMinutes, "minutes").format(SQL_DATETIME_FORMAT),
+      endLocal: period.end.clone().utc().add(offsetMinutes, "minutes").format(SQL_DATETIME_FORMAT),
     });
     const valueColumn = metric.valueColumn || "count";
     const value = Number(rows[0]?.[valueColumn]);
