@@ -8,8 +8,9 @@ const openmrsGet = (path, params) =>
    axios.get(`${restBase()}${path}`, { params, headers: { Authorization: basicAuth, Accept: "application/json" } });
 
 // Custom rep mirrors the HW webapp (visit-prescription.service.ts) for the prescription's obs/provider/patient fields.
+// startDatetime/stopDatetime dropped: buildPrescriptionData derives consultationDate from encounters instead.
 const VISIT_CUSTOM_REP =
-   "custom:(uuid,startDatetime,stopDatetime,location:(display)," +
+   "custom:(uuid,location:(display)," +
    "patient:(uuid,identifiers:(identifier,identifierType:(name,display))," +
    "person:(display,gender,age,birthdate,preferredName:(givenName,middleName,familyName)," +
    "attributes:(value,attributeType:(display,uuid)),preferredAddress:(address1,address2,cityVillage,countyDistrict,stateProvince,postalCode)))," +
@@ -19,8 +20,16 @@ const VISIT_CUSTOM_REP =
 
 // Fetch a single visit with the full custom representation used for the PDF.
 const getVisit = async (visitUuid) => {
-   const { data } = await openmrsGet(`/visit/${visitUuid}`, { v: VISIT_CUSTOM_REP });
-   return data;
+   try {
+      const { data } = await openmrsGet(`/visit/${visitUuid}`, { v: VISIT_CUSTOM_REP });
+      return data;
+   } catch (err) {
+      // OpenMRS "uuid doesn't exist [null]" can mean a nested field in the custom
+      // rep (not the visit itself) is null -- log the requested uuid alongside the
+      // full error so a bad-visit-uuid case is distinguishable from a data issue.
+      console.error(`[openmrs] getVisit(${visitUuid}) failed:`, err.response?.data || err.message);
+      throw err;
+   }
 };
 
 // Fetching Follow-ups from mindmap service

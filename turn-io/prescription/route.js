@@ -17,15 +17,22 @@ const clean = (v) => (isBlank(v) ? "" : String(v).trim());
 const publicBase = (req) =>
    (clean(process.env.PUBLIC_BASE_URL) || `${req.protocol}://${req.get("host")}`).replace(/\/+$/, "");
 const pdfUrl = (req, visitUuid) => `${publicBase(req)}/webhooks/turn/prescription/${visitUuid}.pdf`;
-const pdfName = (data, visitUuid) => `e-prescription_${data.patientId || visitUuid}.pdf`;
+
+// Patient's full name, filesystem/URL-safe, for the downloaded filename. 
+const fileSafeName = (data, visitUuid) =>
+   clean(data.patientName).replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "") || data.patientId || visitUuid;
+const pdfName = (data, visitUuid) => `e-prescription_${fileSafeName(data, visitUuid)}.pdf`;
 
 // Tracks visits already pushed so a doctor-share retry never double-sends (in-memory: single-instance only).
 const notifiedVisits = new Set();
 
 // Sends the prescription PDF, then the follow-up message if the doctor scheduled one.
-const notifyForVisit = async (visitUuid, { number: overrideNumber, baseUrl } = {}) => {
+// `visit`, when the caller already has it (e.g. fetched right after creating the
+// visit-complete encounter), is used as-is instead of re-reading OpenMRS -- avoids
+// a race with that encounter write not yet being visible on a fresh read.
+const notifyForVisit = async (visitUuid, { number: overrideNumber, baseUrl, visit } = {}) => {
    if (notifiedVisits.has(visitUuid)) return { ok: true, skipped: true };
-   const data = buildPrescriptionData(await getVisit(visitUuid));
+   const data = buildPrescriptionData(visit || (await getVisit(visitUuid)));
    if (!hasPrescription(data)) return { ok: false, status: 409 };
    const number = clean(overrideNumber) || data.phone;
    if (!number) return { ok: false, status: 422 };
@@ -34,7 +41,7 @@ const notifyForVisit = async (visitUuid, { number: overrideNumber, baseUrl } = {
    await notifyPrescriptionReady({
       number,
       pdfUrl: `${base}/webhooks/turn/prescription/${visitUuid}.pdf`,
-      filename: `e-prescription_${data.patientId || visitUuid}.pdf`,
+      filename: pdfName(data, visitUuid),
       name: data.patientName,
    });
    notifiedVisits.add(visitUuid); // only after a successful send, so a failed push can retry
@@ -92,16 +99,17 @@ router.all("/prescription/status", (req, res) =>
    respondWithStatus(req, res, { ...req.query, ...req.body }, "prescription status")
 );
 
-// Doctor-share push: sends the PDF (and follow-up message) via Turn. Body: { visit_uuid, number? };
+// Doctor-share push: sends the PDF (and follow-up message) via Turn. Body: { visit_uuid, number?, visit? };
 router.post("/prescription/notify", async (req, res) => {
    const src = { ...req.query, ...req.body };
-   console.log("\n[prescription notify] received:", JSON.stringify(src));
+   // Don't log `visit` -- it's the full patient/visit payload (PHI) when the caller supplies one.
+   console.log("\n[prescription notify] received:", JSON.stringify({ ...src, visit: src.visit ? "[provided]" : undefined }));
    try {
       const visitUuid = clean(src.visit_uuid);
       if (!visitUuid) {
          return res.status(400).json({ success: false, error: "visit_uuid is required" });
       }
-      const opts = { number: src.number, baseUrl: publicBase(req) };
+      const opts = { number: src.number, baseUrl: publicBase(req), visit: src.visit || null };
       const result = await notifyForVisit(visitUuid, opts);
       if (result.skipped) {
          console.log(`[prescription notify] already notified ${visitUuid} -- skipping`);
@@ -126,9 +134,9 @@ router.post("/prescription/notify", async (req, res) => {
 });
 
 // Streams the PDF with headers so WhatsApp renders it as an in-chat document.
-const sendPdf = (res, pdf, p_name) => {
+const sendPdf = (res, pdf, filename) => {
    res.setHeader("Content-Type", "application/pdf");
-   res.setHeader("Content-Disposition", `attachment; filename="e-prescription_${p_name}.pdf"`);
+   res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
    res.setHeader("Content-Length", pdf.length);
    res.setHeader("Accept-Ranges", "bytes");
    res.setHeader("Cache-Control", "no-cache");
@@ -145,9 +153,11 @@ router.get("/prescription/:visitUuid.pdf", async (req, res) => {
       }
       const data = buildPrescriptionData(await getVisit(visitUuid));
       if (!hasPrescription(data)) return sendNotReady(res);
-      sendPdf(res, await generatePrescriptionPdf(data), data.patientName || visitUuid);
+      sendPdf(res, await generatePrescriptionPdf(data), pdfName(data, visitUuid));
    } catch (err) {
-      console.error("[prescription pdf] error:", errDetail(err));
+      // err can be a non-Error thrown by pdfmake, so log it directly rather than
+      // errDetail(err) alone (which resolves to undefined for those cases).
+      console.error(`[prescription pdf] error for visit ${visitUuid}:`, errDetail(err) ?? err);
       sendNotReady(res);
    }
 });

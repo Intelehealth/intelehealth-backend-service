@@ -538,6 +538,10 @@ const renderDocDefinition = (docDefinition) =>
 const generatePrescriptionPdf = (data) => {
    const safe = data || {};
    return renderDocDefinition(buildDocDefinition(safe)).catch((err) => {
+      // pdfmake/PDFKit sometimes throws a non-Error value on a malformed layout
+      // node, so err.message can be undefined -- log the value itself so a
+      // future failure is diagnosable instead of showing "error: undefined".
+      console.error(`[prescription pdf] render failed for visit ${safe.visitUuid || "?"}:`, err);
       if (usableSignature(safe.doctorSignatureUrl)) {
          return renderDocDefinition(buildDocDefinition(safe, { noSignatureImage: true }));
       }
