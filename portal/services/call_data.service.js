@@ -194,7 +194,7 @@ module.exports = (function () {
         location: item2?.location?.name,
         district: 'Nashik',
         state: 'Maharashtra',
-        sevikaName: `${item2.encounters.find(e => e.type.name === 'Vitals')?.encounter_provider?.provider?.person?.person_name?.given_name} ${item2.encounters.find(e => e.type.name === 'Vitals')?.encounter_provider?.provider?.person?.person_name?.family_name}`
+        sevikaName: `${item2?.encounters?.find(e => e.type?.name === 'Vitals')?.encounter_provider?.provider?.person?.person_name?.given_name} ${item2?.encounters?.find(e => e.type?.name === 'Vitals')?.encounter_provider?.provider?.person?.person_name?.family_name}`
       };
     });
     return merged;
