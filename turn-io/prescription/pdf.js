@@ -131,7 +131,6 @@ const buildDocDefinition = (data, opts) => {
 
    // ---- Personal information --------------------------------------------
    const personalCells = [
-      kvStack("Name", data.patientName),
       kvStack("Gender", data.gender),
       kvStack("Age", data.age),
    ];
@@ -438,8 +437,8 @@ const buildDocDefinition = (data, opts) => {
       ],
       [nameRow],
    ];
-   body.push(consultation);
    body.push([personalInfo], [address]);
+   body.push(consultation);
    if (otherInfo) body.push([otherInfo]);
    if (chiefComplaint) body.push(chiefComplaint);
    body.push(vitals, diagnosis, medications, advice, tests);
