@@ -135,6 +135,7 @@ const buildDocDefinition = (data, opts) => {
       kvStack("Age", data.age),
    ];
    if (data.phone) personalCells.push(kvStack("Phone Number", data.phone));
+   personalCells.push(kvStack("Address", data.address));
    const personalInfo = {
       colSpan: 4,
       layout: "noBorders",
@@ -143,19 +144,6 @@ const buildDocDefinition = (data, opts) => {
          body: [
             [{ colSpan: 4, text: "Personal Information", style: "subheader" }, "", "", ""],
             ...chunkIntoRows(personalCells),
-         ],
-      },
-   };
-
-   // ---- Address ----------------------------------------------------------
-   const address = {
-      colSpan: 4,
-      layout: "noBorders",
-      table: {
-         widths: ["*", "*", "*", "*"],
-         body: [
-            [{ colSpan: 4, text: "Address", style: "subheader" }, "", "", ""],
-            [{ colSpan: 4, text: val(data.address), style: "pval" }, "", "", ""],
          ],
       },
    };
@@ -181,7 +169,7 @@ const buildDocDefinition = (data, opts) => {
    // ---- Chief complaint --------------------------------------------------
    // data.chiefComplaints: [{ complaint, details: [{ label, value }] }]. Render
    // each complaint bold, followed by its detail lines as "Label - value".
-   // Section is omitted entirely when there are no complaints.
+ 
    let chiefComplaint = null;
    if (Array.isArray(data.chiefComplaints) && data.chiefComplaints.length) {
       const ccItems = [];
@@ -437,7 +425,7 @@ const buildDocDefinition = (data, opts) => {
       ],
       [nameRow],
    ];
-   body.push([personalInfo], [address]);
+   body.push([personalInfo]);
    body.push(consultation);
    if (otherInfo) body.push([otherInfo]);
    if (chiefComplaint) body.push(chiefComplaint);
