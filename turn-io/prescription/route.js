@@ -30,8 +30,9 @@ const notifiedVisits = new Set();
 // `visit`, when the caller already has it (e.g. fetched right after creating the
 // visit-complete encounter), is used as-is instead of re-reading OpenMRS -- avoids
 // a race with that encounter write not yet being visible on a fresh read.
-const notifyForVisit = async (visitUuid, { number: overrideNumber, baseUrl, visit } = {}) => {
-   if (notifiedVisits.has(visitUuid)) return { ok: true, skipped: true };
+// `resend` skips the already-notified dedup, for an explicit "Update Prescription" resend.
+const notifyForVisit = async (visitUuid, { number: overrideNumber, baseUrl, visit, resend } = {}) => {
+   if (!resend && notifiedVisits.has(visitUuid)) return { ok: true, skipped: true };
    const data = buildPrescriptionData(visit || (await getVisit(visitUuid)));
    if (!hasPrescription(data)) return { ok: false, status: 409 };
    const number = clean(overrideNumber) || data.phone;
@@ -99,7 +100,7 @@ router.all("/prescription/status", (req, res) =>
    respondWithStatus(req, res, { ...req.query, ...req.body }, "prescription status")
 );
 
-// Doctor-share push: sends the PDF (and follow-up message) via Turn. Body: { visit_uuid, number?, visit? };
+// Doctor-share push: sends the PDF (and follow-up message) via Turn. Body: { visit_uuid, number?, visit?, resend? };
 router.post("/prescription/notify", async (req, res) => {
    const src = { ...req.query, ...req.body };
    // Don't log `visit` -- it's the full patient/visit payload (PHI) when the caller supplies one.
@@ -109,7 +110,7 @@ router.post("/prescription/notify", async (req, res) => {
       if (!visitUuid) {
          return res.status(400).json({ success: false, error: "visit_uuid is required" });
       }
-      const opts = { number: src.number, baseUrl: publicBase(req), visit: src.visit || null };
+      const opts = { number: src.number, baseUrl: publicBase(req), visit: src.visit || null, resend: Boolean(src.resend) };
       const result = await notifyForVisit(visitUuid, opts);
       if (result.skipped) {
          console.log(`[prescription notify] already notified ${visitUuid} -- skipping`);
