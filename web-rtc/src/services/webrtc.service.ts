@@ -296,9 +296,10 @@ export class WebRTCService {
                 }));
             }
             const strlocation = (params?.location) ? (params.location) : "Other";
+            const strVisitId = (params?.visitId) ? (params.visitId) : "unknown-visit";
             const timestamp = new Date();
             const formattedTime = moment().format('DD-MM-YYYY_HH:mm:ss');
-            const filePath = `${BRANDNAME}/${DOMAIN}/${strlocation}/recording-${formattedTime}.mp4`;
+            const filePath = `${BRANDNAME}/${DOMAIN}/${strlocation}/recording-${strVisitId}-${formattedTime}.mp4`;
             console.log('filePath:', filePath);
             const output = {
                 file: new EncodedFileOutput({

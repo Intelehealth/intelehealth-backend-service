@@ -396,6 +396,14 @@ module.exports = (function () {
                 )
             where
                 v.voided = 0
+                and not exists (
+                    select 1 from encounter ce
+                    where ce.visit_id = v.visit_id and ce.voided = 0
+                        and ce.encounter_type = (
+                            select encounter_type_id from encounter_type
+                            where uuid = '${Constant.VISIT_COMPLETE_ENCOUNTER_TYPE_UUID}'
+                        )
+                )
       group by v.visit_id, v.uuid
     `;
     };
