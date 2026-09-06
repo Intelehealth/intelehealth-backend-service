@@ -11,10 +11,14 @@
 #   - arm64: pathqa
 #
 # Jobs:
-#   1. prepare-matrix  Decides which environments (and their arch) to deploy based on trigger/inputs
-#   2. build           Builds an amd64 image natively and an arm64 image via QEMU/buildx,
-#                      uploads each as a separate workflow artifact
-#   3. deploy          Matrix job — downloads the artifact matching each host's arch and deploys in parallel
+#   1. prepare-matrix  Decides which environments (and their arch) to deploy, and whether
+#                      pathqa (arm64) is needed at all this run.
+#   2. build-amd64     Native amd64 build (fast, no emulation). Always runs.
+#   3. build-arm64     Cross-build via QEMU/buildx. SKIPPED unless pathqa is being deployed,
+#                      to avoid paying the emulation cost on every run.
+#   Both build jobs run in parallel and use GitHub Actions cache for Docker layers,
+#   so unchanged layers (e.g. the apk/apt toolchain layer) aren't rebuilt every time.
+#   4. deploy          Matrix job — downloads the artifact matching each host's arch and deploys in parallel
 #
 # Required secrets:
 #   DEV_HOST, TURN_HOST, TTXAI_HOST, TESTTURN_HOST, PATHQA_HOST — SSH hostnames/IPs
@@ -23,7 +27,7 @@
 #
 # To add a new host: add a secret for the hostname, map it in the deploy job env block,
 # add a case in "Resolve host", add a boolean input, add it to the push matrix (with its arch),
-# and make sure the build job produces an image for that arch.
+# and make sure a build job exists for that arch.
 
 name: Portal Deploy
 
@@ -63,6 +67,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+      need_arm64: ${{ steps.set-matrix.outputs.need_arm64 }}
     steps:
       - name: Build deployment matrix
         id: set-matrix
@@ -70,9 +75,11 @@ jobs:
           if [ "${{ github.event_name }}" == "push" ]; then
             # On push, deploy to all hosts
             matrix='{"include":[{"environment":"dev","arch":"amd64"},{"environment":"turn","arch":"amd64"},{"environment":"ttxai","arch":"amd64"},{"environment":"testturn","arch":"amd64"},{"environment":"pathqa","arch":"arm64"}]}'
+            need_arm64=true
           else
             # On manual dispatch, deploy only to selected hosts
             includes='[]'
+            need_arm64=false
             if [ "${{ inputs.deploy_dev }}" == "true" ]; then
               includes=$(echo "$includes" | jq -c '. += [{"environment":"dev","arch":"amd64"}]')
             fi
@@ -87,53 +94,75 @@ jobs:
             fi
             if [ "${{ inputs.deploy_pathqa }}" == "true" ]; then
               includes=$(echo "$includes" | jq -c '. += [{"environment":"pathqa","arch":"arm64"}]')
+              need_arm64=true
             fi
             matrix="{\"include\":$includes}"
           fi
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
+          echo "need_arm64=$need_arm64" >> $GITHUB_OUTPUT
 
-  build:
+  check-migrations:
     runs-on: ubuntu-latest
     outputs:
-      migrations_changed: ${{ steps.check-migrations.outputs.changed }}
+      changed: ${{ steps.check-migrations.outputs.changed }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      #- name: Check for migration file changes
+        #id: check-migrations
+        #run: |
+        #  if [ "${{ github.event_name }}" != "push" ]; then
+        #    echo "changed=true" >> $GITHUB_OUTPUT
+        #  elif [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+        #    echo "changed=true" >> $GITHUB_OUTPUT
+        #  else
+        #    git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q "^portal/migrations/" \
+        #      && echo "changed=true" >> $GITHUB_OUTPUT \
+        #      || echo "changed=false" >> $GITHUB_OUTPUT
+        #  fi
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: portal/package-lock.json
+  build-amd64:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: npm i --production=false
-        working-directory: portal
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Check for migration file changes
-        id: check-migrations
-        run: |
-          if [ "${{ github.event_name }}" != "push" ]; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-          else
-            git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q "^portal/migrations/" \
-              && echo "changed=true" >> $GITHUB_OUTPUT \
-              || echo "changed=false" >> $GITHUB_OUTPUT
-          fi
-
-      # --- amd64: native build on the amd64 runner, no emulation needed ---
+      # Native build — no emulation. Cache pulled from/pushed to GitHub Actions cache
+      # so an unchanged Dockerfile layer (e.g. the OS package install) is reused instead
+      # of rebuilt on every run.
       - name: Build amd64 image
-        run: |
-          cd portal
-          docker build --platform linux/amd64 -t $DOCKER_IMAGE_NAME:${{ github.sha }}-amd64 .
-          docker save $DOCKER_IMAGE_NAME:${{ github.sha }}-amd64 > ../app-image-amd64.tar
+        uses: docker/build-push-action@v6
+        with:
+          context: portal
+          platforms: linux/amd64
+          tags: ${{ env.DOCKER_IMAGE_NAME }}:${{ github.sha }}-amd64
+          load: true
+          cache-from: type=gha,scope=amd64
+          cache-to: type=gha,mode=max,scope=amd64
 
-      # --- arm64: cross-build via QEMU + buildx (needed for pathqa) ---
+      - name: Save image
+        run: docker save $DOCKER_IMAGE_NAME:${{ github.sha }}-amd64 > app-image-amd64.tar
+
+      - name: Upload amd64 image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: portal-amd64
+          path: app-image-amd64.tar
+          retention-days: 1
+
+  build-arm64:
+    needs: prepare-matrix
+    if: needs.prepare-matrix.outputs.need_arm64 == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
         with:
@@ -143,21 +172,17 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build arm64 image
-        run: |
-          cd portal
-          docker buildx build \
-            --platform linux/arm64 \
-            -t $DOCKER_IMAGE_NAME:${{ github.sha }}-arm64 \
-            --load \
-            .
-          docker save $DOCKER_IMAGE_NAME:${{ github.sha }}-arm64 > ../app-image-arm64.tar
-
-      - name: Upload amd64 image artifact
-        uses: actions/upload-artifact@v4
+        uses: docker/build-push-action@v6
         with:
-          name: portal-amd64
-          path: app-image-amd64.tar
-          retention-days: 1
+          context: portal
+          platforms: linux/arm64
+          tags: ${{ env.DOCKER_IMAGE_NAME }}:${{ github.sha }}-arm64
+          load: true
+          cache-from: type=gha,scope=arm64
+          cache-to: type=gha,mode=max,scope=arm64
+
+      - name: Save image
+        run: docker save $DOCKER_IMAGE_NAME:${{ github.sha }}-arm64 > app-image-arm64.tar
 
       - name: Upload arm64 image artifact
         uses: actions/upload-artifact@v4
@@ -167,7 +192,14 @@ jobs:
           retention-days: 1
 
   deploy:
-    needs: [prepare-matrix, build]
+    needs: [prepare-matrix, check-migrations, build-amd64, build-arm64]
+    # build-arm64 may be skipped (need_arm64 == false) — don't let that count as a failure
+    if: |
+      always() &&
+      needs.prepare-matrix.result == 'success' &&
+      needs.check-migrations.result == 'success' &&
+      needs.build-amd64.result == 'success' &&
+      (needs.build-arm64.result == 'success' || needs.build-arm64.result == 'skipped')
     runs-on: ubuntu-latest
     strategy:
       matrix: ${{ fromJson(needs.prepare-matrix.outputs.matrix) }}
@@ -245,17 +277,17 @@ jobs:
             echo "Portal deployment to ${{ matrix.environment }} completed successfully"
           EOF
 
-      - name: Run migrations on ${{ matrix.environment }} host
-        if: needs.build.outputs.migrations_changed == 'true'
-        run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh -i ~/.ssh/deploy_key \
-              -o StrictHostKeyChecking=no \
-              -p $REMOTE_PORT \
-              $REMOTE_USER@$REMOTE_HOST \
-              "docker exec ${{ env.DOCKER_IMAGE_NAME }} npm run migrate"
+     # - name: Run migrations on ${{ matrix.environment }} host
+     #   if: needs.check-migrations.outputs.changed == 'true'
+     #   run: |
+     #     mkdir -p ~/.ssh
+     #     echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+     #     chmod 600 ~/.ssh/deploy_key
+     #     ssh -i ~/.ssh/deploy_key \
+     #         -o StrictHostKeyChecking=no \
+     #         -p $REMOTE_PORT \
+     #         $REMOTE_USER@$REMOTE_HOST \
+     #         "docker exec ${{ env.DOCKER_IMAGE_NAME }} npm run migrate"
 
       - name: Verify deployment on ${{ matrix.environment }}
         run: |
