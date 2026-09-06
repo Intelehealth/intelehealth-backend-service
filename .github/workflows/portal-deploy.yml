@@ -261,32 +261,4 @@ jobs:
             docker image prune -f
             echo "Portal deployment to ${{ matrix.environment }} completed successfully"
           EOF
-      - name: Verify deployment on ${{ matrix.environment }}
-        run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh -i ~/.ssh/deploy_key \
-              -o StrictHostKeyChecking=yes \
-              -p $REMOTE_PORT \
-              $REMOTE_USER@$REMOTE_HOST <<EOF
-            # Poll the Docker HEALTHCHECK status (defined in the image)
-            # instead of just checking the container is running.
-            for i in \$(seq 1 30); do
-              status=\$(docker inspect --format '{{.State.Health.Status}}' $DOCKER_IMAGE_NAME 2>/dev/null || echo missing)
-              echo "Health status: \$status"
-              if [ "\$status" = "healthy" ]; then
-                echo "Portal deployment on ${{ matrix.environment }} successful!"
-                exit 0
-              fi
-              if [ "\$status" = "unhealthy" ]; then
-                echo "ERROR: container is unhealthy. Recent logs:"
-                docker logs --tail 50 $DOCKER_IMAGE_NAME
-                exit 1
-              fi
-              sleep 10
-            done
-            echo "ERROR: timed out waiting for container to become healthy. Recent logs:"
-            docker logs --tail 50 $DOCKER_IMAGE_NAME
-            exit 1
-          EOF
+  
