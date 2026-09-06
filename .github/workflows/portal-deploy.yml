@@ -1,7 +1,23 @@
 # Portal Deploy
 #
-# Builds the portal Docker image for each required architecture
-# and deploys it to the selected remote hosts.
+# Builds the portal Docker image once and deploys it to one or more remote hosts.
+#
+# Triggers:
+#   - push to development_master (portal/** changes) → deploys to ALL hosts
+#   - workflow_dispatch (manual) → deploys to selected hosts via checkboxes
+#
+# Jobs:
+#   1. prepare-matrix  Decides which environments to deploy based on trigger/inputs
+#   2. build           Builds the Docker image and uploads it as a workflow artifact
+#   3. deploy          Matrix job — downloads the artifact and deploys to each host in parallel
+#
+# Required secrets:
+#   DEV_HOST, TURN_HOST   — SSH hostnames/IPs
+#   DEV_USER              — SSH username
+#   DEV_SSH_KEY           — SSH private key
+#
+# To add a new host: add a secret for the hostname, map it in the deploy job env block,
+# add a case in "Resolve host", add a boolean input, and add it to the push matrix.
 
 name: Portal Deploy
 
@@ -9,533 +25,206 @@ on:
   workflow_dispatch:
     inputs:
       deploy_dev:
-        description: "Deploy to DEV host"
+        description: 'Deploy to DEV host'
         type: boolean
         default: false
-
       deploy_turn:
-        description: "Deploy to TURN host"
+        description: 'Deploy to TURN host'
         type: boolean
         default: true
-
       deploy_ttxai:
-        description: "Deploy to TTXAI host"
+        description: 'Deploy to TTXAI host'
         type: boolean
         default: false
-
       deploy_testturn:
-        description: "Deploy to TESTTURN host"
+        description: 'Deploy to TESTTURN host'
         type: boolean
         default: false
-
       deploy_pathqa:
-        description: "Deploy to PATHQA host"
+        description: 'Deploy to PATHQA host'
         type: boolean
-        default: false
-
+        default: false   
   push:
-    branches:
-      - development_master
+    branches: [development_master]
     paths:
-      - "portal/**"
+      - 'portal/**'
 
 env:
   DOCKER_IMAGE_NAME: portal
 
 jobs:
-
-  # ============================================================
-  # PREPARE DEPLOYMENT MATRIX
-  # ============================================================
-
   prepare-matrix:
     runs-on: ubuntu-latest
-
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
-      need_amd64: ${{ steps.set-matrix.outputs.need_amd64 }}
-      need_arm64: ${{ steps.set-matrix.outputs.need_arm64 }}
-
     steps:
       - name: Build deployment matrix
         id: set-matrix
-        shell: bash
         run: |
           if [ "${{ github.event_name }}" == "push" ]; then
-
-            matrix='{
-              "include":[
-                {"environment":"dev","arch":"amd64"},
-                {"environment":"turn","arch":"amd64"},
-                {"environment":"ttxai","arch":"amd64"},
-                {"environment":"testturn","arch":"amd64"},
-                {"environment":"pathqa","arch":"arm64"}
-              ]
-            }'
-
-            matrix=$(echo "$matrix" | jq -c '.')
-
-            need_amd64=true
-            need_arm64=true
-
+            # On push, deploy to all hosts
+            matrix='{"include":[{"environment":"dev"},{"environment":"turn"} ,{"environment":"ttxai"},{"environment":"testturn"},{"environment":"pathqa"}]}'
           else
-
+            # On manual dispatch, deploy only to selected hosts
             includes='[]'
-
-            need_amd64=false
-            need_arm64=false
-
             if [ "${{ inputs.deploy_dev }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c \
-                '. += [{"environment":"dev","arch":"amd64"}]')
-              need_amd64=true
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"dev"}]')
             fi
-
             if [ "${{ inputs.deploy_turn }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c \
-                '. += [{"environment":"turn","arch":"amd64"}]')
-              need_amd64=true
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"turn"}]')
             fi
-
             if [ "${{ inputs.deploy_ttxai }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c \
-                '. += [{"environment":"ttxai","arch":"amd64"}]')
-              need_amd64=true
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"ttxai"}]')
             fi
-
             if [ "${{ inputs.deploy_testturn }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c \
-                '. += [{"environment":"testturn","arch":"amd64"}]')
-              need_amd64=true
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"testturn"}]')
             fi
-
             if [ "${{ inputs.deploy_pathqa }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c \
-                '. += [{"environment":"pathqa","arch":"arm64"}]')
-              need_arm64=true
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"pathqa"}]')
             fi
-
-            matrix=$(jq -cn --argjson include "$includes" \
-              '{include:$include}')
-
+            matrix="{\"include\":$includes}"
           fi
-
-          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
-          echo "need_amd64=$need_amd64" >> "$GITHUB_OUTPUT"
-          echo "need_arm64=$need_arm64" >> "$GITHUB_OUTPUT"
-
-          echo "Deployment matrix:"
-          echo "$matrix" | jq '.'
-
-          echo "Need amd64: $need_amd64"
-          echo "Need arm64: $need_arm64"
-
-
-  # ============================================================
-  # CHECK MIGRATIONS
-  # ============================================================
-
-  check-migrations:
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
+  build:
     runs-on: ubuntu-latest
-
     outputs:
-      changed: ${{ steps.check-migrations.outputs.changed }}
-
+      migrations_changed: ${{ steps.check-migrations.outputs.changed }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: portal/package-lock.json
+
+      - name: Install dependencies
+        run: npm i --production=false
+        working-directory: portal
+
       - name: Check for migration file changes
         id: check-migrations
-        shell: bash
         run: |
           if [ "${{ github.event_name }}" != "push" ]; then
-
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-
+            echo "changed=true" >> $GITHUB_OUTPUT
           elif [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
-
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-
+            echo "changed=true" >> $GITHUB_OUTPUT
           else
-
-            if git diff --name-only \
-              "${{ github.event.before }}" \
-              "${{ github.sha }}" \
-              | grep -q "^portal/migrations/"; then
-
-              echo "changed=true" >> "$GITHUB_OUTPUT"
-
-            else
-
-              echo "changed=false" >> "$GITHUB_OUTPUT"
-
-            fi
-
+            git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q "^portal/migrations/" \
+              && echo "changed=true" >> $GITHUB_OUTPUT \
+              || echo "changed=false" >> $GITHUB_OUTPUT
           fi
-
-
-  # ============================================================
-  # BUILD AMD64
-  # ============================================================
-
-  build-amd64:
-    needs: prepare-matrix
-
-    if: needs.prepare-matrix.outputs.need_amd64 == 'true'
-
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build amd64 image
-        uses: docker/build-push-action@v6
-        with:
-          context: portal
-          platforms: linux/amd64
-
-          tags: |
-            ${{ env.DOCKER_IMAGE_NAME }}:${{ github.sha }}-amd64
-
-          load: true
-
-          cache-from: |
-            type=gha,scope=portal-amd64
-
-          cache-to: |
-            type=gha,mode=max,scope=portal-amd64
-
-          provenance: false
-
-      - name: Save amd64 image
-        shell: bash
+      - name: Build Docker image
         run: |
-          docker save \
-            "${DOCKER_IMAGE_NAME}:${{ github.sha }}-amd64" \
-            -o app-image-amd64.tar
-
-      - name: Upload amd64 image artifact
+          cd portal
+          docker build --platform linux/arm64 -t $DOCKER_IMAGE_NAME:${{ github.sha }} .
+          docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > ../app-image.tar
+      - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
-          name: portal-amd64
-          path: app-image-amd64.tar
+          name: portal
+          path: app-image.tar
           retention-days: 1
-
-
-  # ============================================================
-  # BUILD ARM64
-  # ============================================================
-
-  build-arm64:
-    needs: prepare-matrix
-
-    if: needs.prepare-matrix.outputs.need_arm64 == 'true'
-
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      # Required because GitHub-hosted runners are amd64.
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      # Useful diagnostic information.
-      - name: Show Buildx platforms
-        shell: bash
-        run: |
-          docker buildx inspect --bootstrap
-          docker buildx ls
-
-      - name: Build arm64 image
-        uses: docker/build-push-action@v6
-        with:
-          context: portal
-
-          platforms: linux/arm64
-
-          tags: |
-            ${{ env.DOCKER_IMAGE_NAME }}:${{ github.sha }}-arm64
-
-          load: true
-
-          # ARM64 gets its own cache.
-          cache-from: |
-            type=gha,scope=portal-arm64
-
-          cache-to: |
-            type=gha,mode=max,scope=portal-arm64
-
-          # Prevent unnecessary provenance/image-index behavior
-          # when we only need to docker load/save the image.
-          provenance: false
-
-      - name: Verify arm64 image
-        shell: bash
-        run: |
-          docker image inspect \
-            "${DOCKER_IMAGE_NAME}:${{ github.sha }}-arm64"
-
-          docker image inspect \
-            "${DOCKER_IMAGE_NAME}:${{ github.sha }}-arm64" \
-            --format='Architecture={{.Architecture}} OS={{.Os}}'
-
-      - name: Save arm64 image
-        shell: bash
-        run: |
-          docker save \
-            "${DOCKER_IMAGE_NAME}:${{ github.sha }}-arm64" \
-            -o app-image-arm64.tar
-
-      - name: Upload arm64 image artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: portal-arm64
-          path: app-image-arm64.tar
-          retention-days: 1
-
-
-  # ============================================================
-  # DEPLOY
-  # ============================================================
 
   deploy:
-    needs:
-      - prepare-matrix
-      - check-migrations
-      - build-amd64
-      - build-arm64
-
-    if: |
-      always() &&
-      needs.prepare-matrix.result == 'success' &&
-      needs.check-migrations.result == 'success' &&
-      (needs.build-amd64.result == 'success' ||
-       needs.build-amd64.result == 'skipped') &&
-      (needs.build-arm64.result == 'success' ||
-       needs.build-arm64.result == 'skipped')
-
+    needs: [prepare-matrix, build]
     runs-on: ubuntu-latest
-
     strategy:
-      fail-fast: false
       matrix: ${{ fromJson(needs.prepare-matrix.outputs.matrix) }}
-
+      fail-fast: false  # a failure on one host should not cancel the other
     env:
       REMOTE_PORT: 22
-
       ENV_FILE_PATH: /home/ubuntu/deploy/portal/.env
       PEM_FOLDER_PATH: /home/ubuntu/deploy/portal/.pem
-
+      # All host secrets mapped upfront — dynamic secret refs aren't supported in GitHub Actions
       DEV_HOST: ${{ secrets.DEV_HOST }}
       TURN_HOST: ${{ secrets.TURN_HOST }}
       TTXAI_HOST: ${{ secrets.TTXAI_HOST }}
       TESTTURN_HOST: ${{ secrets.TESTTURN_HOST }}
       PATHQA_HOST: ${{ secrets.PATHQA_HOST }}
-
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
-
     steps:
-
-      # --------------------------------------------------------
-      # Resolve target host
-      # --------------------------------------------------------
-
       - name: Resolve host for environment
-        shell: bash
         run: |
           case "${{ matrix.environment }}" in
-
-            dev)
-              echo "REMOTE_HOST=$DEV_HOST" >> "$GITHUB_ENV"
-              ;;
-
-            turn)
-              echo "REMOTE_HOST=$TURN_HOST" >> "$GITHUB_ENV"
-              ;;
-
-            ttxai)
-              echo "REMOTE_HOST=$TTXAI_HOST" >> "$GITHUB_ENV"
-              ;;
-
-            testturn)
-              echo "REMOTE_HOST=$TESTTURN_HOST" >> "$GITHUB_ENV"
-              ;;
-
-            pathqa)
-              echo "REMOTE_HOST=$PATHQA_HOST" >> "$GITHUB_ENV"
-              ;;
-
-            *)
-              echo "Unknown environment: ${{ matrix.environment }}"
-              exit 1
-              ;;
-
+            dev)  echo "REMOTE_HOST=$DEV_HOST"  >> $GITHUB_ENV ;;
+            turn) echo "REMOTE_HOST=$TURN_HOST" >> $GITHUB_ENV ;;
+            ttxai) echo "REMOTE_HOST=$TTXAI_HOST" >> $GITHUB_ENV ;;
+            testturn) echo "REMOTE_HOST=$TESTTURN_HOST" >> $GITHUB_ENV ;;
+            pathqa) echo "REMOTE_HOST=$PATHQA_HOST" >> $GITHUB_ENV ;;
+            *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
-
-
-      # --------------------------------------------------------
-      # Download image built for correct architecture
-      # --------------------------------------------------------
-
       - name: Download image artifact
         uses: actions/download-artifact@v4
         with:
-          name: portal-${{ matrix.arch }}
+          name: portal
 
-
-      # --------------------------------------------------------
-      # Prepare SSH
-      # --------------------------------------------------------
-
-      - name: Configure SSH
-        shell: bash
+      - name: Deploy to ${{ matrix.environment }} host
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-
-          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-
-
-      # --------------------------------------------------------
-      # Deploy
-      # --------------------------------------------------------
-
-      - name: Deploy to ${{ matrix.environment }} host
-        shell: bash
-        run: |
-
-          echo "Deploying:"
-          echo "Environment : ${{ matrix.environment }}"
-          echo "Architecture: ${{ matrix.arch }}"
-          echo "Host        : $REMOTE_HOST"
-
-          scp \
-            -i ~/.ssh/deploy_key \
-            -o StrictHostKeyChecking=no \
-            -P "$REMOTE_PORT" \
-            "app-image-${{ matrix.arch }}.tar" \
-            "$REMOTE_USER@$REMOTE_HOST:/tmp/"
-
-          ssh \
-            -i ~/.ssh/deploy_key \
-            -o StrictHostKeyChecking=no \
-            -p "$REMOTE_PORT" \
-            "$REMOTE_USER@$REMOTE_HOST" <<EOF
-
-          set -e
-
-          DOCKER_IMAGE_NAME="${{ env.DOCKER_IMAGE_NAME }}"
-          ENV_FILE_PATH="${{ env.ENV_FILE_PATH }}"
-          PEM_FOLDER_PATH="${{ env.PEM_FOLDER_PATH }}"
-
-          echo "Loading Docker image..."
-
-          docker load \
-            -i "/tmp/app-image-${{ matrix.arch }}.tar"
-
-          rm -f \
-            "/tmp/app-image-${{ matrix.arch }}.tar"
-
-
-          echo "Checking image architecture..."
-
-          docker image inspect \
-            "\$DOCKER_IMAGE_NAME:${{ github.sha }}-${{ matrix.arch }}" \
-            --format='Architecture={{.Architecture}} OS={{.Os}}'
-
-
-          echo "Stopping previous container..."
-
-          docker stop "\$DOCKER_IMAGE_NAME" || true
-          docker rm "\$DOCKER_IMAGE_NAME" || true
-
-
-          if [ ! -f "\$ENV_FILE_PATH" ]; then
-            echo "ERROR: .env file not found at \$ENV_FILE_PATH"
-            exit 1
-          fi
-
-
-          if [ ! -d "\$PEM_FOLDER_PATH" ]; then
-            echo "ERROR: .pem folder not found at \$PEM_FOLDER_PATH"
-            exit 1
-          fi
-
-
-          echo "Starting Portal container..."
-
-          docker run -d \
-            --name "\$DOCKER_IMAGE_NAME" \
-            --restart unless-stopped \
-            -p 3004:3004 \
-            --env-file "\$ENV_FILE_PATH" \
-            -v "\$PEM_FOLDER_PATH:/app/.pem" \
-            --mount \
-              type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
-            "\$DOCKER_IMAGE_NAME:${{ github.sha }}-${{ matrix.arch }}"
-
-
-          echo "Running container:"
-
-          docker ps \
-            --filter "name=\$DOCKER_IMAGE_NAME"
-
-
-          docker image prune -f
-
-          echo "Portal deployment to ${{ matrix.environment }} completed successfully."
-
+          # Copy Docker image to remote host
+          scp -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              -P $REMOTE_PORT \
+              app-image.tar \
+              $REMOTE_USER@$REMOTE_HOST:/tmp/
+          # SSH into remote host and deploy
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              -p $REMOTE_PORT \
+              $REMOTE_USER@$REMOTE_HOST <<EOF
+            DOCKER_IMAGE_NAME="${{ env.DOCKER_IMAGE_NAME }}"
+            ENV_FILE_PATH="${{ env.ENV_FILE_PATH }}"
+            PEM_FOLDER_PATH="${{ env.PEM_FOLDER_PATH }}"
+            docker load -i /tmp/app-image.tar
+            rm /tmp/app-image.tar
+            docker stop \$DOCKER_IMAGE_NAME || true
+            docker rm \$DOCKER_IMAGE_NAME || true
+            if [ ! -f "\$ENV_FILE_PATH" ]; then
+              echo "Error: .env file not found at \$ENV_FILE_PATH"
+              exit 1
+            fi
+            if [ ! -d "\$PEM_FOLDER_PATH" ]; then
+              echo "Error: .pem folder not found at \$PEM_FOLDER_PATH"
+              exit 1
+            fi
+            docker run -d \
+              --name \$DOCKER_IMAGE_NAME \
+              --restart unless-stopped \
+              -p 3004:3004 \
+              --env-file \$ENV_FILE_PATH \
+              -v \$PEM_FOLDER_PATH:/app/.pem \
+              --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
+              \$DOCKER_IMAGE_NAME:${{ github.sha }}
+            docker image prune -f
+            echo "Portal deployment to ${{ matrix.environment }} completed successfully"
           EOF
-
-
-      # --------------------------------------------------------
-      # Run DB migrations when needed
-      # --------------------------------------------------------
-
       - name: Run migrations on ${{ matrix.environment }} host
-        if: needs.check-migrations.outputs.changed == 'true'
-        shell: bash
+        if: needs.build.outputs.migrations_changed == 'true'
         run: |
-
-          ssh \
-            -i ~/.ssh/deploy_key \
-            -o StrictHostKeyChecking=no \
-            -p "$REMOTE_PORT" \
-            "$REMOTE_USER@$REMOTE_HOST" \
-            "docker exec ${{ env.DOCKER_IMAGE_NAME }} npm run migrate"
-
-
-      # --------------------------------------------------------
-      # Verify
-      # --------------------------------------------------------
-
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              -p $REMOTE_PORT \
+              $REMOTE_USER@$REMOTE_HOST \
+              "docker exec ${{ env.DOCKER_IMAGE_NAME }} npm run migrate"
       - name: Verify deployment on ${{ matrix.environment }}
-        shell: bash
         run: |
-
-          ssh \
-            -i ~/.ssh/deploy_key \
-            -o StrictHostKeyChecking=no \
-            -p "$REMOTE_PORT" \
-            "$REMOTE_USER@$REMOTE_HOST" \
-            "docker ps --filter name=${{ env.DOCKER_IMAGE_NAME }} && \
-             docker inspect ${{ env.DOCKER_IMAGE_NAME }} \
-             --format='Status={{.State.Status}} Image={{.Config.Image}}' && \
-             echo 'Portal deployment on ${{ matrix.environment }} successful!'"
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              -p $REMOTE_PORT \
+              $REMOTE_USER@$REMOTE_HOST \
+              "docker ps | grep $DOCKER_IMAGE_NAME && echo 'Portal deployment on ${{ matrix.environment }} successful!'"
