@@ -67,6 +67,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+      need_amd64: ${{ steps.set-matrix.outputs.need_amd64 }}
       need_arm64: ${{ steps.set-matrix.outputs.need_arm64 }}
     steps:
       - name: Build deployment matrix
@@ -75,22 +76,28 @@ jobs:
           if [ "${{ github.event_name }}" == "push" ]; then
             # On push, deploy to all hosts
             matrix='{"include":[{"environment":"dev","arch":"amd64"},{"environment":"turn","arch":"amd64"},{"environment":"ttxai","arch":"amd64"},{"environment":"testturn","arch":"amd64"},{"environment":"pathqa","arch":"arm64"}]}'
+            need_amd64=true
             need_arm64=true
           else
             # On manual dispatch, deploy only to selected hosts
             includes='[]'
+            need_amd64=false
             need_arm64=false
             if [ "${{ inputs.deploy_dev }}" == "true" ]; then
               includes=$(echo "$includes" | jq -c '. += [{"environment":"dev","arch":"amd64"}]')
+              need_amd64=true
             fi
             if [ "${{ inputs.deploy_turn }}" == "true" ]; then
               includes=$(echo "$includes" | jq -c '. += [{"environment":"turn","arch":"amd64"}]')
+              need_amd64=true
             fi
             if [ "${{ inputs.deploy_ttxai }}" == "true" ]; then
               includes=$(echo "$includes" | jq -c '. += [{"environment":"ttxai","arch":"amd64"}]')
+              need_amd64=true
             fi
             if [ "${{ inputs.deploy_testturn }}" == "true" ]; then
               includes=$(echo "$includes" | jq -c '. += [{"environment":"testturn","arch":"amd64"}]')
+              need_amd64=true
             fi
             if [ "${{ inputs.deploy_pathqa }}" == "true" ]; then
               includes=$(echo "$includes" | jq -c '. += [{"environment":"pathqa","arch":"arm64"}]')
@@ -99,6 +106,7 @@ jobs:
             matrix="{\"include\":$includes}"
           fi
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
+          echo "need_amd64=$need_amd64" >> $GITHUB_OUTPUT
           echo "need_arm64=$need_arm64" >> $GITHUB_OUTPUT
 
   check-migrations:
@@ -110,20 +118,22 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      #- name: Check for migration file changes
-        #id: check-migrations
-        #run: |
-        #  if [ "${{ github.event_name }}" != "push" ]; then
-        #    echo "changed=true" >> $GITHUB_OUTPUT
-        #  elif [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
-        #    echo "changed=true" >> $GITHUB_OUTPUT
-        #  else
-        #    git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q "^portal/migrations/" \
-        #      && echo "changed=true" >> $GITHUB_OUTPUT \
-        #      || echo "changed=false" >> $GITHUB_OUTPUT
-        #  fi
+      - name: Check for migration file changes
+        id: check-migrations
+        run: |
+          if [ "${{ github.event_name }}" != "push" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q "^portal/migrations/" \
+              && echo "changed=true" >> $GITHUB_OUTPUT \
+              || echo "changed=false" >> $GITHUB_OUTPUT
+          fi
 
   build-amd64:
+    needs: prepare-matrix
+    if: needs.prepare-matrix.outputs.need_amd64 == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -193,12 +203,13 @@ jobs:
 
   deploy:
     needs: [prepare-matrix, check-migrations, build-amd64, build-arm64]
-    # build-arm64 may be skipped (need_arm64 == false) — don't let that count as a failure
+    # build-amd64/build-arm64 may each be skipped if no host of that arch was selected —
+    # don't let a skip count as a failure, only an actual failure should block deploy
     if: |
       always() &&
       needs.prepare-matrix.result == 'success' &&
       needs.check-migrations.result == 'success' &&
-      needs.build-amd64.result == 'success' &&
+      (needs.build-amd64.result == 'success' || needs.build-amd64.result == 'skipped') &&
       (needs.build-arm64.result == 'success' || needs.build-arm64.result == 'skipped')
     runs-on: ubuntu-latest
     strategy:
@@ -277,17 +288,17 @@ jobs:
             echo "Portal deployment to ${{ matrix.environment }} completed successfully"
           EOF
 
-     # - name: Run migrations on ${{ matrix.environment }} host
-     #   if: needs.check-migrations.outputs.changed == 'true'
-     #   run: |
-     #     mkdir -p ~/.ssh
-     #     echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-     #     chmod 600 ~/.ssh/deploy_key
-     #     ssh -i ~/.ssh/deploy_key \
-     #         -o StrictHostKeyChecking=no \
-     #         -p $REMOTE_PORT \
-     #         $REMOTE_USER@$REMOTE_HOST \
-     #         "docker exec ${{ env.DOCKER_IMAGE_NAME }} npm run migrate"
+      - name: Run migrations on ${{ matrix.environment }} host
+        if: needs.check-migrations.outputs.changed == 'true'
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              -p $REMOTE_PORT \
+              $REMOTE_USER@$REMOTE_HOST \
+              "docker exec ${{ env.DOCKER_IMAGE_NAME }} npm run migrate"
 
       - name: Verify deployment on ${{ matrix.environment }}
         run: |
