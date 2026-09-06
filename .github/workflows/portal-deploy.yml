@@ -1,23 +1,29 @@
 # Portal Deploy
 #
-# Builds the portal Docker image once and deploys it to one or more remote hosts.
+# Builds the portal Docker image for each required architecture and deploys it to one or more remote hosts.
 #
 # Triggers:
 #   - push to development_master (portal/** changes) → deploys to ALL hosts
 #   - workflow_dispatch (manual) → deploys to selected hosts via checkboxes
 #
+# Architectures:
+#   - amd64: dev, turn, ttxai, testturn
+#   - arm64: pathqa
+#
 # Jobs:
-#   1. prepare-matrix  Decides which environments to deploy based on trigger/inputs
-#   2. build           Builds the Docker image and uploads it as a workflow artifact
-#   3. deploy          Matrix job — downloads the artifact and deploys to each host in parallel
+#   1. prepare-matrix  Decides which environments (and their arch) to deploy based on trigger/inputs
+#   2. build           Builds an amd64 image natively and an arm64 image via QEMU/buildx,
+#                      uploads each as a separate workflow artifact
+#   3. deploy          Matrix job — downloads the artifact matching each host's arch and deploys in parallel
 #
 # Required secrets:
-#   DEV_HOST, TURN_HOST   — SSH hostnames/IPs
+#   DEV_HOST, TURN_HOST, TTXAI_HOST, TESTTURN_HOST, PATHQA_HOST — SSH hostnames/IPs
 #   DEV_USER              — SSH username
 #   DEV_SSH_KEY           — SSH private key
 #
 # To add a new host: add a secret for the hostname, map it in the deploy job env block,
-# add a case in "Resolve host", add a boolean input, and add it to the push matrix.
+# add a case in "Resolve host", add a boolean input, add it to the push matrix (with its arch),
+# and make sure the build job produces an image for that arch.
 
 name: Portal Deploy
 
@@ -43,7 +49,7 @@ on:
       deploy_pathqa:
         description: 'Deploy to PATHQA host'
         type: boolean
-        default: false   
+        default: false
   push:
     branches: [development_master]
     paths:
@@ -63,24 +69,24 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" == "push" ]; then
             # On push, deploy to all hosts
-            matrix='{"include":[{"environment":"dev"},{"environment":"turn"} ,{"environment":"ttxai"},{"environment":"testturn"},{"environment":"pathqa"}]}'
+            matrix='{"include":[{"environment":"dev","arch":"amd64"},{"environment":"turn","arch":"amd64"},{"environment":"ttxai","arch":"amd64"},{"environment":"testturn","arch":"amd64"},{"environment":"pathqa","arch":"arm64"}]}'
           else
             # On manual dispatch, deploy only to selected hosts
             includes='[]'
             if [ "${{ inputs.deploy_dev }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c '. += [{"environment":"dev"}]')
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"dev","arch":"amd64"}]')
             fi
             if [ "${{ inputs.deploy_turn }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c '. += [{"environment":"turn"}]')
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"turn","arch":"amd64"}]')
             fi
             if [ "${{ inputs.deploy_ttxai }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c '. += [{"environment":"ttxai"}]')
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"ttxai","arch":"amd64"}]')
             fi
             if [ "${{ inputs.deploy_testturn }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c '. += [{"environment":"testturn"}]')
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"testturn","arch":"amd64"}]')
             fi
             if [ "${{ inputs.deploy_pathqa }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c '. += [{"environment":"pathqa"}]')
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"pathqa","arch":"arm64"}]')
             fi
             matrix="{\"include\":$includes}"
           fi
@@ -120,17 +126,44 @@ jobs:
               || echo "changed=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build Docker image
+      # --- amd64: native build on the amd64 runner, no emulation needed ---
+      - name: Build amd64 image
         run: |
           cd portal
-          docker build --platform linux/arm64 -t $DOCKER_IMAGE_NAME:${{ github.sha }} .
-          docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > ../app-image.tar
+          docker build --platform linux/amd64 -t $DOCKER_IMAGE_NAME:${{ github.sha }}-amd64 .
+          docker save $DOCKER_IMAGE_NAME:${{ github.sha }}-amd64 > ../app-image-amd64.tar
 
-      - name: Upload image artifact
+      # --- arm64: cross-build via QEMU + buildx (needed for pathqa) ---
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build arm64 image
+        run: |
+          cd portal
+          docker buildx build \
+            --platform linux/arm64 \
+            -t $DOCKER_IMAGE_NAME:${{ github.sha }}-arm64 \
+            --load \
+            .
+          docker save $DOCKER_IMAGE_NAME:${{ github.sha }}-arm64 > ../app-image-arm64.tar
+
+      - name: Upload amd64 image artifact
         uses: actions/upload-artifact@v4
         with:
-          name: portal
-          path: app-image.tar
+          name: portal-amd64
+          path: app-image-amd64.tar
+          retention-days: 1
+
+      - name: Upload arm64 image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: portal-arm64
+          path: app-image-arm64.tar
           retention-days: 1
 
   deploy:
@@ -138,7 +171,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix: ${{ fromJson(needs.prepare-matrix.outputs.matrix) }}
-      fail-fast: false  # a failure on one host should not cancel the other
+      fail-fast: false  # a failure on one host should not cancel the others
     env:
       REMOTE_PORT: 22
       ENV_FILE_PATH: /home/ubuntu/deploy/portal/.env
@@ -166,7 +199,7 @@ jobs:
       - name: Download image artifact
         uses: actions/download-artifact@v4
         with:
-          name: portal
+          name: portal-${{ matrix.arch }}
 
       - name: Deploy to ${{ matrix.environment }} host
         run: |
@@ -174,14 +207,12 @@ jobs:
           chmod 700 ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-
           # Copy Docker image to remote host
           scp -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=no \
               -P $REMOTE_PORT \
-              app-image.tar \
+              app-image-${{ matrix.arch }}.tar \
               $REMOTE_USER@$REMOTE_HOST:/tmp/
-
           # SSH into remote host and deploy
           ssh -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=no \
@@ -190,23 +221,18 @@ jobs:
             DOCKER_IMAGE_NAME="${{ env.DOCKER_IMAGE_NAME }}"
             ENV_FILE_PATH="${{ env.ENV_FILE_PATH }}"
             PEM_FOLDER_PATH="${{ env.PEM_FOLDER_PATH }}"
-
-            docker load -i /tmp/app-image.tar
-            rm /tmp/app-image.tar
-
+            docker load -i /tmp/app-image-${{ matrix.arch }}.tar
+            rm /tmp/app-image-${{ matrix.arch }}.tar
             docker stop \$DOCKER_IMAGE_NAME || true
             docker rm \$DOCKER_IMAGE_NAME || true
-
             if [ ! -f "\$ENV_FILE_PATH" ]; then
               echo "Error: .env file not found at \$ENV_FILE_PATH"
               exit 1
             fi
-
             if [ ! -d "\$PEM_FOLDER_PATH" ]; then
               echo "Error: .pem folder not found at \$PEM_FOLDER_PATH"
               exit 1
             fi
-
             docker run -d \
               --name \$DOCKER_IMAGE_NAME \
               --restart unless-stopped \
@@ -214,8 +240,7 @@ jobs:
               --env-file \$ENV_FILE_PATH \
               -v \$PEM_FOLDER_PATH:/app/.pem \
               --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
-              \$DOCKER_IMAGE_NAME:${{ github.sha }}
-
+              \$DOCKER_IMAGE_NAME:${{ github.sha }}-${{ matrix.arch }}
             docker image prune -f
             echo "Portal deployment to ${{ matrix.environment }} completed successfully"
           EOF
@@ -226,7 +251,6 @@ jobs:
           mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-
           ssh -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=no \
               -p $REMOTE_PORT \
@@ -238,7 +262,6 @@ jobs:
           mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-
           ssh -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=no \
               -p $REMOTE_PORT \
