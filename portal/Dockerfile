@@ -1,10 +1,10 @@
+
 FROM node:18-alpine
 
 WORKDIR /app
 
-# Runtime + native build dependencies.
-# Required particularly for native modules such as canvas on Alpine/ARM64.
-RUN apk add --no-cache \
+RUN apk update && apk upgrade && \
+    apk add --no-cache \
     dumb-init \
     curl \
     libc6-compat \
@@ -12,7 +12,7 @@ RUN apk add --no-cache \
     make \
     g++ \
     gcc \
-    musl-dev \
+    libc-dev \
     pkgconfig \
     pixman-dev \
     cairo-dev \
@@ -20,46 +20,23 @@ RUN apk add --no-cache \
     jpeg-dev \
     giflib-dev \
     librsvg-dev \
-    freetype-dev
+    && rm -rf /var/cache/apk/*
 
-# Copy dependency manifests first for Docker layer caching
-COPY package.json package-lock.json ./
+# Copy package files first
+COPY package*.json ./
 
-# Show exactly what architecture npm sees
-RUN echo "Node: $(node --version)" && \
-    echo "npm: $(npm --version)" && \
-    echo "arch: $(node -p 'process.arch')" && \
-    echo "platform: $(node -p 'process.platform')" && \
-    uname -a
+# Install dependencies
+RUN npm ci  --legacy-bundling
 
-# Alpine + ARM64 frequently needs native modules compiled locally.
-RUN npm ci --build-from-source --verbose || \
-    ( \
-      echo "========== NPM INSTALL FAILED ==========" && \
-      echo "Architecture: $(node -p 'process.arch')" && \
-      echo "Platform: $(node -p 'process.platform')" && \
-      echo "========== NPM LOGS ==========" && \
-      find /root/.npm/_logs \
-        -type f \
-        -name "*.log" \
-        -exec cat {} \; && \
-      exit 1 \
-    )
-
-# Application source
+# Copy application code
 COPY . .
 
+# Expose the port your app runs on
 EXPOSE 3004
 
-HEALTHCHECK \
-  --interval=30s \
-  --timeout=3s \
-  --start-period=10s \
-  --retries=3 \
-  CMD curl -fsS \
-    -H "X-Healthcheck-Token: ${HEALTHCHECK_TOKEN:-}" \
-    "http://127.0.0.1:${PORT:-3004}/health" || exit 1
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD curl -fsS -H "X-Healthcheck-Token: ${HEALTHCHECK_TOKEN:-}" \
+  http://127.0.0.1:${PORT:-3004}/health || exit 1
 
-ENTRYPOINT ["dumb-init", "--"]
-
+# Start the application
 CMD ["npm", "start"]
