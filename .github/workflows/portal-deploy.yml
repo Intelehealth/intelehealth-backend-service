@@ -142,18 +142,18 @@ jobs:
         run: npm i --production=false
         working-directory: portal
 
-      - name: Check for migration file changes
-        id: check-migrations
-        run: |
-          if [ "${{ github.event_name }}" != "push" ]; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-          else
-            git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q "^portal/migrations/" \
-              && echo "changed=true" >> $GITHUB_OUTPUT \
-              || echo "changed=false" >> $GITHUB_OUTPUT
-          fi
+ #     - name: Check for migration file changes
+ #       id: check-migrations
+ #       run: |
+ #         if [ "${{ github.event_name }}" != "push" ]; then
+ #           echo "changed=true" >> $GITHUB_OUTPUT
+ #         elif [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+ #           echo "changed=true" >> $GITHUB_OUTPUT
+ #         else
+ #           git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q "^portal/migrations/" \
+ #             && echo "changed=true" >> $GITHUB_OUTPUT \
+ #             || echo "changed=false" >> $GITHUB_OUTPUT
+ #         fi
       # Every leg builds natively: amd64 on the x64 runner, arm64 on the
       # ARM64 runner. No QEMU emulation needed.
       - name: Build Docker image (${{ matrix.arch }}, native)
@@ -247,17 +247,7 @@ jobs:
             fi
             # Run migrations from the NEW image as a one-off container BEFORE
             # swapping. If they fail, abort and keep the old container live.
-            if [ "${{ needs.build.outputs.migrations_changed }}" = "true" ]; then
-              echo "Running database migrations..."
-              if ! docker run --rm \
-                --env-file \$ENV_FILE_PATH \
-                -v \$PEM_FOLDER_PATH:/app/.pem \
-                \$DOCKER_IMAGE_NAME:${{ github.sha }} \
-                npm run migrate; then
-                echo "ERROR: migrations failed - keeping the current container running"
-                exit 1
-              fi
-            fi
+
             docker stop \$DOCKER_IMAGE_NAME || true
             docker rm \$DOCKER_IMAGE_NAME || true
             docker run -d \
