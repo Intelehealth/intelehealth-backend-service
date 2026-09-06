@@ -26,7 +26,7 @@ RUN apk update && apk upgrade && \
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci  --legacy-bundling
+RUN npm ci  --install-strategy=nested --verbose
 
 # Copy application code
 COPY . .
