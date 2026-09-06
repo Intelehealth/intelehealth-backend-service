@@ -212,7 +212,7 @@ jobs:
       (needs.build-arm64.result == 'success' || needs.build-arm64.result == 'skipped')
 
     #  needs.check-migrations.result == 'success' &&
-      runs-on: ubuntu-latest
+    runs-on: ubuntu-latest
     strategy:
       matrix: ${{ fromJson(needs.prepare-matrix.outputs.matrix) }}
       fail-fast: false  # a failure on one host should not cancel the others
