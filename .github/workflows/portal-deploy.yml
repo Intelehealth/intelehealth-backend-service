@@ -85,11 +85,20 @@ jobs:
               includes=$(echo "$includes" | jq -c --arg e "$env" --arg a "${!arch_var}" '. += [{"environment":$e,"arch":$a}]')
             done
           else
-            # On manual dispatch, deploy only to selected hosts
+            # On manual dispatch, deploy only to selected hosts.
+            # NOTE: "inputs.deploy_x" is GitHub expression syntax, not a bash
+            # variable - indirect expansion (${!...}) fails on the dots, so
+            # each input is expanded literally via the case below.
             includes='[]'
             for env in dev turn ttxai testturn pathqa; do
-              selected_var="inputs.deploy_${env}"
-              if [ "${!selected_var:-false}" == "true" ]; then
+              case "$env" in
+                dev)      selected="${{ inputs.deploy_dev }}" ;;
+                turn)     selected="${{ inputs.deploy_turn }}" ;;
+                ttxai)    selected="${{ inputs.deploy_ttxai }}" ;;
+                testturn) selected="${{ inputs.deploy_testturn }}" ;;
+                pathqa)   selected="${{ inputs.deploy_pathqa }}" ;;
+              esac
+              if [ "$selected" == "true" ]; then
                 arch_var="${env}_arch"
                 includes=$(echo "$includes" | jq -c --arg e "$env" --arg a "${!arch_var}" '. += [{"environment":$e,"arch":$a}]')
               fi
