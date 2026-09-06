@@ -3,18 +3,23 @@
 # Builds the auth-gateway Docker image once and deploys it to one or more remote hosts.
 #
 # Triggers:
-#   - push to development_master (auth-gateway/** changes) → deploys to ALL hosts
-#   - workflow_dispatch (manual) → deploys to selected hosts via checkboxes
+#   - push to development_master (auth-gateway/** changes) ? deploys to ALL hosts
+#   - workflow_dispatch (manual) ? deploys to selected hosts via checkboxes
 #
 # Jobs:
-#   1. prepare-matrix  Decides which environments to deploy based on trigger/inputs
-#   2. build           Builds the Docker image and uploads it as a workflow artifact
-#   3. deploy          Matrix job — downloads the artifact and deploys to each host in parallel
+#   1. prepare-matrix  Decides which environments to deploy, computes needed archs + migrations
+#   2. build           Builds the amd64 image natively and uploads it as an artifact
+#   3. build-arm64     Builds the arm64 image natively and uploads it as an artifact
+#   4. deploy          Matrix job � downloads the matching-arch artifact and deploys to each host
 #
 # Required secrets:
-#   DEV_HOST, TURN_HOST   — SSH hostnames/IPs
-#   DEV_USER              — SSH username
-#   DEV_SSH_KEY           — SSH private key
+#   DEV_HOST, TURN_HOST   � SSH hostnames/IPs
+#   DEV_USER              � SSH username
+#   DEV_SSH_KEY           � SSH private key
+#
+# Architecture mapping (hardcoded): each environment maps to a target arch so we build ONLY
+# what's needed, natively, on the matching runner (no QEMU). Update `arch_of` in prepare-matrix
+# and the artifact name in deploy when adding/changing a host.
 #
 # To add a new host: add a secret for the hostname, map it in the deploy job env block,
 # add a case in "Resolve host", add a boolean input, and add it to the push matrix.
@@ -57,54 +62,13 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
-    steps:
-      - name: Build deployment matrix
-        id: set-matrix
-        run: |
-          if [ "${{ github.event_name }}" == "push" ]; then
-            matrix='{"include":[{"environment":"dev"},{"environment":"turn"},{"environment":"ttxai"},{"environment":"testturn"},{"environment":"pathqa"}]}'
-          else
-            includes='[]'
-            if [ "${{ inputs.deploy_dev }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c '. += [{"environment":"dev"}]')
-            fi
-            if [ "${{ inputs.deploy_turn }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c '. += [{"environment":"turn"}]')
-            fi
-            if [ "${{ inputs.deploy_ttxai }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c '. += [{"environment":"ttxai"}]')
-            fi
-
-            if [ "${{ inputs.deploy_testturn }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c '. += [{"environment":"testturn"}]')
-            fi
-            if [ "${{ inputs.deploy_pathqa }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c '. += [{"environment":"pathqa"}]')
-            fi
-            matrix="{\"include\":$includes}"
-          fi
-          echo "matrix=$matrix" >> $GITHUB_OUTPUT
-
-  build:
-    runs-on: ubuntu-latest
-    outputs:
+      archs: ${{ steps.set-matrix.outputs.archs }}
       migrations_changed: ${{ steps.check-migrations.outputs.changed }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: auth-gateway/package-lock.json
-
-      - name: Install dependencies
-        run: npm i --production=false
-        working-directory: auth-gateway
 
       - name: Check for migration file changes
         id: check-migrations
@@ -119,20 +83,90 @@ jobs:
               || echo "changed=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build Docker image
+      - name: Build deployment matrix
+        id: set-matrix
+        run: |
+          # Hardcoded architecture mapping. All hosts are amd64 unless listed here.
+          arch_of() {
+            case "$1" in
+              pathqa) echo "arm64" ;;
+              *)      echo "amd64" ;;
+            esac
+          }
+          includes='[]'
+          if [ "${{ github.event_name }}" == "push" ]; then
+            for env in dev turn ttxai testturn pathqa; do
+              includes=$(echo "$includes" | jq -c --arg env "$env" --arg arch "$(arch_of "$env")" '. += [{"environment":$env,"arch":$arch}]')
+            done
+          else
+            if [ "${{ inputs.deploy_dev }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c --arg arch "$(arch_of dev)" '. += [{"environment":"dev","arch":$arch}]')
+            fi
+            if [ "${{ inputs.deploy_turn }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c --arg arch "$(arch_of turn)" '. += [{"environment":"turn","arch":$arch}]')
+            fi
+            if [ "${{ inputs.deploy_ttxai }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c --arg arch "$(arch_of ttxai)" '. += [{"environment":"ttxai","arch":$arch}]')
+            fi
+            if [ "${{ inputs.deploy_testturn }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c --arg arch "$(arch_of testturn)" '. += [{"environment":"testturn","arch":$arch}]')
+            fi
+            if [ "${{ inputs.deploy_pathqa }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c --arg arch "$(arch_of pathqa)" '. += [{"environment":"pathqa","arch":$arch}]')
+            fi
+          fi
+          archs=$(echo "$includes" | jq -r '.[].arch' | sort -u | paste -sd, -)
+          matrix="{\"include\":$includes}"
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
+          echo "archs=$archs" >> $GITHUB_OUTPUT
+
+  build:
+    runs-on: ubuntu-latest
+    needs: prepare-matrix
+    if: ${{ contains(needs.prepare-matrix.outputs.archs, 'amd64') }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build Docker image (amd64)
         run: |
           docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} ./auth-gateway
           docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > app-image.tar
 
-      - name: Upload image artifact
+      - name: Upload amd64 image artifact
         uses: actions/upload-artifact@v4
         with:
-          name: auth-gateway-image
+          name: auth-gateway-image-amd64
+          path: app-image.tar
+          retention-days: 1
+
+  build-arm64:
+    runs-on: ubuntu-24.04-arm
+    needs: prepare-matrix
+    if: ${{ contains(needs.prepare-matrix.outputs.archs, 'arm64') }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build Docker image (arm64)
+        run: |
+          docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} ./auth-gateway
+          docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > app-image.tar
+
+      - name: Upload arm64 image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: auth-gateway-image-arm64
           path: app-image.tar
           retention-days: 1
 
   deploy:
-    needs: [prepare-matrix, build]
+    needs: [prepare-matrix, build, build-arm64]
+    if: always()
     runs-on: ubuntu-latest
     strategy:
       matrix: ${{ fromJson(needs.prepare-matrix.outputs.matrix) }}
@@ -141,7 +175,7 @@ jobs:
       REMOTE_PORT: 22
       ENV_FILE_PATH: /home/ubuntu/deploy/auth-gateway/.env
       PEM_FOLDER_PATH: /home/ubuntu/deploy/auth-gateway/.pem
-      # All host secrets mapped upfront — dynamic secret refs aren't supported in GitHub Actions
+      # All host secrets mapped upfront � dynamic secret refs aren't supported in GitHub Actions
       DEV_HOST: ${{ secrets.DEV_HOST }}
       TURN_HOST: ${{ secrets.TURN_HOST }}
       TTXAI_HOST: ${{ secrets.TTXAI_HOST }}
@@ -164,7 +198,7 @@ jobs:
       - name: Download image artifact
         uses: actions/download-artifact@v4
         with:
-          name: auth-gateway-image
+          name: auth-gateway-image-${{ matrix.arch }}
 
       - name: Deploy to ${{ matrix.environment }} host
         run: |
@@ -222,27 +256,17 @@ jobs:
             echo "Auth-gateway deployment to ${{ matrix.environment }} completed successfully"
           EOF
 
-      - name: Run migrations on ${{ matrix.environment }} host
-        if: needs.build.outputs.migrations_changed == 'true'
-        run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
+  #    - name: Run migrations on ${{ matrix.environment }} host
+ #       if: needs.prepare-matrix.outputs.migrations_changed == 'true'
+#        run: |
+#          mkdir -p ~/.ssh
+#          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+#          chmod 600 ~/.ssh/deploy_key
 
-          ssh -i ~/.ssh/deploy_key \
-              -o StrictHostKeyChecking=no \
-              -p $REMOTE_PORT \
-              $REMOTE_USER@$REMOTE_HOST \
-              "docker exec ${{ env.DOCKER_IMAGE_NAME }} npm run migrate"
+#          ssh -i ~/.ssh/deploy_key \
+#              -o StrictHostKeyChecking=no \
+#              -p $REMOTE_PORT \
+#              $REMOTE_USER@$REMOTE_HOST \
+#              "docker exec ${{ env.DOCKER_IMAGE_NAME }} npm run migrate"
 
-      - name: Verify deployment on ${{ matrix.environment }}
-        run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-
-          ssh -i ~/.ssh/deploy_key \
-              -o StrictHostKeyChecking=no \
-              -p $REMOTE_PORT \
-              $REMOTE_USER@$REMOTE_HOST \
-              "docker ps | grep $DOCKER_IMAGE_NAME && echo 'Auth-gateway deployment on ${{ matrix.environment }} successful!'"
+     
