@@ -47,7 +47,7 @@ COPY package*.json ./
 
 # Install production dependencies only
 #RUN npm ci --legacy-bundling --only=production
-RUN npm ci --legacy-bundling --omit=dev && npm cache clean --force
+ RUN npm install --legacy-bundling --omit=dev && npm cache clean --force
 
 
 # Copy built application from builder stage
