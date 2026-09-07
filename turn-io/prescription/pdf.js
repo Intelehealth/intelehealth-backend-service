@@ -220,7 +220,7 @@ const buildDocDefinition = (data, opts) => {
             colSpan: 2,
             ul: [
                {
-                  text: [{ text: "Patient ID:", bold: true }, ` ${val(data.patientId)}`],
+                  text: [{ text: "Arogya ID:", bold: true }, ` ${val(data.patientId)}`],
                   margin: [0, 5, 0, 5],
                },
                {
