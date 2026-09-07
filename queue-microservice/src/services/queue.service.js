@@ -16,6 +16,7 @@ const {
   STATUS,
   WAITING_STATUSES,
   IN_SERVICE_STATUSES,
+  TERMINAL_STATUSES,
   DOCTOR_STATUS,
   EMERGENCY_LEVEL,
 } = require("../constants");
@@ -38,10 +39,23 @@ const {
 
 const MAX_DISPATCH_PER_PASS = 25;
 
-const scopeOf = (entry) => ({
-  speciality: entry.speciality,
-  locationUuid: entry.locationUuid,
-});
+const scopeOf = (entry) => ({ speciality: entry.speciality });
+
+/**
+ * LLD §09.1 — a stale heartbeat FLAGS an entry for review; it never cancels it,
+ * because a patient may still be waiting even though the app died. Derived from
+ * the timestamp rather than stored, so the flag cannot drift out of step with
+ * the heartbeat it describes.
+ */
+const heartbeatStale = (entry, now = new Date()) => {
+  if (!entry.lastHeartbeatAt) return false;
+  const cutoff = now.getTime() - config.queue.heartbeatStaleMinutes * 60000;
+  return new Date(entry.lastHeartbeatAt).getTime() < cutoff;
+};
+
+/** The pre-assignment score, reproduced exactly rather than snapshotted. */
+const restorableScore = (entry) =>
+  Number(entry.baseScore || 0) + Number(entry.cumulativeAgingApplied || 0);
 
 const findEntry = async (queueEntryId) => {
   const entry = await models.queue_entries.findByPk(queueEntryId);
@@ -54,12 +68,25 @@ const statusPayload = async (entry, { includeEta = true } = {}) => {
   const waiting = WAITING_STATUSES.includes(entry.status);
   const position = waiting ? await queueLane.getPosition(entry) : null;
 
-  let etaMinutes = entry.estimatedWaitMin ?? null;
+  let etaAt = entry.etaAt ?? null;
   let etaModel = entry.etaModelUsed ?? null;
   if (waiting && includeEta) {
     const estimate = await etaService.estimate(entry, { position });
-    etaMinutes = estimate.etaMinutes;
+    const anchor = etaService.resolveAnchor(
+      { storedEtaAt: entry.etaAt, storedWaitMin: entry.estimatedWaitMin },
+      estimate.etaMinutes
+    );
+    etaAt = anchor.etaAt;
     etaModel = estimate.model;
+    // Persist a moved anchor so the next read — and the client's countdown —
+    // agree with this one.
+    if (anchor.moved) {
+      await entry.update({
+        etaAt,
+        estimatedWaitMin: estimate.etaMinutes,
+        etaModelUsed: estimate.model,
+      });
+    }
   }
 
   return {
@@ -69,17 +96,22 @@ const statusPayload = async (entry, { includeEta = true } = {}) => {
     status: entry.status,
     emergencyLevel: entry.emergencyLevel,
     caseType: entry.caseType,
-    escalated: entry.escalated,
     position,
-    etaMinutes,
+    // The estimate as an absolute instant. A client renders its own countdown
+    // from this and never needs a push just because a minute passed.
+    etaAt: etaAt ? new Date(etaAt).toISOString() : null,
+    // Derived from etaAt for convenience and for older clients. It is a
+    // snapshot: etaAt is the value of record.
+    etaMinutes: etaService.minutesUntil(etaAt),
+    etaOverdue: etaService.isOverdue(etaAt),
     etaModelUsed: etaModel,
     assignedDoctorUuid: entry.assignedDoctorUuid,
     queuedAt: entry.queuedAt,
     assignedAt: entry.assignedAt,
     connectedAt: entry.connectedAt,
     completedAt: entry.completedAt,
-    requeueCount: entry.requeueCount,
-    heartbeatFlagged: entry.heartbeatFlagged,
+    escalated: entry.escalatedAt !== null && entry.escalatedAt !== undefined,
+    heartbeatStale: heartbeatStale(entry),
   };
 };
 
@@ -90,14 +122,14 @@ const statusPayload = async (entry, { includeEta = true } = {}) => {
  */
 const stampInitialEstimate = async (entry) => {
   const position = await queueLane.getPosition(entry);
-  const { etaMinutes, model } = await etaService.estimate(entry, { position });
+  const { etaMinutes, freshEtaAt, model } = await etaService.estimate(entry, { position });
   await entry.update({
-    initialPosition: position,
     estimatedWaitMin: etaMinutes,
     initialEstimatedWaitMin: etaMinutes,
+    etaAt: freshEtaAt,
     etaModelUsed: model,
   });
-  return { position, etaMinutes, model };
+  return { position, etaMinutes, etaAt: freshEtaAt, model };
 };
 
 /**
@@ -109,15 +141,11 @@ const stampInitialEstimate = async (entry) => {
  * is gone — not handed a silent success.
  */
 const assignCase = async (entry, doctorUuid, { source = "DISPATCH" } = {}) => {
-  const finalPosition = await queueLane.getPosition(entry);
-
   const [affected] = await models.queue_entries.update(
     {
       status: STATUS.ASSIGNED,
       assignedDoctorUuid: doctorUuid,
       assignedAt: new Date(),
-      scoreBeforeAssignment: entry.priorityScore,
-      finalPosition,
     },
     { where: { id: entry.id, status: { [Op.in]: WAITING_STATUSES } } }
   );
@@ -130,7 +158,7 @@ const assignCase = async (entry, doctorUuid, { source = "DISPATCH" } = {}) => {
   });
 
   await entry.reload();
-  logger.info("Case assigned", { queueEntryId: entry.id, doctorUuid, source, finalPosition });
+  logger.info("Case assigned", { queueEntryId: entry.id, doctorUuid, source });
 
   // §08 — "go call getToken". Immediate, any tier.
   await notification.notifyReady(entry, { assignedDoctorUuid: doctorUuid });
@@ -202,19 +230,16 @@ const submit = async (input) => {
   );
 
   const now = new Date();
+  // Only what the service actually reads back is stored. specMatch, vitals and
+  // the chief complaint are scoring inputs consumed above; the emergency level
+  // they produced is kept, they are not. Clinical detail stays in OpenMRS.
   const entry = await models.queue_entries.create({
     visitUuid: input.visitUuid,
-    patientUuid: input.patientUuid || null,
     hwUserUuid: input.hwUserUuid,
     speciality: input.speciality,
-    locationUuid: input.locationUuid || null,
     emergencyLevel: scored.emergencyLevel,
-    requestedEmergencyLevel: input.emergencyLevel || EMERGENCY_LEVEL.LOW,
     caseType: scored.caseType,
-    specMatch: scored.specMatch,
     flagged: Boolean(input.flagged),
-    vitals: input.vitals || null,
-    chiefComplaint: input.chiefComplaint || null,
     baseScore: scored.baseScore,
     priorityScore: scored.baseScore, // W(0) = 0
     cumulativeAgingApplied: 0,
@@ -232,9 +257,25 @@ const submit = async (input) => {
   const assigned = await dispatchLane(scopeOf(entry));
   await entry.reload();
 
+  const wasAssigned = assigned.some((a) => a.queueEntryId === entry.id);
+
+  if (!wasAssigned) {
+    // The visit is waiting. Tell the health worker it landed, and tell every
+    // doctor in the speciality that someone is waiting for them. Both are
+    // one-shot and immediate — the §08 tiering damps repeated position churn,
+    // which this is not.
+    //
+    // Skipped when the case was assigned on the spot: the health worker gets
+    // queue:ready instead, and there is nothing for other doctors to pick up.
+    const position = await queueLane.getPosition(entry);
+    const depth = await queueLane.getLaneDepth(scopeOf(entry));
+
+    await notification.notifyCaseQueued(entry, { position, etaAt: entry.etaAt });
+    await notification.notifyDoctorsOfNewCase(entry, { waiting: depth.total });
+  }
+
   notification.scheduleLaneUpdate(scopeOf(entry));
 
-  const wasAssigned = assigned.some((a) => a.queueEntryId === entry.id);
   return {
     deduped: false,
     status: wasAssigned ? "READY" : "QUEUED",
@@ -253,12 +294,8 @@ const cancel = async (queueEntryId, { reason = null, source = "HW" } = {}) => {
   const scope = scopeOf(entry);
   const releasedDoctor = entry.assignedDoctorUuid;
 
-  await entry.update({
-    status: STATUS.CANCELLED,
-    cancellationReason: reason,
-    completionSource: source,
-    completedAt: new Date(),
-  });
+  // The reason is logged and travels in the notification; it is not a column.
+  await entry.update({ status: STATUS.CANCELLED, completedAt: new Date() });
 
   if (releasedDoctor) {
     await doctorStatus.setStatus(releasedDoctor, DOCTOR_STATUS.ONLINE, {
@@ -268,7 +305,7 @@ const cancel = async (queueEntryId, { reason = null, source = "HW" } = {}) => {
 
   await notification.notifyCancelled(entry, reason);
   notification.scheduleLaneUpdate(scope);
-  logger.info("Case cancelled", { queueEntryId, source });
+  logger.info("Case cancelled", { queueEntryId, source, reason });
 
   return statusPayload(entry);
 };
@@ -289,7 +326,7 @@ const heartbeat = async (queueEntryId) => {
       "HEARTBEAT_NOT_APPLICABLE"
     );
   }
-  await entry.update({ lastHeartbeatAt: new Date(), heartbeatFlagged: false });
+  await entry.update({ lastHeartbeatAt: new Date() });
   return statusPayload(entry);
 };
 
@@ -304,10 +341,7 @@ const STATUS_GROUPS = {
   ALL: Object.values(STATUS),
 };
 
-const laneKeyOf = (entry) =>
-  config.queue.scope === "SPECIALITY_LOCATION"
-    ? `${entry.speciality}::${entry.locationUuid || ""}`
-    : String(entry.speciality);
+const laneKeyOf = (entry) => String(entry.speciality);
 
 const resolveStatuses = (status) => {
   if (!status) return STATUS_GROUPS.WAITING;
@@ -337,28 +371,39 @@ const resolveStatuses = (status) => {
  * meaningful absolute number ... nothing should ever display a raw P value to a
  * doctor or in a report — expose position and EWT instead."
  */
+/**
+ * The anchor to report for a list row: the stored one, unless a fresh estimate
+ * in this request moved it past the tolerance.
+ */
+const etaAtOf = (entry, eta) => {
+  const anchor = eta
+    ? etaService.resolveAnchor(
+        { storedEtaAt: entry.etaAt, storedWaitMin: entry.estimatedWaitMin },
+        eta.etaMinutes
+      ).etaAt
+    : entry.etaAt;
+  return anchor ? new Date(anchor).toISOString() : null;
+};
+
 const toListItem = (entry, { position = null, eta = null, includeScore = false } = {}) => ({
   queueEntryId: entry.id,
   visitUuid: entry.visitUuid,
-  patientUuid: entry.patientUuid,
   hwUserUuid: entry.hwUserUuid,
   speciality: entry.speciality,
-  locationUuid: entry.locationUuid,
   status: entry.status,
   emergencyLevel: entry.emergencyLevel,
   caseType: entry.caseType,
   flagged: entry.flagged,
-  escalated: entry.escalated,
+  escalated: entry.escalatedAt !== null && entry.escalatedAt !== undefined,
   escalatedAt: entry.escalatedAt,
-  chiefComplaint: entry.chiefComplaint,
-  vitals: entry.vitals,
   position,
   waitedMinutes: Math.round(priority.minutesWaited(entry)),
-  etaMinutes: eta ? eta.etaMinutes : entry.estimatedWaitMin,
+  etaAt: etaAtOf(entry, eta),
+  etaMinutes: etaService.minutesUntil(etaAtOf(entry, eta)),
+  etaOverdue: etaService.isOverdue(etaAtOf(entry, eta)),
   etaModelUsed: eta ? eta.model : entry.etaModelUsed,
   assignedDoctorUuid: entry.assignedDoctorUuid,
-  requeueCount: entry.requeueCount,
-  heartbeatFlagged: entry.heartbeatFlagged,
+  heartbeatStale: heartbeatStale(entry),
   queuedAt: entry.queuedAt,
   assignedAt: entry.assignedAt,
   completedAt: entry.completedAt,
@@ -384,15 +429,16 @@ const listQueue = async (filters = {}, auth = null) => {
   const where = { status: { [Op.in]: statuses } };
 
   if (filters.speciality) where.speciality = filters.speciality;
-  if (filters.locationUuid) where.locationUuid = filters.locationUuid;
   if (filters.emergencyLevel) where.emergencyLevel = filters.emergencyLevel;
   if (filters.caseType) where.caseType = filters.caseType;
   if (filters.hwUserUuid) where.hwUserUuid = filters.hwUserUuid;
   if (filters.doctorUuid) where.assignedDoctorUuid = filters.doctorUuid;
   if (filters.visitUuid) where.visitUuid = filters.visitUuid;
-  if (filters.escalated !== undefined) where.escalated = filters.escalated;
+  // escalated is the presence of escalated_at, not a separate flag.
+  if (filters.escalated !== undefined) {
+    where.escalatedAt = filters.escalated ? { [Op.ne]: null } : null;
+  }
   if (filters.flagged !== undefined) where.flagged = filters.flagged;
-  if (filters.heartbeatFlagged !== undefined) where.heartbeatFlagged = filters.heartbeatFlagged;
   if (filters.queuedFrom || filters.queuedTo) {
     where.queuedAt = {
       ...(filters.queuedFrom ? { [Op.gte]: new Date(filters.queuedFrom) } : {}),
@@ -416,7 +462,8 @@ const listQueue = async (filters = {}, auth = null) => {
     queuedAt: [["queuedAt", "ASC"], ["id", "ASC"]],
     "-queuedAt": [["queuedAt", "DESC"], ["id", "DESC"]],
     waitedLongest: [["queuedAt", "ASC"], ["id", "ASC"]],
-    recent: [["createdAt", "DESC"], ["id", "DESC"]],
+    // id is monotonic, so it is creation order without a column for it.
+    recent: [["id", "DESC"]],
   };
   const sort = SORTS[filters.sort] ? filters.sort : "priority";
 
@@ -459,7 +506,6 @@ const listQueue = async (filters = {}, auth = null) => {
     appliedFilters: {
       status: statuses,
       speciality: filters.speciality || null,
-      locationUuid: filters.locationUuid || null,
       sort,
       scopedToCaller: Boolean(auth && !privileged),
     },
@@ -480,7 +526,6 @@ const specialitySummary = async (filters = {}, auth = null) => {
   const statuses = resolveStatuses(filters.status || "ACTIVE");
   const where = { status: { [Op.in]: statuses } };
   if (filters.speciality) where.speciality = filters.speciality;
-  if (filters.locationUuid) where.locationUuid = filters.locationUuid;
 
   const privileged = Boolean(auth?.isAdmin || auth?.isService);
   if (auth && !privileged) {
@@ -503,14 +548,11 @@ const specialitySummary = async (filters = {}, auth = null) => {
     if (!buckets.has(key)) {
       buckets.set(key, {
         speciality: row.speciality,
-        ...(config.queue.scope === "SPECIALITY_LOCATION"
-          ? { locationUuid: row.locationUuid || null }
-          : {}),
         waiting: 0,
         escalated: 0,
         critical: 0,
         flagged: 0,
-        heartbeatFlagged: 0,
+        heartbeatStale: 0,
         inService: 0,
         longestWaitMin: 0,
         oldestQueuedAt: null,
@@ -524,10 +566,10 @@ const specialitySummary = async (filters = {}, auth = null) => {
     const bucket = buckets.get(key);
     if (WAITING_STATUSES.includes(row.status)) {
       bucket.waiting += 1;
-      if (row.escalated) bucket.escalated += 1;
+      if (row.escalatedAt) bucket.escalated += 1;
       if (row.emergencyLevel === EMERGENCY_LEVEL.CRITICAL) bucket.critical += 1;
       if (row.flagged) bucket.flagged += 1;
-      if (row.heartbeatFlagged) bucket.heartbeatFlagged += 1;
+      if (heartbeatStale(row, now)) bucket.heartbeatStale += 1;
 
       const waited = priority.minutesWaited(row, now);
       bucket._waitSum += waited;
@@ -588,7 +630,7 @@ const specialitySummary = async (filters = {}, auth = null) => {
  * GET /api/queue/doctor/:doctorUuid/list — the doctor panel.
  * Merges the critical lane with the doctor's speciality lane (LLD §09.2).
  */
-const listForDoctor = async (doctorUuid, { speciality, locationUuid, limit = 50, offset = 0 } = {}) => {
+const listForDoctor = async (doctorUuid, { speciality, limit = 50, offset = 0 } = {}) => {
   let resolvedSpeciality = speciality;
   if (!resolvedSpeciality) {
     const status = await doctorStatus.getStatus(doctorUuid);
@@ -601,25 +643,23 @@ const listForDoctor = async (doctorUuid, { speciality, locationUuid, limit = 50,
     );
   }
 
-  const scope = { speciality: resolvedSpeciality, locationUuid };
+  const scope = { speciality: resolvedSpeciality };
   const { rows, total } = await queueLane.listLane(scope, { limit, offset });
 
   const cases = await Promise.all(
     rows.map(async (entry, index) => ({
       queueEntryId: entry.id,
       visitUuid: entry.visitUuid,
-      patientUuid: entry.patientUuid,
       speciality: entry.speciality,
       emergencyLevel: entry.emergencyLevel,
       caseType: entry.caseType,
       flagged: entry.flagged,
-      escalated: entry.escalated,
+      escalated: entry.escalatedAt !== null,
       status: entry.status,
-      chiefComplaint: entry.chiefComplaint,
-      vitals: entry.vitals,
       position: offset + index + 1,
       waitedMinutes: Math.round(priority.minutesWaited(entry)),
-      etaMinutes: entry.estimatedWaitMin,
+      etaAt: entry.etaAt ? new Date(entry.etaAt).toISOString() : null,
+      etaMinutes: etaService.minutesUntil(entry.etaAt),
       queuedAt: entry.queuedAt,
     }))
   );
@@ -668,7 +708,7 @@ const claim = async (queueEntryId, doctorUuid) => {
  * UPDATE in assignCase is still the correctness guarantee, the lock is the
  * efficiency win.
  */
-const claimNext = async (doctorUuid, { speciality, locationUuid } = {}) => {
+const claimNext = async (doctorUuid, { speciality } = {}) => {
   let resolvedSpeciality = speciality;
   if (!resolvedSpeciality) {
     const status = await doctorStatus.getStatus(doctorUuid);
@@ -678,7 +718,7 @@ const claimNext = async (doctorUuid, { speciality, locationUuid } = {}) => {
     throw new BadRequestError("speciality is required", "SPECIALITY_REQUIRED");
   }
 
-  const scope = { speciality: resolvedSpeciality, locationUuid };
+  const scope = { speciality: resolvedSpeciality };
 
   const picked = await models.sequelize.transaction(async (transaction) => {
     const next = await queueLane.peekNext(scope, { transaction, lock: true });
@@ -705,19 +745,17 @@ const release = async (queueEntryId, doctorUuid, { reason = null } = {}) => {
   // A case that had already breached its SLA goes back to the front where it
   // was, not to the back of the normal lane — releasing it was the doctor's
   // correction, not the patient's fault.
-  const returnStatus = entry.escalated ? STATUS.ESCALATED : STATUS.QUEUED;
+  const returnStatus = entry.escalatedAt ? STATUS.ESCALATED : STATUS.QUEUED;
   assertTransition(entry.status, returnStatus, { queueEntryId });
 
-  const restoredScore = entry.scoreBeforeAssignment ?? entry.priorityScore;
+  const restoredScore = restorableScore(entry);
 
   const [affected] = await models.queue_entries.update(
     {
       status: returnStatus,
       assignedDoctorUuid: null,
       assignedAt: null,
-      finalPosition: null,
       priorityScore: restoredScore,
-      cancellationReason: reason,
     },
     { where: { id: entry.id, status: STATUS.ASSIGNED, assignedDoctorUuid: doctorUuid } }
   );
@@ -734,9 +772,116 @@ const release = async (queueEntryId, doctorUuid, { reason = null } = {}) => {
   await doctorStatus.setStatus(doctorUuid, DOCTOR_STATUS.ONLINE, { speciality: entry.speciality });
   await entry.reload();
   notification.scheduleLaneUpdate(scopeOf(entry));
-  logger.info("Case released", { queueEntryId, doctorUuid });
+  logger.info("Case released", { queueEntryId, doctorUuid, reason });
 
   return statusPayload(entry);
+};
+
+/**
+ * Find the queue entry for an OpenMRS visit.
+ *
+ * web-rtc knows a call by its visit, never by our queue_entry id, so the
+ * call-lifecycle webhooks are addressed by visitUuid.
+ */
+const findByVisit = async (visitUuid) => {
+  const entry = await models.queue_entries.findOne({ where: { visitUuid } });
+  if (!entry) {
+    throw new NotFoundError(`No queue entry for visit ${visitUuid}`, "QUEUE_ENTRY_NOT_FOUND");
+  }
+  return entry;
+};
+
+/* ── Call lifecycle webhooks (driven by web-rtc) ─────────────────────────────
+ *
+ * These exist because a webhook is not a well-behaved API client. Two things
+ * follow from that, and both are handled here rather than pushed onto the
+ * caller:
+ *
+ *  1. IDEMPOTENCY. Webhooks retry, and LiveKit can emit the same room event
+ *     more than once. Re-delivering "connected" for a case that is already
+ *     CONNECTED must be a no-op, not a 409 — otherwise a retry storm turns into
+ *     an error storm and the real signal is lost.
+ *
+ *  2. NO "CONNECTING" EVENT EXISTS. The §04 state machine routes
+ *     ASSIGNED → CONNECTING → CONNECTED, but LiveKit only ever tells us a
+ *     participant joined. So the connect handler walks the intermediate step
+ *     itself instead of rejecting the transition.
+ */
+
+/**
+ * The call connected — a participant actually joined the room.
+ * ASSIGNED cases are walked through CONNECTING so the §04 machine stays intact.
+ */
+const handleCallConnected = async (visitUuid, { doctorUuid = null } = {}) => {
+  const entry = await findByVisit(visitUuid);
+
+  if (entry.status === STATUS.CONNECTED) {
+    logger.debug("Call-connected webhook re-delivered — already connected", {
+      queueEntryId: entry.id,
+    });
+    return { changed: false, entry: await statusPayload(entry) };
+  }
+
+  if (entry.status === STATUS.ASSIGNED) {
+    await entry.update({ status: STATUS.CONNECTING });
+  }
+
+  assertTransition(entry.status, STATUS.CONNECTED, { visitUuid });
+  await entry.update({
+    status: STATUS.CONNECTED,
+    connectedAt: entry.connectedAt || new Date(),
+    ...(doctorUuid && !entry.assignedDoctorUuid ? { assignedDoctorUuid: doctorUuid } : {}),
+  });
+
+  logger.info("Call connected", { queueEntryId: entry.id, visitUuid });
+  return { changed: true, entry: await statusPayload(entry) };
+};
+
+/**
+ * The call ended — the room finished or the last participant left.
+ *
+ * What that means depends on whether the call ever got going:
+ *   CONNECTED             → COMPLETED, and the consult duration feeds μ (§07)
+ *   ASSIGNED / CONNECTING → the call never established, so RE_QUEUED with a
+ *                           priority bump (§04) rather than counted as done
+ *   already terminal      → no-op, so a retried webhook is harmless
+ */
+const handleCallDisconnected = async (visitUuid, { doctorUuid = null, reason = null } = {}) => {
+  const entry = await findByVisit(visitUuid);
+  const doctor = doctorUuid || entry.assignedDoctorUuid;
+
+  if (TERMINAL_STATUSES.includes(entry.status)) {
+    logger.debug("Call-disconnected webhook re-delivered — already terminal", {
+      queueEntryId: entry.id,
+      status: entry.status,
+    });
+    return { changed: false, outcome: entry.status, entry: await statusPayload(entry) };
+  }
+
+  if (entry.status === STATUS.CONNECTED) {
+    return {
+      changed: true,
+      outcome: STATUS.COMPLETED,
+      entry: await complete(entry.id, doctor, { source: "WEBRTC_WEBHOOK" }),
+    };
+  }
+
+  if (entry.status === STATUS.ASSIGNED || entry.status === STATUS.CONNECTING) {
+    // The room closed without the call ever connecting — that is a failed
+    // attempt, not a finished consultation.
+    return {
+      changed: true,
+      outcome: STATUS.RE_QUEUED,
+      entry: await requeue(entry.id, { reason: reason || "CALL_ENDED_BEFORE_CONNECT" }),
+    };
+  }
+
+  // Still waiting, or already back in the queue: nothing to do.
+  logger.debug("Call-disconnected webhook for a case that is not in a call", {
+    queueEntryId: entry.id,
+    status: entry.status,
+  });
+  return { changed: false, outcome: entry.status, entry: await statusPayload(entry) };
 };
 
 /** The web-rtc call-start hook: the room has been requested. */
@@ -797,7 +942,7 @@ const complete = async (queueEntryId, doctorUuid, { source = "DOCTOR" } = {}) =>
   const start = entry.connectedAt || entry.assignedAt;
   const durationMin = start ? (completedAt.getTime() - new Date(start).getTime()) / 60000 : null;
 
-  await entry.update({ status: STATUS.COMPLETED, completedAt, completionSource: source });
+  await entry.update({ status: STATUS.COMPLETED, completedAt });
 
   const doctor = doctorUuid || entry.assignedDoctorUuid;
   if (doctor) {
@@ -805,7 +950,7 @@ const complete = async (queueEntryId, doctorUuid, { source = "DOCTOR" } = {}) =>
     await doctorStatus.setStatus(doctor, DOCTOR_STATUS.ONLINE, { speciality: entry.speciality });
   }
 
-  logger.info("Case completed", { queueEntryId, doctorUuid: doctor, durationMin });
+  logger.info("Case completed", { queueEntryId, doctorUuid: doctor, durationMin, source });
 
   // A doctor just became free — that is exactly the trigger for case-first
   // dispatch of whatever is now at the front of the lane.
@@ -825,21 +970,17 @@ const requeue = async (queueEntryId, { reason = "CONNECTION_FAILED" } = {}) => {
   assertTransition(entry.status, STATUS.RE_QUEUED, { queueEntryId });
 
   const doctorUuid = entry.assignedDoctorUuid;
-  const restored = entry.scoreBeforeAssignment ?? entry.priorityScore;
-  const bumped = restored + config.queue.requeueBonus;
+  const bumped = restorableScore(entry) + config.queue.requeueBonus;
 
   await entry.update({
-    status: entry.escalated ? STATUS.ESCALATED : STATUS.QUEUED,
+    status: entry.escalatedAt ? STATUS.ESCALATED : STATUS.QUEUED,
     assignedDoctorUuid: null,
     assignedAt: null,
     connectedAt: null,
-    finalPosition: null,
     priorityScore: bumped,
     // The bump belongs to the base, not to aging: the aging job must keep
     // applying W(m) against the same queued_at without erasing the bump.
     baseScore: entry.baseScore + config.queue.requeueBonus,
-    requeueCount: entry.requeueCount + 1,
-    cancellationReason: reason,
   });
 
   if (doctorUuid) {
@@ -847,7 +988,7 @@ const requeue = async (queueEntryId, { reason = "CONNECTION_FAILED" } = {}) => {
   }
 
   notification.scheduleLaneUpdate(scopeOf(entry));
-  logger.info("Case re-queued", { queueEntryId, reason, requeueCount: entry.requeueCount });
+  logger.info("Case re-queued", { queueEntryId, reason });
 
   return statusPayload(entry);
 };
@@ -869,10 +1010,15 @@ module.exports = {
   requeue,
   markConnecting,
   markConnected,
+  findByVisit,
+  handleCallConnected,
+  handleCallDisconnected,
   dispatchLane,
   assignCase,
   statusPayload,
   findEntry,
   updateConsultStats,
   scopeOf,
+  heartbeatStale,
+  restorableScore,
 };

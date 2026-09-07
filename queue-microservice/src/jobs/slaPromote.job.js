@@ -29,6 +29,13 @@ const { STATUS, WAITING_STATUSES } = require("../constants");
  *     aged score. Read the lane's current top score and promote to one above it.
  */
 const runSlaTick = async ({ now = new Date(), batchSize = config.jobs.batchSize } = {}) => {
+  // Force-promotion is the single most disruptive thing in the engine: it moves
+  // a case to the very front. With the Priority Engine off, "a visit joins at
+  // the back and nothing moves it" is the whole contract, so this must not run.
+  if (!config.queue.priorityEngineEnabled) {
+    return { scanned: 0, escalated: 0, disabled: true };
+  }
+
   const cfg = priorityConfig.get();
   const stats = { scanned: 0, escalated: 0 };
   const lanes = new Set();
@@ -40,7 +47,8 @@ const runSlaTick = async ({ now = new Date(), batchSize = config.jobs.batchSize 
   const candidates = await models.queue_entries.findAll({
     where: {
       status: { [Op.in]: WAITING_STATUSES },
-      escalated: false,
+      // Not yet escalated: the timestamp's absence IS the flag.
+      escalatedAt: null,
       queuedAt: { [Op.lt]: cutoff },
     },
     order: [["queuedAt", "ASC"]],
@@ -63,15 +71,16 @@ const runSlaTick = async ({ now = new Date(), batchSize = config.jobs.batchSize 
           `${Number(forcedScore)} - cumulative_aging_applied`
         ),
         status: STATUS.ESCALATED,
-        escalated: true,
         escalatedAt: now,
       },
       {
         where: {
           id: entry.id,
-          // Escalate once: this is the guard that stops the admin notification
-          // re-firing on every subsequent tick.
-          escalated: false,
+          // Escalate once. Stamping escalated_at only where it is still NULL is
+          // the whole guard, and because it is one conditional UPDATE the race
+          // resolves in the database: a second tick affects zero rows and the
+          // admin notification cannot re-fire.
+          escalatedAt: null,
           status: { [Op.in]: WAITING_STATUSES },
         },
       }
@@ -80,7 +89,7 @@ const runSlaTick = async ({ now = new Date(), batchSize = config.jobs.batchSize 
     if (affected === 0) continue;
 
     stats.escalated += 1;
-    lanes.add(JSON.stringify({ speciality: entry.speciality, locationUuid: entry.locationUuid }));
+    lanes.add(JSON.stringify({ speciality: entry.speciality }));
 
     await entry.reload();
     logger.warn("SLA breach — case force-promoted", {

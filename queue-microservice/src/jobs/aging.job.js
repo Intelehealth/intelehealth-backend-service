@@ -34,6 +34,13 @@ const { WAITING_STATUSES } = require("../constants");
  *     claimed case, so there is no resurrection window at all.
  */
 const runAgingTick = async ({ now = new Date(), batchSize = config.jobs.batchSize } = {}) => {
+  // Aging only exists to move a case up the queue. With the Priority Engine off
+  // the queue is strict arrival order, so there is nothing legitimate for this
+  // job to do — running it would leave scores drifting that nothing reads.
+  if (!config.queue.priorityEngineEnabled) {
+    return { scanned: 0, aged: 0, skipped: 0, disabled: true };
+  }
+
   const cfg = priorityConfig.get();
   const stats = { scanned: 0, aged: 0, skipped: 0, lanes: new Set() };
 
@@ -76,11 +83,7 @@ const runAgingTick = async ({ now = new Date(), batchSize = config.jobs.batchSiz
         continue;
       }
       stats.aged += 1;
-      stats.lanes.add(
-        config.queue.scope === "SPECIALITY_LOCATION"
-          ? JSON.stringify({ speciality: entry.speciality, locationUuid: entry.locationUuid })
-          : JSON.stringify({ speciality: entry.speciality })
-      );
+      stats.lanes.add(JSON.stringify({ speciality: entry.speciality }));
     }
 
     if (batch.length < batchSize) break;

@@ -1,6 +1,7 @@
 const { Op } = require("sequelize");
 
 const models = require("../models");
+const config = require("../config/env");
 const priority = require("./priority.service");
 const { WAITING_STATUSES, IN_SERVICE_STATUSES, DOCTOR_STATUS } = require("../constants");
 
@@ -23,9 +24,9 @@ const live = async ({ speciality = null } = {}) => {
     attributes: [
       "speciality",
       "emergencyLevel",
-      "escalated",
+      "escalatedAt",
       "queuedAt",
-      "heartbeatFlagged",
+      "lastHeartbeatAt",
       "estimatedWaitMin",
     ],
     raw: true,
@@ -51,7 +52,7 @@ const live = async ({ speciality = null } = {}) => {
         queueDepth: 0,
         criticalWaiting: 0,
         escalatedWaiting: 0,
-        heartbeatFlagged: 0,
+        heartbeatStale: 0,
         inService: 0,
         doctorsOnline: 0,
         doctorsInConsult: 0,
@@ -66,6 +67,7 @@ const live = async ({ speciality = null } = {}) => {
   };
 
   const now = new Date();
+  const staleCutoff = now.getTime() - config.queue.heartbeatStaleMinutes * 60000;
   const waitTotals = new Map();
   const etaTotals = new Map();
 
@@ -73,8 +75,10 @@ const live = async ({ speciality = null } = {}) => {
     const b = bucket(entry.speciality);
     b.queueDepth += 1;
     if (entry.emergencyLevel === "CRITICAL") b.criticalWaiting += 1;
-    if (entry.escalated) b.escalatedWaiting += 1;
-    if (entry.heartbeatFlagged) b.heartbeatFlagged += 1;
+    if (entry.escalatedAt) b.escalatedWaiting += 1;
+    if (entry.lastHeartbeatAt && new Date(entry.lastHeartbeatAt).getTime() < staleCutoff) {
+      b.heartbeatStale += 1;
+    }
 
     const waited = priority.minutesWaited({ queuedAt: entry.queuedAt }, now);
     b.longestWaitMin = Math.max(b.longestWaitMin, Math.round(waited));

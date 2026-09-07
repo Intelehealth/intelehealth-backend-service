@@ -73,6 +73,55 @@ const listAvailable = async (speciality, { includeGeneral = true } = {}) => {
   return models.doctor_queue_status.findAll({ where });
 };
 
+/**
+ * Every doctor who belongs to a speciality, whatever their current status.
+ *
+ * Used to announce a new case (not to assign one), so it deliberately includes
+ * offline and away doctors — telling an offline doctor that a patient is
+ * waiting is precisely how one comes online.
+ *
+ * `doctor_queue_status` only holds a row once a doctor has hit the status
+ * endpoint at least once, which on day one is nobody. So it is optionally
+ * unioned with the speciality column of portal's existing schedule table
+ * (`appointment_schedules.userUuid` / `speciality`) — the same data LLD §06
+ * says to reuse rather than build a new doctor calendar. That read fails open:
+ * if portal's table is unavailable, the list falls back to whoever QMS already
+ * knows about rather than nobody.
+ */
+const listBySpeciality = async (speciality, { includeGeneral = true } = {}) => {
+  const uuids = new Set();
+
+  const where = {};
+  if (speciality) {
+    where[Op.or] = includeGeneral
+      ? [{ speciality }, { speciality: { [Op.in]: ["General Physician", "General", "GP"] } }]
+      : [{ speciality }];
+  }
+
+  const known = await models.doctor_queue_status.findAll({
+    where,
+    attributes: ["doctorUuid"],
+    raw: true,
+  });
+  for (const row of known) uuids.add(row.doctorUuid);
+
+  if (config.queue.doctorLookupFromSchedules) {
+    try {
+      const scheduled = await models.sequelize.query(
+        `SELECT DISTINCT userUuid FROM \`${config.queue.shiftTable}\` WHERE speciality = :speciality`,
+        { replacements: { speciality }, type: QueryTypes.SELECT }
+      );
+      for (const row of scheduled) if (row.userUuid) uuids.add(row.userUuid);
+    } catch (err) {
+      logger.debug("Schedule table unavailable for doctor lookup — using known statuses only", {
+        error: err.message,
+      });
+    }
+  }
+
+  return [...uuids];
+};
+
 /** Everyone signed in for a speciality, whether free or mid-consult. */
 const countPresent = async (speciality) =>
   models.doctor_queue_status.count({
@@ -135,6 +184,7 @@ module.exports = {
   setStatus,
   getStatus,
   listAvailable,
+  listBySpeciality,
   countPresent,
   currentLoad,
   isOnShift,

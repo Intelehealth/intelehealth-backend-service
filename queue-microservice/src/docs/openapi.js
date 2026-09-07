@@ -31,11 +31,22 @@ const queueStatusResponse = {
       description:
         "Live rank in the priority-sorted queue. Waiting CRITICAL cases always count ahead of a non-critical case, because the critical lane drains exclusively first (LLD §05.4).",
     },
+    etaAt: {
+      type: "string",
+      format: "date-time",
+      nullable: true,
+      description:
+        "When the consultation is expected, as an absolute instant — the value of record. RENDER YOUR OWN COUNTDOWN FROM THIS: it is anchored and only changes when the estimate genuinely moves, so a client can tick down locally without a push per minute. Derived from the calibrated Little's Law estimate (LLD §07): Lq/(c·μ) + per-speciality overhead, not (position-1) × avg_consult.",
+    },
     etaMinutes: {
       type: "integer",
       nullable: true,
       description:
-        "Calibrated Little's Law estimate (LLD §07): Lq/(c·μ) + per-speciality overhead. Not (position-1) × avg_consult.",
+        "Minutes remaining, derived from etaAt at response time. A convenience snapshot for older clients — it is stale as soon as it is read. Prefer etaAt.",
+    },
+    etaOverdue: {
+      type: "boolean",
+      description: "True once etaAt has passed. Show an 'any moment now' state rather than a negative countdown.",
     },
     etaModelUsed: { type: "string", enum: ["A", "B"], nullable: true },
     assignedDoctorUuid: { type: "string", nullable: true },

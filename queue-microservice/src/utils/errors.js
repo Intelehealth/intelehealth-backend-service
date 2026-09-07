@@ -54,7 +54,27 @@ class TooManyRequestsError extends AppError {
   }
 }
 
+/**
+ * A human-usable description of any thrown value.
+ *
+ * Sequelize wraps driver failures, and an AggregateError — what a refused TCP
+ * connection produces on a host resolving to both ::1 and 127.0.0.1 — has an
+ * empty `message`. Logging `err.message` alone silently produces "".
+ */
+const describeError = (err) => {
+  if (!err) return "unknown error";
+  return (
+    err.message ||
+    err.original?.message ||
+    err.parent?.message ||
+    err.errors?.map((e) => [e.code || e.name, e.address, e.port].filter(Boolean).join(" ")).join("; ") ||
+    err.name ||
+    String(err)
+  );
+};
+
 module.exports = {
+  describeError,
   AppError,
   BadRequestError,
   UnauthorizedError,

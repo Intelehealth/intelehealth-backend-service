@@ -41,17 +41,76 @@ Two things get *better* under this mapping:
   for one. The conditional `UPDATE` remains the correctness guarantee; the lock is the
   efficiency win.
 
-### 2. No socket server
+### 2. No socket server — push instead, delivered exactly as portal delivers it
 
 LLD §10 specifies Socket.io events. This service has no socket server. §08's tiering,
 500 ms debounce, 5-minute EWT threshold, 30-second frequency cap and
-escalation-bypass are all implemented exactly as written — what they gate is an
-outbound push (`NOTIFICATION_WEBHOOK_URL`, e.g. portal's FCM relay) plus the silent
-write that `GET /api/queue/:id/status` then serves. Tier 4 ("pull on demand") *is* the
-poll endpoint, and it doubles as the resync path.
+escalation-bypass are all implemented exactly as written — what they gate is a **push
+notification sent the same way portal sends one**, plus the silent write that
+`GET /api/queue/:id/status` then serves. Tier 4 ("pull on demand") *is* the poll
+endpoint, and it doubles as the resync path.
 
 This also sidesteps the blocker the Web LLD §02 flags: the doctor webapp is on
 `socket.io-client@^2.5.0`, which cannot connect to a v4 server without `allowEIO3`.
+
+**Delivery is a mirror of `portal/handlers/helper.js`** — see
+[push.service.js](src/services/push.service.js):
+
+| | portal | QMS |
+| --- | --- | --- |
+| Mobile | `firebase-admin` → `messaging.sendEachForMulticast` | same |
+| FCM payload | `{ data, tokens, android:{priority:'high'}, apns:{payload:{aps:{priority:10}}} }`, `notification` only when truthy | same, pinned by `tests/push.test.js` |
+| Browser | `web-push` → `{ title, body, vibrate:[100,50,100], data }` | same |
+| Credentials | `FIREBASE_SERVICE_ACCOUNT_KEY`, `FIREBASE_DB_URL`, `VAPID_*` | **the same values** |
+| Device tokens | `user_settings.device_reg_token` | same table, read with raw SQL |
+| Web-push subs | `pushnotification.notification_object` | same table |
+| Locale | `locale === "ru" ? ru : en` | same rule |
+| Snooze | skip while `snooze_till` is in the future | same rule |
+
+So a device already registered for portal notifications receives QMS notifications with
+no client-side change — same Firebase project, same payload contract, same tokens.
+
+Two deliberate differences, both about not being able to break the queue:
+
+- **Initialisation is lazy and non-fatal.** Portal calls `admin.initializeApp(...)` at
+  module load, so a missing credential kills the process at require time. QMS must run a
+  queue without Firebase configured (dev, CI, REST-only deployments), so setup happens on
+  first send and a failure disables push with a warning. `GET /health` reports
+  `push.fcm` / `push.webPush` so you can tell a missing credential from a missing token.
+- **FCM `data` values are coerced to strings.** Portal logs a warning and sends anyway,
+  which FCM then rejects. Doctor-panel `cases[]` is replaced by a `caseCount` so clinical
+  content cannot ride along in a push (§13.3).
+
+**Who gets told what, and when**
+
+| Event | Recipient | When |
+| --- | --- | --- |
+| `queue:queued` | the submitting health worker | once, on submit — position + ETA |
+| `queue:new_case` | **every doctor in the speciality** | once, on submit |
+| `queue:position` | the health worker | on position change, §08 tiering applies |
+| `queue:ready` | the health worker | when a doctor takes the case |
+| `queue:escalated` | the health worker | on SLA breach, bypasses tiering |
+| `queue:cancelled` | the health worker | on withdrawal |
+
+The two submit-time events are **not tiered**. §08's tiering exists to damp *repeated*
+position churn for a case already in the queue; a case joining is a one-shot event, so it
+is sent immediately regardless of position. A case assigned on the spot skips both — the
+health worker gets `queue:ready` instead, and there is nothing for other doctors to pick
+up.
+
+Doctors are found via `doctor_queue_status`, unioned with the speciality column of
+portal's `appointment_schedules` (`DOCTOR_LOOKUP_FROM_SCHEDULES`, on by default and
+failing open). Without that union the announcement would only reach doctors who had
+already hit the status endpoint at least once — on day one, nobody. Offline and away
+doctors are included deliberately: telling an offline doctor a patient is waiting is how
+one comes online.
+
+`NOTIFICATION_ENABLED` is the master switch; `NOTIFY_DOCTORS_ON_NEW_CASE` turns off the
+doctor fan-out alone; `WEB_PUSH_ENABLED` turns the browser transport off on its own. FCM
+is active whenever a Firebase credential is present.
+[tools/check-push-recipient.js](tools/check-push-recipient.js) resolves one user against
+the live database and tells you whether a missing notification is a bad credential, a
+missing device token, or a snooze.
 
 ### 3. The ε tie-break term is not folded into the score
 
@@ -212,6 +271,104 @@ Full request/response shapes are in the OpenAPI document. In brief:
 
 **This service never calls web-rtc.** After a claim the client calls LiveKit's `getToken`
 itself, exactly as it does today (§01, §11).
+
+### The table is deliberately lean
+
+`queue_entries` carries **25 columns, and every one is read by code.** Nothing is stored
+"in case someone wants it later": a value that is only ever echoed back to a client, or
+that can be computed from another column, is not a column.
+
+**No clinical content, no patient demographics.** Chief complaint and vitals arrive in the
+submit request, are scored, and are not retained — the doctor reads them from OpenMRS,
+where they belong. That keeps LLD §13.3's encryption-at-rest obligation off this table
+entirely. The consequence to know about: the doctor panel and `/list` no longer preview a
+complaint or vitals, only the emergency level those vitals produced.
+
+Three values are computed rather than stored, because storing them only created something
+that could drift out of step with its source:
+
+| Was a column | Now derived from | Why it is better |
+| --- | --- | --- |
+| `escalated` | `escalated_at IS NOT NULL` | one fewer write; the escalate-once guard is still a single conditional `UPDATE` |
+| `heartbeat_flagged` | `last_heartbeat_at` vs the cutoff | a new heartbeat clears staleness instantly, with no flag to reset |
+| `score_before_assignment` | `base_score + cumulative_aging_applied` | exact, because the SLA job keeps `base_score` consistent with any forced score |
+
+`location_uuid` went too, along with the `QUEUE_SCOPE=SPECIALITY_LOCATION` branch it
+existed for. LLD §13.5 leaves per-facility queues an open product question, and carrying a
+column plus a code path for an unchosen option is exactly the weight this removed. If that
+decision lands it returns as its own migration.
+
+### The Priority Engine is opt-in
+
+**`PRIORITY_ENGINE_ENABLED` defaults to `false`.** Out of the box the queue is **strict
+first-come-first-served**: a visit joins at the back of the line and nothing moves it.
+
+Defaulting off is deliberate. Priority Engine spec §00 is explicit that none of the
+point values — 1000 for CRITICAL, the 40/30/20/10 weights, the vitals thresholds, the SLA
+minute caps — has been signed off by anyone clinical. A deployment that forgets to set a
+variable should not silently start reordering real patients by unreviewed arithmetic.
+Set it to `true` once those numbers have sign-off.
+
+That required switching off four separate mechanisms, not just the scoring — any one left
+running would quietly reintroduce queue-jumping:
+
+| Mechanism | Engine on | Engine off |
+| --- | --- | --- |
+| Lanes | ESCALATED → CRITICAL → NORMAL | one `FIFO` lane |
+| Ordering | `priority_score DESC, queued_at ASC` | `queued_at ASC, id ASC` |
+| Critical fast lane | drains first | gone |
+| Progressive aging job | every 5 min | not scheduled, and returns `disabled` if called |
+| SLA force-promote job | every 1 min | not scheduled, and returns `disabled` if called |
+
+**In the default configuration a CRITICAL case does not jump the queue.** It waits behind
+whoever arrived first — a patient with SpO₂ 82 sits at position 3 if two people arrived
+before them. That is the intended behaviour of FIFO mode, and turning the engine on is the
+clinical decision that changes it. Verified on
+real data: with the engine on, a critical case submitted third ranks #1; with it off, it
+ranks #3 and stays there after three hours and both jobs running.
+
+Emergency level, the flagged floor and vitals are still computed, stored and shown on the
+doctor panel — they simply stop affecting order, so a doctor can still see at a glance
+which waiting case is most urgent and pick it manually via `POST /:id/claim`.
+
+Scores are still written while the engine is off, so switching the flag back on takes
+effect immediately. Note that the queue will re-order the moment you do, and cases that
+accumulated no aging while it was off start from their base score.
+
+`GET /health` reports `priorityEngine: "enabled" | "disabled (strict FIFO)"`, and the
+service logs a warning at startup when it is off.
+
+### The wait estimate is an instant, not a duration
+
+`etaAt` is the value of record — an ISO 8601 timestamp for when the consultation is
+expected. `etaMinutes` is derived from it at response time and kept only for
+convenience and older clients.
+
+**Clients should render their own countdown from `etaAt`** and never poll or expect a
+push just because a minute has passed. That is the whole reason it is a timestamp: a
+duration is stale the instant it is serialised, and keeping one fresh would mean a push
+per minute per waiting patient.
+
+For this to work the instant has to hold still while nothing changes, which is subtler
+than it looks. The estimate is a function of queue *position*, not of elapsed time: a
+patient at position 3 is "30 minutes away" at 10:00 and still "30 minutes away" at 10:10
+if nobody ahead has been served. So the re-anchor decision is made on the model's
+computed **wait**, never on the instant — comparing instants would see `now + 30min`
+slide from 10:30 to 10:40 on every call and the promised time would recede forever while
+the countdown never advanced.
+
+```
+computed wait unchanged (±ETA_ANCHOR_TOLERANCE_MIN)  →  keep etaAt, the clock eats into it
+computed wait moved                                  →  re-anchor to now + new wait
+```
+
+`etaOverdue` goes true once `etaAt` has passed; show an "any moment now" state rather
+than a negative countdown. `queue:position` and `queue:queued` pushes both carry `etaAt`,
+and the §08.2 threshold now judges how far the *promised time* moved, so a queue that
+shuffles without changing when this patient will be seen produces no push at all.
+
+Notification text states a clock time ("expected around 4:57 pm") rather than a duration,
+for the same reason.
 
 ### Listing queue items
 

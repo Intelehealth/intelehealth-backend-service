@@ -53,8 +53,16 @@ const start = () => {
     logger.warn("Background jobs are disabled (JOBS_ENABLED=false)");
     return;
   }
-  schedule("aging", config.jobs.agingCron, runAgingTick);
-  schedule("sla-promote", config.jobs.slaCron, runSlaTick);
+  if (config.queue.priorityEngineEnabled) {
+    schedule("aging", config.jobs.agingCron, runAgingTick);
+    schedule("sla-promote", config.jobs.slaCron, runSlaTick);
+  } else {
+    // Both jobs exist solely to reorder the queue. Strict FIFO has no reordering.
+    logger.warn(
+      "Priority Engine disabled — queue is strict FIFO; aging and SLA force-promote are not scheduled"
+    );
+  }
+  // Housekeeping is unrelated to ordering and runs either way.
   schedule("sweep", config.jobs.sweepCron, runSweepTick);
   if (config.accuracyAlert.enabled) {
     schedule("accuracy-alert", config.jobs.accuracyCron, runAccuracyTick);

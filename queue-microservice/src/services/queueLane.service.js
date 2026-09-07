@@ -61,20 +61,23 @@ const ESCALATED_ORDER = [
 ];
 
 /**
- * Which entries share a line with this one.
- *
- * LLD §13.5 asks whether the live queue is one shared line per speciality
- * across every facility, or split per facility. Unresolved in the doc, so it is
- * config here (QUEUE_SCOPE) rather than baked into the query — flipping it does
- * not need a migration, because location_uuid is already stored.
+ * Strict arrival order, used when the Priority Engine is switched off
+ * (PRIORITY_ENGINE_ENABLED=false). Nothing but arrival time decides position,
+ * so a new visit always joins at the back.
  */
-const laneScope = ({ speciality, locationUuid }) => {
-  const where = { speciality };
-  if (config.queue.scope === "SPECIALITY_LOCATION") {
-    where.locationUuid = locationUuid ?? null;
-  }
-  return where;
-};
+const FIFO_ORDER = [
+  ["queuedAt", "ASC"],
+  ["id", "ASC"],
+];
+
+/**
+ * Which entries share a line with this one: one line per speciality.
+ *
+ * LLD §13.5 asks whether the queue should instead be split per facility. That
+ * is an open product question, and until it is answered this carries neither a
+ * column nor a branch for it — see the slim-queue-entries migration.
+ */
+const laneScope = ({ speciality }) => ({ speciality });
 
 const isCritical = (entry) => entry.emergencyLevel === EMERGENCY_LEVEL.CRITICAL;
 
@@ -106,24 +109,61 @@ const normalLaneWhere = (scope) => ({
   emergencyLevel: { [Op.ne]: EMERGENCY_LEVEL.CRITICAL },
 });
 
-/** The lanes in drain order, most urgent first. */
+/** Every waiting case in the scope, as one undifferentiated line. */
+const fifoLaneWhere = (scope) => ({
+  ...laneScope(scope),
+  status: { [Op.in]: WAITING_STATUSES },
+});
+
+/**
+ * The lanes in drain order, most urgent first.
+ *
+ * With PRIORITY_ENGINE_ENABLED=false there is exactly ONE lane, ordered by
+ * arrival. No critical fast lane, no escalation lane, no score: a case joins at
+ * the back and only the passage of the queue ahead of it moves it forward.
+ */
 const lanesInOrder = (scope) => {
-  const escalated = { name: "ESCALATED", where: escalatedLaneWhere(scope), order: ESCALATED_ORDER };
-  const critical = { name: "CRITICAL", where: criticalLaneWhere(scope), order: ORDER };
-  const normal = { name: "NORMAL", where: normalLaneWhere(scope), order: ORDER };
+  if (!config.queue.priorityEngineEnabled) {
+    return [{ name: "FIFO", mode: "FIFO", where: fifoLaneWhere(scope), order: FIFO_ORDER }];
+  }
+
+  const escalated = {
+    name: "ESCALATED",
+    mode: "ESCALATED",
+    where: escalatedLaneWhere(scope),
+    order: ESCALATED_ORDER,
+  };
+  const critical = { name: "CRITICAL", mode: "SCORE", where: criticalLaneWhere(scope), order: ORDER };
+  const normal = { name: "NORMAL", mode: "SCORE", where: normalLaneWhere(scope), order: ORDER };
   return config.queue.escalationOutranksCritical
     ? [escalated, critical, normal]
     : [critical, escalated, normal];
 };
 
 const laneOf = (entry) => {
+  if (!config.queue.priorityEngineEnabled) return "FIFO";
   if (entry.status === STATUS.ESCALATED) return "ESCALATED";
   return isCritical(entry) ? "CRITICAL" : "NORMAL";
 };
 
 /** Entries that sort strictly ahead of `entry` within one lane. */
 const countAheadIn = async (lane, entry, transaction) => {
-  const byEscalation = lane.order === ESCALATED_ORDER;
+  // Pure arrival order — the only rule when the Priority Engine is off.
+  if (lane.mode === "FIFO") {
+    const queuedAt = entry.queuedAt || new Date();
+    return models.queue_entries.count({
+      where: {
+        ...lane.where,
+        [Op.or]: [
+          { queuedAt: { [Op.lt]: queuedAt } },
+          { queuedAt, id: { [Op.lt]: entry.id } },
+        ],
+      },
+      transaction,
+    });
+  }
+
+  const byEscalation = lane.mode === "ESCALATED";
   const primary = byEscalation ? "escalatedAt" : "priorityScore";
   const primaryValue = byEscalation ? entry.escalatedAt || new Date() : entry.priorityScore;
   const secondaryValue = byEscalation ? entry.priorityScore : entry.queuedAt || new Date();
@@ -190,10 +230,7 @@ const getLaneDepth = async (scope, transaction) => {
  */
 const getInServiceCount = async (scope, transaction) =>
   models.queue_entries.count({
-    where: {
-      ...laneScope(scope),
-      status: { [Op.in]: IN_SERVICE_STATUSES },
-    },
+    where: { ...laneScope(scope), status: { [Op.in]: IN_SERVICE_STATUSES } },
     transaction,
   });
 
@@ -263,6 +300,10 @@ const rankMap = async (scope) => {
  * mixed specialities is what a caller actually wants.
  */
 const listOrder = () => {
+  if (!config.queue.priorityEngineEnabled) {
+    return [...FIFO_ORDER];
+  }
+
   const escalatedFirst = "(status = 'ESCALATED') DESC";
   const criticalFirst = "(emergency_level = 'CRITICAL') DESC";
   const laneOrder = config.queue.escalationOutranksCritical
@@ -292,6 +333,8 @@ const topScore = async (scope, transaction) => {
 module.exports = {
   ORDER,
   ESCALATED_ORDER,
+  FIFO_ORDER,
+  fifoLaneWhere,
   laneScope,
   lanesInOrder,
   laneOf,

@@ -76,11 +76,8 @@ const listForDoctor = async (req, res) => {
   if (!req.auth.isAdmin && !req.auth.isService && req.auth.userUuid !== doctorUuid) {
     throw new ForbiddenError("You can only read your own queue", "NOT_SELF");
   }
-  const { speciality, locationUuid, limit, offset } = req.validatedQuery || {};
-  return success(
-    res,
-    await queueService.listForDoctor(doctorUuid, { speciality, locationUuid, limit, offset })
-  );
+  const { speciality, limit, offset } = req.validatedQuery || {};
+  return success(res, await queueService.listForDoctor(doctorUuid, { speciality, limit, offset }));
 };
 
 /**
@@ -125,6 +122,58 @@ const complete = async (req, res) => {
   return success(res, await queueService.complete(req.params.queueEntryId, doctorUuid));
 };
 
+/* ── Call lifecycle webhooks, addressed by visit (called by web-rtc) ───────── */
+
+/**
+ * POST /api/queue/visit/:visitUuid/call-connected
+ *
+ * web-rtc fires this when a participant actually joins the LiveKit room. It is
+ * keyed by visit because that is the identifier web-rtc holds — it never sees
+ * our queue_entry id.
+ *
+ * Idempotent: a re-delivered webhook returns 200 with changed:false.
+ */
+const callConnected = async (req, res) => {
+  const doctorUuid = req.validated?.doctorUuid || (req.auth.isService ? null : req.auth.userUuid);
+  const result = await queueService.handleCallConnected(req.params.visitUuid, { doctorUuid });
+  return success(
+    res,
+    result,
+    200,
+    result.changed ? "Call marked connected" : "Already connected — no change"
+  );
+};
+
+/**
+ * POST /api/queue/visit/:visitUuid/call-disconnected
+ *
+ * web-rtc fires this when the room finishes or the last participant leaves.
+ * The outcome depends on whether the call ever connected: a live call becomes
+ * COMPLETED, a call that never established becomes RE_QUEUED with a bump.
+ *
+ * Idempotent: a re-delivered webhook returns 200 with changed:false.
+ */
+const callDisconnected = async (req, res) => {
+  const doctorUuid = req.validated?.doctorUuid || (req.auth.isService ? null : req.auth.userUuid);
+  const result = await queueService.handleCallDisconnected(req.params.visitUuid, {
+    doctorUuid,
+    reason: req.validated?.reason,
+  });
+  return success(
+    res,
+    result,
+    200,
+    result.changed ? `Call ended — case is ${result.outcome}` : "No change"
+  );
+};
+
+/** GET /api/queue/visit/:visitUuid — resolve a visit to its queue entry. */
+const getByVisit = async (req, res) => {
+  const entry = await queueService.findByVisit(req.params.visitUuid);
+  assertCaseAccess(req.auth, entry);
+  return success(res, await queueService.getStatus(entry.id));
+};
+
 /**
  * POST /api/queue/:queueEntryId/connecting and /connected.
  * The web-rtc call-lifecycle hooks: these are what drive a case through
@@ -158,4 +207,7 @@ module.exports = {
   markConnecting,
   markConnected,
   requeue,
+  callConnected,
+  callDisconnected,
+  getByVisit,
 };

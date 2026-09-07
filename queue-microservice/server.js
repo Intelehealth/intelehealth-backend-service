@@ -5,6 +5,7 @@ const logger = require("./src/utils/logger");
 const jobs = require("./src/jobs");
 const priorityConfig = require("./src/services/priorityConfig.service");
 const notification = require("./src/services/notification.service");
+const pushService = require("./src/services/push.service");
 
 let server = null;
 
@@ -34,6 +35,15 @@ const start = async () => {
     });
     process.exit(1);
   }
+
+  // Initialise push eagerly so a missing or malformed Firebase credential is
+  // reported at boot instead of at the first notification. Non-fatal by
+  // design: QMS must still run a queue without Firebase configured.
+  const configured = pushService.status();
+  if (configured.fcmConfigured) pushService.initFcm();
+  else logger.warn("FCM not configured — queue notifications will not be delivered");
+  if (configured.webPushConfigured) pushService.initWebPush();
+  logger.info("Push transports", pushService.status());
 
   jobs.start();
 

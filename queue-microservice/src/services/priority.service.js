@@ -164,12 +164,9 @@ const computeScore = (input, minutesWaited = 0, config = priorityConfig.get()) =
   return { ...base, waitTerm: wait, score: base.baseScore + wait };
 };
 
-/**
- * Minutes a case has been waiting. Measured from queued_at, falling back to
- * created_at for a case still in SUBMITTED.
- */
+/** Minutes a case has been waiting, measured from queued_at. */
 const minutesWaited = (entry, now = new Date()) => {
-  const start = entry.queuedAt || entry.createdAt;
+  const start = entry.queuedAt;
   if (!start) return 0;
   return Math.max(0, (now.getTime() - new Date(start).getTime()) / 60000);
 };

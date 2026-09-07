@@ -1,20 +1,27 @@
 "use strict";
 
 const { Model } = require("sequelize");
-const {
-  STATUS,
-  EMERGENCY_LEVEL,
-  CASE_TYPE,
-  SPEC_MATCH,
-  ETA_MODEL,
-} = require("../constants");
+const { STATUS, EMERGENCY_LEVEL, CASE_TYPE, ETA_MODEL } = require("../constants");
 
 /**
- * queue_entries — backend LLD §02.1.
+ * queue_entries — backend LLD §02.1, kept deliberately lean.
  *
- * References OpenMRS / auth-gateway UUIDs as foreign keys; it deliberately does
- * NOT re-store patient or doctor name/email/phone (LLD §02, "correction from
- * the architecture ERD" — those identities already exist elsewhere).
+ * Every column here is read by code. Nothing is stored "in case someone wants
+ * it later": a value that is only ever echoed back to a client, or that can be
+ * derived from another column, is not a column.
+ *
+ * In particular this table holds NO clinical content and no patient
+ * demographics. Chief complaint and vitals arrive in the submit request, are
+ * scored, and are not retained — the doctor reads them from OpenMRS, which is
+ * where they belong. That keeps LLD §13.3's encryption-at-rest obligation off
+ * this table entirely.
+ *
+ * Three values are computed rather than stored, because storing them only
+ * created something that could drift out of step:
+ *
+ *   escalated                → escalatedAt !== null
+ *   heartbeatFlagged         → lastHeartbeatAt older than the stale cutoff
+ *   score before assignment  → baseScore + cumulativeAgingApplied
  */
 module.exports = (sequelize, DataTypes) => {
   class queue_entries extends Model {
@@ -23,123 +30,104 @@ module.exports = (sequelize, DataTypes) => {
 
   queue_entries.init(
     {
-      // FK → OpenMRS visit.uuid. UNIQUE: this is the natural dedupe key that
-      // makes POST /submit idempotent when a flaky mobile connection retries
-      // a call that actually succeeded (LLD §09.1).
+      /* ── Identity and routing ─────────────────────────────────────────── */
+
+      // FK → OpenMRS visit.uuid, and the natural dedupe key that makes
+      // POST /submit idempotent when a flaky phone retries (LLD §09.1).
       visitUuid: { type: DataTypes.STRING(64), allowNull: false, unique: true },
-      // FK → OpenMRS person.uuid. Reference only, no demographics stored here.
-      patientUuid: { type: DataTypes.STRING(64), allowNull: true },
-      // FK → auth-gateway user.
+      // FK → auth-gateway user. Who to notify, and who owns the case (§13.1).
       hwUserUuid: { type: DataTypes.STRING(64), allowNull: false },
+      // The lane this case waits in.
       speciality: { type: DataTypes.STRING(100), allowNull: false },
-      // LLD §13.5 — populated so the queue can be split per facility later
-      // without a migration. See config.queue.scope.
-      locationUuid: { type: DataTypes.STRING(64), allowNull: true },
+      assignedDoctorUuid: { type: DataTypes.STRING(64), allowNull: true },
+
+      /* ── Classification: the priority engine's inputs ─────────────────── */
 
       emergencyLevel: {
         type: DataTypes.ENUM(...Object.values(EMERGENCY_LEVEL)),
         allowNull: false,
         defaultValue: EMERGENCY_LEVEL.LOW,
       },
-      // The level the caller asked for, before the flagged/vitals floors were
-      // applied (Priority Engine §00, §02.1). Kept for auditability.
-      requestedEmergencyLevel: {
-        type: DataTypes.ENUM(...Object.values(EMERGENCY_LEVEL)),
-        allowNull: true,
-      },
       caseType: {
         type: DataTypes.ENUM(...Object.values(CASE_TYPE)),
         allowNull: false,
         defaultValue: CASE_TYPE.NEW,
       },
-      specMatch: {
-        type: DataTypes.ENUM(...Object.values(SPEC_MATCH)),
-        allowNull: false,
-        defaultValue: SPEC_MATCH.EXACT,
-      },
       // Priority Engine §00 — an existing type-15 "Flagged" encounter acts as a
-      // HIGH floor. Callers pass the flag; QMS never queries OpenMRS itself.
+      // HIGH floor. Callers pass it; QMS never queries OpenMRS itself.
       flagged: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
 
-      // Patient clinical payload used by V(vitals) and shown on the doctor
-      // panel. This is real patient data — see LLD §13.3 on encryption at rest.
-      vitals: { type: DataTypes.JSON, allowNull: true },
-      chiefComplaint: { type: DataTypes.TEXT, allowNull: true },
+      /* ── Ordering ─────────────────────────────────────────────────────── */
 
-      // P(case, t) — a sort key, never displayed to a doctor or in a report
-      // (Priority Engine §01). Composed of baseScore + agingApplied so the
-      // aging job can be fully idempotent (§03).
+      // P(case, t) — a sort key, never shown to a doctor or in a report
+      // (Priority Engine §01). Always baseScore + cumulativeAgingApplied, which
+      // is what makes the aging job idempotent and a release restorable
+      // without a snapshot column.
       //
-      // DOUBLE, not FLOAT. LLD §02.1's column table says FLOAT, but MySQL FLOAT
-      // is 4-byte single precision — roughly 7 significant decimal digits,
-      // whereas Priority Engine §01 reasons explicitly about needing the
-      // 15-17 digits an IEEE-754 double carries. Under FLOAT, base + aging does
-      // not round-trip exactly and near-equal scores collapse into false ties.
+      // DOUBLE, not FLOAT: MySQL FLOAT is 4-byte single precision (~7 digits),
+      // and §01 reasons explicitly about needing an IEEE-754 double's 15-17.
       priorityScore: { type: DataTypes.DOUBLE, allowNull: false, defaultValue: 0 },
       // Everything except the wait term: w_E·E + w_C·C + w_S·S + V.
       baseScore: { type: DataTypes.DOUBLE, allowNull: false, defaultValue: 0 },
-      // w_W·W(m) already folded into priorityScore. The aging job applies only
-      // the delta against this, so an irregular tick schedule cannot double- or
-      // under-apply the bonus (Priority Engine §03).
+      // w_W·W(m) already folded in. The aging job applies only the delta
+      // against this, so an irregular tick cannot double- or under-apply it.
       cumulativeAgingApplied: { type: DataTypes.DOUBLE, allowNull: false, defaultValue: 0 },
-      // Score restored on release, so a doctor handing a case back doesn't
-      // penalise it (LLD §09.2).
-      scoreBeforeAssignment: { type: DataTypes.DOUBLE, allowNull: true },
+
+      /* ── Lifecycle ────────────────────────────────────────────────────── */
 
       status: {
         type: DataTypes.ENUM(...Object.values(STATUS)),
         allowNull: false,
         defaultValue: STATUS.SUBMITTED,
       },
-      assignedDoctorUuid: { type: DataTypes.STRING(64), allowNull: true },
-
+      // queuedAt doubles as the creation time, which is why there are no
+      // Sequelize timestamps on this table.
       queuedAt: { type: DataTypes.DATE, allowNull: true },
       assignedAt: { type: DataTypes.DATE, allowNull: true },
       connectedAt: { type: DataTypes.DATE, allowNull: true },
       completedAt: { type: DataTypes.DATE, allowNull: true },
 
-      // For post-hoc accuracy analysis (LLD §02.1).
-      initialPosition: { type: DataTypes.INTEGER, allowNull: true },
-      finalPosition: { type: DataTypes.INTEGER, allowNull: true },
-      // Last EWT pushed to the HW, and the estimate made at submit time —
-      // /analytics/accuracy compares the latter against the real wait (§09.4).
+      // LLD §05.3 — stamped once by the SLA force-promote job. Its presence IS
+      // the escalated flag, and `WHERE escalated_at IS NULL` is the
+      // escalate-once guard, so the admin notification cannot re-fire.
+      escalatedAt: { type: DataTypes.DATE, allowNull: true },
+
+      /* ── Wait estimate (LLD §07) ──────────────────────────────────────── */
+
+      // When the consultation is expected, as an absolute instant. Anchored:
+      // rewritten only when the computed wait moves, so a client can count
+      // down from it locally.
+      etaAt: { type: DataTypes.DATE, allowNull: true },
+      // The model's last computed wait — what the anchor decision compares.
       estimatedWaitMin: { type: DataTypes.INTEGER, allowNull: true },
+      // The estimate made at submit, compared against the real wait by
+      // /analytics/accuracy (§09.4). Without it there is nothing to measure.
       initialEstimatedWaitMin: { type: DataTypes.INTEGER, allowNull: true },
       etaModelUsed: { type: DataTypes.ENUM(...Object.values(ETA_MODEL)), allowNull: true },
 
-      // LLD §05.3 — set once by the SLA force-promote job. Checked before
-      // promoting so the admin notification cannot re-fire every minute.
-      escalated: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
-      escalatedAt: { type: DataTypes.DATE, allowNull: true },
+      /* ── Liveness and push bookkeeping (LLD §08, §09.1) ───────────────── */
 
-      // LLD §04 — RE_QUEUED bump count, for cases whose call kept failing.
-      requeueCount: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
-
-      // LLD §09.1 — keep-alive. A missing heartbeat FLAGS the entry for review;
-      // it never auto-cancels it, because a patient may still be waiting even
-      // if the app died.
+      // A missing heartbeat flags an entry for review; it never cancels it,
+      // because a patient may still be waiting even though the app died. The
+      // flag is derived from this timestamp rather than written.
       lastHeartbeatAt: { type: DataTypes.DATE, allowNull: true },
-      heartbeatFlagged: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
-
-      // LLD §08 — push bookkeeping. The MySQL equivalent of the design's
-      // hw:{id}:last_ewt key: what was last pushed, and when.
+      // The three push columns do distinct work: position-change detection,
+      // the 5-minute ETA threshold, and the 30-second frequency cap.
       lastPositionPushed: { type: DataTypes.INTEGER, allowNull: true },
-      lastEwtPushed: { type: DataTypes.INTEGER, allowNull: true },
+      lastEtaAtPushed: { type: DataTypes.DATE, allowNull: true },
       lastPushAt: { type: DataTypes.DATE, allowNull: true },
-
-      cancellationReason: { type: DataTypes.TEXT, allowNull: true },
-      // How the case reached a terminal state: DOCTOR, HW, STALE_SWEEP, ADMIN.
-      completionSource: { type: DataTypes.STRING(32), allowNull: true },
     },
     {
       sequelize,
       modelName: "queue_entries",
       tableName: "queue_entries",
+      // queuedAt is the creation time; nothing read created_at/updated_at.
+      timestamps: false,
       indexes: [
         { name: "idx_queue_entries_status_speciality", fields: ["status", "speciality"] },
         { name: "idx_queue_entries_assigned_doctor", fields: ["assigned_doctor_uuid"] },
         { name: "idx_queue_entries_queued_at", fields: ["queued_at"] },
-        // Backs the ordering query — the sorted-set equivalent (LLD §03).
+        // Backs the ordering read — the sorted-set equivalent (LLD §03).
         {
           name: "idx_queue_entries_lane",
           fields: ["speciality", "status", "emergency_level", "priority_score"],

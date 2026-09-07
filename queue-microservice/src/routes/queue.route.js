@@ -25,17 +25,18 @@ const entryParams = validateParams({
 
 const submitSchema = {
   visitUuid: { type: "string", required: true, maxLength: 64 },
-  patientUuid: { type: "string", maxLength: 64 },
   hwUserUuid: { type: "string", maxLength: 64 },
   speciality: { type: "string", required: true, maxLength: 100 },
-  locationUuid: { type: "string", maxLength: 64 },
   emergencyLevel: { type: "string", enum: Object.values(EMERGENCY_LEVEL), default: EMERGENCY_LEVEL.LOW },
   caseType: { type: "string", enum: Object.values(CASE_TYPE), default: CASE_TYPE.NEW },
+  // Scoring inputs, consumed at submit and not stored: the resulting
+  // emergency level is kept, these are not.
   specMatch: { type: "string", enum: Object.values(SPEC_MATCH), default: SPEC_MATCH.EXACT },
   // Priority Engine §00 — an existing type-15 "Flagged" encounter. The caller
   // passes it; QMS never queries OpenMRS itself.
   flagged: { type: "boolean", default: false },
   chiefComplaint: { type: "string", maxLength: 2000 },
+
 };
 
 // Every route below requires either a user JWT or the internal service secret.
@@ -73,7 +74,6 @@ router.get(
     // explicit statuses. Defaults to WAITING — the queue proper.
     status: { type: "string", maxLength: 200 },
     speciality: { type: "string", maxLength: 100 },
-    locationUuid: { type: "string", maxLength: 64 },
     emergencyLevel: { type: "string", enum: Object.values(EMERGENCY_LEVEL) },
     caseType: { type: "string", enum: Object.values(CASE_TYPE) },
     hwUserUuid: { type: "string", maxLength: 64 },
@@ -81,7 +81,6 @@ router.get(
     visitUuid: { type: "string", maxLength: 64 },
     escalated: { type: "boolean" },
     flagged: { type: "boolean" },
-    heartbeatFlagged: { type: "boolean" },
     queuedFrom: { type: "string", maxLength: 40 },
     queuedTo: { type: "string", maxLength: 40 },
     sort: {
@@ -106,7 +105,6 @@ router.get(
   validateQuery({
     status: { type: "string", maxLength: 200 },
     speciality: { type: "string", maxLength: 100 },
-    locationUuid: { type: "string", maxLength: 64 },
     withItems: { type: "boolean", default: false },
     itemsPerSpeciality: { type: "integer", default: 5, min: 1, max: 25 },
   }),
@@ -119,7 +117,6 @@ router.get(
   "/doctor/:doctorUuid/list",
   validateQuery({
     speciality: { type: "string", maxLength: 100 },
-    locationUuid: { type: "string", maxLength: 64 },
     limit: { type: "integer", default: 50, min: 1, max: 200 },
     offset: { type: "integer", default: 0, min: 0 },
   }),
@@ -130,9 +127,33 @@ router.post(
   "/doctor/:doctorUuid/next",
   validateBody({
     speciality: { type: "string", maxLength: 100 },
-    locationUuid: { type: "string", maxLength: 64 },
   }),
   asyncHandler(controller.claimNext)
+);
+
+/* ── Call lifecycle webhooks from web-rtc, keyed by visit ────────────────── */
+
+const visitParams = validateParams({
+  visitUuid: { type: "string", required: true, maxLength: 64 },
+});
+
+router.get("/visit/:visitUuid", visitParams, asyncHandler(controller.getByVisit));
+
+router.post(
+  "/visit/:visitUuid/call-connected",
+  visitParams,
+  validateBody({ doctorUuid: { type: "string", maxLength: 64 } }),
+  asyncHandler(controller.callConnected)
+);
+
+router.post(
+  "/visit/:visitUuid/call-disconnected",
+  visitParams,
+  validateBody({
+    doctorUuid: { type: "string", maxLength: 64 },
+    reason: { type: "string", maxLength: 200 },
+  }),
+  asyncHandler(controller.callDisconnected)
 );
 
 /* ── Health worker (LLD §09.1) ───────────────────────────────────────────── */

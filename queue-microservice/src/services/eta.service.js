@@ -103,10 +103,10 @@ const memo = (cache, bucket, key, load) => {
  * @param cache     optional makeCache() memo, for estimating many cases at once
  */
 const estimate = async (entry, { position = null, cache = null } = {}) => {
-  const scope = { speciality: entry.speciality, locationUuid: entry.locationUuid };
+  const scope = { speciality: entry.speciality };
   const model = modelFor(entry.speciality);
   const overhead = overheadFor(entry.speciality);
-  const scopeKey = `${entry.speciality}::${entry.locationUuid || ""}`;
+  const scopeKey = entry.speciality;
 
   const [rank, inService, pooled] = await Promise.all([
     position !== null ? Promise.resolve(position) : queueLane.getPosition(entry),
@@ -140,8 +140,13 @@ const estimate = async (entry, { position = null, cache = null } = {}) => {
   const serviceMinutes = (lq * avgConsultMin) / servers;
   const etaMinutes = Math.max(0, Math.round(serviceMinutes + overhead));
 
+  // The same estimate as an absolute instant. The caller anchors it via
+  // resolveAnchor before storing or sending it.
+  const freshEtaAt = new Date(Date.now() + etaMinutes * 60000);
+
   return {
     etaMinutes,
+    freshEtaAt,
     model,
     inputs: {
       position: rank,
@@ -177,4 +182,81 @@ const estimateMany = async (entries, positionById = new Map()) => {
   return out;
 };
 
-module.exports = { estimate, estimateMany, makeCache, modelFor, overheadFor, pooledStats };
+
+/**
+ * Anchor the estimate to a stable instant.
+ *
+ * The point of exposing an instant rather than a duration is that a client can
+ * count down from it locally and does not need a push every minute. That only
+ * works if the instant holds still while nothing changes.
+ *
+ * The decision must therefore be made on the MODEL'S OUTPUT, not on the
+ * instant. The estimate is a function of queue position, not of elapsed time:
+ * a patient at position 3 is "30 minutes away" at 10:00 and still "30 minutes
+ * away" at 10:10 if nobody ahead has been served. Comparing instants would see
+ * `now + 30min` slide from 10:30 to 10:40 and re-anchor every single time —
+ * the horizon would recede forever and the countdown would never advance.
+ *
+ * So: if the computed wait is unchanged, keep the promised instant and let the
+ * clock eat into it. Re-anchor only when the wait itself moves, which is when
+ * something real happened — someone ahead was served, the queue was reordered,
+ * or the doctor pool changed.
+ *
+ * @param stored     { storedEtaAt, storedWaitMin } from the entry
+ * @param freshWaitMin  the newly computed wait, in minutes
+ * @returns { etaAt, moved, changedByMin }
+ */
+const resolveAnchor = (
+  { storedEtaAt, storedWaitMin },
+  freshWaitMin,
+  { now = new Date(), toleranceMin = config.eta.anchorToleranceMin } = {}
+) => {
+  const anchorFrom = (minutes) => new Date(now.getTime() + minutes * 60000);
+
+  if (!Number.isFinite(freshWaitMin)) {
+    return { etaAt: storedEtaAt ? new Date(storedEtaAt) : null, moved: false, changedByMin: 0 };
+  }
+
+  const stored = storedEtaAt ? new Date(storedEtaAt) : null;
+  if (!stored || Number.isNaN(stored.getTime()) || !Number.isFinite(storedWaitMin)) {
+    return { etaAt: anchorFrom(freshWaitMin), moved: true, changedByMin: 0 };
+  }
+
+  const changedByMin = Math.abs(freshWaitMin - storedWaitMin);
+  if (changedByMin <= toleranceMin) {
+    // Nothing material changed — the promise stands and the countdown runs.
+    return { etaAt: stored, moved: false, changedByMin };
+  }
+  return { etaAt: anchorFrom(freshWaitMin), moved: true, changedByMin };
+};
+
+/**
+ * Minutes still to wait, derived from the anchor — this is what a client shows,
+ * and what it can recompute itself every second without asking the server.
+ * Never negative: an overdue case reads as 0, not as a countdown past zero.
+ */
+const minutesUntil = (etaAt, now = new Date()) => {
+  if (!etaAt) return null;
+  const target = new Date(etaAt).getTime();
+  if (Number.isNaN(target)) return null;
+  return Math.max(0, Math.round((target - now.getTime()) / 60000));
+};
+
+/** True once the promised instant has passed — useful for an "any moment now" state. */
+const isOverdue = (etaAt, now = new Date()) => {
+  if (!etaAt) return false;
+  const target = new Date(etaAt).getTime();
+  return !Number.isNaN(target) && target < now.getTime();
+};
+
+module.exports = {
+  estimate,
+  estimateMany,
+  makeCache,
+  modelFor,
+  overheadFor,
+  pooledStats,
+  resolveAnchor,
+  minutesUntil,
+  isOverdue,
+};

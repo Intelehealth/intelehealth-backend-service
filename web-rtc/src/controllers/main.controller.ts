@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { WebRTCService } from "../services/webrtc.service";
+import { notifyCallConnected, notifyCallDisconnected } from "../services/qms.service";
 const { logStream } = require("../logger/index");
 
 export class MainController {
@@ -62,6 +63,17 @@ export class MainController {
             };
 
             const response = await new WebRTCService().startRecording(req.body.roomId as string, recordingParams);
+
+            // Tell QMS the call has started. Inert unless QMS_ENABLED=true, and
+            // deliberately NOT awaited into the response path: a queue update
+            // must never delay or fail the recording that just succeeded.
+            notifyCallConnected({
+                visitId: req.body.visitId,
+                roomId: req.body.roomId,
+                doctorId: req.body.doctorId,
+                authorization: req.header("Authorization") ?? null,
+            }).catch(() => { /* qms.service already logged it */ });
+
             logStream('debug', 'Success', 'Get Token');
             return res.json(response);
         } catch (error) {
@@ -93,6 +105,15 @@ export class MainController {
             if (response?.success === false) {
                 return res.status(response?.status ?? 500).json(response)
             }
+
+            // Tell QMS the call has ended. The visit is recovered from the room
+            // via call_recordings. Fire-and-forget, same reasoning as above.
+            notifyCallDisconnected({
+                roomId: req.query.roomId as string,
+                reason: 'RECORDING_STOPPED',
+                authorization: req.header("Authorization") ?? null,
+            }).catch(() => { /* qms.service already logged it */ });
+
             logStream('debug', 'Success', 'Get Token');
             return res.json(response);
         } catch (error) {

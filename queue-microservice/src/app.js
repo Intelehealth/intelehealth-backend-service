@@ -8,6 +8,7 @@ const routes = require("./routes");
 const openapi = require("./docs/openapi");
 const models = require("./models");
 const config = require("./config/env");
+const pushService = require("./services/push.service");
 const { notFound, errorHandler } = require("./middleware/errorHandler");
 const { success } = require("./utils/apiResponse");
 
@@ -37,7 +38,10 @@ app.get("/health", async (_req, res) => {
     service: "queue-microservice",
     status: database === "up" ? "ok" : "degraded",
     database,
-    queueScope: config.queue.scope,
+    // Whether FCM / web push are actually usable — the quickest way to tell a
+    // missing Firebase credential from a missing device token.
+    push: pushService.status(),
+    priorityEngine: config.queue.priorityEngineEnabled ? "enabled" : "disabled (strict FIFO)",
     criticalLaneScope: config.queue.criticalLaneScope,
     jobsEnabled: config.jobs.enabled,
     uptimeSeconds: Math.round(process.uptime()),

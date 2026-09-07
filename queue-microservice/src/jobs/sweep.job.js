@@ -24,23 +24,25 @@ const { STATUS, WAITING_STATUSES, DOCTOR_STATUS } = require("../constants");
  * A missing heartbeat FLAGS the entry for review — it never auto-cancels it.
  * The doc is explicit about why: a patient may still be waiting even if the app
  * died, so a machine must not decide they have gone home.
+ *
+ * There is nothing to write: "flagged" is simply last_heartbeat_at being older
+ * than the cutoff, computed wherever it is read. So this pass only reports the
+ * count, which is what a human would act on anyway.
  */
 const sweepHeartbeats = async (now = new Date()) => {
   const cutoff = new Date(now.getTime() - config.queue.heartbeatStaleMinutes * 60000);
 
-  const [flagged] = await models.queue_entries.update(
-    { heartbeatFlagged: true },
-    {
-      where: {
-        status: { [Op.in]: WAITING_STATUSES },
-        heartbeatFlagged: false,
-        lastHeartbeatAt: { [Op.lt]: cutoff },
-      },
-    }
-  );
+  const stale = await models.queue_entries.count({
+    where: {
+      status: { [Op.in]: WAITING_STATUSES },
+      lastHeartbeatAt: { [Op.lt]: cutoff },
+    },
+  });
 
-  if (flagged) logger.warn("Queue entries flagged for review — stale heartbeat", { flagged });
-  return flagged;
+  if (stale) {
+    logger.warn("Waiting entries with a stale heartbeat — review, do not cancel", { stale });
+  }
+  return stale;
 };
 
 /** Assigned or connecting but never actually connected — back to the queue. */
@@ -72,10 +74,6 @@ const sweepStuckConnections = async (now = new Date()) => {
 /**
  * Connected, but nothing ever reported the call finished. Closing these is what
  * keeps a crashed client from pinning a doctor as in_consult forever.
- *
- * Marked with completion_source = STALE_SWEEP so these never get mistaken for
- * real completions in the stats — in particular, the consult duration from a
- * swept case would otherwise poison the avg_consult_min EMA that feeds μ.
  */
 const sweepStaleCalls = async (now = new Date()) => {
   const cutoff = new Date(now.getTime() - config.queue.staleAfterMinutes * 60000);
@@ -88,13 +86,13 @@ const sweepStaleCalls = async (now = new Date()) => {
   let closed = 0;
   for (const entry of stale) {
     try {
-      // Not queueService.complete(): that would fold a fabricated duration into
-      // the doctor's EMA. Close the record, free the doctor, leave μ alone.
-      await entry.update({
-        status: STATUS.COMPLETED,
-        completedAt: now,
-        completionSource: "STALE_SWEEP",
-      });
+      // Deliberately NOT queueService.complete(): a swept session is not a
+      // real completion, and its fabricated duration would poison the
+      // avg_consult_min EMA that feeds μ (§07). Close the record, free the
+      // doctor, leave μ alone — and say so in the log, which is where a swept
+      // close is recorded now that the row carries no source column.
+      logger.warn("Closing a call that never reported finishing", { queueEntryId: entry.id });
+      await entry.update({ status: STATUS.COMPLETED, completedAt: now });
       if (entry.assignedDoctorUuid) {
         await doctorStatus.setStatus(entry.assignedDoctorUuid, DOCTOR_STATUS.ONLINE, {
           speciality: entry.speciality,
@@ -112,10 +110,10 @@ const sweepStaleCalls = async (now = new Date()) => {
 };
 
 const runSweepTick = async ({ now = new Date() } = {}) => {
-  const flagged = await sweepHeartbeats(now);
+  const staleHeartbeats = await sweepHeartbeats(now);
   const requeued = await sweepStuckConnections(now);
   const closed = await sweepStaleCalls(now);
-  return { flagged, requeued, closed };
+  return { staleHeartbeats, requeued, closed };
 };
 
 module.exports = { runSweepTick, sweepHeartbeats, sweepStuckConnections, sweepStaleCalls };
