@@ -46,7 +46,8 @@ COPY package*.json ./
  
 
 # Install production dependencies only
-RUN npm ci --legacy-bundling --only=production
+#RUN npm ci --legacy-bundling --only=production
+RUN npm install --legacy-bundling --omit=dev
 
 # Copy built application from builder stage
 COPY --from=builder /app ./
