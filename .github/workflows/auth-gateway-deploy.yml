@@ -164,9 +164,16 @@ jobs:
           path: app-image.tar
           retention-days: 1
 
+  #deploy:
+  #  needs: [prepare-matrix, build, build-arm64]
+  #  if: always() 
+
   deploy:
-    needs: [prepare-matrix, build, build-arm64]
-    if: always()
+       needs: prepare-matrix
+       runs-on: ubuntu-latest
+  strategy:
+       matrix: ${{ fromJson(needs.prepare-matrix.outputs.matrix) }}
+       fail-fast: false  
     runs-on: ubuntu-latest
     strategy:
       matrix: ${{ fromJson(needs.prepare-matrix.outputs.matrix) }}
