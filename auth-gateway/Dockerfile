@@ -22,7 +22,8 @@ RUN apk add --no-cache --virtual .build-deps \
 
 COPY package*.json ./
 #RUN npm ci --legacy-bundling
- RUN npm install --legacy-bundling --omit=dev && npm cache clean --force
+
+ RUN npm cache clean --force && npm install --legacy-bundling --omit=dev && npm cache clean --force
 COPY . .
 # If you have build step, uncomment:
 # RUN npm run build
@@ -47,7 +48,7 @@ COPY package*.json ./
 
 # Install production dependencies only
 #RUN npm ci --legacy-bundling --only=production
- RUN npm install --legacy-bundling --omit=dev && npm cache clean --force
+ RUN npm cache clean --force && npm install --legacy-bundling --omit=dev && npm cache clean --force
 
 
 # Copy built application from builder stage
