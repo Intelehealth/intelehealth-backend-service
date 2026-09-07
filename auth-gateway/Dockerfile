@@ -21,8 +21,8 @@ RUN apk add --no-cache --virtual .build-deps \
     librsvg-dev
 
 COPY package*.json ./
-RUN npm ci --legacy-bundling
-
+#RUN npm ci --legacy-bundling
+ RUN npm ci --legacy-bundling --omit=dev && npm cache clean --force
 COPY . .
 # If you have build step, uncomment:
 # RUN npm run build
@@ -47,7 +47,8 @@ COPY package*.json ./
 
 # Install production dependencies only
 #RUN npm ci --legacy-bundling --only=production
-RUN npm install --legacy-bundling --omit=dev
+RUN npm ci --legacy-bundling --omit=dev && npm cache clean --force
+
 
 # Copy built application from builder stage
 COPY --from=builder /app ./
