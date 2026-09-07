@@ -10,12 +10,12 @@
 #   1. prepare-matrix  Decides which environments to deploy, computes needed archs + migrations
 #   2. build           Builds the amd64 image natively and uploads it as an artifact
 #   3. build-arm64     Builds the arm64 image natively and uploads it as an artifact
-#   4. deploy          Matrix job � downloads the matching-arch artifact and deploys to each host
+#   4. deploy          Matrix job  downloads the matching-arch artifact and deploys to each host
 #
 # Required secrets:
-#   DEV_HOST, TURN_HOST   � SSH hostnames/IPs
-#   DEV_USER              � SSH username
-#   DEV_SSH_KEY           � SSH private key
+#   DEV_HOST, TURN_HOST    SSH hostnames/IPs
+#   DEV_USER               SSH username
+#   DEV_SSH_KEY            SSH private key
 #
 # Architecture mapping (hardcoded): each environment maps to a target arch so we build ONLY
 # what's needed, natively, on the matching runner (no QEMU). Update `arch_of` in prepare-matrix
@@ -175,7 +175,7 @@ jobs:
       REMOTE_PORT: 22
       ENV_FILE_PATH: /home/ubuntu/deploy/auth-gateway/.env
       PEM_FOLDER_PATH: /home/ubuntu/deploy/auth-gateway/.pem
-      # All host secrets mapped upfront � dynamic secret refs aren't supported in GitHub Actions
+      # All host secrets mapped upfront dynamic secret refs aren't supported in GitHub Actions
       DEV_HOST: ${{ secrets.DEV_HOST }}
       TURN_HOST: ${{ secrets.TURN_HOST }}
       TTXAI_HOST: ${{ secrets.TTXAI_HOST }}
@@ -256,8 +256,8 @@ jobs:
             echo "Auth-gateway deployment to ${{ matrix.environment }} completed successfully"
           EOF
 
-  #    - name: Run migrations on ${{ matrix.environment }} host
- #       if: needs.prepare-matrix.outputs.migrations_changed == 'true'
+#    - name: Run migrations on ${{ matrix.environment }} host
+#       if: needs.prepare-matrix.outputs.migrations_changed == 'true'
 #        run: |
 #          mkdir -p ~/.ssh
 #          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
