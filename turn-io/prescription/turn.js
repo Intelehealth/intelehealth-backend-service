@@ -19,16 +19,20 @@ const postMessage = (payload) =>
 
 // Notify the patient on WhatsApp that their prescription is ready: a short text
 // then the PDF as an in-chat document. Throws on API error so the caller logs it.
-const notifyPrescriptionReady = async ({ number, pdfUrl, filename, name }) => {
+// `resend` (Update Prescription) gets its own copy so the patient knows this is a revision.
+const notifyPrescriptionReady = async ({ number, pdfUrl, filename, name, resend }) => {
    if (!TURN_API_TOKEN) throw new Error("TURN_API_TOKEN is not set");
    const to = normalizeNumber(number);
    if (!to) throw new Error("recipient number is required");
 
    const greeting = name ? `Hello ${name}, ` : "";
+   const body = resend
+      ? `${greeting}your updated prescription is ready. Sending it now.`
+      : `${greeting}your prescription is ready. Sending it now.`;
    await postMessage({
       to,
       type: "text",
-      text: { body: `${greeting}your prescription is ready. Sending it now.` },
+      text: { body },
    });
 
    await postMessage({

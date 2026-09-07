@@ -44,6 +44,7 @@ const notifyForVisit = async (visitUuid, { number: overrideNumber, baseUrl, visi
       pdfUrl: `${base}/webhooks/turn/prescription/${visitUuid}.pdf`,
       filename: pdfName(data, visitUuid),
       name: data.patientName,
+      resend: Boolean(resend),
    });
    notifiedVisits.add(visitUuid); // only after a successful send, so a failed push can retry
 
