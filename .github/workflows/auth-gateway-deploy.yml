@@ -33,10 +33,7 @@ on:
         description: 'Deploy to DEV host'
         type: boolean
         default: true
-      deploy_turn:
-        description: 'Deploy to TURN host'
-        type: boolean
-        default: false
+     
       deploy_ttxai:
         description: 'Deploy to TTXAI host'
         type: boolean
@@ -102,9 +99,7 @@ jobs:
             if [ "${{ inputs.deploy_dev }}" == "true" ]; then
               includes=$(echo "$includes" | jq -c --arg arch "$(arch_of dev)" '. += [{"environment":"dev","arch":$arch}]')
             fi
-            if [ "${{ inputs.deploy_turn }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c --arg arch "$(arch_of turn)" '. += [{"environment":"turn","arch":$arch}]')
-            fi
+          
             if [ "${{ inputs.deploy_ttxai }}" == "true" ]; then
               includes=$(echo "$includes" | jq -c --arg arch "$(arch_of ttxai)" '. += [{"environment":"ttxai","arch":$arch}]')
             fi
@@ -176,7 +171,7 @@ jobs:
       PEM_FOLDER_PATH: /home/ubuntu/deploy/auth-gateway/.pem
       # All host secrets mapped upfront - dynamic secret refs aren't supported in GitHub Actions
       DEV_HOST: ${{ secrets.DEV_HOST }}
-      TURN_HOST: ${{ secrets.TURN_HOST }}
+      #TURN_HOST: ${{ secrets.TURN_HOST }}
       TTXAI_HOST: ${{ secrets.TTXAI_HOST }}
       TESTTURN_HOST: ${{ secrets.TESTTURN_HOST }}
       PATHQA_HOST: ${{ secrets.PATHQA_HOST }}
@@ -187,7 +182,6 @@ jobs:
         run: |
           case "${{ matrix.environment }}" in
             dev)  echo "REMOTE_HOST=$DEV_HOST"  >> $GITHUB_ENV ;;
-            turn) echo "REMOTE_HOST=$TURN_HOST" >> $GITHUB_ENV ;;
             ttxai) echo "REMOTE_HOST=$TTXAI_HOST" >> $GITHUB_ENV ;;
             testturn) echo "REMOTE_HOST=$TESTTURN_HOST" >> $GITHUB_ENV ;;
             pathqa) echo "REMOTE_HOST=$PATHQA_HOST" >> $GITHUB_ENV ;;
