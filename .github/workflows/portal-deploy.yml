@@ -223,8 +223,7 @@ jobs:
           scp -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=yes \
               -P $REMOTE_PORT \
-              app-image-${{ matrix.arch }}.tar \
-              $REMOTE_USER@$REMOTE_HOST:/tmp/app-image.tar
+              app-image-${{ matrix.arch }}.tar $REMOTE_USER@$REMOTE_HOST:/tmp/app-image.tar
           # SSH into remote host and deploy
           ssh -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=yes \
