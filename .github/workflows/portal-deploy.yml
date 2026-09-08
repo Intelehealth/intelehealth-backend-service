@@ -32,6 +32,10 @@ on:
         description: 'Deploy to TTXAI host'
         type: boolean
         default: false
+      deploy_turn:
+        description: 'Deploy to TURN host'
+        type: boolean
+        default: false
       deploy_testturn:
         description: 'Deploy to TESTTURN host'
         type: boolean
@@ -70,6 +74,7 @@ jobs:
           dev_arch=amd64
           ttxai_arch=amd64
           testturn_arch=amd64
+          turn_arch=amd64
           pathqa_arch=arm64
 
           if [ "${{ github.event_name }}" == "push" ]; then
@@ -90,6 +95,7 @@ jobs:
                 dev)      selected="${{ inputs.deploy_dev }}" ;;
                 ttxai)    selected="${{ inputs.deploy_ttxai }}" ;;
                 testturn) selected="${{ inputs.deploy_testturn }}" ;;
+                 turn)    selected="${{ inputs.deploy_turn }}" ;;
                 pathqa)   selected="${{ inputs.deploy_pathqa }}" ;;
               esac
               if [ "$selected" == "true" ]; then
@@ -177,6 +183,7 @@ jobs:
       DEV_HOST: ${{ secrets.DEV_HOST }}
       TTXAI_HOST: ${{ secrets.TTXAI_HOST }}
       TESTTURN_HOST: ${{ secrets.TESTTURN_HOST }}
+      TURN_HOST: ${{ secrets.TURN_HOST }}
       PATHQA_HOST: ${{ secrets.PATHQA_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
@@ -187,6 +194,7 @@ jobs:
             dev)      host="$DEV_HOST" ;;
             ttxai)    host="$TTXAI_HOST" ;;
             testturn) host="$TESTTURN_HOST" ;;
+            turn)     host="$TURN_HOST" ;;
             pathqa)   host="$PATHQA_HOST" ;;
             *)        echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
