@@ -28,10 +28,6 @@ on:
         description: 'Deploy to DEV host'
         type: boolean
         default: false
-      deploy_turn:
-        description: 'Deploy to TURN host'
-        type: boolean
-        default: true
       deploy_ttxai:
         description: 'Deploy to TTXAI host'
         type: boolean
@@ -72,7 +68,6 @@ jobs:
           # Host -> CPU architecture map. Each arch builds natively on its
           # matching runner (see build_matrix below).
           dev_arch=amd64
-          turn_arch=amd64
           ttxai_arch=amd64
           testturn_arch=amd64
           pathqa_arch=arm64
@@ -93,7 +88,6 @@ jobs:
             for env in dev turn ttxai testturn pathqa; do
               case "$env" in
                 dev)      selected="${{ inputs.deploy_dev }}" ;;
-                turn)     selected="${{ inputs.deploy_turn }}" ;;
                 ttxai)    selected="${{ inputs.deploy_ttxai }}" ;;
                 testturn) selected="${{ inputs.deploy_testturn }}" ;;
                 pathqa)   selected="${{ inputs.deploy_pathqa }}" ;;
@@ -181,7 +175,6 @@ jobs:
       PEM_FOLDER_PATH: /home/ubuntu/deploy/portal/.pem
       # All host secrets mapped upfront � dynamic secret refs aren't supported in GitHub Actions
       DEV_HOST: ${{ secrets.DEV_HOST }}
-      TURN_HOST: ${{ secrets.TURN_HOST }}
       TTXAI_HOST: ${{ secrets.TTXAI_HOST }}
       TESTTURN_HOST: ${{ secrets.TESTTURN_HOST }}
       PATHQA_HOST: ${{ secrets.PATHQA_HOST }}
@@ -192,7 +185,6 @@ jobs:
         run: |
           case "${{ matrix.environment }}" in
             dev)      host="$DEV_HOST" ;;
-            turn)     host="$TURN_HOST" ;;
             ttxai)    host="$TTXAI_HOST" ;;
             testturn) host="$TESTTURN_HOST" ;;
             pathqa)   host="$PATHQA_HOST" ;;
