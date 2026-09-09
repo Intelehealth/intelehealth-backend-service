@@ -25,20 +25,13 @@ on:
   workflow_dispatch:
     inputs:
       deploy_dev:
-        description: 'Deploy to DEV host'
+        description: 'Deploy to Nasstaging host'
         type: boolean
         default: true
-      deploy_turn:
-        description: 'Deploy to TURN host'
-        type: boolean
-        default: false
-      deploy_ttxai:
-        description: 'Deploy to TTXAI host'
-        type: boolean
-        default: false
+     
     
   push:
-    branches: [development_master]
+    branches: [nas-ida5-development-master]
     paths:
       - 'web-rtc/**'
 
@@ -55,19 +48,13 @@ jobs:
         id: set-matrix
         run: |
           if [ "${{ github.event_name }}" == "push" ]; then
-            matrix='{"include":[{"environment":"dev"},{"environment":"turn"},{"environment":"ttxai"}]}'
+            matrix='{"include":[{"environment":"nasstaging"}]}'
           else
             includes='[]'
-            if [ "${{ inputs.deploy_dev }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c '. += [{"environment":"dev"}]')
+            if [ "${{ inputs.deploy_nasstaging }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"nasstaging"}]')
             fi
-            if [ "${{ inputs.deploy_turn }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c '. += [{"environment":"turn"}]')
-            fi
-            if [ "${{ inputs.deploy_ttxai }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c '. += [{"environment":"ttxai"}]')
-            fi
- 
+            
             matrix="{\"include\":$includes}"
           fi
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
@@ -127,9 +114,7 @@ jobs:
       PEM_FOLDER_PATH: /home/ubuntu/deploy/web-rtc/.pem
       # All host secrets mapped upfront — dynamic secret refs aren't supported in GitHub Actions
       DEV_HOST: ${{ secrets.DEV_HOST }}
-      TURN_HOST: ${{ secrets.TURN_HOST }}
-      TTXAI_HOST: ${{ secrets.TTXAI_HOST }}
-      NAS_PROD_HOST: ${{ secrets.NAS_HOST }}
+      NASSTAGING_HOST: ${{ secrets.NASSTAGING_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
@@ -141,9 +126,8 @@ jobs:
       - name: Resolve host for environment
         run: |
           case "${{ matrix.environment }}" in
-            dev)  echo "REMOTE_HOST=$DEV_HOST"  >> $GITHUB_ENV ;;
-            turn) echo "REMOTE_HOST=$TURN_HOST" >> $GITHUB_ENV ;;
-            ttxai) echo "REMOTE_HOST=$TTXAI_HOST" >> $GITHUB_ENV ;;
+            nasstaging)  echo "REMOTE_HOST=$DEV_HOST"  >> $GITHUB_ENV ;;
+           
              *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
       - name: Deploy to ${{ matrix.environment }} host
