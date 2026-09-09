@@ -3,7 +3,10 @@
 # Builds the web-rtc Docker image once and deploys it to one or more remote hosts.
 #
 # Triggers:
-#   - push to development_master (web-rtc/** changes) → deploys to ALL hosts
+#   - push to development_master (web-rtc/** changes) → deploys to nasstaging ONLY
+#     (nasstaging is the only host wired into the push-triggered matrix; if more
+#     hosts are added later, do NOT add them to the push matrix unless you want
+#     push to deploy to them too — keep new hosts manual-dispatch-only instead)
 #   - workflow_dispatch (manual) → deploys to selected hosts via checkboxes
 #
 # Jobs:
@@ -12,9 +15,9 @@
 #   3. deploy          Matrix job — downloads the artifact and deploys to each host in parallel
 #
 # Required secrets:
-#   DEV_HOST, TURN_HOST   — SSH hostnames/IPs
-#   DEV_USER              — SSH username
-#   DEV_SSH_KEY           — SSH private key
+#   DEV_HOST, NASSTSGING_HOST — SSH hostnames/IPs
+#   DEV_USER                  — SSH username
+#   DEV_SSH_KEY                — SSH private key
 #
 # To add a new host: add a secret for the hostname, map it in the deploy job env block,
 # add a case in "Resolve host", add a boolean input, and add it to the push matrix.
@@ -28,8 +31,7 @@ on:
         description: 'Deploy to Nasstaging host'
         type: boolean
         default: true
-     
-    
+
   push:
     branches: [nas-ida5-development-master]
     paths:
@@ -48,13 +50,14 @@ jobs:
         id: set-matrix
         run: |
           if [ "${{ github.event_name }}" == "push" ]; then
+            # On push, deploy to nasstaging only
             matrix='{"include":[{"environment":"nasstaging"}]}'
           else
             includes='[]'
             if [ "${{ inputs.deploy_nasstaging }}" == "true" ]; then
               includes=$(echo "$includes" | jq -c '. += [{"environment":"nasstaging"}]')
             fi
-            
+
             matrix="{\"include\":$includes}"
           fi
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
@@ -114,7 +117,7 @@ jobs:
       PEM_FOLDER_PATH: /home/ubuntu/deploy/web-rtc/.pem
       # All host secrets mapped upfront — dynamic secret refs aren't supported in GitHub Actions
       DEV_HOST: ${{ secrets.DEV_HOST }}
-      NASSTAGING_HOST: ${{ secrets.NASSTAGING_HOST }}
+      NASSTSGING_HOST: ${{ secrets.NASSTSGING_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
@@ -126,8 +129,8 @@ jobs:
       - name: Resolve host for environment
         run: |
           case "${{ matrix.environment }}" in
-            nasstaging)  echo "REMOTE_HOST=$NASSTAGING_HOST"  >> $GITHUB_ENV ;;
-           
+            nasstaging)  echo "REMOTE_HOST=$NASSTSGING_HOST"  >> $GITHUB_ENV ;;
+
              *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
       - name: Deploy to ${{ matrix.environment }} host
