@@ -24,8 +24,8 @@ name: Portal Deploy
 on:
   workflow_dispatch:
     inputs:
-      deploy_dev:
-        description: 'Deploy to DEV host'
+      deploy_nasstsging:
+        description: 'Deploy to nasstsging host'
         type: boolean
         default: false
       
