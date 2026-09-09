@@ -31,6 +31,10 @@ on:
         description: 'Deploy to Nasstaging host'
         type: boolean
         default: true
+      deploy_nas:
+        description: 'Deploy to Nas host'
+        type: boolean
+        default: true
 
   push:
     branches: [nas-ida5-development-master]
@@ -51,11 +55,14 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" == "push" ]; then
             # On push, deploy to nasstaging only
-            matrix='{"include":[{"environment":"nasstaging"}]}'
+            matrix='{"include":[{"environment":"nasstaging"},{"environment":"nas"}]}'
           else
             includes='[]'
             if [ "${{ inputs.deploy_nasstaging }}" == "true" ]; then
               includes=$(echo "$includes" | jq -c '. += [{"environment":"nasstaging"}]')
+            fi
+            if [ "${{ inputs.deploy_nas }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"nas"}]')
             fi
 
             matrix="{\"include\":$includes}"
@@ -118,6 +125,7 @@ jobs:
       # All host secrets mapped upfront — dynamic secret refs aren't supported in GitHub Actions
       DEV_HOST: ${{ secrets.DEV_HOST }}
       NASSTSGING_HOST: ${{ secrets.NASSTSGING_HOST }}
+      NAS_HOST: ${{ secrets.NAS_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
@@ -130,6 +138,7 @@ jobs:
         run: |
           case "${{ matrix.environment }}" in
             nasstaging)  echo "REMOTE_HOST=$NASSTSGING_HOST"  >> $GITHUB_ENV ;;
+            nas)  echo "REMOTE_HOST=$NAS_HOST"  >> $GITHUB_ENV ;;
 
              *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
