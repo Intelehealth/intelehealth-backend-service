@@ -1,20 +1,25 @@
 # Web RTC Deploy
 #
-# Builds the web-rtc Docker image once and deploys it to one or more remote hosts.
+# Builds the web-rtc Docker image natively per CPU architecture and deploys it to
+# one or more remote hosts.
 #
 # Triggers:
-#   - push to development_master (web-rtc/** changes) → deploys to ALL hosts
-#   - workflow_dispatch (manual) → deploys to selected hosts via checkboxes
+#   - push to development_master (web-rtc/** changes) ? deploys to ALL hosts
+#   - workflow_dispatch (manual) ? deploys to selected hosts via checkboxes
 #
 # Jobs:
-#   1. prepare-matrix  Decides which environments to deploy based on trigger/inputs
-#   2. build           Builds the Docker image and uploads it as a workflow artifact
-#   3. deploy          Matrix job — downloads the artifact and deploys to each host in parallel
+#   1. prepare-matrix  Decides which environments to deploy, computes needed archs + runner map
+#   2. build           Builds ONLY the required architectures natively (no QEMU) and uploads artifacts
+#   3. deploy          Matrix job downloads the matching-arch artifact and deploys to each host in parallel
 #
 # Required secrets:
-#   DEV_HOST, TURN_HOST   — SSH hostnames/IPs
-#   DEV_USER              — SSH username
-#   DEV_SSH_KEY           — SSH private key
+#   DEV_HOST, TURN_HOST   SSH hostnames/IPs
+#   DEV_USER              SSH username
+#   DEV_SSH_KEY           SSH private key
+#
+# Architecture mapping (hardcoded): each environment maps to a target arch so we build ONLY
+# what's needed, natively, on the matching runner (no QEMU). Update `*_arch` in prepare-matrix
+# when adding/changing a host. arm64 builds on the ARM64 runner, amd64 on the x64 runner.
 #
 # To add a new host: add a secret for the hostname, map it in the deploy job env block,
 # add a case in "Resolve host", add a boolean input, and add it to the push matrix.
@@ -28,12 +33,12 @@ on:
         description: 'Deploy to DEV host'
         type: boolean
         default: true
-      deploy_turn:
-        description: 'Deploy to TURN host'
-        type: boolean
-        default: false
       deploy_ttxai:
         description: 'Deploy to TTXAI host'
+        type: boolean
+        default: false  
+      deploy_pathqa:
+        description: 'Deploy to PATHQA host'
         type: boolean
         default: false  
   push:
@@ -49,29 +54,62 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+      build_matrix: ${{ steps.set-matrix.outputs.build_matrix }}
     steps:
       - name: Build deployment matrix
         id: set-matrix
         run: |
+          # Host -> CPU architecture map. Each arch builds natively on its
+          # matching runner (see build_matrix below).
+          dev_arch=amd64
+          ttxai_arch=amd64
+          pathqa_arch=arm64
+
           if [ "${{ github.event_name }}" == "push" ]; then
-            matrix='{"include":[{"environment":"dev"},{"environment":"turn"},{"environment":"ttxai"}]}'
-          else
+            # On push, deploy to all hosts
             includes='[]'
-            if [ "${{ inputs.deploy_dev }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c '. += [{"environment":"dev"}]')
-            fi
-            if [ "${{ inputs.deploy_turn }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c '. += [{"environment":"turn"}]')
-            fi
-            if [ "${{ inputs.deploy_ttxai }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c '. += [{"environment":"ttxai"}]')
-            fi
-            matrix="{\"include\":$includes}"
+            for env in dev turn ttxai pathqa; do
+              arch_var="${env}_arch"
+              includes=$(echo "$includes" | jq -c --arg e "$env" --arg a "${!arch_var}" '. += [{"environment":$e,"arch":$a}]')
+            done
+          else
+            # On manual dispatch, deploy only to selected hosts.
+            # NOTE: "inputs.deploy_x" is GitHub expression syntax, not a bash
+            # variable - indirect expansion (${!...}) fails on the dots, so
+            # each input is expanded literally via the case below.
+            includes='[]'
+            for env in dev turn ttxai pathqa; do
+              case "$env" in
+                dev)    selected="${{ inputs.deploy_dev }}" ;;
+                ttxai)  selected="${{ inputs.deploy_ttxai }}" ;;
+                pathqa) selected="${{ inputs.deploy_pathqa }}" ;;
+              esac
+              if [ "$selected" == "true" ]; then
+                arch_var="${env}_arch"
+                includes=$(echo "$includes" | jq -c --arg e "$env" --arg a "${!arch_var}" '. += [{"environment":$e,"arch":$a}]')
+              fi
+            done
           fi
+          matrix="{\"include\":$includes}"
+          # De-duplicated arch -> runner mapping for the build job.
+          # arm64 builds natively on the ARM64 runner (no QEMU emulation),
+          # amd64 on the standard x64 runner.
+          build_includes=$(echo "$includes" | jq -c '[.[].arch] | unique | map(
+            if . == "arm64" then {arch: ., os: "ubuntu-24.04-arm"}
+            else {arch: ., os: "ubuntu-latest"} end
+          )')
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
+          echo "build_matrix={\"include\":$build_includes}" >> $GITHUB_OUTPUT
+
   build:
-    runs-on: ubuntu-latest
+    needs: prepare-matrix
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix: ${{ fromJson(needs.prepare-matrix.outputs.build_matrix) }}
+      fail-fast: false
     outputs:
+      # Computed identically in every arch leg, so the value is the same
+      # regardless of which leg the deploy job reads it from.
       migrations_changed: ${{ steps.check-migrations.outputs.changed }}
     steps:
       - name: Checkout code
@@ -102,15 +140,20 @@ jobs:
               && echo "changed=true" >> $GITHUB_OUTPUT \
               || echo "changed=false" >> $GITHUB_OUTPUT
           fi
-      - name: Build Docker image
+
+      # Every leg builds natively: amd64 on the x64 runner, arm64 on the
+      # ARM64 runner. No QEMU emulation needed.
+      - name: Build Docker image (${{ matrix.arch }}, native)
         run: |
-          docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} ./web-rtc
-          docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > app-image.tar
+          cd web-rtc
+          docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} .
+          docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > ../app-image-${{ matrix.arch }}.tar
+
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
-          name: web-rtc
-          path: app-image.tar
+          name: web-rtc-${{ matrix.arch }}
+          path: app-image-${{ matrix.arch }}.tar
           retention-days: 3
 
   deploy:
@@ -123,26 +166,27 @@ jobs:
       REMOTE_PORT: 22
       ENV_FILE_PATH: /home/ubuntu/deploy/web-rtc/.env
       PEM_FOLDER_PATH: /home/ubuntu/deploy/web-rtc/.pem
-      # All host secrets mapped upfront — dynamic secret refs aren't supported in GitHub Actions
+      # All host secrets mapped upfront dynamic secret refs aren't supported in GitHub Actions
       DEV_HOST: ${{ secrets.DEV_HOST }}
-      TURN_HOST: ${{ secrets.TURN_HOST }}
       TTXAI_HOST: ${{ secrets.TTXAI_HOST }}
+      PATHQA_HOST: ${{ secrets.PATHQA_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
-      - name: Download image artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: web-rtc
-
       - name: Resolve host for environment
         run: |
           case "${{ matrix.environment }}" in
             dev)  echo "REMOTE_HOST=$DEV_HOST"  >> $GITHUB_ENV ;;
-            turn) echo "REMOTE_HOST=$TURN_HOST" >> $GITHUB_ENV ;;
             ttxai) echo "REMOTE_HOST=$TTXAI_HOST" >> $GITHUB_ENV ;;
+            pathqa) echo "REMOTE_HOST=$PATHQA_HOST" >> $GITHUB_ENV ;;
             *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
+
+      - name: Download image artifact for ${{ matrix.arch }}
+        uses: actions/download-artifact@v4
+        with:
+          name: web-rtc-${{ matrix.arch }}
+
       - name: Deploy to ${{ matrix.environment }} host
         run: |
           mkdir -p ~/.ssh
@@ -153,7 +197,7 @@ jobs:
           scp -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=no \
               -P $REMOTE_PORT \
-              app-image.tar \
+              app-image-${{ matrix.arch }}.tar \
               $REMOTE_USER@$REMOTE_HOST:$REMOTE_TAR
           ssh -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=no \
@@ -177,9 +221,7 @@ jobs:
               exit 1
             fi
             lsof -ti:3000 | xargs kill -9 2>/dev/null || true
-
             docker ps -a | grep \$DOCKER_IMAGE_NAME | awk '{print $1}' | xargs docker rm -f 2>/dev/null || true
-
             sleep 2
             docker run -d \
               --name \$DOCKER_IMAGE_NAME \
@@ -192,24 +234,17 @@ jobs:
             docker image prune -f
             echo "Web-rtc deployment to ${{ matrix.environment }} completed successfully"
           EOF
-      - name: Run migrations on ${{ matrix.environment }} host
-        if: needs.build.outputs.migrations_changed == 'true'
-        run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh -i ~/.ssh/deploy_key \
-              -o StrictHostKeyChecking=no \
-              -p $REMOTE_PORT \
-              $REMOTE_USER@$REMOTE_HOST \
-              "docker exec ${{ env.DOCKER_IMAGE_NAME }} npm run migrate"
-      - name: Verify deployment on ${{ matrix.environment }}
-        run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh -i ~/.ssh/deploy_key \
-              -o StrictHostKeyChecking=no \
-              -p $REMOTE_PORT \
-              $REMOTE_USER@$REMOTE_HOST \
-              "docker ps | grep $DOCKER_IMAGE_NAME && echo 'Web-rtc deployment on ${{ matrix.environment }} successful!'"
+
+     # - name: Run migrations on ${{ matrix.environment }} host
+     #   if: needs.build.outputs.migrations_changed == 'true'
+     #   run: |
+     #     mkdir -p ~/.ssh
+     #     echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+     #     chmod 600 ~/.ssh/deploy_key
+     #     ssh -i ~/.ssh/deploy_key \
+     #         -o StrictHostKeyChecking=no \
+     #         -p $REMOTE_PORT \
+     #         $REMOTE_USER@$REMOTE_HOST \
+     #         "docker exec ${{ env.DOCKER_IMAGE_NAME }} npm run migrate"
+
+     

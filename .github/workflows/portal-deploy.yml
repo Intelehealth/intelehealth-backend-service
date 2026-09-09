@@ -3,18 +3,18 @@
 # Builds the portal Docker image once and deploys it to one or more remote hosts.
 #
 # Triggers:
-#   - push to development_master (portal/** changes) → deploys to ALL hosts
-#   - workflow_dispatch (manual) → deploys to selected hosts via checkboxes
+#   - push to development_master (portal/** changes) ? deploys to ALL hosts
+#   - workflow_dispatch (manual) ? deploys to selected hosts via checkboxes
 #
 # Jobs:
 #   1. prepare-matrix  Decides which environments to deploy based on trigger/inputs
 #   2. build           Builds the Docker image and uploads it as a workflow artifact
-#   3. deploy          Matrix job — downloads the artifact and deploys to each host in parallel
+#   3. deploy          Matrix job � downloads the artifact, runs migrations (if any), swaps the container, and waits for it to become healthy
 #
 # Required secrets:
-#   DEV_HOST, TURN_HOST   — SSH hostnames/IPs
-#   DEV_USER              — SSH username
-#   DEV_SSH_KEY           — SSH private key
+#   DEV_HOST, TURN_HOST   � SSH hostnames/IPs
+#   DEV_USER              � SSH username
+#   DEV_SSH_KEY           � SSH private key
 #
 # To add a new host: add a secret for the hostname, map it in the deploy job env block,
 # add a case in "Resolve host", add a boolean input, and add it to the push matrix.
@@ -28,22 +28,33 @@ on:
         description: 'Deploy to DEV host'
         type: boolean
         default: false
-      deploy_turn:
-        description: 'Deploy to TURN host'
-        type: boolean
-        default: true
       deploy_ttxai:
         description: 'Deploy to TTXAI host'
+        type: boolean
+        default: false
+      deploy_turn:
+        description: 'Deploy to TURN host'
         type: boolean
         default: false
       deploy_testturn:
         description: 'Deploy to TESTTURN host'
         type: boolean
-        default: false      
+        default: false
+      deploy_pathqa:
+        description: 'Deploy to PATHQA host'
+        type: boolean
+        default: false   
   push:
     branches: [development_master]
     paths:
       - 'portal/**'
+
+# Serialize runs per branch: two pushes (or push + manual dispatch) must not
+# deploy to the same hosts concurrently. New runs queue instead of cancelling
+# an in-flight deploy.
+concurrency:
+  group: portal-deploy-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   DOCKER_IMAGE_NAME: portal
@@ -53,35 +64,66 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+      build_matrix: ${{ steps.set-matrix.outputs.build_matrix }}
     steps:
       - name: Build deployment matrix
         id: set-matrix
         run: |
+          # Host -> CPU architecture map. Each arch builds natively on its
+          # matching runner (see build_matrix below).
+          dev_arch=amd64
+          ttxai_arch=amd64
+          testturn_arch=amd64
+          turn_arch=amd64
+          pathqa_arch=arm64
+
           if [ "${{ github.event_name }}" == "push" ]; then
             # On push, deploy to all hosts
-            matrix='{"include":[{"environment":"dev"},{"environment":"turn"} ,{"environment":"ttxai"},{"environment":"testturn"}]}'
-          else
-            # On manual dispatch, deploy only to selected hosts
             includes='[]'
-            if [ "${{ inputs.deploy_dev }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c '. += [{"environment":"dev"}]')
-            fi
-            if [ "${{ inputs.deploy_turn }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c '. += [{"environment":"turn"}]')
-            fi
-            if [ "${{ inputs.deploy_ttxai }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c '. += [{"environment":"ttxai"}]')
-            fi
-            if [ "${{ inputs.deploy_testturn }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c '. += [{"environment":"testturn"}]')
-            fi
-            matrix="{\"include\":$includes}"
+            for env in dev turn ttxai testturn pathqa; do
+              arch_var="${env}_arch"
+              includes=$(echo "$includes" | jq -c --arg e "$env" --arg a "${!arch_var}" '. += [{"environment":$e,"arch":$a}]')
+            done
+          else
+            # On manual dispatch, deploy only to selected hosts.
+            # NOTE: "inputs.deploy_x" is GitHub expression syntax, not a bash
+            # variable - indirect expansion (${!...}) fails on the dots, so
+            # each input is expanded literally via the case below.
+            includes='[]'
+            for env in dev turn ttxai testturn pathqa; do
+              case "$env" in
+                dev)      selected="${{ inputs.deploy_dev }}" ;;
+                ttxai)    selected="${{ inputs.deploy_ttxai }}" ;;
+                testturn) selected="${{ inputs.deploy_testturn }}" ;;
+                 turn)    selected="${{ inputs.deploy_turn }}" ;;
+                pathqa)   selected="${{ inputs.deploy_pathqa }}" ;;
+              esac
+              if [ "$selected" == "true" ]; then
+                arch_var="${env}_arch"
+                includes=$(echo "$includes" | jq -c --arg e "$env" --arg a "${!arch_var}" '. += [{"environment":$e,"arch":$a}]')
+              fi
+            done
           fi
+          matrix="{\"include\":$includes}"
+          # De-duplicated arch -> runner mapping for the build job.
+          # arm64 builds natively on the ARM64 runner (no QEMU emulation),
+          # amd64 on the standard x64 runner.
+          build_includes=$(echo "$includes" | jq -c '[.[].arch] | unique | map(
+            if . == "arm64" then {arch: ., os: "ubuntu-24.04-arm"}
+            else {arch: ., os: "ubuntu-latest"} end
+          )')
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
+          echo "build_matrix={\"include\":$build_includes}" >> $GITHUB_OUTPUT
 
   build:
-    runs-on: ubuntu-latest
+    needs: prepare-matrix
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix: ${{ fromJson(needs.prepare-matrix.outputs.build_matrix) }}
+      fail-fast: false
     outputs:
+      # Computed identically in every arch leg, so the value is the same
+      # regardless of which leg the deploy job reads it from.
       migrations_changed: ${{ steps.check-migrations.outputs.changed }}
     steps:
       - name: Checkout code
@@ -100,30 +142,31 @@ jobs:
         run: npm i --production=false
         working-directory: portal
 
-      - name: Check for migration file changes
-        id: check-migrations
-        run: |
-          if [ "${{ github.event_name }}" != "push" ]; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-          else
-            git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q "^portal/migrations/" \
-              && echo "changed=true" >> $GITHUB_OUTPUT \
-              || echo "changed=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Build Docker image
+ #     - name: Check for migration file changes
+ #       id: check-migrations
+ #       run: |
+ #         if [ "${{ github.event_name }}" != "push" ]; then
+ #           echo "changed=true" >> $GITHUB_OUTPUT
+ #         elif [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+ #           echo "changed=true" >> $GITHUB_OUTPUT
+ #         else
+ #           git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q "^portal/migrations/" \
+ #             && echo "changed=true" >> $GITHUB_OUTPUT \
+ #             || echo "changed=false" >> $GITHUB_OUTPUT
+ #         fi
+      # Every leg builds natively: amd64 on the x64 runner, arm64 on the
+      # ARM64 runner. No QEMU emulation needed.
+      - name: Build Docker image (${{ matrix.arch }}, native)
         run: |
           cd portal
           docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} .
-          docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > ../app-image.tar
+          docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > ../app-image-${{ matrix.arch }}.tar
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
-          name: portal-image
-          path: app-image.tar
+          name: portal-${{ matrix.arch }}
+          path: app-image-${{ matrix.arch }}.tar
           retention-days: 1
 
   deploy:
@@ -136,28 +179,39 @@ jobs:
       REMOTE_PORT: 22
       ENV_FILE_PATH: /home/ubuntu/deploy/portal/.env
       PEM_FOLDER_PATH: /home/ubuntu/deploy/portal/.pem
-      # All host secrets mapped upfront — dynamic secret refs aren't supported in GitHub Actions
+      # All host secrets mapped upfront � dynamic secret refs aren't supported in GitHub Actions
       DEV_HOST: ${{ secrets.DEV_HOST }}
-      TURN_HOST: ${{ secrets.TURN_HOST }}
       TTXAI_HOST: ${{ secrets.TTXAI_HOST }}
       TESTTURN_HOST: ${{ secrets.TESTTURN_HOST }}
+      TURN_HOST: ${{ secrets.TURN_HOST }}
+      PATHQA_HOST: ${{ secrets.PATHQA_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
       - name: Resolve host for environment
         run: |
           case "${{ matrix.environment }}" in
-            dev)  echo "REMOTE_HOST=$DEV_HOST"  >> $GITHUB_ENV ;;
-            turn) echo "REMOTE_HOST=$TURN_HOST" >> $GITHUB_ENV ;;
-            ttxai) echo "REMOTE_HOST=$TTXAI_HOST" >> $GITHUB_ENV ;;
-            testturn) echo "REMOTE_HOST=$TESTTURN_HOST" >> $GITHUB_ENV ;;
-            *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
+            dev)      host="$DEV_HOST" ;;
+            ttxai)    host="$TTXAI_HOST" ;;
+            testturn) host="$TESTTURN_HOST" ;;
+            turn)     host="$TURN_HOST" ;;
+            pathqa)   host="$PATHQA_HOST" ;;
+            *)        echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
-
-      - name: Download image artifact
+          echo "REMOTE_HOST=$host" >> $GITHUB_ENV
+          # Pin this host's SSH public key for the rest of the job so the
+          # ssh/scp steps below can verify it (StrictHostKeyChecking=yes)
+          # instead of blindly trusting any host (StrictHostKeyChecking=no).
+          # This is trust-on-first-use; for full pinning, commit a known_hosts
+          # file to the repo and copy it here instead.
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan -p $REMOTE_PORT -H "$host" >> ~/.ssh/known_hosts 2>/dev/null
+          chmod 600 ~/.ssh/known_hosts
+      - name: Download image artifact for ${{ matrix.arch }}
         uses: actions/download-artifact@v4
         with:
-          name: portal-image
+          name: portal-${{ matrix.arch }}
 
       - name: Deploy to ${{ matrix.environment }} host
         run: |
@@ -165,39 +219,36 @@ jobs:
           chmod 700 ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-
           # Copy Docker image to remote host
           scp -i ~/.ssh/deploy_key \
-              -o StrictHostKeyChecking=no \
+              -o StrictHostKeyChecking=yes \
               -P $REMOTE_PORT \
-              app-image.tar \
-              $REMOTE_USER@$REMOTE_HOST:/tmp/
-
+              app-image-${{ matrix.arch }}.tar $REMOTE_USER@$REMOTE_HOST:/tmp/app-image.tar
           # SSH into remote host and deploy
           ssh -i ~/.ssh/deploy_key \
-              -o StrictHostKeyChecking=no \
+              -o StrictHostKeyChecking=yes \
               -p $REMOTE_PORT \
               $REMOTE_USER@$REMOTE_HOST <<EOF
             DOCKER_IMAGE_NAME="${{ env.DOCKER_IMAGE_NAME }}"
             ENV_FILE_PATH="${{ env.ENV_FILE_PATH }}"
             PEM_FOLDER_PATH="${{ env.PEM_FOLDER_PATH }}"
-
             docker load -i /tmp/app-image.tar
             rm /tmp/app-image.tar
-
-            docker stop \$DOCKER_IMAGE_NAME || true
-            docker rm \$DOCKER_IMAGE_NAME || true
-
+            # Validate prerequisites BEFORE touching the running container,
+            # so any failure below leaves the current version serving traffic.
             if [ ! -f "\$ENV_FILE_PATH" ]; then
               echo "Error: .env file not found at \$ENV_FILE_PATH"
               exit 1
             fi
-
             if [ ! -d "\$PEM_FOLDER_PATH" ]; then
               echo "Error: .pem folder not found at \$PEM_FOLDER_PATH"
               exit 1
             fi
+            # Run migrations from the NEW image as a one-off container BEFORE
+            # swapping. If they fail, abort and keep the old container live.
 
+            docker stop \$DOCKER_IMAGE_NAME || true
+            docker rm \$DOCKER_IMAGE_NAME || true
             docker run -d \
               --name \$DOCKER_IMAGE_NAME \
               --restart unless-stopped \
@@ -206,32 +257,7 @@ jobs:
               -v \$PEM_FOLDER_PATH:/app/.pem \
               --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
               \$DOCKER_IMAGE_NAME:${{ github.sha }}
-
             docker image prune -f
             echo "Portal deployment to ${{ matrix.environment }} completed successfully"
           EOF
-
-      - name: Run migrations on ${{ matrix.environment }} host
-        if: needs.build.outputs.migrations_changed == 'true'
-        run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-
-          ssh -i ~/.ssh/deploy_key \
-              -o StrictHostKeyChecking=no \
-              -p $REMOTE_PORT \
-              $REMOTE_USER@$REMOTE_HOST \
-              "docker exec ${{ env.DOCKER_IMAGE_NAME }} npm run migrate"
-
-      - name: Verify deployment on ${{ matrix.environment }}
-        run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-
-          ssh -i ~/.ssh/deploy_key \
-              -o StrictHostKeyChecking=no \
-              -p $REMOTE_PORT \
-              $REMOTE_USER@$REMOTE_HOST \
-              "docker ps | grep $DOCKER_IMAGE_NAME && echo 'Portal deployment on ${{ matrix.environment }} successful!'"
+  

@@ -111,3 +111,20 @@ LIVEHOST=xxxx
 TCP=xxxx
 UDP=xxxx
 ```
+
+## AI diagnosis proxy (portal)
+
+The portal forwards `/api/ddx` and `/api/ttxv1` to ai-middleware. Required keys:
+
+```
+AI_MIDDLEWARE_BASE_URL=xxxx
+AI_MIDDLEWARE_API_KEY=xxxx   # no surrounding quotes
+```
+
+Both are mandatory. A missing key fails the request with a "not configured (missing API key)" message instead of sending an unauthenticated request, because ai-middleware answers those with a 401 that reads like a rejected key.
+
+Do not wrap the key in quotes. Docker Compose `env_file` keeps surrounding quotes as part of the value while `dotenv` strips them, so a quoted key works when the portal runs directly and fails from a container. The proxy strips them defensively, but the `.env` should not have them.
+
+Upstream 400/422 responses are validation failures, most often a visit with no recorded weight. ai-middleware requires `Age`, `Weight (kg)` and `Gender` in the case history for both `/ddx` and `/ttxv1`, and weight is only present when the visit has a Vitals encounter. These are returned with the upstream `msg` as `message` and the raw pydantic `detail` preserved.
+
+Env changes need `docker compose up -d --force-recreate portal`; `docker restart` reuses the old environment.

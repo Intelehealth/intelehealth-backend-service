@@ -12,6 +12,8 @@ var app = express();
 const swaggerUi = require('swagger-ui-express');
 const swaggerDocument = require('./swagger.json');
 const db = require("./models");
+const openMrsDb = require("./handlers/mysql/mysqlOpenMrs");
+const { createHealthRouter } = require("./handlers/health");
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -40,6 +42,14 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+
+app.use(createHealthRouter({
+  service: 'pagerduty-microservice',
+  databases: {
+    portal: db.sequelize,
+    openmrs: openMrsDb.sequelize,
+  },
+}));
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 app.use('/api', indexRouter);
