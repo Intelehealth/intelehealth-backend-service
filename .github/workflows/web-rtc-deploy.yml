@@ -24,7 +24,7 @@ name: Web RTC Deploy
 on:
   workflow_dispatch:
     inputs:
-      deploy_dev:
+      deploy_nasstaging:
         description: 'Deploy to Nasstaging host'
         type: boolean
         default: true
@@ -126,7 +126,7 @@ jobs:
       - name: Resolve host for environment
         run: |
           case "${{ matrix.environment }}" in
-            nasstaging)  echo "REMOTE_HOST=$DEV_HOST"  >> $GITHUB_ENV ;;
+            nasstaging)  echo "REMOTE_HOST=$NASSTAGING_HOST"  >> $GITHUB_ENV ;;
            
              *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
