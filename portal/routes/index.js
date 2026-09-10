@@ -9,7 +9,8 @@ const {
   downloadMindmaps,
   toggleMindmapActiveStatus,
   getInstructionRemarks,
-  addInstructionRemarks
+  addInstructionRemarks,
+  getWebrtcStatuses
 } = require("../controllers/mindmap.controller");
 const authMiddleware = require("../middleware/auth");
 // const limiter = require("../middleware/rate-limiter");
@@ -25,6 +26,7 @@ router.get("/mindmap/download", [authMiddleware, downloadMindmaps]);
 router.post("/mindmap/toggleStatus", [authMiddleware, toggleMindmapActiveStatus]);
 router.get("/instructionRemarkList", [authMiddleware, getInstructionRemarks]);
 router.post("/instructionRemarks", [authMiddleware, addInstructionRemarks]);
+router.get("/mindmap/getWebrtcStatuses", [authMiddleware, getWebrtcStatuses]);
 
 router.use("/mindmap", require("./notification.route"));
 router.use("/messages", require("./message.route"));
