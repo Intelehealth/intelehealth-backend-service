@@ -106,11 +106,9 @@ jobs:
           
             if [ "${{ inputs.deploy_ttxai }}" == "true" ]; then
               includes=$(echo "$includes" | jq -c --arg arch "$(arch_of ttxai)" '. += [{"environment":"ttxai","arch":$arch}]')
-
-              fi
+            fi
             if [ "${{ inputs.deploy_turn }}" == "true" ]; then
               includes=$(echo "$includes" | jq -c --arg arch "$(arch_of turn)" '. += [{"environment":"turn","arch":$arch}]')
-            fi
             fi
             if [ "${{ inputs.deploy_testturn }}" == "true" ]; then
               includes=$(echo "$includes" | jq -c --arg arch "$(arch_of testturn)" '. += [{"environment":"testturn","arch":$arch}]')
