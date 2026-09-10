@@ -214,38 +214,43 @@ module.exports = (function () {
   };
 
   const buildCallLink = async (appointment) => {
+    console.log("[buildCallLink] appointment:", appointment);
     const base = (process.env.WEBRTC_API_URL || "").replace(/\/+$/, "");
     if (!base) {
-      logStream("error", "WEBRTC_API_URL not set — cannot build call link");
+      console.log("[buildCallLink] WEBRTC_API_URL not set — cannot build call link");
       return null;
     }
-    if (!appointment.patientId) return null;
+    if (!appointment.patientId) {
+      console.log("[buildCallLink] no patientId on appointment — cannot build call link");
+      return null;
+    }
 
     const tail = Number(process.env.TURN_CALL_LINK_OPEN_AFTER_MINUTES) || 120;
     const minsUntilSlot = moment(appointment.slotJsDate).diff(moment(), "minutes");
     const ttlMinutes = Math.max(60, minsUntilSlot + tail);
 
+    const requestBody = {
+      visitUuid: appointment.visitUuid,
+      roomId: appointment.patientId,
+      doctorName: appointment.drName,
+      patientName: appointment.patientName,
+      ttlMinutes,
+    };
+    console.log(`[buildCallLink] POST ${base}/magic-link`, requestBody);
+
     try {
-      const { data } = await axios.post(
-        `${base}/magic-link`,
-        {
-          visitUuid: appointment.visitUuid,
-          roomId: appointment.patientId,
-          doctorName: appointment.drName,
-          patientName: appointment.patientName,
-          ttlMinutes,
-        },
-        { timeout: 15000 }
-      );
+      const { data } = await axios.post(`${base}/magic-link`, requestBody, { timeout: 15000 });
+      console.log("[buildCallLink] response:", data);
       if (!data || !data.success || !data.url) {
-        logStream("error", `magic-link returned no url: ${JSON.stringify(data)}`);
+        console.log("[buildCallLink] no url in response");
         return null;
       }
       return { url: data.url, magicToken: data.magicToken };
     } catch (err) {
-      logStream(
-        "error",
-        `magic-link call failed: ${err.response ? JSON.stringify(err.response.data) : err.message}`
+      console.log(
+        "[buildCallLink] request failed:",
+        err.response?.status,
+        err.response ? err.response.data : err.message
       );
       return null;
     }
