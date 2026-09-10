@@ -315,3 +315,32 @@ and S3 numbers that had been collected successfully.
 The service exits on start-up if MySQL is unreachable rather than serving a
 degraded process. Deploys run with `--restart unless-stopped`, so a container
 that starts before the database simply retries until it connects.
+
+## Manually triggering a run
+
+For testing without waiting for the schedule or SSHing in to run the CLI script,
+the service exposes:
+
+```
+POST /internal/crons/daily-operations-report/run
+POST /internal/crons/daily-operations-report/run?force=true
+```
+
+Requires `x-cron-trigger-token: <CRON_TRIGGER_TOKEN>` (or `Authorization: Bearer
+<token>`). This route has real side effects - every database, S3 and GA4 - and
+can post to Slack, so it fails closed: with no `CRON_TRIGGER_TOKEN` configured
+the route returns `404` as if it did not exist, rather than defaulting open.
+
+It reuses the same guarded execution the schedule fires, so a manual run can never
+overlap a scheduled one:
+
+| response | meaning |
+| --- | --- |
+| `200` | ran, body is the report row |
+| `409` | a run for this cron is already in progress |
+| `404` | unknown cron name, or the route is disabled (no token configured) |
+| `401` | wrong or missing token |
+| `500` | the run threw; `error` in the body has the message |
+
+`force=true` matches `npm run cron:daily-report -- --force`: it re-runs a report
+already marked `completed` for today, useful for testing after a config change.

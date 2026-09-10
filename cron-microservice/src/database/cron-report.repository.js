@@ -3,7 +3,13 @@ const { database } = require("./index");
 class CronReportRecord {
   constructor(values, connection = database) {
     Object.assign(this, values);
-    this.connection = connection;
+    /*
+      Non-enumerable so JSON.stringify, {...record} and Object.assign(dest, record)
+      never pick this up. A record used to carry a live mysql2 connection as a
+      plain enumerable field, which crashed the first caller to serialize a
+      report row - the manual HTTP trigger echoing its result back to the caller.
+    */
+    Object.defineProperty(this, "connection", { value: connection, enumerable: false });
   }
 
   async update(values) {
