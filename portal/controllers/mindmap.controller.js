@@ -7,6 +7,7 @@ const { zipFolder } = require("../handlers/zip");
 const { getFormattedUrl } = require("../handlers/functions");
 const { logStream } = require("../logger/index");
 const { MESSAGE } = require("../constants/messages");
+const { _getWebrtcStatuses } = require("../services/call_data.service");
 const Sequelize = require('sequelize');
 const Constant = require("../constants/constant");
 const path = require('path');
@@ -329,6 +330,21 @@ const addInstructionRemarks = async(req, res) => {
   }
 }
 
+const getWebrtcStatuses = async (req, res) => {
+  try {
+    res.json({
+      status: true,
+      data: await _getWebrtcStatuses(),
+    });
+  } catch (error) {
+    logStream("error", error.message);
+    res.json({
+      status: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   getMindmapDetails,
   addUpdateLicenceKey,
@@ -338,5 +354,6 @@ module.exports = {
   downloadMindmaps,
   toggleMindmapActiveStatus,
   getInstructionRemarks,
-  addInstructionRemarks
+  addInstructionRemarks,
+  getWebrtcStatuses
 };
