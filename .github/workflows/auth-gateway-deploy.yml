@@ -167,7 +167,7 @@ jobs:
           retention-days: 1
 
   deploy:
-    needs: [prepare-matrix, build, build-arm64]
+    needs: [prepare-matrix]
     runs-on: ubuntu-latest
     strategy:
       matrix: ${{ fromJson(needs.prepare-matrix.outputs.matrix) }}
