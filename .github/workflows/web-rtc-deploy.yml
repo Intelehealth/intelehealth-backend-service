@@ -84,7 +84,7 @@ jobs:
             # variable - indirect expansion (${!...}) fails on the dots, so
             # each input is expanded literally via the case below.
             includes='[]'
-            for env in dev turn ttxai pathqa; do
+            for env in dev turn ttxai pathqa testturn; do
               case "$env" in
                 dev)    selected="${{ inputs.deploy_dev }}" ;;
                 ttxai)  selected="${{ inputs.deploy_ttxai }}" ;;
