@@ -27,8 +27,8 @@ name: Portal Deploy
 on:
   workflow_dispatch:
     inputs:
-      deploy_nasstaging:
-        description: 'Deploy to nasstaging host'
+      deploy_nasprod:
+        description: 'Deploy to nas production host'
         type: boolean
         default: false
 
@@ -51,12 +51,12 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" == "push" ]; then
             # On push, deploy to nasstaging only
-            matrix='{"include":[{"environment":"nasstaging"}]}'
+            matrix='{"include":[{"environment":"nasprod"}]}'
           else
             # On manual dispatch, deploy only to selected hosts
             includes='[]'
-            if [ "${{ inputs.deploy_nasstaging }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c '. += [{"environment":"nasstaging"}]')
+            if [ "${{ inputs.deploy_nasprod }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"nasprod"}]')
             fi
 
             matrix="{\"include\":$includes}"
@@ -123,13 +123,14 @@ jobs:
       # All host secrets mapped upfront — dynamic secret refs aren't supported in GitHub Actions
       DEV_HOST: ${{ secrets.DEV_HOST }}
       NASSTAGING_HOST: ${{ secrets.NASSTAGING_HOST }}
+      NAS_HOST: ${{ secrets.NAS_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
       - name: Resolve host for environment
         run: |
           case "${{ matrix.environment }}" in
-            nasstaging)  echo "REMOTE_HOST=$NASSTAGING_HOST"  >> $GITHUB_ENV ;;
+            nasprod)  echo "REMOTE_HOST=$NAS_HOST"  >> $GITHUB_ENV ;;
             *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
 
