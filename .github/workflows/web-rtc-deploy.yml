@@ -40,6 +40,10 @@ on:
       deploy_pathqa:
         description: 'Deploy to PATHQA host'
         type: boolean
+        default: false
+      deploy_testturn:
+        description: 'Deploy to TESTTURN host'
+        type: boolean
         default: false  
   push:
     branches: [development_master]
@@ -63,7 +67,9 @@ jobs:
           # matching runner (see build_matrix below).
           dev_arch=amd64
           ttxai_arch=amd64
+          testturn_arch=amd64
           pathqa_arch=arm64
+          
 
           if [ "${{ github.event_name }}" == "push" ]; then
             # On push, deploy to all hosts
@@ -83,6 +89,7 @@ jobs:
                 dev)    selected="${{ inputs.deploy_dev }}" ;;
                 ttxai)  selected="${{ inputs.deploy_ttxai }}" ;;
                 pathqa) selected="${{ inputs.deploy_pathqa }}" ;;
+                testturn) selected="${{ inputs.deploy_testturn }}" ;;
               esac
               if [ "$selected" == "true" ]; then
                 arch_var="${env}_arch"
@@ -170,6 +177,7 @@ jobs:
       DEV_HOST: ${{ secrets.DEV_HOST }}
       TTXAI_HOST: ${{ secrets.TTXAI_HOST }}
       PATHQA_HOST: ${{ secrets.PATHQA_HOST }}
+      TESTTURN_HOST: ${{ secrets.TESTTURN_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
@@ -179,6 +187,7 @@ jobs:
             dev)  echo "REMOTE_HOST=$DEV_HOST"  >> $GITHUB_ENV ;;
             ttxai) echo "REMOTE_HOST=$TTXAI_HOST" >> $GITHUB_ENV ;;
             pathqa) echo "REMOTE_HOST=$PATHQA_HOST" >> $GITHUB_ENV ;;
+            testturn) echo "REMOTE_HOST=$TESTTURN_HOST" >> $GITHUB_ENV ;;
             *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
 
