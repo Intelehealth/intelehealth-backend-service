@@ -167,6 +167,26 @@ const callDisconnected = async (req, res) => {
   );
 };
 
+/**
+ * POST /api/queue/visit/:visitUuid/prescription-shared
+ *
+ * The prescription is out, so the visit is finally done. A finished call only
+ * moved the case to CALL_COMPLETED; this is what completes it.
+ *
+ * Called by whoever owns that moment (portal, or the doctor webapp). Idempotent,
+ * so a retry on an already-completed case answers 200 with changed:false.
+ */
+const prescriptionShared = async (req, res) => {
+  const doctorUuid = req.validated?.doctorUuid || (req.auth.isService ? null : req.auth.userUuid);
+  const result = await queueService.sharePrescription(req.params.visitUuid, { doctorUuid });
+  return success(
+    res,
+    result,
+    200,
+    result.changed ? "Prescription shared — visit completed" : "Already completed — no change"
+  );
+};
+
 /** GET /api/queue/visit/:visitUuid — resolve a visit to its queue entry. */
 const getByVisit = async (req, res) => {
   const entry = await queueService.findByVisit(req.params.visitUuid);
@@ -209,5 +229,6 @@ module.exports = {
   requeue,
   callConnected,
   callDisconnected,
+  prescriptionShared,
   getByVisit,
 };

@@ -3,7 +3,12 @@ const { Op } = require("sequelize");
 const models = require("../models");
 const config = require("../config/env");
 const priority = require("./priority.service");
-const { WAITING_STATUSES, IN_SERVICE_STATUSES, DOCTOR_STATUS } = require("../constants");
+const {
+  WAITING_STATUSES,
+  IN_SERVICE_STATUSES,
+  POST_CALL_STATUSES,
+  DOCTOR_STATUS,
+} = require("../constants");
 
 /**
  * Analytics — backend LLD §09.4.
@@ -16,8 +21,14 @@ const { WAITING_STATUSES, IN_SERVICE_STATUSES, DOCTOR_STATUS } = require("../con
  */
 
 /** GET /api/queue/analytics/live — the ops view, per speciality. */
-const live = async ({ speciality = null } = {}) => {
-  const specialityFilter = speciality ? { speciality } : {};
+const live = async ({ speciality = null, locationUuid = null } = {}) => {
+  const specialityFilter = {
+    ...(speciality ? { speciality } : {}),
+    // Doctor presence is not scoped by location — a doctor serves every
+    // facility — so this applies to the case counts only, never to the
+    // doctor_queue_status reads below.
+    ...(locationUuid ? { locationUuid } : {}),
+  };
 
   const waiting = await models.queue_entries.findAll({
     where: { status: { [Op.in]: WAITING_STATUSES }, ...specialityFilter },
@@ -38,8 +49,16 @@ const live = async ({ speciality = null } = {}) => {
     raw: true,
   });
 
+  // Calls that have finished but whose prescription has not been shared. These
+  // are open obligations, not queue depth, so they are counted separately.
+  const awaitingPrescription = await models.queue_entries.findAll({
+    where: { status: { [Op.in]: POST_CALL_STATUSES }, ...specialityFilter },
+    attributes: ["speciality", "callEndedAt", "assignedDoctorUuid"],
+    raw: true,
+  });
+
   const doctors = await models.doctor_queue_status.findAll({
-    where: specialityFilter,
+    where: speciality ? { speciality } : {},
     attributes: ["speciality", "status"],
     raw: true,
   });
@@ -54,6 +73,9 @@ const live = async ({ speciality = null } = {}) => {
         escalatedWaiting: 0,
         heartbeatStale: 0,
         inService: 0,
+        prescriptionPending: 0,
+        prescriptionOverdue: 0,
+        oldestPrescriptionMin: 0,
         doctorsOnline: 0,
         doctorsInConsult: 0,
         doctorsAway: 0,
@@ -98,6 +120,19 @@ const live = async ({ speciality = null } = {}) => {
 
   for (const entry of inService) bucket(entry.speciality).inService += 1;
 
+  const rxOverdueCutoff = now.getTime() - config.queue.prescriptionOverdueMinutes * 60000;
+  for (const entry of awaitingPrescription) {
+    const b = bucket(entry.speciality);
+    b.prescriptionPending += 1;
+    if (!entry.callEndedAt) continue;
+    const ended = new Date(entry.callEndedAt).getTime();
+    if (ended < rxOverdueCutoff) b.prescriptionOverdue += 1;
+    b.oldestPrescriptionMin = Math.max(
+      b.oldestPrescriptionMin,
+      Math.round((now.getTime() - ended) / 60000)
+    );
+  }
+
   for (const doctor of doctors) {
     if (!doctor.speciality) continue;
     const b = bucket(doctor.speciality);
@@ -123,6 +158,7 @@ const live = async ({ speciality = null } = {}) => {
     totals: {
       waiting: waiting.length,
       inService: inService.length,
+      prescriptionPending: awaitingPrescription.length,
       doctorsPresent: doctors.filter((d) =>
         [DOCTOR_STATUS.ONLINE, DOCTOR_STATUS.IN_CONSULT].includes(d.status)
       ).length,

@@ -51,7 +51,7 @@ const sweepStuckConnections = async (now = new Date()) => {
 
   const stuck = await models.queue_entries.findAll({
     where: {
-      status: { [Op.in]: [STATUS.ASSIGNED, STATUS.CONNECTING] },
+      status: { [Op.in]: [STATUS.ASSIGNED, STATUS.CALL_CONNECTING] },
       assignedAt: { [Op.lt]: cutoff },
     },
     limit: config.jobs.batchSize,
@@ -79,7 +79,7 @@ const sweepStaleCalls = async (now = new Date()) => {
   const cutoff = new Date(now.getTime() - config.queue.staleAfterMinutes * 60000);
 
   const stale = await models.queue_entries.findAll({
-    where: { status: STATUS.CONNECTED, connectedAt: { [Op.lt]: cutoff } },
+    where: { status: STATUS.CALL_CONNECTED, connectedAt: { [Op.lt]: cutoff } },
     limit: config.jobs.batchSize,
   });
 
@@ -91,8 +91,13 @@ const sweepStaleCalls = async (now = new Date()) => {
       // avg_consult_min EMA that feeds μ (§07). Close the record, free the
       // doctor, leave μ alone — and say so in the log, which is where a swept
       // close is recorded now that the row carries no source column.
+      //
+      // It lands in CALL_COMPLETED, never PRESCRIPTION_COMPLETED: the sweep
+      // knows the call stopped, and knows nothing whatsoever about whether a
+      // prescription was written. Marking the visit finished here would have a
+      // timeout job assert a clinical act that may never have happened.
       logger.warn("Closing a call that never reported finishing", { queueEntryId: entry.id });
-      await entry.update({ status: STATUS.COMPLETED, completedAt: now });
+      await entry.update({ status: STATUS.CALL_COMPLETED, callEndedAt: now });
       if (entry.assignedDoctorUuid) {
         await doctorStatus.setStatus(entry.assignedDoctorUuid, DOCTOR_STATUS.ONLINE, {
           speciality: entry.speciality,

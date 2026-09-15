@@ -37,6 +37,9 @@ module.exports = (sequelize, DataTypes) => {
       visitUuid: { type: DataTypes.STRING(64), allowNull: false, unique: true },
       // FK → auth-gateway user. Who to notify, and who owns the case (§13.1).
       hwUserUuid: { type: DataTypes.STRING(64), allowNull: false },
+      // The facility the visit was raised at. Mandatory: a case with no
+      // location cannot be reported on or routed to the right coordinator.
+      locationUuid: { type: DataTypes.STRING(64), allowNull: false },
       // The lane this case waits in.
       speciality: { type: DataTypes.STRING(100), allowNull: false },
       assignedDoctorUuid: { type: DataTypes.STRING(64), allowNull: true },
@@ -85,6 +88,11 @@ module.exports = (sequelize, DataTypes) => {
       queuedAt: { type: DataTypes.DATE, allowNull: true },
       assignedAt: { type: DataTypes.DATE, allowNull: true },
       connectedAt: { type: DataTypes.DATE, allowNull: true },
+      // When the CALL ended — distinct from completedAt, which now means the
+      // whole visit is done. The consult duration that feeds μ (§07) is
+      // measured to here, not to completion, so however long a prescription
+      // takes cannot inflate the speciality's wait estimates.
+      callEndedAt: { type: DataTypes.DATE, allowNull: true },
       completedAt: { type: DataTypes.DATE, allowNull: true },
 
       // LLD §05.3 — stamped once by the SLA force-promote job. Its presence IS
@@ -125,6 +133,7 @@ module.exports = (sequelize, DataTypes) => {
       timestamps: false,
       indexes: [
         { name: "idx_queue_entries_status_speciality", fields: ["status", "speciality"] },
+        { name: "idx_queue_entries_location_status", fields: ["location_uuid", "status"] },
         { name: "idx_queue_entries_assigned_doctor", fields: ["assigned_doctor_uuid"] },
         { name: "idx_queue_entries_queued_at", fields: ["queued_at"] },
         // Backs the ordering read — the sorted-set equivalent (LLD §03).

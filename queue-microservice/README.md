@@ -272,9 +272,101 @@ Full request/response shapes are in the OpenAPI document. In brief:
 **This service never calls web-rtc.** After a claim the client calls LiveKit's `getToken`
 itself, exactly as it does today (§01, §11).
 
+### The case lifecycle
+
+A visit ends in exactly one of two places, and only one of them is a success:
+
+```
+SUBMITTED -> QUEUED -> ASSIGNED -> CALL_CONNECTING -> CALL_CONNECTED
+                 ^                                          |
+                 |                                     CALL_COMPLETED
+            RE_QUEUED                                       |
+                                                 PRESCRIPTION_COMPLETED
+```
+
+The names say *which thing* finished. `COMPLETED` used to read as "the visit is over"
+while only ever meaning "the call is over" — that ambiguity is what this lifecycle exists
+to remove. A call ending is `CALL_COMPLETED`; the consultation is finished only at
+`PRESCRIPTION_COMPLETED`, and `POST /api/queue/visit/:visitUuid/prescription-shared` is
+the one thing that gets it there. It is called by whoever owns that moment (portal, or the
+doctor webapp) — QMS never queries OpenMRS itself, the same arrangement as the call
+webhooks.
+
+`ASSIGNED`, `CALL_CONNECTING` and `CALL_CONNECTED` also reach `PRESCRIPTION_COMPLETED`
+directly, which is the asynchronous consultation: a doctor who writes the prescription
+from the notes without a call. On those paths sharing the prescription ends the call too,
+so the doctor is freed and the lane moves.
+
+Four consequences that matter more than the enum values:
+
+- **The consult-time EMA is measured to the call ending.** `avg_consult_min` is μ in the
+  §07 wait estimate. Measured to completion it would include however long the doctor took
+  to write the prescription, inflating every ETA in the speciality. It is measured
+  `connected_at -> call_ended_at`, and only for calls that actually connected — an
+  asynchronous consultation has no consult duration to report, and timing one from
+  `assigned_at` would feed the wait *before* the call into μ as time spent with a patient.
+- **The doctor is freed at call end, not at prescription.** `CALL_COMPLETED` is
+  deliberately *not* in `IN_SERVICE_STATUSES`, so one doctor who forgets a prescription
+  cannot stall their whole lane or keep inflating `Lq`.
+- **`RE_QUEUED` is a durable waiting state, not a marker.** A doctor is assigned straight
+  out of it, so a case whose call dropped waits *as* `RE_QUEUED` rather than being
+  laundered back into `QUEUED`. Both scored lanes admit it alongside `QUEUED`; matching
+  `QUEUED` alone would hide those cases from dispatch entirely. A call that never
+  connected re-queues; a call that *did* connect does not, however briefly it lasted —
+  doctor and patient reached each other, so it ends at `CALL_COMPLETED` and is closed by a
+  prescription or cancelled outright.
+- **Nothing auto-completes an outstanding prescription.** `PRESCRIPTION_OVERDUE_MINUTES`
+  drives reporting only — `/analytics/live` returns `prescriptionPending`,
+  `prescriptionOverdue` and `oldestPrescriptionMin` per speciality. The stale-call sweep
+  closes an abandoned call to `CALL_COMPLETED`, never `PRESCRIPTION_COMPLETED`: it knows
+  the call stopped and knows nothing about whether a prescription was written, and a
+  timeout job does not get to assert a clinical act.
+
+`REQUIRE_PRESCRIPTION_TO_COMPLETE` **defaults on**, because `CALL_COMPLETED` is a real
+state in the agreed flow rather than an optional extra. Set it to `false` to close the
+visit when the call ends instead — the escape hatch if portal is not yet calling
+`/prescription-shared` and finished calls would otherwise accumulate.
+
+#### Four transitions that are not in the agreed flow
+
+They are marked `/* + */` in `stateMachine.js` and asserted separately in
+`tests/lifecycle.test.js`, so "what was agreed" and "what it took to run" stay
+distinguishable:
+
+| Added | Why |
+| --- | --- |
+| `QUEUED -> ESCALATED`, `RE_QUEUED -> ESCALATED` | `ESCALATED` has outgoing edges in the agreed flow but no incoming one. Without these it is unreachable and the §05.3 starvation SLA is silently dead code. |
+| `ASSIGNED -> RE_QUEUED`, `CALL_CONNECTING -> RE_QUEUED` | `POST /release` has nowhere to put a handed-back case, and a call that never connects cannot go back in line. Both would 409 on every request. |
+| `ASSIGNED -> ESCALATED`, `CALL_CONNECTING -> ESCALATED` | A case that had already breached its SLA returns to the front where it was, rather than serving its starvation wait twice. |
+
+### Location is stored and filtered, not partitioned
+
+`location_uuid` is mandatory on submit: every case has to be attributable to a facility, and
+the ops reads filter on it. There is no default, because a default would quietly attribute
+a case to the wrong place — a blank is refused outright.
+
+**It does not split the queue.** Cases still share one line per speciality, and a doctor is
+offered the whole speciality regardless of which facility a patient is at. Intelehealth
+doctors serve many facilities at once, so partitioning the lane would leave a doctor idle
+while another facility's patients waited. Backend LLD §13.5 raises per-facility queues as
+an open product question; this deliberately does not answer it. `queueLane.laneScope` is
+the single place that would change if the answer ever becomes yes, and
+`tests/lifecycle.test.js` plus `tests/location.test.js` pin the current answer so the
+change cannot happen by accident.
+
+Where it applies:
+
+| Endpoint | `locationUuid` | Why |
+| --- | --- | --- |
+| `POST /submit` | **required** | The case must belong somewhere. |
+| `GET /list` | optional filter | "The queue at this facility." |
+| `GET /specialities` | optional filter | Per-facility pending counts. |
+| `GET /analytics/live` | optional filter | Scopes the **case** counts only — never the doctor counts, since a doctor serves every facility and scoping them would report zero doctors for a well-covered location. |
+| `GET /doctor/:uuid/list` | **not offered** | It reads through the lane, where positions are computed. Filtering there would renumber positions against a subset of the real line, so the parameter is absent rather than accepted and ignored. |
+
 ### The table is deliberately lean
 
-`queue_entries` carries **25 columns, and every one is read by code.** Nothing is stored
+`queue_entries` carries **27 columns, and every one is read by code.** Nothing is stored
 "in case someone wants it later": a value that is only ever echoed back to a client, or
 that can be computed from another column, is not a column.
 

@@ -10,13 +10,14 @@ const etaService = require("./eta.service");
 const doctorStatus = require("./doctorStatus.service");
 const doctorAssignment = require("./doctorAssignment.service");
 const notification = require("./notification.service");
-const { assertTransition } = require("../utils/stateMachine");
+const { assertTransition, canTransition } = require("../utils/stateMachine");
 const { matchLevel } = require("../utils/speciality");
 const {
   STATUS,
   WAITING_STATUSES,
   IN_SERVICE_STATUSES,
   TERMINAL_STATUSES,
+  POST_CALL_STATUSES,
   DOCTOR_STATUS,
   EMERGENCY_LEVEL,
 } = require("../constants");
@@ -51,6 +52,23 @@ const heartbeatStale = (entry, now = new Date()) => {
   if (!entry.lastHeartbeatAt) return false;
   const cutoff = now.getTime() - config.queue.heartbeatStaleMinutes * 60000;
   return new Date(entry.lastHeartbeatAt).getTime() < cutoff;
+};
+
+/**
+ * How long a prescription has been outstanding, and whether that is overdue.
+ *
+ * Reporting only. A machine must never discharge a clinical obligation by
+ * timing it out, so nothing acts on this — the ops view surfaces it and a human
+ * chases it, the same principle as the heartbeat flag.
+ */
+const prescriptionOutstandingMinutes = (entry, now = new Date()) => {
+  if (entry.status !== STATUS.CALL_COMPLETED || !entry.callEndedAt) return null;
+  return Math.max(0, Math.round((now.getTime() - new Date(entry.callEndedAt).getTime()) / 60000));
+};
+
+const prescriptionOverdue = (entry, now = new Date()) => {
+  const mins = prescriptionOutstandingMinutes(entry, now);
+  return mins !== null && mins > config.queue.prescriptionOverdueMinutes;
 };
 
 /** The pre-assignment score, reproduced exactly rather than snapshotted. */
@@ -92,6 +110,12 @@ const statusPayload = async (entry, { includeEta = true } = {}) => {
   return {
     queueEntryId: entry.id,
     visitUuid: entry.visitUuid,
+    // The health worker who raised the visit. Stored since the first migration
+    // and returned by /list, but it was missing from this payload — so submit,
+    // status and the visit lookup all hid the one identifier a caller needs to
+    // tie the case back to whoever created it.
+    hwUserUuid: entry.hwUserUuid,
+    locationUuid: entry.locationUuid,
     speciality: entry.speciality,
     status: entry.status,
     emergencyLevel: entry.emergencyLevel,
@@ -112,6 +136,11 @@ const statusPayload = async (entry, { includeEta = true } = {}) => {
     completedAt: entry.completedAt,
     escalated: entry.escalatedAt !== null && entry.escalatedAt !== undefined,
     heartbeatStale: heartbeatStale(entry),
+    callEndedAt: entry.callEndedAt,
+    // The call is over but the visit is not: a prescription is still owed.
+    prescriptionPending: entry.status === STATUS.CALL_COMPLETED,
+    prescriptionOutstandingMinutes: prescriptionOutstandingMinutes(entry),
+    prescriptionOverdue: prescriptionOverdue(entry),
   };
 };
 
@@ -236,6 +265,7 @@ const submit = async (input) => {
   const entry = await models.queue_entries.create({
     visitUuid: input.visitUuid,
     hwUserUuid: input.hwUserUuid,
+    locationUuid: input.locationUuid,
     speciality: input.speciality,
     emergencyLevel: scored.emergencyLevel,
     caseType: scored.caseType,
@@ -336,8 +366,13 @@ const heartbeat = async (queueEntryId) => {
 const STATUS_GROUPS = {
   // The queue proper: waiting to be seen.
   WAITING: WAITING_STATUSES,
-  // Waiting plus everything a doctor currently has in hand.
-  ACTIVE: [...WAITING_STATUSES, ...IN_SERVICE_STATUSES],
+  // Waiting, in a call, or finished calling but still owing a prescription —
+  // i.e. every case that is not yet closed.
+  ACTIVE: [...WAITING_STATUSES, ...IN_SERVICE_STATUSES, ...POST_CALL_STATUSES],
+  // Just the cases whose call is done but whose prescription is not. Named for
+  // the question rather than the status, so `?status=CALL_COMPLETED` still
+  // works as a plain status filter and means the same thing.
+  AWAITING_PRESCRIPTION: [...POST_CALL_STATUSES],
   ALL: Object.values(STATUS),
 };
 
@@ -389,6 +424,7 @@ const toListItem = (entry, { position = null, eta = null, includeScore = false }
   queueEntryId: entry.id,
   visitUuid: entry.visitUuid,
   hwUserUuid: entry.hwUserUuid,
+  locationUuid: entry.locationUuid,
   speciality: entry.speciality,
   status: entry.status,
   emergencyLevel: entry.emergencyLevel,
@@ -404,6 +440,9 @@ const toListItem = (entry, { position = null, eta = null, includeScore = false }
   etaModelUsed: eta ? eta.model : entry.etaModelUsed,
   assignedDoctorUuid: entry.assignedDoctorUuid,
   heartbeatStale: heartbeatStale(entry),
+  prescriptionPending: entry.status === STATUS.CALL_COMPLETED,
+  prescriptionOutstandingMinutes: prescriptionOutstandingMinutes(entry),
+  prescriptionOverdue: prescriptionOverdue(entry),
   queuedAt: entry.queuedAt,
   assignedAt: entry.assignedAt,
   completedAt: entry.completedAt,
@@ -429,6 +468,7 @@ const listQueue = async (filters = {}, auth = null) => {
   const where = { status: { [Op.in]: statuses } };
 
   if (filters.speciality) where.speciality = filters.speciality;
+  if (filters.locationUuid) where.locationUuid = filters.locationUuid;
   if (filters.emergencyLevel) where.emergencyLevel = filters.emergencyLevel;
   if (filters.caseType) where.caseType = filters.caseType;
   if (filters.hwUserUuid) where.hwUserUuid = filters.hwUserUuid;
@@ -506,6 +546,7 @@ const listQueue = async (filters = {}, auth = null) => {
     appliedFilters: {
       status: statuses,
       speciality: filters.speciality || null,
+      locationUuid: filters.locationUuid || null,
       sort,
       scopedToCaller: Boolean(auth && !privileged),
     },
@@ -526,6 +567,7 @@ const specialitySummary = async (filters = {}, auth = null) => {
   const statuses = resolveStatuses(filters.status || "ACTIVE");
   const where = { status: { [Op.in]: statuses } };
   if (filters.speciality) where.speciality = filters.speciality;
+  if (filters.locationUuid) where.locationUuid = filters.locationUuid;
 
   const privileged = Boolean(auth?.isAdmin || auth?.isService);
   if (auth && !privileged) {
@@ -620,6 +662,7 @@ const specialitySummary = async (filters = {}, auth = null) => {
     appliedFilters: {
       status: statuses,
       speciality: filters.speciality || null,
+      locationUuid: filters.locationUuid || null,
       scopedToCaller: Boolean(auth && !privileged),
     },
     specialities,
@@ -744,8 +787,10 @@ const release = async (queueEntryId, doctorUuid, { reason = null } = {}) => {
   const entry = await findEntry(queueEntryId);
   // A case that had already breached its SLA goes back to the front where it
   // was, not to the back of the normal lane — releasing it was the doctor's
-  // correction, not the patient's fault.
-  const returnStatus = entry.escalatedAt ? STATUS.ESCALATED : STATUS.QUEUED;
+  // correction, not the patient's fault. Everything else returns as RE_QUEUED:
+  // in this lifecycle that is the waiting state a handed-back case occupies,
+  // and QUEUED is not reachable from ASSIGNED.
+  const returnStatus = entry.escalatedAt ? STATUS.ESCALATED : STATUS.RE_QUEUED;
   assertTransition(entry.status, returnStatus, { queueEntryId });
 
   const restoredScore = restorableScore(entry);
@@ -815,7 +860,7 @@ const findByVisit = async (visitUuid) => {
 const handleCallConnected = async (visitUuid, { doctorUuid = null } = {}) => {
   const entry = await findByVisit(visitUuid);
 
-  if (entry.status === STATUS.CONNECTED) {
+  if (entry.status === STATUS.CALL_CONNECTED) {
     logger.debug("Call-connected webhook re-delivered — already connected", {
       queueEntryId: entry.id,
     });
@@ -823,12 +868,12 @@ const handleCallConnected = async (visitUuid, { doctorUuid = null } = {}) => {
   }
 
   if (entry.status === STATUS.ASSIGNED) {
-    await entry.update({ status: STATUS.CONNECTING });
+    await entry.update({ status: STATUS.CALL_CONNECTING });
   }
 
-  assertTransition(entry.status, STATUS.CONNECTED, { visitUuid });
+  assertTransition(entry.status, STATUS.CALL_CONNECTED, { visitUuid });
   await entry.update({
-    status: STATUS.CONNECTED,
+    status: STATUS.CALL_CONNECTED,
     connectedAt: entry.connectedAt || new Date(),
     ...(doctorUuid && !entry.assignedDoctorUuid ? { assignedDoctorUuid: doctorUuid } : {}),
   });
@@ -858,15 +903,14 @@ const handleCallDisconnected = async (visitUuid, { doctorUuid = null, reason = n
     return { changed: false, outcome: entry.status, entry: await statusPayload(entry) };
   }
 
-  if (entry.status === STATUS.CONNECTED) {
-    return {
-      changed: true,
-      outcome: STATUS.COMPLETED,
-      entry: await complete(entry.id, doctor, { source: "WEBRTC_WEBHOOK" }),
-    };
+  if (entry.status === STATUS.CALL_CONNECTED) {
+    // complete() decides where this lands: CALL_COMPLETED when a
+    // prescription is required, PRESCRIPTION_COMPLETED when it is not.
+    const payload = await complete(entry.id, doctor, { source: "WEBRTC_WEBHOOK" });
+    return { changed: true, outcome: payload.status, entry: payload };
   }
 
-  if (entry.status === STATUS.ASSIGNED || entry.status === STATUS.CONNECTING) {
+  if (entry.status === STATUS.ASSIGNED || entry.status === STATUS.CALL_CONNECTING) {
     // The room closed without the call ever connecting — that is a failed
     // attempt, not a finished consultation.
     return {
@@ -876,7 +920,8 @@ const handleCallDisconnected = async (visitUuid, { doctorUuid = null, reason = n
     };
   }
 
-  // Still waiting, or already back in the queue: nothing to do.
+  // Waiting, back in the queue, or already past the call and awaiting a
+  // prescription: nothing for a disconnect to do.
   logger.debug("Call-disconnected webhook for a case that is not in a call", {
     queueEntryId: entry.id,
     status: entry.status,
@@ -887,16 +932,16 @@ const handleCallDisconnected = async (visitUuid, { doctorUuid = null, reason = n
 /** The web-rtc call-start hook: the room has been requested. */
 const markConnecting = async (queueEntryId) => {
   const entry = await findEntry(queueEntryId);
-  assertTransition(entry.status, STATUS.CONNECTING, { queueEntryId });
-  await entry.update({ status: STATUS.CONNECTING });
+  assertTransition(entry.status, STATUS.CALL_CONNECTING, { queueEntryId });
+  await entry.update({ status: STATUS.CALL_CONNECTING });
   return statusPayload(entry);
 };
 
 /** The web-rtc call-start hook: media is flowing. */
 const markConnected = async (queueEntryId) => {
   const entry = await findEntry(queueEntryId);
-  assertTransition(entry.status, STATUS.CONNECTED, { queueEntryId });
-  await entry.update({ status: STATUS.CONNECTED, connectedAt: new Date() });
+  assertTransition(entry.status, STATUS.CALL_CONNECTED, { queueEntryId });
+  await entry.update({ status: STATUS.CALL_CONNECTED, connectedAt: new Date() });
   return statusPayload(entry);
 };
 
@@ -931,49 +976,191 @@ const updateConsultStats = async (doctorUuid, speciality, durationMin) => {
 };
 
 /**
- * POST /api/queue/:id/complete — mirrors the naming of the existing
- * completeAppointment. Frees the doctor and updates the EMA that feeds μ.
+ * The call has ended. Shared by every path that ends one.
+ *
+ * TWO THINGS HAPPEN HERE AND NOWHERE ELSE, and both are about the call rather
+ * than the visit:
+ *
+ *  1. The consult duration feeds doctor_service_stats.avg_consult_min — μ in
+ *     the §07 wait estimate. It is measured connected -> call ended. It CANNOT
+ *     be measured to completed_at any more: once a prescription gates
+ *     completion, that gap includes however long the doctor took to write it,
+ *     and folding that into μ would inflate every ETA in the speciality.
+ *
+ *  2. The doctor is freed and the lane is dispatched. A doctor who has finished
+ *     talking to a patient is available for the next one; making them wait on
+ *     their own paperwork would let one forgotten prescription stall the lane.
+ *
+ * Where the case lands afterwards is the caller's business — CALL_COMPLETED
+ * when a prescription is required, PRESCRIPTION_COMPLETED when it is not.
  */
-const complete = async (queueEntryId, doctorUuid, { source = "DOCTOR" } = {}) => {
-  const entry = await findEntry(queueEntryId);
-  assertTransition(entry.status, STATUS.COMPLETED, { queueEntryId });
-
-  const completedAt = new Date();
-  const start = entry.connectedAt || entry.assignedAt;
-  const durationMin = start ? (completedAt.getTime() - new Date(start).getTime()) / 60000 : null;
-
-  await entry.update({ status: STATUS.COMPLETED, completedAt });
-
+const finishCall = async (entry, doctorUuid, { now = new Date() } = {}) => {
+  // Measured from connected_at only. A case that is closed out without a call
+  // ever connecting — an asynchronous consultation, where the doctor writes the
+  // prescription straight from the notes — has no consult duration to report,
+  // and timing it from assigned_at would feed the wait before the call into μ
+  // as though it were time spent with the patient.
+  const durationMin = entry.connectedAt
+    ? (now.getTime() - new Date(entry.connectedAt).getTime()) / 60000
+    : null;
   const doctor = doctorUuid || entry.assignedDoctorUuid;
+
   if (doctor) {
+    // updateConsultStats ignores a non-finite duration, so a call that never
+    // connected frees the doctor without touching the EMA.
     await updateConsultStats(doctor, entry.speciality, durationMin);
     await doctorStatus.setStatus(doctor, DOCTOR_STATUS.ONLINE, { speciality: entry.speciality });
   }
 
-  logger.info("Case completed", { queueEntryId, doctorUuid: doctor, durationMin, source });
+  return { doctor, durationMin };
+};
 
-  // A doctor just became free — that is exactly the trigger for case-first
-  // dispatch of whatever is now at the front of the lane.
-  await dispatchLane(scopeOf(entry));
-  notification.scheduleLaneUpdate(scopeOf(entry));
+/**
+ * POST /api/queue/:id/complete — the call is over.
+ *
+ * With REQUIRE_PRESCRIPTION_TO_COMPLETE on, this does NOT finish the visit: it
+ * moves the case to CALL_COMPLETED, because a finished call is not a
+ * finished consultation while the doctor still owes a prescription. Only
+ * POST /prescription-shared closes it.
+ *
+ * With the flag off, behaviour is unchanged and the case completes here.
+ */
+const complete = async (queueEntryId, doctorUuid, { source = "DOCTOR" } = {}) => {
+  const entry = await findEntry(queueEntryId);
+
+  const gated = config.queue.requirePrescriptionToComplete;
+  // A case already past the call (CALL_COMPLETED) is being closed out by
+  // the prescription, not ending a call, so it must not re-feed the EMA.
+  const endingACall = entry.status !== STATUS.CALL_COMPLETED;
+  const target = gated && endingACall ? STATUS.CALL_COMPLETED : STATUS.PRESCRIPTION_COMPLETED;
+
+  assertTransition(entry.status, target, { queueEntryId });
+
+  const now = new Date();
+  let durationMin = null;
+  let doctor = doctorUuid || entry.assignedDoctorUuid;
+
+  if (endingACall) {
+    const finished = await finishCall(entry, doctorUuid, { now });
+    doctor = finished.doctor;
+    durationMin = finished.durationMin;
+  }
+
+  await entry.update(
+    target === STATUS.CALL_COMPLETED
+      ? { status: STATUS.CALL_COMPLETED, callEndedAt: entry.callEndedAt || now }
+      : {
+          status: STATUS.PRESCRIPTION_COMPLETED,
+          completedAt: now,
+          callEndedAt: entry.callEndedAt || (endingACall ? now : null),
+        }
+  );
+
+  logger.info(
+    target === STATUS.CALL_COMPLETED
+      ? "Call ended — awaiting prescription"
+      : "Case completed",
+    { queueEntryId, doctorUuid: doctor, durationMin, source }
+  );
+
+  if (endingACall) {
+    // A doctor just became free — the trigger for case-first dispatch of
+    // whatever is now at the front of the lane.
+    await dispatchLane(scopeOf(entry));
+    notification.scheduleLaneUpdate(scopeOf(entry));
+  }
 
   return statusPayload(entry);
 };
 
 /**
- * Connection failed or timed out — LLD §04's RE_QUEUED state: back to QUEUED
+ * POST /api/queue/visit/:visitUuid/prescription-shared — the visit is done.
+ *
+ * Called by whoever knows the moment a prescription was shared (portal, or the
+ * doctor webapp). QMS never queries OpenMRS itself, so it is told rather than
+ * asking — the same arrangement as the web-rtc call webhooks.
+ *
+ * Idempotent: a case already COMPLETED reports changed:false rather than
+ * erroring, so a retried call is harmless.
+ */
+const sharePrescription = async (visitUuid, { doctorUuid = null } = {}) => {
+  const entry = await findByVisit(visitUuid);
+
+  if (entry.status === STATUS.PRESCRIPTION_COMPLETED) {
+    logger.debug("Prescription-shared re-delivered — already completed", {
+      queueEntryId: entry.id,
+    });
+    return { changed: false, entry: await statusPayload(entry) };
+  }
+
+  if (!canTransition(entry.status, STATUS.PRESCRIPTION_COMPLETED)) {
+    // A case still waiting in the queue, or already cancelled, has no
+    // consultation to write a prescription for. That is a real conflict, not
+    // something to paper over: the two systems disagree about where this visit
+    // is, and silently completing it would lose a patient from the line.
+    throw new ConflictError(
+      `Cannot complete a case in status ${entry.status} — it has no consultation to prescribe from`,
+      "NOT_AWAITING_PRESCRIPTION",
+      { visitUuid, status: entry.status }
+    );
+  }
+
+  const now = new Date();
+  const outstanding = prescriptionOutstandingMinutes(entry);
+
+  // The prescription may arrive while the doctor is still holding the case —
+  // an asynchronous consultation (ASSIGNED straight to done), or a doctor who
+  // writes it before the room closes. Those paths end the call here, so the
+  // doctor is freed and the lane moves; a case already in CALL_COMPLETED was
+  // freed when its call ended and must not be counted a second time.
+  const stillHoldingTheCase = IN_SERVICE_STATUSES.includes(entry.status);
+  if (stillHoldingTheCase) await finishCall(entry, doctorUuid, { now });
+
+  await entry.update({
+    status: STATUS.PRESCRIPTION_COMPLETED,
+    completedAt: now,
+    callEndedAt: entry.callEndedAt || (entry.connectedAt ? now : null),
+  });
+
+  logger.info("Prescription shared — visit completed", {
+    queueEntryId: entry.id,
+    visitUuid,
+    doctorUuid: doctorUuid || entry.assignedDoctorUuid,
+    outstandingMinutes: outstanding,
+    endedCall: stillHoldingTheCase,
+  });
+
+  if (stillHoldingTheCase) {
+    await dispatchLane(scopeOf(entry));
+    notification.scheduleLaneUpdate(scopeOf(entry));
+  }
+
+  return { changed: true, entry: await statusPayload(entry) };
+};
+
+/**
+ * Connection failed or timed out — LLD §04's RE_QUEUED state: back in the line
  * with a priority bump so a patient whose call keeps dropping does not slide
- * down the line each time.
+ * down it each time.
+ *
+ * The case now STAYS in RE_QUEUED rather than being moved straight back to
+ * QUEUED. It is a waiting state a doctor is assigned out of, and keeping it
+ * means "this patient has already had an attempt fail" survives in the record
+ * instead of being erased on the way back into the queue.
  */
 const requeue = async (queueEntryId, { reason = "CONNECTION_FAILED" } = {}) => {
   const entry = await findEntry(queueEntryId);
-  assertTransition(entry.status, STATUS.RE_QUEUED, { queueEntryId });
+  // A case that had already breached its SLA returns to the front where it was:
+  // the failed call was not the patient's fault, and dropping it into the
+  // normal lane would make it serve its starvation wait twice.
+  const returnStatus = entry.escalatedAt ? STATUS.ESCALATED : STATUS.RE_QUEUED;
+  assertTransition(entry.status, returnStatus, { queueEntryId });
 
   const doctorUuid = entry.assignedDoctorUuid;
   const bumped = restorableScore(entry) + config.queue.requeueBonus;
 
   await entry.update({
-    status: entry.escalatedAt ? STATUS.ESCALATED : STATUS.QUEUED,
+    status: returnStatus,
     assignedDoctorUuid: null,
     assignedAt: null,
     connectedAt: null,
@@ -1021,4 +1208,7 @@ module.exports = {
   scopeOf,
   heartbeatStale,
   restorableScore,
+  sharePrescription,
+  prescriptionOutstandingMinutes,
+  prescriptionOverdue,
 };

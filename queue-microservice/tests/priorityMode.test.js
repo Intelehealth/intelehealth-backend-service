@@ -31,7 +31,11 @@ test("the critical lane is a separate read path, not a weight", () => {
   const [, critical] = queueLane.lanesInOrder({ speciality: "X" });
   // A predicate on emergency_level is what makes it a lane rather than a bonus.
   assert.equal(critical.where.emergencyLevel, EMERGENCY_LEVEL.CRITICAL);
-  assert.equal(critical.where.status, STATUS.QUEUED);
+  // A case whose call dropped is still queueing, so the scored lanes match
+  // RE_QUEUED as well — matching QUEUED alone would hide it from dispatch.
+  assert.deepEqual(critical.where.status, {
+    [require("sequelize").Op.in]: [STATUS.QUEUED, STATUS.RE_QUEUED],
+  });
 });
 
 test("the escalated lane is ordered first-to-breach, not by score", () => {

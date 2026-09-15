@@ -75,6 +75,21 @@ module.exports = {
     // start reordering real patients just because someone forgot to set a
     // variable. Turning it on is a deliberate, clinical decision.
     priorityEngineEnabled: bool(process.env.PRIORITY_ENGINE_ENABLED, false),
+    // A finished call is not a finished visit: the doctor still owes a
+    // prescription. With this on, a call ending puts the case in CALL_COMPLETED
+    // and only POST /prescription-shared moves it to PRESCRIPTION_COMPLETED.
+    //
+    // DEFAULTS ON, because that is the agreed lifecycle — CALL_COMPLETED is a
+    // real state in it, not an optional extra, and with this off no case ever
+    // reaches one. The cost of it being on is that a visit stays open until
+    // something calls /prescription-shared: until portal does, finished calls
+    // sit in CALL_COMPLETED, which /analytics/live reports as pending and
+    // overdue. Set REQUIRE_PRESCRIPTION_TO_COMPLETE=false to go back to closing
+    // the visit when the call ends.
+    requirePrescriptionToComplete: bool(process.env.REQUIRE_PRESCRIPTION_TO_COMPLETE, true),
+    // How long an outstanding prescription may sit before the ops view flags
+    // it. Reporting only — a machine never discharges a clinical obligation.
+    prescriptionOverdueMinutes: num(process.env.PRESCRIPTION_OVERDUE_MINUTES, 60),
     // Fallback avg consult time (seconds) when a doctor has no history yet.
     defaultConsultSeconds: num(process.env.DEFAULT_CONSULT_SECONDS, 480),
     // Heartbeat older than this flags the entry for review — never auto-cancels

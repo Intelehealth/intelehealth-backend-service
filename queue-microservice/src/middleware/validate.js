@@ -21,8 +21,14 @@ const coerce = (value, rule) => {
       if (value === "false" || value === 0 || value === "0") return false;
       return NaN;
     case "string":
-    case "uuidish":
-      return String(value).trim();
+    case "uuidish": {
+      // Trim BEFORE deciding the value is absent. The guard above catches ""
+      // but not "   ", which would otherwise trim down to an empty string and
+      // sail past a `required` check — every required identifier on every
+      // endpoint, not just one of them.
+      const trimmed = String(value).trim();
+      return trimmed === "" ? undefined : trimmed;
+    }
     default:
       return value;
   }

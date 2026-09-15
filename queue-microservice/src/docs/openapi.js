@@ -20,6 +20,11 @@ const queueStatusResponse = {
   properties: {
     queueEntryId: { type: "integer", example: 4821 },
     visitUuid: { type: "string" },
+    hwUserUuid: {
+      type: "string",
+      description: "The health worker who raised the visit.",
+    },
+    locationUuid: { type: "string", description: "The facility the visit was raised at." },
     speciality: { type: "string", example: "General Physician" },
     status: { type: "string", enum: enumOf(STATUS) },
     emergencyLevel: { type: "string", enum: enumOf(EMERGENCY_LEVEL) },
@@ -49,13 +54,39 @@ const queueStatusResponse = {
       description: "True once etaAt has passed. Show an 'any moment now' state rather than a negative countdown.",
     },
     etaModelUsed: { type: "string", enum: ["A", "B"], nullable: true },
+    callEndedAt: {
+      type: "string",
+      format: "date-time",
+      nullable: true,
+      description:
+        "When the CALL ended, which completedAt no longer stands in for: a finished call is not a finished visit. completedAt is stamped only at PRESCRIPTION_COMPLETED.",
+    },
+    prescriptionPending: {
+      type: "boolean",
+      description:
+        "The call is over but the doctor still owes a prescription — status CALL_COMPLETED. Closed only by POST /visit/{visitUuid}/prescription-shared.",
+    },
+    prescriptionOutstandingMinutes: {
+      type: "integer",
+      nullable: true,
+      description:
+        "Minutes since the call ended. null when the case is not awaiting a prescription — distinct from 0, which means under a minute.",
+    },
+    prescriptionOverdue: {
+      type: "boolean",
+      description:
+        "Past PRESCRIPTION_OVERDUE_MINUTES. Reporting only: nothing auto-completes an outstanding prescription.",
+    },
     assignedDoctorUuid: { type: "string", nullable: true },
     queuedAt: { type: "string", format: "date-time", nullable: true },
     assignedAt: { type: "string", format: "date-time", nullable: true },
     connectedAt: { type: "string", format: "date-time", nullable: true },
     completedAt: { type: "string", format: "date-time", nullable: true },
-    requeueCount: { type: "integer" },
-    heartbeatFlagged: { type: "boolean" },
+    heartbeatStale: {
+      type: "boolean",
+      description:
+        "The patient app has not checked in recently. A flag for review only — a stale heartbeat never cancels a case, because a patient may still be waiting after their app died.",
+    },
   },
 };
 
@@ -118,6 +149,7 @@ module.exports = {
     { name: "Health worker", description: "LLD §09.1 — submit & track" },
     { name: "Doctor", description: "LLD §09.2 — queue panel & claiming" },
     { name: "Doctor status", description: "LLD §09.3 — live online/offline/away" },
+    { name: "Call lifecycle", description: "Keyed by visit — driven by web-rtc and portal" },
     { name: "Analytics", description: "LLD §09.4 — live ops view and ETA accuracy" },
     { name: "Config", description: "Priority Engine §07 — tunable weights, aging, SLA caps" },
   ],
@@ -134,13 +166,8 @@ module.exports = {
           {
             type: "object",
             properties: {
-              hwUserUuid: { type: "string" },
-              patientUuid: { type: "string", nullable: true },
-              locationUuid: { type: "string", nullable: true },
               flagged: { type: "boolean" },
               escalatedAt: { type: "string", format: "date-time", nullable: true },
-              chiefComplaint: { type: "string", nullable: true },
-              vitals: { type: "object", nullable: true, additionalProperties: true },
               waitedMinutes: { type: "integer" },
               priorityScore: {
                 type: "number",
@@ -179,16 +206,24 @@ module.exports = {
             "application/json": {
               schema: {
                 type: "object",
-                required: ["visitUuid", "speciality"],
+                required: ["visitUuid", "locationUuid", "speciality"],
                 properties: {
                   visitUuid: { type: "string", description: "OpenMRS visit.uuid — the dedupe key" },
-                  patientUuid: { type: "string" },
                   hwUserUuid: {
                     type: "string",
                     description: "Defaults to the caller; only admins/services may set another.",
                   },
-                  speciality: { type: "string" },
-                  locationUuid: { type: "string" },
+                  locationUuid: {
+                    type: "string",
+                    maxLength: 64,
+                    description:
+                      "The facility the visit was raised at. Required — every case must be attributable to somewhere, and the ops reads filter on it. It does NOT split the queue: cases still share one line per speciality.",
+                  },
+                  speciality: {
+                    type: "string",
+                    description:
+                      "Free text, and it IS the queue key — two spellings are two queues.",
+                  },
                   emergencyLevel: { type: "string", enum: enumOf(EMERGENCY_LEVEL) },
                   caseType: { type: "string", enum: enumOf(CASE_TYPE) },
                   specMatch: { type: "string", enum: enumOf(SPEC_MATCH) },
@@ -197,7 +232,11 @@ module.exports = {
                     description:
                       "True when the visit has a type-15 'Flagged' encounter. Acts as a HIGH floor on emergency level (Priority Engine §00).",
                   },
-                  chiefComplaint: { type: "string" },
+                  chiefComplaint: {
+                    type: "string",
+                    description:
+                      "Accepted and discarded. Clinical detail stays in OpenMRS — QMS stores none of it, and it is never returned.",
+                  },
                   vitals: {
                     type: "object",
                     description:
@@ -290,11 +329,16 @@ module.exports = {
             name: "status",
             in: "query",
             description:
-              "Group — `WAITING` (default; QUEUED + ESCALATED), `ACTIVE` (adds ASSIGNED/CONNECTING/CONNECTED), `ALL` — or a comma-separated list of explicit statuses.",
+              "Group — `WAITING` (default; QUEUED + ESCALATED + RE_QUEUED), `ACTIVE` (adds ASSIGNED/CALL_CONNECTING/CALL_CONNECTED and CALL_COMPLETED), `AWAITING_PRESCRIPTION` (just CALL_COMPLETED), `ALL` — or a comma-separated list of explicit statuses.",
             schema: { type: "string", default: "WAITING" },
           },
           { name: "speciality", in: "query", schema: { type: "string" } },
-          { name: "locationUuid", in: "query", schema: { type: "string" } },
+          {
+            name: "locationUuid",
+            in: "query",
+            description: "Only cases raised at this facility.",
+            schema: { type: "string", maxLength: 64 },
+          },
           { name: "emergencyLevel", in: "query", schema: { type: "string", enum: enumOf(EMERGENCY_LEVEL) } },
           { name: "caseType", in: "query", schema: { type: "string", enum: enumOf(CASE_TYPE) } },
           { name: "hwUserUuid", in: "query", schema: { type: "string" } },
@@ -302,7 +346,6 @@ module.exports = {
           { name: "visitUuid", in: "query", schema: { type: "string" } },
           { name: "escalated", in: "query", schema: { type: "boolean" } },
           { name: "flagged", in: "query", schema: { type: "boolean" } },
-          { name: "heartbeatFlagged", in: "query", schema: { type: "boolean" } },
           { name: "queuedFrom", in: "query", schema: { type: "string", format: "date-time" } },
           { name: "queuedTo", in: "query", schema: { type: "string", format: "date-time" } },
           {
@@ -363,7 +406,12 @@ module.exports = {
             schema: { type: "string", default: "ACTIVE" },
           },
           { name: "speciality", in: "query", schema: { type: "string" } },
-          { name: "locationUuid", in: "query", schema: { type: "string" } },
+          {
+            name: "locationUuid",
+            in: "query",
+            description: "Only cases raised at this facility.",
+            schema: { type: "string", maxLength: 64 },
+          },
           { name: "withItems", in: "query", schema: { type: "boolean", default: false } },
           { name: "itemsPerSpeciality", in: "query", schema: { type: "integer", default: 5, maximum: 25 } },
         ],
@@ -415,7 +463,6 @@ module.exports = {
         parameters: [
           { name: "doctorUuid", in: "path", required: true, schema: { type: "string" } },
           { name: "speciality", in: "query", schema: { type: "string" } },
-          { name: "locationUuid", in: "query", schema: { type: "string" } },
           { name: "limit", in: "query", schema: { type: "integer", default: 50 } },
           { name: "offset", in: "query", schema: { type: "integer", default: 0 } },
         ],
@@ -501,6 +548,105 @@ module.exports = {
       },
     },
 
+    "/api/queue/visit/{visitUuid}": {
+      get: {
+        tags: ["Call lifecycle"],
+        summary: "Resolve a visit to its queue entry",
+        description:
+          "Keyed by visit because that is the identifier web-rtc and portal hold; neither ever sees our queue_entry id.",
+        parameters: [{ name: "visitUuid", in: "path", required: true, schema: { type: "string" } }],
+        responses: { 200: ok(queueStatusResponse), 404: errorResponse, default: errorResponse },
+      },
+    },
+
+    "/api/queue/visit/{visitUuid}/call-connected": {
+      post: {
+        tags: ["Call lifecycle"],
+        summary: "A participant joined the room",
+        description: [
+          "Fired by web-rtc when the call actually starts.",
+          "",
+          "LiveKit emits no 'connecting' event, so this walks an ASSIGNED case through CALL_CONNECTING itself rather than rejecting the transition the lifecycle would otherwise require.",
+          "",
+          "Idempotent: a re-delivered webhook answers 200 with `changed: false`.",
+        ].join("\n"),
+        parameters: [{ name: "visitUuid", in: "path", required: true, schema: { type: "string" } }],
+        responses: {
+          200: ok({
+            type: "object",
+            properties: {
+              changed: { type: "boolean" },
+              entry: { $ref: "#/components/schemas/QueueStatus" },
+            },
+          }),
+          404: errorResponse,
+          default: errorResponse,
+        },
+      },
+    },
+
+    "/api/queue/visit/{visitUuid}/call-disconnected": {
+      post: {
+        tags: ["Call lifecycle"],
+        summary: "The room finished or the last participant left",
+        description: [
+          "Fired by web-rtc when the call ends. The outcome depends on whether the call ever connected, and is reported back in `outcome`:",
+          "",
+          "- a call that connected becomes **CALL_COMPLETED** — the call is over, the visit is not (or PRESCRIPTION_COMPLETED directly, when `REQUIRE_PRESCRIPTION_TO_COMPLETE` is off)",
+          "- a call that never established becomes **RE_QUEUED** with a priority bump — a failed attempt, not a finished consultation",
+          "",
+          "This is also where the consult duration feeds `avg_consult_min` (μ in the §07 estimate), measured to the call ending rather than to completion.",
+          "",
+          "Idempotent: already-terminal cases answer 200 with `changed: false`.",
+        ].join("\n"),
+        parameters: [{ name: "visitUuid", in: "path", required: true, schema: { type: "string" } }],
+        responses: {
+          200: ok({
+            type: "object",
+            properties: {
+              changed: { type: "boolean" },
+              outcome: {
+                type: "string",
+                enum: ["CALL_COMPLETED", "PRESCRIPTION_COMPLETED", "RE_QUEUED"],
+              },
+              entry: { $ref: "#/components/schemas/QueueStatus" },
+            },
+          }),
+          404: errorResponse,
+          default: errorResponse,
+        },
+      },
+    },
+
+    "/api/queue/visit/{visitUuid}/prescription-shared": {
+      post: {
+        tags: ["Call lifecycle"],
+        summary: "The prescription is shared — the visit is done",
+        description: [
+          "A finished call is not a finished visit. A call ending leaves the case in `CALL_COMPLETED`, and this is the only thing that moves it to `PRESCRIPTION_COMPLETED` — the single successful ending in the lifecycle.",
+          "",
+          "Called by whoever owns that moment — portal, or the doctor webapp. QMS never queries OpenMRS itself, so it is told rather than asking.",
+          "",
+          "It also closes a consultation that never had a call at all — an asynchronous one, written straight from the notes — because ASSIGNED, CALL_CONNECTING and CALL_CONNECTED all reach PRESCRIPTION_COMPLETED directly. On those paths it ends the call too, so the doctor is freed and the lane moves.",
+          "",
+          "Idempotent: an already-completed case answers 200 with `changed: false`. A case still waiting in the queue is a **409 `NOT_AWAITING_PRESCRIPTION`** — there is no consultation to prescribe from, and completing it would lose a patient out of the line.",
+        ].join("\n"),
+        parameters: [{ name: "visitUuid", in: "path", required: true, schema: { type: "string" } }],
+        responses: {
+          200: ok({
+            type: "object",
+            properties: {
+              changed: { type: "boolean" },
+              entry: { $ref: "#/components/schemas/QueueStatus" },
+            },
+          }),
+          409: errorResponse,
+          404: errorResponse,
+          default: errorResponse,
+        },
+      },
+    },
+
     "/api/doctor/{doctorUuid}/status": {
       patch: {
         tags: ["Doctor status"],
@@ -541,7 +687,15 @@ module.exports = {
         tags: ["Analytics"],
         summary: "Per-speciality ops snapshot",
         description: "Queue depth, average wait, doctors online, utilisation (LLD §09.4).",
-        parameters: [{ name: "speciality", in: "query", schema: { type: "string" } }],
+        parameters: [
+          { name: "speciality", in: "query", schema: { type: "string" } },
+          {
+            name: "locationUuid",
+            in: "query",
+            description: "Only cases raised at this facility.",
+            schema: { type: "string", maxLength: 64 },
+          },
+        ],
         responses: { 200: ok({ type: "object" }), default: errorResponse },
       },
     },

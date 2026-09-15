@@ -26,6 +26,9 @@ const entryParams = validateParams({
 const submitSchema = {
   visitUuid: { type: "string", required: true, maxLength: 64 },
   hwUserUuid: { type: "string", maxLength: 64 },
+  // The facility the visit was raised at. Required: every case has to be
+  // attributable to somewhere, and the ops views filter on it.
+  locationUuid: { type: "string", required: true, maxLength: 64 },
   speciality: { type: "string", required: true, maxLength: 100 },
   emergencyLevel: { type: "string", enum: Object.values(EMERGENCY_LEVEL), default: EMERGENCY_LEVEL.LOW },
   caseType: { type: "string", enum: Object.values(CASE_TYPE), default: CASE_TYPE.NEW },
@@ -46,7 +49,10 @@ router.use(authenticate);
 
 router.get(
   "/analytics/live",
-  validateQuery({ speciality: { type: "string", maxLength: 100 } }),
+  validateQuery({
+    speciality: { type: "string", maxLength: 100 },
+    locationUuid: { type: "string", maxLength: 64 },
+  }),
   asyncHandler(analyticsController.live)
 );
 
@@ -74,6 +80,7 @@ router.get(
     // explicit statuses. Defaults to WAITING — the queue proper.
     status: { type: "string", maxLength: 200 },
     speciality: { type: "string", maxLength: 100 },
+    locationUuid: { type: "string", maxLength: 64 },
     emergencyLevel: { type: "string", enum: Object.values(EMERGENCY_LEVEL) },
     caseType: { type: "string", enum: Object.values(CASE_TYPE) },
     hwUserUuid: { type: "string", maxLength: 64 },
@@ -105,6 +112,7 @@ router.get(
   validateQuery({
     status: { type: "string", maxLength: 200 },
     speciality: { type: "string", maxLength: 100 },
+    locationUuid: { type: "string", maxLength: 64 },
     withItems: { type: "boolean", default: false },
     itemsPerSpeciality: { type: "integer", default: 5, min: 1, max: 25 },
   }),
@@ -144,6 +152,13 @@ router.post(
   visitParams,
   validateBody({ doctorUuid: { type: "string", maxLength: 64 } }),
   asyncHandler(controller.callConnected)
+);
+
+router.post(
+  "/visit/:visitUuid/prescription-shared",
+  visitParams,
+  validateBody({ doctorUuid: { type: "string", maxLength: 64 } }),
+  asyncHandler(controller.prescriptionShared)
 );
 
 router.post(
@@ -212,5 +227,10 @@ router.post(
   validateBody({ reason: { type: "string", maxLength: 200 } }),
   asyncHandler(controller.requeue)
 );
+
+// The request schemas are attached to the exported router so the tests can
+// drive the real validator against the real shapes, rather than asserting
+// against a copy that could drift from what the route actually enforces.
+router.schemas = { submit: submitSchema };
 
 module.exports = router;

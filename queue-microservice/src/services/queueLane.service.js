@@ -97,15 +97,25 @@ const escalatedLaneWhere = (scope) => ({ ...laneScope(scope), status: STATUS.ESC
  * speciality it belongs to. CRITICAL_LANE_SCOPE=GLOBAL restores the literal
  * reading.
  */
+/**
+ * Both scored lanes admit RE_QUEUED alongside QUEUED.
+ *
+ * RE_QUEUED is a durable waiting state in this lifecycle rather than a marker
+ * the requeue write immediately clears, so matching on QUEUED alone would hide
+ * every case whose call dropped from both lanes — it would hold a priority
+ * score, be counted as waiting, and never be offered to a doctor.
+ */
+const QUEUEING = { [Op.in]: [STATUS.QUEUED, STATUS.RE_QUEUED] };
+
 const criticalLaneWhere = (scope) => {
-  const base = { status: STATUS.QUEUED, emergencyLevel: EMERGENCY_LEVEL.CRITICAL };
+  const base = { status: QUEUEING, emergencyLevel: EMERGENCY_LEVEL.CRITICAL };
   if (config.queue.criticalLaneScope === "GLOBAL") return base;
   return { ...laneScope(scope), ...base };
 };
 
 const normalLaneWhere = (scope) => ({
   ...laneScope(scope),
-  status: STATUS.QUEUED,
+  status: QUEUEING,
   emergencyLevel: { [Op.ne]: EMERGENCY_LEVEL.CRITICAL },
 });
 

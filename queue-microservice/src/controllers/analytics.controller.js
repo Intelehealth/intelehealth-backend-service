@@ -7,7 +7,13 @@ const { success } = require("../utils/apiResponse");
 
 /** GET /api/queue/analytics/live */
 const live = async (req, res) =>
-  success(res, await analytics.live({ speciality: req.validatedQuery?.speciality }));
+  success(
+    res,
+    await analytics.live({
+      speciality: req.validatedQuery?.speciality,
+      locationUuid: req.validatedQuery?.locationUuid,
+    })
+  );
 
 /** GET /api/queue/analytics/accuracy */
 const accuracy = async (req, res) =>

@@ -53,7 +53,9 @@ test("the single lane holds every waiting case, whatever its urgency", () => {
   // No emergency_level or escalated predicate — that is what makes it one line.
   assert.ok(!("emergencyLevel" in lane.where));
   assert.ok(!("escalated" in lane.where));
-  assert.deepEqual(lane.where.status, { [require("sequelize").Op.in]: ["QUEUED", "ESCALATED"] });
+  assert.deepEqual(lane.where.status, {
+    [require("sequelize").Op.in]: ["QUEUED", "ESCALATED", "RE_QUEUED"],
+  });
 });
 
 test("no case is special — laneOf is FIFO regardless of level or status", () => {
