@@ -1,4 +1,4 @@
-ockerfile
+ 
 # queue-microservice — production image
 FROM node:18-alpine AS deps
 WORKDIR /app
