@@ -117,17 +117,33 @@ const DEFAULT_DATABASE_METRICS = [
     label: "WhatsApp calls recorded today",
     section: "Calls & Recordings",
     database: "openmrs",
+    /*
+      JSON_TABLE is MySQL 8.0.4+ only; MariaDB never implemented it at all. This
+      counts array entries in value_reference by joining against a 0-999 number
+      sequence instead - built from three cross-joined digit tables, no
+      recursive CTE - and pulling each element with JSON_EXTRACT, which both
+      MySQL 5.7.8+ and MariaDB 10.2+ support. Verified against JSON_TABLE on
+      synthetic value_reference arrays covering multiple entries per row,
+      out-of-range timestamps, invalid JSON and NULL: identical counts.
+    */
     query: `SELECT COUNT(*) AS count
       FROM visit_attribute va
       JOIN visit_attribute_type vat ON vat.visit_attribute_type_id = va.attribute_type_id
-      JOIN JSON_TABLE(
-        IF(JSON_VALID(va.value_reference), va.value_reference, '[]'),
-        '$[*]' COLUMNS(call_timestamp BIGINT PATH '$.timestamp')
-      ) calls
+      JOIN (
+        SELECT a.n + b.n * 10 + c.n * 100 AS idx
+        FROM (SELECT 0 n UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) a
+        CROSS JOIN (SELECT 0 n UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) b
+        CROSS JOIN (SELECT 0 n UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) c
+      ) seq
+        ON seq.idx < JSON_LENGTH(IF(JSON_VALID(va.value_reference), va.value_reference, '[]'))
       WHERE va.voided = 0
         AND vat.uuid = '35e64f4a-d0a5-40bc-8010-8c61d52cc4b1'
-        AND FROM_UNIXTIME(calls.call_timestamp / 1000) >= :startLocal
-        AND FROM_UNIXTIME(calls.call_timestamp / 1000) < :endLocal`,
+        AND FROM_UNIXTIME(
+          (JSON_EXTRACT(IF(JSON_VALID(va.value_reference), va.value_reference, '[]'), CONCAT('$[', seq.idx, '].timestamp')) + 0) / 1000
+        ) >= :startLocal
+        AND FROM_UNIXTIME(
+          (JSON_EXTRACT(IF(JSON_VALID(va.value_reference), va.value_reference, '[]'), CONCAT('$[', seq.idx, '].timestamp')) + 0) / 1000
+        ) < :endLocal`,
   },
 ];
 
