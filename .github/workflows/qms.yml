@@ -1,4 +1,4 @@
-name: Queue Microservice Deploy
+name: Queue Microservice Deploy-QMS
  
 on:
   push:
