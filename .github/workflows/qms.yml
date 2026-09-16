@@ -100,6 +100,7 @@ jobs:
               -p 3600:3600 \
               --env-file \$ENV_FILE_PATH \
               -v \$PEM_FOLDER_PATH:/app/.pem \
+              --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
               \$DOCKER_IMAGE_NAME:${{ github.sha }}
  
             docker image prune -f

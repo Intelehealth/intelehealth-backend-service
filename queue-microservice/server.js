@@ -1,3 +1,6 @@
+const fs = require("fs");
+const http = require("http");
+const https = require("https");
 const app = require("./src/app");
 const models = require("./src/models");
 const config = require("./src/config/env");
@@ -8,6 +11,32 @@ const notification = require("./src/services/notification.service");
 const pushService = require("./src/services/push.service");
 
 let server = null;
+
+// Mirrors web-rtc's SSL handling: an explicit flag, checked file paths, and a
+// fail-safe fallback to HTTP rather than a crash if a cert is missing.
+const createServer = () => {
+  if (!config.ssl.enabled) return http.createServer(app);
+
+  try {
+    if (!fs.existsSync(config.ssl.keyPath)) {
+      throw new Error(`SSL key file not found: ${config.ssl.keyPath}`);
+    }
+    if (!fs.existsSync(config.ssl.certPath)) {
+      throw new Error(`SSL cert file not found: ${config.ssl.certPath}`);
+    }
+    const options = {
+      key: fs.readFileSync(config.ssl.keyPath),
+      cert: fs.readFileSync(config.ssl.certPath),
+    };
+    logger.info("HTTPS enabled", { keyPath: config.ssl.keyPath, certPath: config.ssl.certPath });
+    return https.createServer(options, app);
+  } catch (err) {
+    logger.error("SSL_ENABLED is set but certs could not be loaded — falling back to HTTP", {
+      error: err.message,
+    });
+    return http.createServer(app);
+  }
+};
 
 const start = async () => {
   try {
@@ -47,8 +76,9 @@ const start = async () => {
 
   jobs.start();
 
-  server = app.listen(config.port, () => {
-    logger.info("QMS listening", { port: config.port, env: config.env });
+  server = createServer();
+  server.listen(config.port, () => {
+    logger.info("QMS listening", { port: config.port, env: config.env, https: config.ssl.enabled });
   });
 };
 

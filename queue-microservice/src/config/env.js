@@ -29,6 +29,17 @@ module.exports = {
     logging: bool(process.env.DB_LOGGING, false),
   },
 
+  // Same scheme as web-rtc: an explicit flag rather than NODE_ENV, because the
+  // Docker image always sets NODE_ENV=production regardless of whether this
+  // host's certs are mounted. DEFAULTS OFF and falls back to HTTP on any
+  // missing/unreadable file — a deploy without SSL_ENABLED set, or without
+  // /etc/letsencrypt mounted, must keep serving traffic, not crash-loop.
+  ssl: {
+    enabled: bool(process.env.SSL_ENABLED, false),
+    keyPath: process.env.SSL_KEY_PATH || "",
+    certPath: process.env.SSL_CERT_PATH || "",
+  },
+
   auth: {
     // Shared RSA public key issued by OpenMRS/auth-gateway — same scheme as
     // portal / web-rtc / pagerduty. .pem/ is gitignored; copy public_key.pem in.
