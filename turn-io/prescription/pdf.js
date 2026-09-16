@@ -1,31 +1,24 @@
-// Build the e-prescription PDF from PrescriptionData (see prescription-data.js)
-// using pdfmake server-side. Layout mirrors the Intelehealth doctor web portal
-// prescription (view-visit-prescription.component.ts -> downloadPrescription):
-// an outer bordered table titled "ArogyaPath 2.0 e-Prescription", patient +
-// consultation details, personal + address + other info, chief complaint,
-// vitals, diagnosis, medications, advice, tests, referral, follow-up and a
-// right-aligned doctor signature block, with an AROGYAPATH 2.0 watermark and a
-// telemedicine-disclaimer footer.
+// Builds the e-prescription PDF (see prescription-data.js for the input shape).
 
+const path = require("path");
 const PdfPrinter = require("pdfmake");
 
-// pdfmake bundles Roboto as base64 in build/vfs_fonts.js (no .ttf files ship in
-// this version). Decode those into Buffers so PdfPrinter can embed them without
-// needing any external font assets on disk.
-const vfs = require("pdfmake/build/vfs_fonts.js");
-const fontBuffer = (name) => Buffer.from(vfs[name], "base64");
+// Noto Sans Devanagari replaces Roboto so Hindi text renders (Roboto has no Devanagari glyphs).
+const NOTO_SANS_DEVANAGARI = path.join(
+   __dirname,
+   "fonts",
+   "NotoSansDevanagari.ttf"
+);
 const fontDescriptors = {
-   Roboto: {
-      normal: fontBuffer("Roboto-Regular.ttf"),
-      bold: fontBuffer("Roboto-Medium.ttf"),
-      italics: fontBuffer("Roboto-Italic.ttf"),
-      bolditalics: fontBuffer("Roboto-MediumItalic.ttf"),
+   NotoSansDevanagari: {
+      normal: NOTO_SANS_DEVANAGARI,
+      bold: NOTO_SANS_DEVANAGARI,
+      italics: NOTO_SANS_DEVANAGARI,
+      bolditalics: NOTO_SANS_DEVANAGARI,
    },
 };
 
-// Base64 section icons copied verbatim from the doctor webapp
-// (src/app/utils/base64.ts -> const precription). Used as the pdfmake
-// `images:` map; each section header references one via {image:'key'}.
+// Section icons (copied from the doctor webapp's base64.ts).
 const ICONS = {
    user: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAABWVBMVEUAAAD/2//f3//j4//q6v/r6//byO3t7f/IyOnq6v/r6//s7P/w6f/x6v/y6//IwufGxuju6P/IyOnu6f/v6v/Oxufw5//w6P/u6P/u6P/v5//w6P/u6f/v5//IweTGv+Tw5//u6P/u6P/u6P/v6P/v6P/v6P/CuuLBu+Hw6P/w6P/v6P/v6f/v6P/v6P+/uOC+uOC/ueDv6P/v6f/q4/zq4/zv6P/v6P/v6P/v6P+3stu4sdu3sNrv6P/v6P/v6P/v6P/v6P/v6P/v6P+wqterpdOsptStp9Stp9WuqNWvqtaxqtexq9exrNe2sdu3sdu3stu4stu4sty+uOC/uODDvePFvuTFv+THwOXIwebLw+fLxOfNx+nOx+nTzO3Tze3Vzu7Vz+7b1PLc1fLc1fPe2PTg2vbh2vbh2/bm3/no4vvp4vvq5Pzr4/zt5f3t5v3u5/7v6P////8RRFeOAAAARXRSTlMABwgJDA0ODhcYGRsiJSYqLS0uLjE/VVdYWYGHioyPkJaYmZqbnJ3BxsbHyszQ09TV1uLj5OXl6err8fLz8/T1+Pn6+/2LnXBYAAAAAWJLR0RyNg4NWAAAAV5JREFUGBl9wfsjU3EYB+BPc12MQkKuzXUr12JKm433cOSyKRTV5Jpq+Pz/vzjmPd9955jnQUld52A8kckk4tGOGgQ1DadopIYiKFfVs8Qyme4QLJFxBsSewmhL8AEzrVCRBB80E0ZR6C0reFOFWz2sqAuepiX6Cj9yrrv9s0DfpzCAYfpOP0vR+il9/UBdiup8VdTqH6pkDTqprjfF2LqmeolBqhOxnFC9RpxqXywHVDHMU+2IZYdqDmmqb2L5TrWINNWhWH5TLWKe6v+aGGsFqjnE6cuL8Yu+GKI09kUd0BhAB0uOsuLJHbGkHdVJWi6Ojy9oSVYDQ3xEFEAkw4rSjfB0886//G52Y2VlI7uX/8s7r3ArFKPn7IsjhvP1nJ6xJygKT/NyV+7Zu+JsA1Tr+5wEbL97DqP5gwR8fAZL7YgrZZzRWpRrmXDFcKdeIKi+b3Jh2XGWFyZ762HcALFGLHGzyTzIAAAAAElFTkSuQmCC",
    consultation: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAABelBMVEUAAABAAIAzM5krK4AkJJIrHI4oG5QuI5csIZArIJUzH48vHI4uG5IrHI4wHJEvG5QuIZAtIJMuHZAtHY8vH5EuH5AvHpEvHZAuHZItH5EtHZIuH5EtHpEvHpIvHZEuHZAtH5EtH5AvHpEuHpIuHpEvH5AuH5EtHpIvHpEuHpEuHZItH5EvH5EuHpAuHpEuHpAuHZAuH5EtHpEuHZEuH5EuHpEtHpEuHpAuHpIuHpEuHpEvHZEuHpEvHpIuHpEuHpEuHpEuHpEuHpEtHpEuHpEuHpEuHpEuHpEuHpEuHpEuHpEuHpEuHpEuHpEuHpEvH5E1JpU6K5c8LZg9Lpk+L5k+MJpJO59KPKBMPqFYS6daTqhwZbR5b7l6cLl7cbp8crqAdryCeb2Der6OhcOPhsSQh8SQiMWRicWel8yfmM2sptOtp9SvqdWwqtaxq9a8t9y9uNy+ud3MyOTNyeXOyuXTz+jV0unX1OrY1erj4fDr6vXx8Pj+/v/////5zO56AAAATnRSTlMABAUGBxITFhcYGRscJCUmJyhOUFFTVldZWmBkZmdoamtsbW5vc3R3eICMjY6PkJG2t7nHyMnKy83Oz9DY29zd6+3u8fLz9PX4+fr7/P5cmvNJAAAAAWJLR0R9prEQyQAAAedJREFUSMeVlldXwkAQhVdUUGxYsRewa0SxF1SUIkrGbuwVFXvBhpj/bkA9bnaTTfa+kdzvnNkwc2cRIpVf4/H65hYX53xeT3U+MpDVPQoqjbisDHthXxgohYQCHbulNQiaCnflaPkdk6CriRLaXxkEhgIVpL92CZiKNqr9DWAol6qeqDEQLf/3F82DCQVL//zZk2BK45ZfoBNMqv3HXxDCnm3fv75her2T8KLsGaAPe7TxKRP6XMde92T6De+fI/l5dwfTbkI+wPsq3YluvMqYHFeXfSWf4T+bFWCUBFYkSVoB2NQChhGyiyTwoVT+Dsdfe/B0QwJiHqoBErhJJpPXEJdjEDshAXAiD2ifIQ3QJYGAvBSwvLa2qgv0oxkKSChneM4At1cU4EN+CnhMpVIPGSB+QQGzKMJ3hgV+gFnSpUZJ07yH5v6s3H9cNaM1zk8poArlMZrvUav50AhPew8q8+DiGaCm9IjiGXBIjuiLvE+OKBLMh0A3HTPSnTpmbrfwDP/dYB1mg6ztb/WMm/OPWTjD2PEf3xVm4r4MXxD1hn6xjnNlNZBLrjzA8s+X0Wu0mPGtxoq0FnVWa0BvsWfr3AXsvSGNq0MP64ZibRlSzYc42JxrdKGxOYWBKX8k4p8aEJw26vU3Ct9OgFaQm8gAAAAASUVORK5CYII=",
@@ -39,13 +32,11 @@ const ICONS = {
    vitals: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAABy1BMVEUAAAAsHaIvH60xIbQyIrk0I8A0I8EzIrszIrwzI70xIbU0I8A0I8A0I8AzIrszIrszIrwzIr0zI740I78zI70zI70zIr0zIr0zIr0zI700I78zI70zI74zIr0zIr0zIr0zI70zI70zIrwzIr0zI74zI70zI70zI74zIr0zI74zI70zI70zIrwzIr0zIr0zI74zI70zI70zI74zI70zI70zI70zI74zI70zI70zI70zI70zIr0zI70zIr0zI70zI70zI70zI70zI70zI74zI70zI70zI70zI70zI70zI70zI70zI70zI70zI70zI702Jcg2Jck3Jco3Jcs4Jc44Js45JtI5JtM5J9M5J9Q6J9c6J9g7KNhEMtpFM9pJN9tKONtKOdtSQtxTQt1UQ91VRN1WRt1dTd9fUN9nWOFpWuFpW+F1aON6beSCduaDd+aGeuebkuuck+uelOyfluygl+yimeynn+2on+6wqe+yqvC0rfC3sPG4sfG5svG9t/K/ufLBuvPEv/PFwPPRzPbSzvbZ1vfa1vja1vjd2vje2/jh3vni3/nm5Prs6vvs6/vw7vzw7/z19P329f36+f76+v78/P79/f/+/v/////mBvgwAAAATnRSTlMABAUGBxITFhcYGRscJCUmJyhOUFFTVldZWmBkZmdoamtsbW5vc3R3eICMjY6PkJG2t7nHyMnKy83Oz9DY29zd6+3u8fLz9PX4+fr7/P5cmvNJAAAAAWJLR0SYdtEGPgAAAiBJREFUSMeVVllbE0EQbIMuEEQR0ICIYsATl0BQ7qiBJBhMxiNeRCUiCgoocnoLXnhhIufWz/VB+DDTs7vZeuyq2q93pqe7iWQUVvr8ge6+vu6A31dRSDbQaltFFlq8moV8d0OvYIjoRSZyV11YKNF7aqdKX9IpTNGxl+v3h4UFQuWy/uBlYYnY4Wx9tbCFNyufmL0hVratL+4ROSC8b0uf1ylyQrtr03CSc4mRkQSPHv+nL4owZnwFWB7nSbmJiKiBEcOG8fGTYQwzop6ISOP1M48JISbwgdeVRkS1PNcl3BUiiSXO1BBRKw//xi0hbiLNmXNE7rgTQ7yAKoUTg/CQT22YnlYbdPKrDYahNjTSBbUBUBsCFHRmuEhRZ4ZLzg2OUzrPg8+xfhW4so5nqp/mxzqwtjF2B7g9trE2oDhWfnEvMfMgA2RSs5hTXFwFi/1AagEA5lP4zsgDVMCKL4MbvwDgZwJ/FMVHLXLwGwZfA8Crh1iUuWYi8srBKbxJLgJf+99iUuaOEJEm94DkCl5cf/zo2hSW+1VPlHT5M09XkX73Po3VJzJz2qTNDH0BgM+DrIdvTrAT/ELvj47e49FjW6OnPbdW2eZy2IxLttt3eS7tvvT/AXHIVh+vcjiyquUhVxay0veU8jG6x+Ks2opVg3pHXchssOeZ7ALuMxHF6lBvtaFoR89mvY94c80uu4Um36M3dQWj0WBXk+7JZ/Rfqe5Qy5n8GbkAAAAASUVORK5CYII=",
 };
 
-// True when a section icon exists and is a usable data URL, so a missing/empty
-// asset degrades to a plain text header instead of throwing in pdfmake.
+// True when a section icon is a usable data URL.
 const hasIcon = (key) =>
    typeof ICONS[key] === "string" && ICONS[key].startsWith("data:image/");
 
-// A "<25px icon> <section title>" header row for the inner section tables,
-// falling back to just the bold title when the icon is unavailable.
+// Icon + title header row for a section table.
 const sectionHeader = (iconKey, title) => {
    const titleCell = {
       text: title,
@@ -58,12 +49,11 @@ const sectionHeader = (iconKey, title) => {
          titleCell,
       ];
    }
-   // No icon: keep the two-column shape but leave the image cell empty.
+   // No icon: empty image cell.
    return [{ text: "", border: [false, false, false, true] }, titleCell];
 };
 
-// Wrap a section body (built with a [30,'*'] header row) in the colSpan-4 outer
-// cell shape the reference uses, padded with the three empty siblings.
+// Wrap a section body in the colSpan-4 outer cell shape.
 const outerSection = (innerBody, extra) => [
    Object.assign(
       {
@@ -80,7 +70,7 @@ const outerSection = (innerBody, extra) => [
 
 const val = (v) => (v == null || String(v).trim() === "" ? "-" : String(v));
 
-// A small "label: value" list item used inside personal/other-info stacks.
+// A "label: value" list item.
 const kvStack = (label, value) => ({
    stack: [
       { text: label, style: "subsubheader" },
@@ -88,8 +78,7 @@ const kvStack = (label, value) => ({
    ],
 });
 
-// Lay out label/value stacks in rows of four columns (mirrors the webapp
-// chunking of getPersonalInfo/getAddress/getOtherInfo).
+// Lay out label/value stacks in rows of four columns.
 const chunkIntoRows = (cells) => {
    const rows = [];
    const size = 4;
@@ -101,8 +90,7 @@ const chunkIntoRows = (cells) => {
    return rows;
 };
 
-// Only embed a signature that is a base64 data URL. Server-side pdfmake cannot
-// synchronously fetch remote http(s) URLs, so those degrade to the text block.
+// pdfmake can't fetch remote URLs, so only a base64 signature is usable.
 const usableSignature = (url) =>
    typeof url === "string" && /^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(url.trim())
       ? url.trim()
@@ -167,9 +155,6 @@ const buildDocDefinition = (data, opts) => {
       : null;
 
    // ---- Chief complaint --------------------------------------------------
-   // data.chiefComplaints: [{ complaint, details: [{ label, value }] }]. Render
-   // each complaint bold, followed by its detail lines as "Label - value".
- 
    let chiefComplaint = null;
    if (Array.isArray(data.chiefComplaints) && data.chiefComplaints.length) {
       const ccItems = [];
@@ -375,7 +360,7 @@ const buildDocDefinition = (data, opts) => {
                         ],
                         [
                            val(f.wantFollowUp || "No"),
-                           val(f.followUpType),
+                           "Telemedicine",
                            val(f.followUpDate),
                            val(f.followUpTime),
                            val(f.followUpReason),
@@ -434,8 +419,7 @@ const buildDocDefinition = (data, opts) => {
    if (followUp) body.push(followUp);
    body.push(signature);
 
-   // Only expose icon keys that are valid data URLs so pdfmake never sees a bad
-   // image reference.
+   // Only expose valid icon data URLs.
    const images = {};
    for (const key of Object.keys(ICONS)) {
       if (hasIcon(key)) images[key] = ICONS[key];
@@ -498,11 +482,11 @@ const buildDocDefinition = (data, opts) => {
          tableHeader: { bold: true, fontSize: 12, color: "black" },
          sectionheader: { fontSize: 12, bold: true, margin: [0, 5, 0, 10] },
       },
-      defaultStyle: { font: "Roboto" },
+      defaultStyle: { font: "NotoSansDevanagari" },
    };
 };
 
-// Render a doc definition to a PDF Buffer.
+// Renders a doc definition to a PDF Buffer.
 const renderDocDefinition = (docDefinition) =>
    new Promise((resolve, reject) => {
       try {
@@ -518,16 +502,11 @@ const renderDocDefinition = (docDefinition) =>
       }
    });
 
-// Render the PDF and resolve a Buffer of the bytes. If a supplied signature
-// data URL turns out to be a corrupt/undecodable image (pdfmake throws while
-// embedding it), fall back to a render that drops the signature image and keeps
-// the text block, so a bad asset never fails the whole prescription.
+// Renders the PDF, retrying without the signature image if it's corrupt.
 const generatePrescriptionPdf = (data) => {
    const safe = data || {};
    return renderDocDefinition(buildDocDefinition(safe)).catch((err) => {
-      // pdfmake/PDFKit sometimes throws a non-Error value on a malformed layout
-      // node, so err.message can be undefined -- log the value itself so a
-      // future failure is diagnosable instead of showing "error: undefined".
+      // pdfmake can throw a non-Error value, so log it directly.
       console.error(`[prescription pdf] render failed for visit ${safe.visitUuid || "?"}:`, err);
       if (usableSignature(safe.doctorSignatureUrl)) {
          return renderDocDefinition(buildDocDefinition(safe, { noSignatureImage: true }));
