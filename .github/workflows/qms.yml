@@ -74,26 +74,34 @@ jobs:
  
             docker load -i "\$REMOTE_TAR"
             rm "\$REMOTE_TAR"
- 
-            docker stop \$DOCKER_IMAGE_NAME || true
-            docker rm \$DOCKER_IMAGE_NAME || true
- 
+
             if [ ! -f "\$ENV_FILE_PATH" ]; then
               echo "Error: .env file not found at \$ENV_FILE_PATH"
               exit 1
             fi
- 
+
             if [ ! -d "\$PEM_FOLDER_PATH" ]; then
               echo "Error: .pem folder not found at \$PEM_FOLDER_PATH"
               exit 1
             fi
- 
+
+            # Run migrations from the new image as a one-off container BEFORE
+            # touching the running one — if they fail, \`set -e\` aborts the
+            # script here and the old container is left serving traffic.
+            docker run --rm \
+              --env-file \$ENV_FILE_PATH \
+              \$DOCKER_IMAGE_NAME:${{ github.sha }} \
+              npm run migrate
+
+            docker stop \$DOCKER_IMAGE_NAME || true
+            docker rm \$DOCKER_IMAGE_NAME || true
+
             docker ps -a | grep queue-microservice | awk '{print $1}' | xargs -r docker rm -f || true
- 
+
             fuser -k 3600/tcp || true
- 
+
             sleep 2
- 
+
             docker run -d \
               --name \$DOCKER_IMAGE_NAME \
               --restart unless-stopped \
