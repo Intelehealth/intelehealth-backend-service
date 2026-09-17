@@ -23,8 +23,6 @@ module.exports = (sequelize, DataTypes) => {
         as: "patient",
         foreignKey: "patient_id",
         sourceKey: "patient_id",
-        // Without this scope, a patient with ABHA-linked identifiers (identifier_type 6/7)
-        // can resolve to their ABHA Number/Address instead of their OpenMRS ID (type 3).
         scope: {
           identifier_type: OPENMRS_ID_IDENTIFIER_TYPE,
           voided: 0,
