@@ -160,7 +160,7 @@ module.exports = (function () {
           ...(isTurnServer ? [{
             model: person,
             as: "person",
-            attributes: [],
+            attributes: ["person_id"],
             required: false,
             include: [
               {
