@@ -73,7 +73,7 @@ jobs:
           ttxai_arch=amd64
           testturn_arch=amd64
           pathqa_arch=arm64
-          turn_arch=arm64
+          turn_arch=amd64
           
 
           if [ "${{ github.event_name }}" == "push" ]; then
