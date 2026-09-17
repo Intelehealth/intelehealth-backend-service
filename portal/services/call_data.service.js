@@ -160,13 +160,13 @@ module.exports = (function () {
           ...(isTurnServer ? [{
             model: person,
             as: "person",
-            attributes: [],
+            attributes: ["person_id"],
             required: false,
             include: [
               {
                 model: person_address,
                 as: "person_address",
-                attributes: ["state_province", "address3", "city_village"],
+                attributes: ["county_district", "address3", "city_village"],
                 required: false,
                 where: { voided: 0, preferred: 1 },
               },
@@ -230,7 +230,7 @@ module.exports = (function () {
       if (isTurnServer) {
         row.block = item2?.person?.person_address?.address3 || null;
         row.village = item2?.person?.person_address?.city_village || null;
-        row.state = item2?.person?.person_address?.state_province || null;
+        row.city = item2?.person?.person_address?.county_district || null;
       } else {
         const vitalsEncounter = item2?.encounters?.find(e => e.type?.name === 'Vitals');
         const sevikaGiven = vitalsEncounter?.encounter_provider?.provider?.person?.person_name?.given_name;
