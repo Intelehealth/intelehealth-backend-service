@@ -45,7 +45,7 @@ on:
         description: 'Deploy to TESTTURN host'
         type: boolean
         default: false 
-       deploy_turn:
+      deploy_turn:
         description: 'Deploy to TURN host'
         type: boolean
         default: false   
