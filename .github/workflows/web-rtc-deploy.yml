@@ -44,7 +44,11 @@ on:
       deploy_testturn:
         description: 'Deploy to TESTTURN host'
         type: boolean
-        default: false  
+        default: false 
+       deploy_turn:
+        description: 'Deploy to TURN host'
+        type: boolean
+        default: false   
   push:
     branches: [development_master]
     paths:
@@ -74,7 +78,7 @@ jobs:
           if [ "${{ github.event_name }}" == "push" ]; then
             # On push, deploy to all hosts
             includes='[]'
-            for env in dev turn ttxai pathqa; do
+            for env in dev turn ttxai pathqa turn; do
               arch_var="${env}_arch"
               includes=$(echo "$includes" | jq -c --arg e "$env" --arg a "${!arch_var}" '. += [{"environment":$e,"arch":$a}]')
             done
@@ -84,12 +88,13 @@ jobs:
             # variable - indirect expansion (${!...}) fails on the dots, so
             # each input is expanded literally via the case below.
             includes='[]'
-            for env in dev turn ttxai pathqa testturn; do
+            for env in dev turn ttxai pathqa testturn turn; do
               case "$env" in
                 dev)    selected="${{ inputs.deploy_dev }}" ;;
                 ttxai)  selected="${{ inputs.deploy_ttxai }}" ;;
                 pathqa) selected="${{ inputs.deploy_pathqa }}" ;;
                 testturn) selected="${{ inputs.deploy_testturn }}" ;;
+                turn) selected="${{ inputs.deploy_turn }}" ;;
               esac
               if [ "$selected" == "true" ]; then
                 arch_var="${env}_arch"
@@ -178,6 +183,7 @@ jobs:
       TTXAI_HOST: ${{ secrets.TTXAI_HOST }}
       PATHQA_HOST: ${{ secrets.PATHQA_HOST }}
       TESTTURN_HOST: ${{ secrets.TESTTURN_HOST }}
+      TURN_HOST: ${{ secrets.TURN_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
@@ -188,6 +194,7 @@ jobs:
             ttxai) echo "REMOTE_HOST=$TTXAI_HOST" >> $GITHUB_ENV ;;
             pathqa) echo "REMOTE_HOST=$PATHQA_HOST" >> $GITHUB_ENV ;;
             testturn) echo "REMOTE_HOST=$TESTTURN_HOST" >> $GITHUB_ENV ;;
+            turn) echo "REMOTE_HOST=$TURN_HOST" >> $GITHUB_ENV ;;
             *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
 
