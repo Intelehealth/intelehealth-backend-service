@@ -1,5 +1,6 @@
 "use strict";
 const { Model } = require("sequelize");
+const { OPENMRS_ID_IDENTIFIER_TYPE } = require("../constants/constant");
 module.exports = (sequelize, DataTypes) => {
   class visit extends Model {
     /**
@@ -22,6 +23,10 @@ module.exports = (sequelize, DataTypes) => {
         as: "patient",
         foreignKey: "patient_id",
         sourceKey: "patient_id",
+        scope: {
+          identifier_type: OPENMRS_ID_IDENTIFIER_TYPE,
+          voided: 0,
+        },
       });
       this.hasOne(models.person, {
         as: "person",

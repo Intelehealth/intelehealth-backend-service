@@ -168,7 +168,7 @@ module.exports = (function () {
                 as: "person_address",
                 attributes: ["state_province", "address3", "city_village"],
                 required: false,
-                where: { voided: 0 },
+                where: { voided: 0, preferred: 1 },
               },
             ],
           }] : []),

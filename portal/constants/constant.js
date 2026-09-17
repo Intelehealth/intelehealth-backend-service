@@ -1,4 +1,5 @@
 module.exports = {
+    OPENMRS_ID_IDENTIFIER_TYPE: 3,
     FROM_DATE: 'fromDate',
     TO_DATE: 'toDate',
     LOCATION_UUID: 'locationUuid',
