@@ -1,5 +1,6 @@
 "use strict";
 const { Model } = require("sequelize");
+const { OPENMRS_ID_IDENTIFIER_TYPE } = require("../constants/constant");
 module.exports = (sequelize, DataTypes) => {
   class visit extends Model {
     /**
@@ -22,6 +23,12 @@ module.exports = (sequelize, DataTypes) => {
         as: "patient",
         foreignKey: "patient_id",
         sourceKey: "patient_id",
+        // Without this scope, a patient with ABHA-linked identifiers (identifier_type 6/7)
+        // can resolve to their ABHA Number/Address instead of their OpenMRS ID (type 3).
+        scope: {
+          identifier_type: OPENMRS_ID_IDENTIFIER_TYPE,
+          voided: 0,
+        },
       });
       this.hasOne(models.person, {
         as: "person",
