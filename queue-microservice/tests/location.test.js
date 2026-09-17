@@ -27,6 +27,7 @@ const validate = (body) => {
 
 const goodBody = {
   visitUuid: "visit-1",
+  patientUuid: "patient-1",
   hwUserUuid: "hw-1",
   locationUuid: "loc-pune-01",
   speciality: "Dermatology",
@@ -70,7 +71,7 @@ test("the same blank-string hole is closed for every required field", () => {
   // The bug was in the shared coercer, so it applied to every required string
   // on every endpoint. Pinning it here keeps the fix from being narrowed back
   // down to locationUuid later.
-  for (const field of ["visitUuid", "hwUserUuid", "speciality"]) {
+  for (const field of ["visitUuid", "patientUuid", "hwUserUuid", "speciality"]) {
     if (!submitSchema[field]?.required) continue;
     const { error } = validate({ ...goodBody, [field]: "   " });
     assert.ok(error, `a whitespace-only ${field} must be refused`);

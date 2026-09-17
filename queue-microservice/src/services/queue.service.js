@@ -110,6 +110,7 @@ const statusPayload = async (entry, { includeEta = true } = {}) => {
   return {
     queueEntryId: entry.id,
     visitUuid: entry.visitUuid,
+    patientUuid: entry.patientUuid,
     // The health worker who raised the visit. Stored since the first migration
     // and returned by /list, but it was missing from this payload — so submit,
     // status and the visit lookup all hid the one identifier a caller needs to
@@ -264,6 +265,7 @@ const submit = async (input) => {
   // they produced is kept, they are not. Clinical detail stays in OpenMRS.
   const entry = await models.queue_entries.create({
     visitUuid: input.visitUuid,
+    patientUuid: input.patientUuid,
     hwUserUuid: input.hwUserUuid,
     locationUuid: input.locationUuid,
     speciality: input.speciality,
@@ -423,6 +425,7 @@ const etaAtOf = (entry, eta) => {
 const toListItem = (entry, { position = null, eta = null, includeScore = false } = {}) => ({
   queueEntryId: entry.id,
   visitUuid: entry.visitUuid,
+  patientUuid: entry.patientUuid,
   hwUserUuid: entry.hwUserUuid,
   locationUuid: entry.locationUuid,
   speciality: entry.speciality,
@@ -474,6 +477,7 @@ const listQueue = async (filters = {}, auth = null) => {
   if (filters.hwUserUuid) where.hwUserUuid = filters.hwUserUuid;
   if (filters.doctorUuid) where.assignedDoctorUuid = filters.doctorUuid;
   if (filters.visitUuid) where.visitUuid = filters.visitUuid;
+  if (filters.patientUuid) where.patientUuid = filters.patientUuid;
   // escalated is the presence of escalated_at, not a separate flag.
   if (filters.escalated !== undefined) {
     where.escalatedAt = filters.escalated ? { [Op.ne]: null } : null;
@@ -693,6 +697,7 @@ const listForDoctor = async (doctorUuid, { speciality, limit = 50, offset = 0 } 
     rows.map(async (entry, index) => ({
       queueEntryId: entry.id,
       visitUuid: entry.visitUuid,
+      patientUuid: entry.patientUuid,
       speciality: entry.speciality,
       emergencyLevel: entry.emergencyLevel,
       caseType: entry.caseType,

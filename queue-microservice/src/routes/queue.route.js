@@ -25,6 +25,7 @@ const entryParams = validateParams({
 
 const submitSchema = {
   visitUuid: { type: "string", required: true, maxLength: 64 },
+  patientUuid: { type: "string", required: true, maxLength: 64 },
   hwUserUuid: { type: "string", maxLength: 64 },
   // The facility the visit was raised at. Required: every case has to be
   // attributable to somewhere, and the ops views filter on it.
@@ -86,6 +87,7 @@ router.get(
     hwUserUuid: { type: "string", maxLength: 64 },
     doctorUuid: { type: "string", maxLength: 64 },
     visitUuid: { type: "string", maxLength: 64 },
+    patientUuid: { type: "string", maxLength: 64 },
     escalated: { type: "boolean" },
     flagged: { type: "boolean" },
     queuedFrom: { type: "string", maxLength: 40 },

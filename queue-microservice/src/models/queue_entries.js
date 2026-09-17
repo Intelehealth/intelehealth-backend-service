@@ -35,6 +35,9 @@ module.exports = (sequelize, DataTypes) => {
       // FK → OpenMRS visit.uuid, and the natural dedupe key that makes
       // POST /submit idempotent when a flaky phone retries (LLD §09.1).
       visitUuid: { type: DataTypes.STRING(64), allowNull: false, unique: true },
+      // FK → OpenMRS patient.uuid. Nullable: pre-existing rows predate the
+      // column, and unlike visitUuid it is not the dedupe key.
+      patientUuid: { type: DataTypes.STRING(64), allowNull: true },
       // FK → auth-gateway user. Who to notify, and who owns the case (§13.1).
       hwUserUuid: { type: DataTypes.STRING(64), allowNull: false },
       // The facility the visit was raised at. Mandatory: a case with no

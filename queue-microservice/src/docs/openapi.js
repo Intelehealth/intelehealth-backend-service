@@ -20,6 +20,7 @@ const queueStatusResponse = {
   properties: {
     queueEntryId: { type: "integer", example: 4821 },
     visitUuid: { type: "string" },
+    patientUuid: { type: "string", nullable: true, description: "OpenMRS patient.uuid." },
     hwUserUuid: {
       type: "string",
       description: "The health worker who raised the visit.",
@@ -206,9 +207,10 @@ module.exports = {
             "application/json": {
               schema: {
                 type: "object",
-                required: ["visitUuid", "locationUuid", "speciality"],
+                required: ["visitUuid", "patientUuid", "locationUuid", "speciality"],
                 properties: {
                   visitUuid: { type: "string", description: "OpenMRS visit.uuid — the dedupe key" },
+                  patientUuid: { type: "string", description: "OpenMRS patient.uuid." },
                   hwUserUuid: {
                     type: "string",
                     description: "Defaults to the caller; only admins/services may set another.",
@@ -344,6 +346,7 @@ module.exports = {
           { name: "hwUserUuid", in: "query", schema: { type: "string" } },
           { name: "doctorUuid", in: "query", schema: { type: "string" } },
           { name: "visitUuid", in: "query", schema: { type: "string" } },
+          { name: "patientUuid", in: "query", schema: { type: "string" } },
           { name: "escalated", in: "query", schema: { type: "boolean" } },
           { name: "flagged", in: "query", schema: { type: "boolean" } },
           { name: "queuedFrom", in: "query", schema: { type: "string", format: "date-time" } },
