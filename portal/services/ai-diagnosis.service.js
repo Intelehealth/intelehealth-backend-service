@@ -55,4 +55,12 @@ async function ttxv1(body) {
   return forward('/ttxv1', body);
 }
 
-module.exports = { ddx, ttxv1 };
+async function ddxfinal(body) {
+  return forward('/ddxfinal', body);
+}
+
+async function ttxfinal(body) {
+  return forward('/ttxfinal', body);
+}
+
+module.exports = { ddx, ttxv1, ddxfinal, ttxfinal };
