@@ -123,19 +123,10 @@ jobs:
       REMOTE_PORT: 22
       ENV_FILE_PATH: /home/ubuntu/deploy/cron-microservice/.env
       # All host secrets mapped upfront — dynamic secret refs aren't supported in GitHub Actions
-     
       REMOTE_HOST: ${{ secrets.NAS_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
-      
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
-      - name: Resolve host for environment
-        run: |
-          case "${{ matrix.environment }}" in
-            nasprod) echo "REMOTE_HOST=$NAS_HOST" >> $GITHUB_ENV ;;
-            *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
-          esac
-
       - name: Download image artifact
         uses: actions/download-artifact@v4
         with:
