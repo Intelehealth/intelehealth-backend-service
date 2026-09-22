@@ -203,7 +203,7 @@ jobs:
             testturn) host="$TESTTURN_HOST" ;;
             turn)     host="$TURN_HOST" ;;
             pathqa)   host="$PATHQA_HOST" ;;
-            demoai)    host="$TTXAI_HOST" ;;
+            demoai)    host="$DEMOAI_HOST" ;;
             *)        echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
           echo "REMOTE_HOST=$host" >> $GITHUB_ENV
