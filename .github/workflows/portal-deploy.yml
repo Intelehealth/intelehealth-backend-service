@@ -127,7 +127,7 @@ jobs:
     strategy:
       matrix: ${{ fromJson(needs.prepare-matrix.outputs.build_matrix) }}
       fail-fast: false
-    outputs:
+#    outputs:
       # Computed identically in every arch leg, so the value is the same
       # regardless of which leg the deploy job reads it from.
   #    migrations_changed: ${{ steps.check-migrations.outputs.changed }}
