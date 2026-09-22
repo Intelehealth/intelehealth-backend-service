@@ -98,9 +98,28 @@ jobs:
 
             docker ps -a | grep queue-microservice | awk '{print $1}' | xargs -r docker rm -f || true
 
+            # Belt-and-braces: the name-based cleanup above does nothing if
+            # host port 3600 is actually held by some OTHER container — a
+            # stale one from a previous failed deploy, or a manual run under
+            # a different name. Find it by which host port it PUBLISHES
+            # instead, and remove that.
+            PORT_HOLDERS=\$(docker ps -q --filter "publish=3600")
+            if [ -n "\$PORT_HOLDERS" ]; then
+              echo "Port 3600 is held by another container — removing it: \$PORT_HOLDERS"
+              docker rm -f \$PORT_HOLDERS || true
+            fi
+
             fuser -k 3600/tcp || true
 
-            sleep 2
+            # Releasing a published port is not always instant once the
+            # container is gone; poll briefly instead of a fixed sleep that
+            # could still lose the race under load.
+            for i in \$(seq 1 15); do
+              if ! docker ps -q --filter "publish=3600" | grep -q .; then
+                break
+              fi
+              sleep 1
+            done
 
             docker run -d \
               --name \$DOCKER_IMAGE_NAME \
