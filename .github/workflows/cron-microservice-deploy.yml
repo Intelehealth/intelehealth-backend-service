@@ -124,7 +124,7 @@ jobs:
       ENV_FILE_PATH: /home/ubuntu/deploy/cron-microservice/.env
       # All host secrets mapped upfront — dynamic secret refs aren't supported in GitHub Actions
      
-      nasprod_HOST: ${{ secrets.NASPROD_HOST }}
+      nasprod_HOST: ${{ secrets.NAS_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
@@ -132,7 +132,7 @@ jobs:
       - name: Resolve host for environment
         run: |
           case "${{ matrix.environment }}" in
-            nasprod) echo "REMOTE_HOST=$NASPROD_HOST" >> $GITHUB_ENV ;;
+            nasprod) echo "REMOTE_HOST=$NAS_HOST" >> $GITHUB_ENV ;;
             *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
 
