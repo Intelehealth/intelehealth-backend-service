@@ -448,6 +448,7 @@ const toListItem = (entry, { position = null, eta = null, includeScore = false }
   prescriptionOverdue: prescriptionOverdue(entry),
   queuedAt: entry.queuedAt,
   assignedAt: entry.assignedAt,
+  connectedAt: entry.connectedAt,
   completedAt: entry.completedAt,
   ...(includeScore ? { priorityScore: entry.priorityScore } : {}),
 });
