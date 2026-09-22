@@ -9,12 +9,12 @@
 # Jobs:
 #   1. prepare-matrix  Decides which environments to deploy based on trigger/inputs
 #   2. build           Builds the Docker image and uploads it as a workflow artifact
-#   3. deploy          Matrix job � downloads the artifact, runs migrations (if any), swaps the container, and waits for it to become healthy
+#   3. deploy          Matrix job   downloads the artifact, runs migrations (if any), swaps the container, and waits for it to become healthy
 #
 # Required secrets:
-#   DEV_HOST, TURN_HOST   � SSH hostnames/IPs
-#   DEV_USER              � SSH username
-#   DEV_SSH_KEY           � SSH private key
+#   DEV_HOST, TURN_HOST     SSH hostnames/IPs
+#   DEV_USER                SSH username
+#   DEV_SSH_KEY             SSH private key
 #
 # To add a new host: add a secret for the hostname, map it in the deploy job env block,
 # add a case in "Resolve host", add a boolean input, and add it to the push matrix.
@@ -43,7 +43,11 @@ on:
       deploy_pathqa:
         description: 'Deploy to PATHQA host'
         type: boolean
-        default: false   
+        default: false
+      deploy_demoai:
+        description: 'Deploy to DEMOAI host'
+        type: boolean
+        default: false    
   push:
     branches: [development_master]
     paths:
@@ -75,6 +79,7 @@ jobs:
           ttxai_arch=amd64
           testturn_arch=amd64
           turn_arch=amd64
+          demoai_arch=amd64
           pathqa_arch=arm64
 
           if [ "${{ github.event_name }}" == "push" ]; then
@@ -95,8 +100,9 @@ jobs:
                 dev)      selected="${{ inputs.deploy_dev }}" ;;
                 ttxai)    selected="${{ inputs.deploy_ttxai }}" ;;
                 testturn) selected="${{ inputs.deploy_testturn }}" ;;
-                 turn)    selected="${{ inputs.deploy_turn }}" ;;
+                turn)    selected="${{ inputs.deploy_turn }}" ;;
                 pathqa)   selected="${{ inputs.deploy_pathqa }}" ;;
+                demoai)    selected="${{ inputs.deploy_demoai }}" ;;
               esac
               if [ "$selected" == "true" ]; then
                 arch_var="${env}_arch"
@@ -124,7 +130,7 @@ jobs:
     outputs:
       # Computed identically in every arch leg, so the value is the same
       # regardless of which leg the deploy job reads it from.
-      migrations_changed: ${{ steps.check-migrations.outputs.changed }}
+  #    migrations_changed: ${{ steps.check-migrations.outputs.changed }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -179,9 +185,10 @@ jobs:
       REMOTE_PORT: 22
       ENV_FILE_PATH: /home/ubuntu/deploy/portal/.env
       PEM_FOLDER_PATH: /home/ubuntu/deploy/portal/.pem
-      # All host secrets mapped upfront � dynamic secret refs aren't supported in GitHub Actions
+      # All host secrets mapped upfront  dynamic secret refs aren't supported in GitHub Actions
       DEV_HOST: ${{ secrets.DEV_HOST }}
       TTXAI_HOST: ${{ secrets.TTXAI_HOST }}
+      DEMOAI_HOST: ${{ secrets.DEMOAI_HOST }}
       TESTTURN_HOST: ${{ secrets.TESTTURN_HOST }}
       TURN_HOST: ${{ secrets.TURN_HOST }}
       PATHQA_HOST: ${{ secrets.PATHQA_HOST }}
@@ -196,6 +203,7 @@ jobs:
             testturn) host="$TESTTURN_HOST" ;;
             turn)     host="$TURN_HOST" ;;
             pathqa)   host="$PATHQA_HOST" ;;
+            demoai)    host="$TTXAI_HOST" ;;
             *)        echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
           echo "REMOTE_HOST=$host" >> $GITHUB_ENV
