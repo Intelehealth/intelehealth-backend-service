@@ -85,7 +85,7 @@ jobs:
           if [ "${{ github.event_name }}" == "push" ]; then
             # On push, deploy to all hosts
             includes='[]'
-            for env in dev turn ttxai testturn pathqa; do
+            for env in dev turn ttxai testturn pathqa demoai; do
               arch_var="${env}_arch"
               includes=$(echo "$includes" | jq -c --arg e "$env" --arg a "${!arch_var}" '. += [{"environment":$e,"arch":$a}]')
             done
