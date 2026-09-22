@@ -31,8 +31,8 @@ name: Cron Microservice Deploy
 on:
   workflow_dispatch:
     inputs:
-      deploy_nasstaging:
-        description: 'Deploy to NASSTAGING host'
+      deploy_nasprod:
+        description: 'Deploy to nasprod host'
         type: boolean
         default: false  
   push:
@@ -53,11 +53,11 @@ jobs:
         id: set-matrix
         run: |
           if [ "${{ github.event_name }}" == "push" ]; then
-            matrix='{"include":[{"environment":"nasstaging"}]}'
+            matrix='{"include":[{"environment":"nasprod"}]}'
           else
             includes='[]'
-            if [ "${{ inputs.deploy_nasstaging }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c '. += [{"environment":"nasstaging"}]')
+            if [ "${{ inputs.deploy_nasprod }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"nasprod"}]')
             fi
             matrix="{\"include\":$includes}"
           fi
@@ -124,7 +124,7 @@ jobs:
       ENV_FILE_PATH: /home/ubuntu/deploy/cron-microservice/.env
       # All host secrets mapped upfront — dynamic secret refs aren't supported in GitHub Actions
      
-      NASSTAGING_HOST: ${{ secrets.NASSTAGING_HOST }}
+      nasprod_HOST: ${{ secrets.NASPROD_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
@@ -132,7 +132,7 @@ jobs:
       - name: Resolve host for environment
         run: |
           case "${{ matrix.environment }}" in
-            nasstaging) echo "REMOTE_HOST=$NASSTAGING_HOST" >> $GITHUB_ENV ;;
+            nasprod) echo "REMOTE_HOST=$NASPROD_HOST" >> $GITHUB_ENV ;;
             *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
 
