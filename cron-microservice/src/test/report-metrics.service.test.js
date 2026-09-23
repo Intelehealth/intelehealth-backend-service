@@ -105,23 +105,34 @@ test("parses the recording timestamp encoded in the object key", () => {
   assert.equal(parseKeyTimestamp("IDA/dev.intelehealth.org/Bhopal/recording-not-a-date.mp4", options), null);
 });
 
-test("counts recordings per location using the day-scoped key prefix", async () => {
+test("parses the recording timestamp when the key carries a room id before the date", () => {
+  const options = { filePrefix: "recording-", keyFormat: "DD-MM-YYYY_HH:mm:ss", timezone: "Asia/Kolkata" };
+  const key = "NAS/as.intelehealth.org/Gaydhond/recording-167396f0-eebd-4578-90ff-618539445879-01-09-2026_14:30:12.mp4";
+
+  assert.equal(parseKeyTimestamp(key, options).toISOString(), "2026-09-01T09:00:12.000Z");
+  assert.equal(parseKeyTimestamp("NAS/as/Gaydhond/recording-167396f0-not-a-date.mp4", options), null);
+});
+
+test("counts recordings per location across both key formats and skips egress manifests", async () => {
   const objects = {
-    "IDA/dev/Bhopal/recording-01-09-2026_": [
+    "IDA/dev/": [],
+    "IDA/dev/Bhopal/": [
       { Key: "IDA/dev/Bhopal/recording-01-09-2026_09:15:00.mp4" },
-      { Key: "IDA/dev/Bhopal/recording-01-09-2026_23:58:00.mp4" },
+      { Key: "IDA/dev/Bhopal/recording-167396f0-eebd-4578-90ff-618539445879-01-09-2026_23:58:00.mp4" },
+      { Key: "IDA/dev/Bhopal/EG_WZBHJDmfqfhM.json" },
     ],
-    "IDA/dev/Other/recording-01-09-2026_": [
-      { Key: "IDA/dev/Other/recording-01-09-2026_11:00:00.mp4" },
+    "IDA/dev/Other/": [
+      { Key: "IDA/dev/Other/recording-c195c3e0-ca12-4e6e-a42d-24ea8dd98807-01-09-2026_11:00:00.mp4" },
     ],
   };
   const requests = [];
   const client = {
     send: async ({ input }) => {
       requests.push(input);
-      if (input.Delimiter === "/") {
+      if (input.Prefix === "IDA/dev/") {
         return {
           CommonPrefixes: [{ Prefix: "IDA/dev/Bhopal/" }, { Prefix: "IDA/dev/Other/" }],
+          Contents: objects[input.Prefix],
           IsTruncated: false,
         };
       }
@@ -141,19 +152,20 @@ test("counts recordings per location using the day-scoped key prefix", async () 
   assert.equal(count, 3);
   assert.deepEqual(breakdown, { Bhopal: 2, Other: 1 });
   assert.equal(requests[0].Prefix, "IDA/dev/");
-  assert.ok(requests.some(({ Prefix }) => Prefix === "IDA/dev/Bhopal/recording-01-09-2026_"));
   assert.ok(requests.every(({ Prefix }) => !Prefix.includes("undefined")));
 });
 
 test("excludes recordings whose key timestamp falls outside the report period", async () => {
   const client = {
     send: async ({ input }) => {
-      if (input.Delimiter === "/") return { CommonPrefixes: [{ Prefix: "IDA/dev/Bhopal/" }], IsTruncated: false };
+      if (input.Prefix === "IDA/dev/") {
+        return { CommonPrefixes: [{ Prefix: "IDA/dev/Bhopal/" }], Contents: [], IsTruncated: false };
+      }
       return {
         Contents: [
           { Key: "IDA/dev/Bhopal/recording-01-09-2026_09:15:00.mp4" },
-          { Key: "IDA/dev/Bhopal/recording-01-09-2026_23:58:00.mp4" },
-        ].filter(({ Key }) => Key.startsWith(input.Prefix)),
+          { Key: "IDA/dev/Bhopal/recording-167396f0-eebd-4578-90ff-618539445879-01-09-2026_23:58:00.mp4" },
+        ],
         IsTruncated: false,
       };
     },
