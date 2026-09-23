@@ -294,31 +294,20 @@ const listLocationFolders = async ({ client, bucket, prefix }) => {
   return folders;
 };
 
+const isRecordingObject = (key) => Boolean(key)
+  && !key.endsWith("/")
+  && !key.toLowerCase().endsWith(".json");
+
 const parseKeyTimestamp = (key, { filePrefix, keyFormat, timezone }) => {
   const fileName = key.slice(key.lastIndexOf("/") + 1);
   if (!fileName.startsWith(filePrefix)) return null;
   const stamp = fileName.slice(filePrefix.length).replace(/\.[^.]+$/, "");
   const parsed = moment.tz(stamp, keyFormat, true, timezone);
-  return parsed.isValid() ? parsed : null;
+  if (parsed.isValid()) return parsed;
+  const trailing = moment.tz(stamp.slice(-keyFormat.length), keyFormat, true, timezone);
+  return trailing.isValid() ? trailing : null;
 };
 
-const periodDays = ({ start, end, timezone, dateFormat }) => {
-  const days = [];
-  const cursor = moment.tz(start, timezone).startOf("day");
-  const last = moment.tz(end, timezone);
-  while (cursor.isSameOrBefore(last, "day")) {
-    days.push(cursor.format(dateFormat));
-    cursor.add(1, "day");
-  }
-  return days;
-};
-
-/*
-  Recordings are not partitioned by date in S3, so a full prefix scan would grow
-  with the lifetime of the bucket. Listing the location folders once and then
-  listing "<location>/recording-<day>_" turns each report into a handful of
-  narrow, day-scoped listings instead.
-*/
 const countRecordingsByKeyTimestamp = async ({
   client,
   bucket,
@@ -333,17 +322,11 @@ const countRecordingsByKeyTimestamp = async ({
   const base = normalizeFolderPrefix(prefix);
   const keyFormat = `${dateFormat}_${timeFormat}`;
   const folders = [base, ...await listLocationFolders({ client, bucket, prefix: base })];
-  const days = periodDays({ start, end, timezone, dateFormat });
-  const probes = folders.flatMap((folder) => days.map((day) => ({ folder, day })));
 
-  const counted = await mapWithConcurrency(probes, S3_LIST_CONCURRENCY, async ({ folder, day }) => {
-    const { contents } = await listObjects({
-      client,
-      bucket,
-      prefix: `${folder}${filePrefix}${day}_`,
-    });
+  const counted = await mapWithConcurrency(folders, S3_LIST_CONCURRENCY, async (folder) => {
+    const { contents } = await listObjects({ client, bucket, prefix: folder, delimiter: "/" });
     const matched = contents.filter(({ Key }) => {
-      if (!Key || Key.endsWith("/")) return false;
+      if (!isRecordingObject(Key)) return false;
       const recordedAt = parseKeyTimestamp(Key, { filePrefix, keyFormat, timezone });
       return recordedAt != null
         && recordedAt.valueOf() >= start.getTime()
