@@ -349,7 +349,16 @@ module.exports = (function () {
         v.visit_id,
         v.uuid,
        "Ended Visit" as "Status",
-        max(va.value_reference) as speciality
+        max(va.value_reference) as speciality,
+        (
+            select va2.value_reference from visit_attribute va2
+            where va2.visit_id = v.visit_id and va2.voided = 0
+                and va2.attribute_type_id = (
+                    select visit_attribute_type_id from visit_attribute_type
+                    where uuid = '${Constant.ROUTING_SPECIALIZATION_ATTRIBUTE_TYPE_UUID}'
+                )
+            limit 1
+        ) as "routingSpeciality"
     from
                 visit v
                 JOIN visit_attribute va on (va.visit_id= v.visit_id and va.voided = 0 and va.attribute_type_id = 5)
