@@ -31,6 +31,10 @@ on:
         description: 'Deploy to nas production host'
         type: boolean
         default: false
+      deploy_nasstaging:
+        description: 'Deploy to nas nasstaging host'
+        type: boolean
+        default: false
 
   push:
     branches: [nas-ida5-development-master]
@@ -57,6 +61,9 @@ jobs:
             includes='[]'
             if [ "${{ inputs.deploy_nasprod }}" == "true" ]; then
               includes=$(echo "$includes" | jq -c '. += [{"environment":"nasprod"}]')
+            fi
+            if [ "${{ inputs.deploy_nasstaging }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"nasstaging"}]')
             fi
 
             matrix="{\"include\":$includes}"
