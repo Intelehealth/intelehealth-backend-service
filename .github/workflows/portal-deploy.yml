@@ -138,6 +138,7 @@ jobs:
         run: |
           case "${{ matrix.environment }}" in
             nasprod)  echo "REMOTE_HOST=$NAS_HOST"  >> $GITHUB_ENV ;;
+            nasstaging)  echo "REMOTE_HOST=$NASSTAGING_HOST"  >> $GITHUB_ENV ;;
             *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
 
