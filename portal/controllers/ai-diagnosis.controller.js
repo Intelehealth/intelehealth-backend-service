@@ -102,4 +102,22 @@ const ttxfinal = async (req, res) => {
   }
 };
 
-module.exports = { ddx, ttxv1, ddxfinal, ttxfinal };
+const ddxManual = async (req, res) => {
+  try {
+    const data = await aiDiagnosisService.ddxManual(req.body);
+    return res.status(200).json(data);
+  } catch (err) {
+    return respondWithError(res, '/ddx/manual', err);
+  }
+};
+
+const ttxManual = async (req, res) => {
+  try {
+    const data = await aiDiagnosisService.ttxManual(req.body);
+    return res.status(200).json(data);
+  } catch (err) {
+    return respondWithError(res, '/ttx/manual', err);
+  }
+};
+
+module.exports = { ddx, ttxv1, ddxfinal, ttxfinal, ddxManual, ttxManual };
