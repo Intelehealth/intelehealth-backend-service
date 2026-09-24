@@ -236,7 +236,7 @@ module.exports = (function () {
   this._getProvider = async (user_uuid) => {
     try {
       logStream("debug", "Openmrs Service", "Get Provider");
-      let response = await axiosInstance.get(`/openmrs/ws/rest/v1/provider?user=${user_uuid}&v=custom:(id,uuid,person:(uuid,display,gender,age,birthdate,preferredName),attributes)`);
+      let response = await axiosInstance.get(`/openmrs/ws/rest/v1/provider?user=${user_uuid}&v=custom:(uuid,person:(uuid,display,gender,age,birthdate,preferredName),attributes)`);
       return (response.data);
     } catch (error) {
       logStream("error", error.message);
