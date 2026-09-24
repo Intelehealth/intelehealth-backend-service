@@ -220,8 +220,9 @@ module.exports = (function () {
   * Get visits
   * @param { string } type - Visit type
   * @param { string } speciality - Doctor speciality
+  * @param { boolean } [isFollowUp] - True when matching against the Follow-Up queue specifically
   */
-  this.getVisits = async (type, speciality) => {
+  this.getVisits = async (type, speciality, isFollowUp = false) => {
     logStream('debug','Openmrs Service', 'Get Visits');
     if (!type) {
       return [];
@@ -264,7 +265,7 @@ module.exports = (function () {
         appointmentVisitIds = data.map(i=>i.visitUuid);
       }
       return Array.isArray(visits)
-        ? visits.filter((v) => v?.Status === type && matchesEffectiveSpeciality(v, speciality) && !appointmentVisitIds.includes(v.uuid)).map((v) => v?.visit_id)
+        ? visits.filter((v) => v?.Status === type && matchesEffectiveSpeciality(v, speciality, isFollowUp) && !appointmentVisitIds.includes(v.uuid)).map((v) => v?.visit_id)
         : [];
     }
   };
@@ -309,7 +310,8 @@ module.exports = (function () {
       if(![IN_PROGRESS,FOLLOW_UP].includes(type)){
          obsCondition.where.concept_id = 163212;
       }
-      if(type === 'Follow-Up'){
+      const isFollowUpRequest = type === 'Follow-Up';
+      if(isFollowUpRequest){
         obsCondition.where = {
           concept_id: 163345,
           value_text: { [Op.ne]: "No" },
@@ -319,7 +321,7 @@ module.exports = (function () {
         type = "Completed Visit";
       }
       if (limit > 200) limit = 200;
-      const visitIds = await this.getVisits(type, speciality);
+      const visitIds = await this.getVisits(type, speciality, isFollowUpRequest);
 
       if (!countOnly) {
         visits = await visit.findAll({
