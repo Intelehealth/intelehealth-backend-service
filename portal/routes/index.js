@@ -34,7 +34,6 @@ router.use("/openmrs", require("./openmrs.route"));
 router.use("/appointment", require("./appointment.route"));
 router.use("/turn-appointment", require("./turn-appointment.route"));
 router.use("/insights", require("./insight.route"));
-router.use("/ai-issue-reports", require("./ai-issue-report.route"));
 router.use("/ddx-ttx-overrides", require("./ddx-ttx-override.route"));
 router.use('/auth', require("./auth.route"));
 router.use("/links", require("./links.route"));
