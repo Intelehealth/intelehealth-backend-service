@@ -1,8 +1,4 @@
-// Fixed OpenMRS UUIDs used to build patient/visit/encounter/obs bundles.
-// These identify OpenMRS metadata (concepts, encounter types, visit/person
-// attribute types) and are the same across environments, so they live in code
-// rather than .env (which holds only secrets + per-environment URLs).
-// Mirrors the doctor webapp's openmrs_uuids / HW constants.
+// OpenMRS metadata UUIDs for push bundles: same across environments, so not in .env.
 
 module.exports = {
    // Patient identifier + location
@@ -13,6 +9,8 @@ module.exports = {
    OPENMRS_VISIT_TYPE_UUID: "a86ac96e-2e07-47a7-8e72-8216a1a75bfd",
    OPENMRS_ENCOUNTER_TYPE_ADULT_INITIAL: "8d5b27bc-c2cc-11de-8d13-0010c6dffd0f",
    OPENMRS_ENCOUNTER_TYPE_VITALS: "67a71486-1a54-468f-ac3e-7091a9a79584",
+   // The doctor webapp reads this encounter's existence as "visit ended".
+   OPENMRS_ENCOUNTER_TYPE_PATIENT_EXIT_SURVEY: "629a9d0b-48eb-405e-953d-a5964c88dc30",
    OPENMRS_ENCOUNTER_ROLE_UUID: "73bbb069-9781-4afc-a9d1-54b6b2270e04",
 
    // Provider (doctor1)
@@ -24,13 +22,14 @@ module.exports = {
    OPENMRS_CONCEPT_MEDICAL_HISTORY: "62bff84b-795a-45ad-aae1-80e7f5163a82",
    OPENMRS_CONCEPT_FAMILY_HISTORY: "d63ae965-47fb-40e8-8f08-1f46a8a60b2b",
 
-   // Complex obs: patient photos render under "Additional Documents" in the
-   // doctor portal (conceptAdditionlDocument in the webapp's config/constant.ts).
+   // Complex obs: photos render under "Additional Documents" in the doctor portal.
    OPENMRS_CONCEPT_ADDITIONAL_DOCUMENT: "07a816ce-ffc0-49b9-ad92-a1bf9bf5e2ba",
-   // Complex obs on this concept render under "Physical examination" instead,
-   // grouped by matching the obs comment to a parsed section title
-   // (conceptPhysicalExamination in the webapp's config/constant.ts).
+   // Renders under "Physical examination", grouped by obs comment = section title.
    OPENMRS_CONCEPT_PHYSICAL_EXAM_IMAGE: "200b7a45-77bc-4986-b879-cc727f5f7d5b",
+
+   // Exit survey concepts (UuidDictionary.RATING / .COMMENTS in the Android app).
+   OPENMRS_CONCEPT_RATING: "78284507-fb71-4354-9b34-046ab205e18f",
+   OPENMRS_CONCEPT_COMMENTS: "36d207d6-bee7-4b3e-9196-7d053c6eddce",
 
    // Vitals concept UUIDs (standard OpenMRS concepts)
    OPENMRS_CONCEPT_HEIGHT: "5090AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",

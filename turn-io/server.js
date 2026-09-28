@@ -3,6 +3,7 @@ const express = require("express");
 
 const patientRegistration = require("./routes/patient-registration");
 const visitPush = require("./routes/visit-push");
+const patientFeedback = require("./routes/patient-feedback");
 const prescription = require("./prescription");
 const followUpCron = require("./prescription/followup-cron");
 
@@ -46,6 +47,7 @@ app.get("/", (_req, res) => res.send("Server working"));
 
 app.use("/webhooks/turn", patientRegistration);
 app.use("/webhooks/turn", visitPush);
+app.use("/webhooks/turn", patientFeedback);
 app.use("/webhooks/turn", prescription);
 
 followUpCron.start();
