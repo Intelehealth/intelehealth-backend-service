@@ -52,19 +52,95 @@ A step by step series of examples that tell you how to get a development environ
 
 * [Express](https://expressjs.com/) - Express Framework
 
-## Commeting Message (Examples)
-1.Commit message with description and change in body
+## Development Standards
+
+This is a first, lightweight set of standards. It will grow over time. When in doubt, follow the
+pattern the surrounding code in that service already uses.
+
+### Branches and pull requests
+
+- Cut every branch from `development_master` and open the PR back into `development_master`.
+- Name branches `<type>/<ticket>-<short-description>`, e.g. `fix/ayu-46-manual-ai-wrappers`,
+  `feature/cron-manual-trigger`.
+- Keep a PR to one logical change, in one service where possible. Describe what changed and why,
+  and call out any migration or new environment variable.
+- Do not merge your own PR without a review.
+
+### Commit messages
+
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/). The husky `commit-msg`
+hook runs commitlint (`.commitlintrc.json`) and rejects anything else.
+
+Allowed types: `feat`, `fix`, `perf`, `refactor`, `style`, `docs`, `chore`, `ci`, `revert`.
+
 ```
 fix: allow provided config object to extend other configs
-```
-2.Commit message with scope
-```
 feat(lang): add language data
-```
-3.Commit message with optional ! to draw attention to breaking change
-```
 revert!: drop Node 12 from testing matrix
 ```
+
+Keep the subject short and in the imperative ("add", not "added"). Use the service name as the
+scope when it helps, e.g. `feat(portal): ...`.
+
+### Service structure
+
+Each Express service (`portal`, `auth-gateway`, `pagerduty-microservice`, ...) uses the same
+layers. Keep each layer to its job:
+
+| Layer         | File                                   | Responsibility                                 |
+| ------------- | -------------------------------------- | ---------------------------------------------- |
+| Route         | `routes/<feature>.route.js`            | Path, HTTP method, middleware. No logic.       |
+| Controller    | `controllers/<feature>.controller.js`  | Read and validate input, call the service, respond. |
+| Service       | `services/<feature>.service.js`        | Business logic and database or external calls. |
+| Model         | `models/<table_name>.js`               | Sequelize model definition.                    |
+| Migration     | `migrations/<YYYYMMDDHHMMSS>-<desc>.js` | Every schema change.                           |
+
+- Register new route files in `routes/index.js`.
+- File names are `kebab-case`, except model files, which use the `snake_case` table name.
+- `web-rtc` and `configuration-microservice` are TypeScript. Follow their `src/` layout and
+  `tsconfig.json`.
+
+### Database
+
+- Change the schema only through a Sequelize migration (`npm run migrate`). Never use
+  `sync({ alter })` or hand-run `ALTER` statements.
+- A migration must have a working `down`.
+- Use Sequelize queries with bound parameters. Never build SQL by concatenating strings.
+
+### Responses and errors
+
+- In `portal`, respond with `RES(res, { success, data | message }, statusCode)` from
+  `handlers/helper.js`, and use proper status codes (`422` for bad input, `401`/`403` for auth,
+  `500` for unexpected errors).
+- User-facing messages go in `constants/messages.js` (`MESSAGE`). Other constants go in
+  `constants/constant.js` with `UPPER_SNAKE_CASE` keys.
+- Wrap `async` handlers in `try/catch`. Do not leave a promise unhandled.
+- Never return stack traces, SQL errors or connection details to the client.
+
+### Auth
+
+- Auth is applied per route. Add `authMiddleware` (`middleware/auth.js`) to every new route, e.g.
+  `router.get("/x", [authMiddleware, handler])`. Add `middleware/is-admin.js` as well for
+  admin-only routes.
+- A route that must be public needs a reason in the PR. `IGNORED_ROUTES.js` skips the token check
+  for a path even when `authMiddleware` is applied, so add to it only when there is no other
+  option.
+
+### Logging
+
+- Use the service's logger (`logStream` from `logger/`) instead of `console.log`.
+- Never log patient data, passwords, OTPs, tokens or API keys.
+
+### Environment variables
+
+A new variable must be added in two places: the service's `example.env` and that service's `.env`
+list in this README. Never commit `.env`, keys or certificates.
+
+### Tests
+
+Add tests to any service that already has a test harness: `cron-microservice` (`npm test`,
+`node --test`) and `configuration-microservice` (`npm test`, `npm run lint`). Run them before
+opening the PR.
 
 ## Below .env service wise.
 
