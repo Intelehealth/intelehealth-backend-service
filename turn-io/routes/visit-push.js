@@ -17,6 +17,7 @@ const {
   OPENMRS_VISIT_ATTR_SPECIALITY,
   OPENMRS_VISIT_ATTR_COMPLETE_DATETIME,
   OPENMRS_VISIT_ATTR_DOCTOR_NOTES,
+  OPENMRS_VISIT_ATTR_JOURNEY_INFO,
   OPENMRS_CONCEPT_ADDITIONAL_DOCUMENT,
   OPENMRS_CONCEPT_PHYSICAL_EXAM_IMAGE,
 } = require("../constants");
@@ -236,8 +237,22 @@ const physicalExamObs = (hasImages) => {
 // title physicalExamObs produces -- getImagesBySection compares case-insensitively).
 const PHYSICAL_EXAM_IMAGE_SECTION = "General Exams";
 
+// Phase-2 metrics: the Johar/Namaste message, when it arrived, and the screen
+// ids from journey start and protocol selection, as one JSON visit attribute.
+// Blank fields are dropped so the value never carries empty keys.
+const journeyInfoValue = (body = {}) => {
+  const fields = {
+    hi_message: clean(body.hi_message ?? body.msg_trigger ?? body.trigger),
+    hi_datetime: clean(body.hi_datetime ?? body.msg_trigger_datetime ?? body.trigger_datetime),
+    screen_id_registration: clean(body.screen_id_registration),
+    screen_id_visit: clean(body.screen_id_visit ?? body.screen_id),
+  };
+  const present = Object.entries(fields).filter(([, v]) => v);
+  return present.length ? JSON.stringify(Object.fromEntries(present)) : "";
+};
+
 // Build the /push/pushdata bundle, generating and cross-referencing UUIDs.
-const buildPushBundle = (personUuid, protocolId, answers, patientHistory, familyHistory, hasExamImages) => {
+const buildPushBundle = (personUuid, protocolId, answers, patientHistory, familyHistory, hasExamImages, journeyInfo = "") => {
   const now = new Date();
   const encounterDatetime = formatDatetime(now);
   const visitCompleteDatetime = formatDatetime(new Date(now.getTime() + 1000));
@@ -320,6 +335,7 @@ const buildPushBundle = (personUuid, protocolId, answers, patientHistory, family
         { attributeType: OPENMRS_VISIT_ATTR_SPECIALITY, value: "General Physician" },
         { attributeType: OPENMRS_VISIT_ATTR_COMPLETE_DATETIME, value: visitCompleteDatetime },
         { attributeType: OPENMRS_VISIT_ATTR_DOCTOR_NOTES, value: "No notes added for Doctor." },
+        ...(journeyInfo ? [{ attributeType: OPENMRS_VISIT_ATTR_JOURNEY_INFO, value: journeyInfo }] : []),
       ],
     }],
     encounters: [
@@ -371,8 +387,10 @@ router.post("/visit_push", async (req, res) => {
     // document_images (physical-exam photos) render under "Physical examination" instead.
     const examImages = normalizeAttachments(req.body.document_images, "document_images");
 
+    const journeyInfo = journeyInfoValue(req.body);
+
     const bundle = buildPushBundle(
-      personUuid, protocolId, answers, patientHistory, familyHistory, examImages.length > 0
+      personUuid, protocolId, answers, patientHistory, familyHistory, examImages.length > 0, journeyInfo
     );
 
     const { data } = await pushData(bundle);

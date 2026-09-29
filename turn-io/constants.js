@@ -39,4 +39,6 @@ module.exports = {
    OPENMRS_VISIT_ATTR_SPECIALITY: "3f296939-c6d3-4d2e-b8ca-d7f4bfd42c2d",
    OPENMRS_VISIT_ATTR_COMPLETE_DATETIME: "e76eee5e-9d73-4d07-8f30-16b77e626ccf",
    OPENMRS_VISIT_ATTR_DOCTOR_NOTES: "64aa50c8-e913-48c6-b8ad-dfa0bccb202b",
+   // WhatsApp journey info (johar/namasate message + timestamp + screen ids) as one JSON value.
+   OPENMRS_VISIT_ATTR_JOURNEY_INFO: "da428dda-46c7-4146-a7af-1fbf1af37768",
 };
