@@ -242,8 +242,8 @@ const PHYSICAL_EXAM_IMAGE_SECTION = "General Exams";
 // Blank fields are dropped so the value never carries empty keys.
 const journeyInfoValue = (body = {}) => {
   const fields = {
-    hi_message: clean(body.hi_message ?? body.msg_trigger ?? body.trigger),
-    hi_datetime: clean(body.hi_datetime ?? body.msg_trigger_datetime ?? body.trigger_datetime),
+    msg_trigger: clean(body.hi_message ?? body.msg_trigger ?? body.trigger),
+    msg_trigger_datetime: clean(body.hi_datetime ?? body.msg_trigger_datetime ?? body.trigger_datetime),
     screen_id_registration: clean(body.screen_id_registration),
     screen_id_visit: clean(body.screen_id_visit ?? body.screen_id),
   };
