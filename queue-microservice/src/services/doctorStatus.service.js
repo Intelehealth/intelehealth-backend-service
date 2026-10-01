@@ -4,8 +4,8 @@ const moment = require("moment");
 const models = require("../models");
 const config = require("../config/env");
 const logger = require("../utils/logger");
-const { DOCTOR_STATUS, IN_SERVICE_STATUSES } = require("../constants");
-const { BadRequestError } = require("../utils/errors");
+const { DOCTOR_STATUS, IN_SERVICE_STATUSES, ONGOING_VISIT_STATUSES } = require("../constants");
+const { BadRequestError, ConflictError } = require("../utils/errors");
 
 /**
  * Live doctor status — backend LLD §02.2 and §09.3.
@@ -55,8 +55,96 @@ const setStatus = async (doctorUuid, status, { speciality, queueEntryId = null }
   return row;
 };
 
+/** Newest case assigned to this doctor in one of `statuses`, if any. */
+const findAssignedCase = async (doctorUuid, statuses) =>
+  models.queue_entries.findOne({
+    where: { assignedDoctorUuid: doctorUuid, status: { [Op.in]: statuses } },
+    order: [["id", "DESC"]],
+  });
+
+/** The case this doctor is occupied by right now (assigned or on a call). */
+const findInServiceCase = async (doctorUuid) => findAssignedCase(doctorUuid, IN_SERVICE_STATUSES);
+
+/**
+ * A visit the doctor still owns — in service, or call over with the
+ * prescription still owed (CALL_COMPLETED).
+ */
+const findOngoingVisit = async (doctorUuid) => findAssignedCase(doctorUuid, ONGOING_VISIT_STATUSES);
+
+/**
+ * The client-facing status change — PATCH /api/doctor/:doctorUuid/status.
+ *
+ * Differs from setStatus in two ways, both about not letting a manual toggle
+ * contradict the queue:
+ *
+ *  1. in_consult is system-owned. It is set when a case is assigned and carries
+ *     the case pointer; a client setting it by hand would park the doctor as
+ *     busy with no case, out of dispatch, with nothing to ever free them.
+ *
+ *  2. "offline" or "away" during an ongoing visit is refused (409). Ongoing is
+ *     ASSIGNED, CALL_CONNECTING, CALL_CONNECTED and CALL_COMPLETED — the visit
+ *     only ends once the prescription is shared.
+ *
+ *  3. "online" from a doctor who still holds a case keeps them in_consult. The
+ *     app re-announcing itself mid-call (relaunch, reconnect) must not mark the
+ *     doctor free and let dispatch hand them a second patient.
+ *
+ * Returns { row, requestedStatus, heldInConsult }.
+ */
+const changeStatus = async (doctorUuid, status, { speciality } = {}) => {
+  if (status === DOCTOR_STATUS.IN_CONSULT) {
+    throw new BadRequestError(
+      "in_consult is set by the queue when a case is assigned and cannot be set directly",
+      "IN_CONSULT_SYSTEM_OWNED"
+    );
+  }
+
+  // Going offline or away mid-visit would strand the patient — on an assigned
+  // or live call, or waiting on a prescription — so it is refused until the
+  // prescription is shared or the case is released, re-queued or cancelled.
+  if (status === DOCTOR_STATUS.OFFLINE || status === DOCTOR_STATUS.AWAY) {
+    const active = await findOngoingVisit(doctorUuid);
+    if (active) {
+      throw new ConflictError(
+        `Cannot go ${status} during an ongoing visit — complete it first`,
+        "DOCTOR_HAS_ONGOING_VISIT",
+        { queueEntryId: active.id, visitUuid: active.visitUuid, caseStatus: active.status }
+      );
+    }
+  }
+
+  if (status === DOCTOR_STATUS.ONLINE) {
+    const active = await findInServiceCase(doctorUuid);
+    if (active) {
+      const row = await setStatus(doctorUuid, DOCTOR_STATUS.IN_CONSULT, {
+        speciality,
+        queueEntryId: active.id,
+      });
+      logger.info("Online request kept in_consult — doctor still holds a case", {
+        doctorUuid,
+        queueEntryId: active.id,
+      });
+      return { row, requestedStatus: status, heldInConsult: true };
+    }
+  }
+
+  const row = await setStatus(doctorUuid, status, { speciality });
+  return { row, requestedStatus: status, heldInConsult: false };
+};
+
 const getStatus = async (doctorUuid) =>
   models.doctor_queue_status.findOne({ where: { doctorUuid } });
+
+/** GET /api/doctor/status — admin/ops view of every known doctor's status. */
+const listStatuses = async ({ speciality, status } = {}) => {
+  const where = {};
+  if (speciality) where.speciality = speciality;
+  if (status) where.status = status;
+  return models.doctor_queue_status.findAll({
+    where,
+    order: [["lastChangedAt", "DESC"]],
+  });
+};
 
 /**
  * The doctors:active:{speciality} equivalent — who is online for this
@@ -182,7 +270,11 @@ const isOnShift = async (doctorUuid) => {
 
 module.exports = {
   setStatus,
+  changeStatus,
+  findInServiceCase,
+  findOngoingVisit,
   getStatus,
+  listStatuses,
   listAvailable,
   listBySpeciality,
   countPresent,

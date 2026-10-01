@@ -162,6 +162,9 @@ const stampInitialEstimate = async (entry) => {
   return { position, etaMinutes, etaAt: freshEtaAt, model };
 };
 
+/** Sentinel thrown inside assignCase's transaction to roll it back. */
+const CASE_TAKEN = Symbol("CASE_TAKEN");
+
 /**
  * Assign one already-selected case to one already-selected doctor.
  *
@@ -169,23 +172,54 @@ const stampInitialEstimate = async (entry) => {
  * clause only matches while the case is still waiting, so exactly one caller
  * can ever get affectedRows = 1. Everyone else gets 0 and must be told the case
  * is gone — not handed a silent success.
+ *
+ * Only an online doctor can be assigned. The doctor is reserved with a second
+ * conditional UPDATE (online -> in_consult) in the same transaction, so a
+ * doctor who is offline, away or already mid-consult is refused with
+ * DOCTOR_NOT_ONLINE, and the same doctor firing two claims at once wins at most
+ * one. If the case is lost, the reservation rolls back with it.
  */
 const assignCase = async (entry, doctorUuid, { source = "DISPATCH" } = {}) => {
-  const [affected] = await models.queue_entries.update(
-    {
-      status: STATUS.ASSIGNED,
-      assignedDoctorUuid: doctorUuid,
-      assignedAt: new Date(),
-    },
-    { where: { id: entry.id, status: { [Op.in]: WAITING_STATUSES } } }
-  );
+  const now = new Date();
+  let outcome;
+  try {
+    outcome = await models.sequelize.transaction(async (transaction) => {
+      const [reserved] = await models.doctor_queue_status.update(
+        {
+          status: DOCTOR_STATUS.IN_CONSULT,
+          speciality: entry.speciality,
+          currentQueueEntryId: entry.id,
+          lastChangedAt: now,
+        },
+        { where: { doctorUuid, status: DOCTOR_STATUS.ONLINE }, transaction }
+      );
+      if (reserved === 0) return "DOCTOR_NOT_ONLINE";
 
-  if (affected === 0) return null;
+      const [affected] = await models.queue_entries.update(
+        {
+          status: STATUS.ASSIGNED,
+          assignedDoctorUuid: doctorUuid,
+          assignedAt: now,
+        },
+        { where: { id: entry.id, status: { [Op.in]: WAITING_STATUSES } }, transaction }
+      );
+      // Throwing rolls the doctor reservation back along with it.
+      if (affected === 0) throw CASE_TAKEN;
+      return "ASSIGNED";
+    });
+  } catch (err) {
+    if (err === CASE_TAKEN) return null;
+    throw err;
+  }
 
-  await doctorStatus.setStatus(doctorUuid, DOCTOR_STATUS.IN_CONSULT, {
-    speciality: entry.speciality,
-    queueEntryId: entry.id,
-  });
+  if (outcome === "DOCTOR_NOT_ONLINE") {
+    const current = await doctorStatus.getStatus(doctorUuid);
+    throw new ConflictError(
+      "Only an online doctor can be assigned a case",
+      "DOCTOR_NOT_ONLINE",
+      { doctorUuid, doctorStatus: current?.status || DOCTOR_STATUS.OFFLINE, queueEntryId: entry.id }
+    );
+  }
 
   await entry.reload();
   logger.info("Case assigned", { queueEntryId: entry.id, doctorUuid, source });
@@ -215,7 +249,15 @@ const dispatchLane = async (scope, { limit = MAX_DISPATCH_PER_PASS } = {}) => {
     const { doctor } = await doctorAssignment.selectDoctorFor(entry);
     if (!doctor) break; // nobody eligible — everything behind this case waits too
 
-    const result = await assignCase(entry, doctor.doctorUuid, { source: "DISPATCH" });
+    let result;
+    try {
+      result = await assignCase(entry, doctor.doctorUuid, { source: "DISPATCH" });
+    } catch (err) {
+      // The selected doctor went away/offline or was taken by another claim
+      // between selection and assignment; reselect for the same case.
+      if (err.code === "DOCTOR_NOT_ONLINE") continue;
+      throw err;
+    }
     if (!result) continue; // lost the race for this case; try the next one
     assigned.push({ queueEntryId: result.id, doctorUuid: doctor.doctorUuid });
   }
@@ -758,10 +800,18 @@ const claim = async (queueEntryId, doctorUuid) => {
  * efficiency win.
  */
 const claimNext = async (doctorUuid, { speciality } = {}) => {
+  const current = await doctorStatus.getStatus(doctorUuid);
+  // Fail fast, before locking a case. assignCase re-checks atomically.
+  if (current?.status !== DOCTOR_STATUS.ONLINE) {
+    throw new ConflictError("Only an online doctor can be assigned a case", "DOCTOR_NOT_ONLINE", {
+      doctorUuid,
+      doctorStatus: current?.status || DOCTOR_STATUS.OFFLINE,
+    });
+  }
+
   let resolvedSpeciality = speciality;
   if (!resolvedSpeciality) {
-    const status = await doctorStatus.getStatus(doctorUuid);
-    resolvedSpeciality = status?.speciality;
+    resolvedSpeciality = current.speciality;
   }
   if (!resolvedSpeciality) {
     throw new BadRequestError("speciality is required", "SPECIALITY_REQUIRED");

@@ -29,8 +29,21 @@ const bearerToken = (req) => {
   return header.slice(7).trim() || null;
 };
 
+/**
+ * auth-gateway nests the claims under `data` — { data: { sessionId, userId,
+ * name } } — which is how portal reads it too (decoded.data.userId). Top-level
+ * claims are still accepted for any other issuer.
+ */
+const claimsOf = (payload) => ({ ...(payload.data || {}), ...payload });
+
+const userUuidFrom = (payload) => {
+  const c = claimsOf(payload);
+  return c.userId || c.user_uuid || c.uuid || c.sub || null;
+};
+
 const rolesFrom = (payload) => {
-  const raw = payload.roles || payload.role || payload.authorities || [];
+  const c = claimsOf(payload);
+  const raw = c.roles || c.role || c.authorities || [];
   const list = Array.isArray(raw) ? raw : [raw];
   return list.filter(Boolean).map((r) => String(r).toLowerCase());
 };
@@ -68,7 +81,7 @@ const authenticate = (req, _res, next) => {
     const roles = rolesFrom(payload);
     req.auth = {
       type: "user",
-      userUuid: payload.userId || payload.user_uuid || payload.uuid || payload.sub || null,
+      userUuid: userUuidFrom(payload),
       roles,
       isAdmin: roles.some((r) => config.auth.adminRoles.includes(r)),
       isService: false,
@@ -77,6 +90,9 @@ const authenticate = (req, _res, next) => {
     return next();
   } catch (err) {
     if (err instanceof UnauthorizedError) return next(err);
+    if (err instanceof jwt.TokenExpiredError) {
+      return next(new UnauthorizedError("Token has expired — log in again", "TOKEN_EXPIRED"));
+    }
     return next(new UnauthorizedError("Invalid or expired token", "INVALID_TOKEN"));
   }
 };

@@ -477,10 +477,13 @@ module.exports = {
       post: {
         tags: ["Doctor"],
         summary: "Claim the next patient",
-        description:
+        description: [
           "Case-first selection (Priority Engine §06) with SELECT … FOR UPDATE SKIP LOCKED, so two doctors asking at the same instant get two different cases.",
+          "",
+          "The doctor must be `online`; otherwise **409 `DOCTOR_NOT_ONLINE`** with `doctorStatus` in the details.",
+        ].join("\n"),
         parameters: [{ name: "doctorUuid", in: "path", required: true, schema: { type: "string" } }],
-        responses: { 200: ok(queueStatusResponse), default: errorResponse },
+        responses: { 200: ok(queueStatusResponse), 409: errorResponse, default: errorResponse },
       },
     },
 
@@ -492,6 +495,8 @@ module.exports = {
           "Two doctors can click the same case within the same second; this resolves to exactly one winner.",
           "",
           "The loser gets **409 `CASE_ALREADY_CLAIMED`** — not a silent success. Show it: a doctor who loses the race and sees nothing happen will reasonably assume the app is broken (Web LLD §05).",
+          "",
+          "The claiming doctor must be `online`; a doctor who is offline, away or already `in_consult` gets **409 `DOCTOR_NOT_ONLINE`** with `doctorStatus` in the details, and the case stays in the queue.",
           "",
           "This endpoint does not call web-rtc. The client calls getToken itself.",
         ].join("\n"),
@@ -650,6 +655,19 @@ module.exports = {
       },
     },
 
+    "/api/doctor/status": {
+      get: {
+        tags: ["Doctor status"],
+        summary: "List doctor statuses (admin)",
+        description: "Every doctor QMS has a status row for, newest change first. Admin role required.",
+        parameters: [
+          { name: "speciality", in: "query", schema: { type: "string", maxLength: 100 } },
+          { name: "status", in: "query", schema: { type: "string", enum: enumOf(DOCTOR_STATUS) } },
+        ],
+        responses: { 200: ok({ type: "array", items: { type: "object" } }), 403: errorResponse, default: errorResponse },
+      },
+    },
+
     "/api/doctor/{doctorUuid}/status": {
       patch: {
         tags: ["Doctor status"],
@@ -658,6 +676,10 @@ module.exports = {
           "**The most important new endpoint in the LLD.** Every queue-facing screen must call it on login, logout and idle timeout — it is what closes the accuracy gap the Little's Law production report identified (168 → ~52 min MAE).",
           "",
           "A doctor may only change their own status; overriding someone else's requires an admin role (LLD §13.1).",
+          "",
+          "`in_consult` cannot be set here — the queue sets it on assignment. Asking for `online` while still holding an assigned or in-call case keeps the doctor `in_consult`; the response says so with `heldInConsult: true` alongside `requestedStatus`.",
+          "",
+          "`offline` or `away` during an ongoing visit (case ASSIGNED, CALL_CONNECTING, CALL_CONNECTED or CALL_COMPLETED — i.e. until the prescription is shared) is refused with **409 `DOCTOR_HAS_ONGOING_VISIT`**; the error details carry `queueEntryId`, `visitUuid` and `caseStatus`.",
         ].join("\n"),
         parameters: [{ name: "doctorUuid", in: "path", required: true, schema: { type: "string" } }],
         requestBody: {
@@ -668,14 +690,14 @@ module.exports = {
                 type: "object",
                 required: ["status"],
                 properties: {
-                  status: { type: "string", enum: enumOf(DOCTOR_STATUS) },
+                  status: { type: "string", enum: ["online", "away", "offline"] },
                   speciality: { type: "string" },
                 },
               },
             },
           },
         },
-        responses: { 200: ok({ type: "object" }), 403: errorResponse, default: errorResponse },
+        responses: { 200: ok({ type: "object" }), 400: errorResponse, 403: errorResponse, 409: errorResponse, default: errorResponse },
       },
       get: {
         tags: ["Doctor status"],

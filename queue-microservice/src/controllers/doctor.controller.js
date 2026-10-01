@@ -2,6 +2,7 @@ const doctorStatus = require("../services/doctorStatus.service");
 const queueService = require("../services/queue.service");
 const { success } = require("../utils/apiResponse");
 const { NotFoundError } = require("../utils/errors");
+const { DOCTOR_STATUS } = require("../constants");
 
 /** Doctor live status — backend LLD §09.3. */
 
@@ -19,24 +20,39 @@ const updateStatus = async (req, res) => {
   const { doctorUuid } = req.params;
   const { status, speciality } = req.validated;
 
-  const row = await doctorStatus.setStatus(doctorUuid, status, { speciality });
+  const { row, requestedStatus, heldInConsult } = await doctorStatus.changeStatus(doctorUuid, status, {
+    speciality,
+  });
 
   // A doctor coming online is a dispatch trigger: case-first, the front of
   // their lane gets looked at straight away rather than waiting for the next
-  // submit.
+  // submit. Keyed on the status actually stored — a doctor held in_consult is
+  // not free and must not be dispatched to.
   let dispatched = [];
-  if (status === "online" && row.speciality) {
+  if (row.status === DOCTOR_STATUS.ONLINE && row.speciality) {
     dispatched = await queueService.dispatchLane({ speciality: row.speciality });
   }
 
   return success(res, {
-    doctorUuid: row.doctorUuid,
-    status: row.status,
-    speciality: row.speciality,
-    currentQueueEntryId: row.currentQueueEntryId,
-    lastChangedAt: row.lastChangedAt,
+    ...toStatusItem(row),
+    requestedStatus,
+    heldInConsult,
     dispatched,
   });
+};
+
+const toStatusItem = (row) => ({
+  doctorUuid: row.doctorUuid,
+  status: row.status,
+  speciality: row.speciality,
+  currentQueueEntryId: row.currentQueueEntryId,
+  lastChangedAt: row.lastChangedAt,
+});
+
+/** GET /api/doctor/status — admin-only list, filterable by speciality/status. */
+const listStatuses = async (req, res) => {
+  const rows = await doctorStatus.listStatuses(req.validatedQuery);
+  return success(res, rows.map(toStatusItem));
 };
 
 /**
@@ -49,4 +65,4 @@ const getStatus = async (req, res) => {
   return success(res, row);
 };
 
-module.exports = { updateStatus, getStatus };
+module.exports = { updateStatus, getStatus, listStatuses };

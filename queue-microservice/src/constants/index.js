@@ -47,6 +47,13 @@ const TERMINAL_STATUSES = [STATUS.PRESCRIPTION_COMPLETED, STATUS.CANCELLED];
  */
 const POST_CALL_STATUSES = [STATUS.CALL_COMPLETED];
 
+/**
+ * A visit the doctor still owns, from assignment until the prescription is
+ * shared. While one exists the doctor may not go offline or away — including
+ * CALL_COMPLETED, since the prescription is still owed.
+ */
+const ONGOING_VISIT_STATUSES = [...IN_SERVICE_STATUSES, ...POST_CALL_STATUSES];
+
 const EMERGENCY_LEVEL = {
   CRITICAL: "CRITICAL",
   HIGH: "HIGH",
@@ -100,6 +107,7 @@ module.exports = {
   IN_SERVICE_STATUSES,
   TERMINAL_STATUSES,
   POST_CALL_STATUSES,
+  ONGOING_VISIT_STATUSES,
   EMERGENCY_LEVEL,
   EMERGENCY_RANK,
   CASE_TYPE,
