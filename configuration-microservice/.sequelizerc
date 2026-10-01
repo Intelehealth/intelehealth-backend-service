@@ -2,8 +2,8 @@ const path = require("path")
 
 module.exports = {
     env: process.env.NODE_ENV || 'development',
-    config: path.resolve("dist/config", "config.js"),
-    "models-path": path.resolve("dist", 'models'),
-    "seeders-path": path.resolve("dist", 'seeders'),
-    "migrations-path": path.resolve("dist", 'migrations'),
+    config: path.resolve("dist/src/config", "config.js"),
+    "models-path": path.resolve("dist/src", 'models'),
+    "seeders-path": path.resolve("dist/src", 'seeders'),
+    "migrations-path": path.resolve("dist/src", 'migrations'),
 }
