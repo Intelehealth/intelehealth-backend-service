@@ -61,6 +61,12 @@ const collectVisitUuids = async (onlyVisitUuid, today, force) => {
 const runFollowUpReminders = async ({ visitUuid: onlyVisitUuid = null, force = false, dryRun = false, trigger = "cron" } = {}) => {
    const today = todayInTimezone();
    const tag = `[followup ${trigger}]`;
+
+   // dryRun still reports what would be sent; only real sends are blocked.
+   if (!remindersEnabled() && !dryRun) {
+      console.log(`${tag} skipped -- FOLLOWUP_REMINDERS_ENABLED is not "true"`);
+      return { ok: true, today, disabled: true, considered: 0, sent: 0, skipped: 0, failed: 0, results: [] };
+   }
    console.log(`${tag} run started for ${today} -- nudging T-${REMINDER_OFFSETS.join(" and T-")}${force ? " [force]" : ""}${dryRun ? " [dry-run]" : ""}`);
 
    const sentLog = loadSentLog(today);
@@ -156,8 +162,17 @@ const runFollowUpReminders = async ({ visitUuid: onlyVisitUuid = null, force = f
 
 let task = null; // scheduled task handle, kept so /followup/status can report on it
 
+// Reminders are opt-in: this cron messages patients directly through the Turn
+// API, outside the journey, so hiding the follow-up cards in Turn does not stop
+// it. Set FOLLOWUP_REMINDERS_ENABLED=true to turn it back on.
+const remindersEnabled = () => process.env.FOLLOWUP_REMINDERS_ENABLED === "true";
+
 // Schedules the cron. node-cron fires per process, so run only one instance to avoid duplicate sends.
 const start = () => {
+   if (!remindersEnabled()) {
+      console.log("[followup cron] disabled -- set FOLLOWUP_REMINDERS_ENABLED=true to enable");
+      return null;
+   }
    if (task) return task;
    task = cron.schedule(CRON_SCHEDULE, () => {
       runFollowUpReminders().catch((err) => console.error("[followup cron] unexpected error:", err));
@@ -189,4 +204,4 @@ const getCronInfo = () => {
    };
 };
 
-module.exports = { start, runFollowUpReminders, getCronInfo };
+module.exports = { start, runFollowUpReminders, getCronInfo, remindersEnabled };

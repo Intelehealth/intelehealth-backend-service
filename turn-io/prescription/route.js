@@ -3,7 +3,7 @@ const { getVisit } = require("./openmrs");
 const { buildPrescriptionData, hasPrescription, fmtFollowUpDate } = require("./data");
 const { generatePrescriptionPdf } = require("./pdf");
 const { notifyPrescriptionReady, notifyFollowUpScheduled } = require("./turn");
-const { runFollowUpReminders, getCronInfo } = require("./followup-cron");
+const { runFollowUpReminders, getCronInfo, remindersEnabled } = require("./followup-cron");
 
 const NOT_READY_MSG =
    "Prescription not generated yet. Once it's ready, the doctor will send it to you.";
@@ -48,10 +48,11 @@ const notifyForVisit = async (visitUuid, { number: overrideNumber, baseUrl, visi
    });
    notifiedVisits.add(visitUuid); // only after a successful send, so a failed push can retry
 
-   // Send the follow-up message.
+   // Send the follow-up message. Opt-in via FOLLOWUP_REMINDERS_ENABLED, the same
+   // switch the reminder cron uses, so no follow-up messaging goes out by default.
    const fu = data.followUp;
    let followUpNotified = null;
-   if (fu?.wantFollowUp === "Yes" && fu.followUpDateIso) {
+   if (remindersEnabled() && fu?.wantFollowUp === "Yes" && fu.followUpDateIso) {
       try {
          await notifyFollowUpScheduled({ number, patientName: data.patientName, date: fmtFollowUpDate(fu.followUpDateIso) });
          followUpNotified = fu.followUpDateIso;
