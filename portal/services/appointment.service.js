@@ -148,6 +148,14 @@ WHERE
     }
   };
 
+  // Doctor names are stored bare by some callers and already prefixed by others
+  // ("Dr Anjum ..."), so only add the prefix when one isn't there already.
+  const withDoctorPrefix = (drName) => {
+    const name = String(drName ?? "").trim();
+    if (!name) return drName;
+    return /^dr\.?\s/i.test(name) ? name : `Dr. ${name}`;
+  };
+
   /**
      * Get todays date
      */
@@ -890,7 +898,7 @@ WHERE
       slotTime,
       speciality,
       userUuid,
-      drName,
+      drName: withDoctorPrefix(drName),
       visitUuid,
       patientId,
       status: Constant.BOOKED,
@@ -1239,7 +1247,7 @@ WHERE
 
     if (appointment) {
       appointment.userUuid = userUuid;
-      appointment.drName = drName;
+      appointment.drName = withDoctorPrefix(drName);
       await appointment.save();
       logStream('debug','Success', 'Start Appointment');
       return appointment;
