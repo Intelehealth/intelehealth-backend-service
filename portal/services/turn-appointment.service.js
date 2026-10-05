@@ -16,6 +16,13 @@ module.exports = (function () {
   const DATE_FORMAT = "DD/MM/YYYY";
   const TIME_FORMAT = "LT";
   const FILTER_TIME_DATE_FORMAT = "DD/MM/YYYY HH:mm:ss";
+
+  // add Dr prefix
+  const withDoctorPrefix = (drName) => {
+    const name = String(drName ?? "").trim();
+    if (!name) return drName;
+    return /^dr\.?\s/i.test(name) ? name : `Dr. ${name}`;
+  };
   // Slots are IST-based. 
   const APP_UTC_OFFSET = "+05:30";
   // A slot's absolute start time, anchored to IST.
@@ -214,7 +221,7 @@ module.exports = (function () {
   };
 
   const buildCallLink = async (appointment) => {
-    console.log("[buildCallLink] appointment:", appointment);
+    //console.log("[buildCallLink] appointment:", appointment);
     const base = (process.env.WEBRTC_API_URL || "").replace(/\/+$/, "");
     if (!base) {
       console.log("[buildCallLink] WEBRTC_API_URL not set — cannot build call link");
@@ -232,11 +239,11 @@ module.exports = (function () {
     const requestBody = {
       visitUuid: appointment.visitUuid,
       roomId: appointment.patientId,
-      doctorName: appointment.drName,
+      doctorName: withDoctorPrefix(appointment.drName),
       patientName: appointment.patientName,
       ttlMinutes,
     };
-    console.log(`[buildCallLink] POST ${base}/magic-link`, requestBody);
+    // console.log(`[buildCallLink] POST ${base}/magic-link`, requestBody);
 
     try {
       const { data } = await axios.post(`${base}/magic-link`, requestBody, { timeout: 15000 });
