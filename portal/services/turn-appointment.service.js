@@ -16,6 +16,13 @@ module.exports = (function () {
   const DATE_FORMAT = "DD/MM/YYYY";
   const TIME_FORMAT = "LT";
   const FILTER_TIME_DATE_FORMAT = "DD/MM/YYYY HH:mm:ss";
+
+  // add Dr prefix
+  const withDoctorPrefix = (drName) => {
+    const name = String(drName ?? "").trim();
+    if (!name) return drName;
+    return /^dr\.?\s/i.test(name) ? name : `Dr. ${name}`;
+  };
   // Slots are IST-based. 
   const APP_UTC_OFFSET = "+05:30";
   // A slot's absolute start time, anchored to IST.
@@ -344,7 +351,7 @@ module.exports = (function () {
         (setting && setting.slotDurationUnit ? setting.slotDurationUnit : "minutes"),
       speciality,
       userUuid,
-      drName,
+      drName: withDoctorPrefix(drName),
       visitUuid,
       patientId,
       status: Constant.BOOKED,
