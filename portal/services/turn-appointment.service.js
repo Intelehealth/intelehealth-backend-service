@@ -221,7 +221,7 @@ module.exports = (function () {
   };
 
   const buildCallLink = async (appointment) => {
-    console.log("[buildCallLink] appointment:", appointment);
+    //console.log("[buildCallLink] appointment:", appointment);
     const base = (process.env.WEBRTC_API_URL || "").replace(/\/+$/, "");
     if (!base) {
       console.log("[buildCallLink] WEBRTC_API_URL not set — cannot build call link");
@@ -239,11 +239,11 @@ module.exports = (function () {
     const requestBody = {
       visitUuid: appointment.visitUuid,
       roomId: appointment.patientId,
-      doctorName: appointment.drName,
+      doctorName: withDoctorPrefix(appointment.drName),
       patientName: appointment.patientName,
       ttlMinutes,
     };
-    console.log(`[buildCallLink] POST ${base}/magic-link`, requestBody);
+    // console.log(`[buildCallLink] POST ${base}/magic-link`, requestBody);
 
     try {
       const { data } = await axios.post(`${base}/magic-link`, requestBody, { timeout: 15000 });
@@ -351,7 +351,7 @@ module.exports = (function () {
         (setting && setting.slotDurationUnit ? setting.slotDurationUnit : "minutes"),
       speciality,
       userUuid,
-      drName: withDoctorPrefix(drName),
+      drName,
       visitUuid,
       patientId,
       status: Constant.BOOKED,
