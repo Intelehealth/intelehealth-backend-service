@@ -148,8 +148,7 @@ WHERE
     }
   };
 
-  // Doctor names are stored bare by some callers and already prefixed by others
-  // ("Dr Anjum ..."), so only add the prefix when one isn't there already.
+  // add Dr prefix
   const withDoctorPrefix = (drName) => {
     const name = String(drName ?? "").trim();
     if (!name) return drName;
