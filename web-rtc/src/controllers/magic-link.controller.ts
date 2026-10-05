@@ -7,14 +7,6 @@ import {
 } from '../services/magic-link.service';
 import { findById, slotStartMillis } from '../services/appointment.repository';
 
-//add Dr prefix
-const withDoctorPrefix = (doctorName?: string) => {
-  if (process.env.IS_TURN_SERVER !== 'true') return doctorName;
-  const name = String(doctorName ?? '').trim();
-  if (!name) return doctorName;
-  return /^dr\.?\s/i.test(name) ? name : `Dr. ${name}`;
-}; 
-
 const notice = (title: string, detail: string) => `<!doctype html>
 <html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -121,7 +113,7 @@ export class MagicLinkController {
       roomId: payload.roomId,
       token: payload.token,
       visitUuid: payload.visitUuid,
-      doctorName: withDoctorPrefix(payload.doctorName),
+      doctorName: payload.doctorName,
       patientName: payload.patientName,
     });
   }
