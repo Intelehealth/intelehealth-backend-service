@@ -165,6 +165,24 @@ const uploadVisitAttachments = async (
   console.log(`[visit_push] uploaded ${ok}/${attachments.length} attachments to encounter ${encounterUuid}`);
 };
 
+// Voice-intake agents post one flat object holding every protocol's fields plus
+// the history answers, which would all render as symptoms. On the Turn server
+// keep only the keys named for this protocol ("headache_site" under "headache");
+// without a protocol id, or on other servers, the answers pass through whole.
+// The agents answer yes/no questions with real booleans, which would reach the
+// doctor as "true"/"false".
+const readable = (value) => (typeof value === "boolean" ? (value ? "Yes" : "No") : value);
+
+const symptomAnswers = (protocolId, answers = {}) => {
+  if (process.env.IS_TURN_SERVER !== "true" || !protocolId) return answers;
+  const prefix = `${protocolId}_`;
+  return Object.fromEntries(
+    Object.entries(answers)
+      .filter(([key]) => key.startsWith(prefix))
+      .map(([key, value]) => [key, readable(value)])
+  );
+};
+
 const answerRows = (protocolId, answers = {}) =>
   Object.entries(answers)
     .filter(([key]) => key !== "submitted" && key !== "flow_token")
@@ -262,7 +280,7 @@ const buildPushBundle = (personUuid, protocolId, answers, patientHistory, family
   const fh = familyHistory || {};
 
   const complaintName = titleize(protocolId) || "Consultation";
-  const visitReasonRows = answerRows(protocolId, answers);
+  const visitReasonRows = answerRows(protocolId, symptomAnswers(protocolId, answers));
 
   // Allergies: Turn sends `medication_allergy` (Yes/No) + `allergy_type` (the
   // drug) separately. Show the drug if allergic, else the Yes/No answer.
