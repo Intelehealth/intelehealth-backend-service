@@ -166,15 +166,14 @@ const uploadVisitAttachments = async (
 };
 
 // Voice-intake agents post one flat object holding every protocol's fields plus
-// the history answers, which would all render as symptoms. On the Turn server
-// keep only the keys named for this protocol ("headache_site" under "headache");
-// without a protocol id, or on other servers, the answers pass through whole.
-// The agents answer yes/no questions with real booleans, which would reach the
-// doctor as "true"/"false".
+// the history answers, which would all render as symptoms.
+
+const isTrue = (v) => v === true || v === "true";
+
 const readable = (value) => (typeof value === "boolean" ? (value ? "Yes" : "No") : value);
 
-const symptomAnswers = (protocolId, answers = {}) => {
-  if (process.env.IS_TURN_SERVER !== "true" || !protocolId) return answers;
+const symptomAnswers = (protocolId, answers = {}, vtt = false) => {
+  if (!vtt || !protocolId) return answers;
   const prefix = `${protocolId}_`;
   return Object.fromEntries(
     Object.entries(answers)
@@ -270,7 +269,7 @@ const journeyInfoValue = (body = {}) => {
 };
 
 // Build the /push/pushdata bundle, generating and cross-referencing UUIDs.
-const buildPushBundle = (personUuid, protocolId, answers, patientHistory, familyHistory, hasExamImages, journeyInfo = "") => {
+const buildPushBundle = (personUuid, protocolId, answers, patientHistory, familyHistory, hasExamImages, journeyInfo = "", vtt = false) => {
   const now = new Date();
   const encounterDatetime = formatDatetime(now);
   const visitCompleteDatetime = formatDatetime(new Date(now.getTime() + 1000));
@@ -280,7 +279,7 @@ const buildPushBundle = (personUuid, protocolId, answers, patientHistory, family
   const fh = familyHistory || {};
 
   const complaintName = titleize(protocolId) || "Consultation";
-  const visitReasonRows = answerRows(protocolId, symptomAnswers(protocolId, answers));
+  const visitReasonRows = answerRows(protocolId, symptomAnswers(protocolId, answers, vtt));
 
   // Allergies: Turn sends `medication_allergy` (Yes/No) + `allergy_type` (the
   // drug) separately. Show the drug if allergic, else the Yes/No answer.
@@ -406,9 +405,11 @@ router.post("/visit_push", async (req, res) => {
     const examImages = normalizeAttachments(req.body.document_images, "document_images");
 
     const journeyInfo = journeyInfoValue(req.body);
+    // Voice-to-text intake posts every protocol's fields in one object.
+    const vtt = isTrue(req.body.vtt);
 
     const bundle = buildPushBundle(
-      personUuid, protocolId, answers, patientHistory, familyHistory, examImages.length > 0, journeyInfo
+      personUuid, protocolId, answers, patientHistory, familyHistory, examImages.length > 0, journeyInfo, vtt
     );
 
     const { data } = await pushData(bundle);
