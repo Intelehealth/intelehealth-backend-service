@@ -228,6 +228,17 @@ const generateHash = (length) =>
     .toString(36)
     .slice(1);
 
+/**
+ * Prefix a doctor's name with "Dr." for display. Names already starting with
+ * "Dr" are left alone -- some providers are stored with the prefix included.
+ * @param { string } drName - Doctor name as stored
+ */
+const withDoctorPrefix = (drName) => {
+  const name = String(drName ?? "").trim();
+  if (!name) return drName;
+  return /^dr\.?\s/i.test(name) ? name : `Dr. ${name}`;
+};
+
 module.exports = {
   axiosInstance,
   sendWebPushNotification,
@@ -238,5 +249,6 @@ module.exports = {
   asyncForEach,
   getDataFromQuery,
   generateHash,
-  sendPrescriptionCloudNotification
+  sendPrescriptionCloudNotification,
+  withDoctorPrefix
 };

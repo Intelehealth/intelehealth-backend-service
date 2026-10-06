@@ -11,19 +11,14 @@ const axios = require("axios");
 const { MESSAGE } = require("../constants/messages");
 const { logStream } = require("../logger/index");
 const Constant = require("../constants/constant");
+const { withDoctorPrefix } = require("../handlers/helper");
 
 module.exports = (function () {
   const DATE_FORMAT = "DD/MM/YYYY";
   const TIME_FORMAT = "LT";
   const FILTER_TIME_DATE_FORMAT = "DD/MM/YYYY HH:mm:ss";
 
-  // add Dr prefix
-  const withDoctorPrefix = (drName) => {
-    const name = String(drName ?? "").trim();
-    if (!name) return drName;
-    return /^dr\.?\s/i.test(name) ? name : `Dr. ${name}`;
-  };
-  // Slots are IST-based. 
+  // Slots are IST-based.
   const APP_UTC_OFFSET = "+05:30";
   // A slot's absolute start time, anchored to IST.
   const slotMoment = (slotDate, slotTime) =>
@@ -243,7 +238,7 @@ module.exports = (function () {
       patientName: appointment.patientName,
       ttlMinutes,
     };
-    // console.log(`[buildCallLink] POST ${base}/magic-link`, requestBody);
+     console.log(`[buildCallLink] POST ${base}/magic-link`, requestBody);
 
     try {
       const { data } = await axios.post(`${base}/magic-link`, requestBody, { timeout: 15000 });
@@ -314,7 +309,7 @@ module.exports = (function () {
       logStream("debug", "Visit already booked — returning existing", "Book Appointment");
       return {
         alreadyBooked: true,
-        data: existing,
+        data: { ...existing, drName: withDoctorPrefix(existing.drName) },
         joinUrl: link ? link.url : null,
         magicToken: link ? link.magicToken : null,
       };
@@ -370,7 +365,7 @@ module.exports = (function () {
     logStream("debug", "Success", "Book Appointment");
     return {
       alreadyBooked: false,
-      data: appointment,
+      data: { ...appointment, drName: withDoctorPrefix(appointment.drName) },
       joinUrl: link ? link.url : null,
       magicToken: link ? link.magicToken : null,
     };
