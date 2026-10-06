@@ -229,9 +229,7 @@ const generateHash = (length) =>
     .slice(1);
 
 /**
- * Prefix a doctor's name with "Dr." for display. Names already starting with
- * "Dr" are left alone -- some providers are stored with the prefix included.
- * @param { string } drName - Doctor name as stored
+ * Prefix a doctor's name with "Dr."
  */
 const withDoctorPrefix = (drName) => {
   const name = String(drName ?? "").trim();
