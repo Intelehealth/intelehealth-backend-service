@@ -193,7 +193,7 @@ module.exports = (function () {
       dates.map((s) => ({
         id: `${s.slotTime}|${s.userUuid}`,
         title: s.slotTime,
-        description: s.drName,
+        description: withDoctorPrefix(s.drName),
       }))
     );
 
