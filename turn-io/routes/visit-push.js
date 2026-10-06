@@ -182,14 +182,56 @@ const symptomAnswers = (protocolId, answers = {}, vtt = false) => {
   );
 };
 
+// Case Summary reads best in clinical order, so symptoms are sorted on the
+// field suffix rather than the order Turn happens to send. Protocol prefixes
+// are stripped first, so one list covers every protocol. Anything unlisted
+// keeps its original position, after the ranked fields.
+const FIELD_ORDER = [
+  "since",
+  "duration",
+  "onset",
+  "progression",
+  "location",
+  "location_part",
+  "location_side",
+  "radiate",
+  "radiates_to",
+  "character",
+  "severity",
+  "timing",
+  "diurnal_variation",
+  "aggravating_factors",
+  "relieving_factors",
+  "relieving_medication",
+  "associated_symptoms",
+  "associated_features",
+  "other_symptoms",
+  "other_symptoms_other",
+  "treatment_sought",
+  "treatment_details",
+  "additional_information",
+];
+
+const fieldRank = (key, protocolId = "") => {
+  const prefix = protocolId ? `${protocolId}_` : "";
+  let k = String(key);
+  if (prefix && k.startsWith(prefix)) k = k.slice(prefix.length);
+  const idx = FIELD_ORDER.indexOf(k);
+  return idx === -1 ? FIELD_ORDER.length : idx;
+};
+
 const answerRows = (protocolId, answers = {}) =>
   Object.entries(answers)
     .filter(([key]) => key !== "submitted" && key !== "flow_token")
-    .map(([key, value]) => ({
+    .map(([key, value], index) => ({
+      index,
+      rank: fieldRank(key, protocolId),
       label: humanize(key, protocolId),
       value: clean(Array.isArray(value) ? value.join(", ") : value),
     }))
-    .filter(({ value }) => !isBlank(value));
+    .filter(({ value }) => !isBlank(value))
+    .sort((a, b) => a.rank - b.rank || a.index - b.index)
+    .map(({ label, value }) => ({ label, value }));
 
 // Doctor-portal obs values are {en, "l-en"} JSON; markup mirrors the HW webapp
 // (visit-upload.service.ts). en = display HTML, l-en = raw structured text.
