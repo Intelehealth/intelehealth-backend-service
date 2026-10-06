@@ -66,6 +66,30 @@ const buildTextPayload = (to: string, msg: AppointmentCallLinkMessage) => {
   };
 };
 
+// Sent when the doctor opens the call, so it is phrased as "join now" rather
+// than the reminder wording the scheduled job uses.
+export async function sendDoctorWaiting(
+  msg: AppointmentCallLinkMessage
+): Promise<void> {
+  if (!process.env.TURN_API_TOKEN && !isDryRun()) {
+    throw new Error('TURN_API_TOKEN is not set');
+  }
+
+  const to = normalizeNumber(msg.number);
+  if (!to) {
+    throw new Error('recipient number is required');
+  }
+
+  const greeting = msg.patientName ? `Hello ${msg.patientName}, ` : '';
+  await postMessage({
+    to,
+    type: 'text',
+    text: {
+      body: `${greeting}your doctor is waiting — please join now:\n\n${msg.joinUrl}`,
+    },
+  });
+}
+
 export async function sendAppointmentCallLink(
   msg: AppointmentCallLinkMessage
 ): Promise<void> {

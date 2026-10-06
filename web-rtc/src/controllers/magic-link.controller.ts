@@ -6,6 +6,8 @@ import {
   verifyShortCode,
 } from '../services/magic-link.service';
 import { findById, slotStartMillis } from '../services/appointment.repository';
+import { getPatientContact } from '../services/openmrs.service';
+import { sendDoctorWaiting } from '../services/turn-io.service';
 
 const notice = (title: string, detail: string) => `<!doctype html>
 <html><head><meta charset="utf-8">
@@ -19,7 +21,7 @@ const notice = (title: string, detail: string) => `<!doctype html>
 
 export class MagicLinkController {
   async generate(req: Request, res: Response) {
-    const { visitUuid, roomId, doctorName, patientName, name, ttlMinutes } =
+    const { visitUuid, roomId, doctorName, patientName, name, ttlMinutes, notify } =
       req.body || {};
 
     if (!visitUuid) {
@@ -45,7 +47,27 @@ export class MagicLinkController {
     const base = rawBase.endsWith('/') ? rawBase : `${rawBase}/`;
     const url = `${base}#/join/${magicToken}`;
 
-    return res.json({ success: true, magicToken, url });
+
+    let notified: boolean | undefined;
+    let notifyError: string | undefined;
+    if (notify) {
+      try {
+        const { phone, name: contactName } = await getPatientContact(room);
+        if (!phone) throw new Error('no phone number on patient record');
+        await sendDoctorWaiting({
+          number: phone,
+          joinUrl: url,
+          patientName: patientName ? String(patientName) : contactName,
+        });
+        notified = true;
+      } catch (err: any) {
+        notified = false;
+        notifyError = err?.response?.data?.message || err?.message || 'send failed';
+        console.error('[magic-link] call link not sent:', notifyError);
+      }
+    }
+
+    return res.json({ success: true, magicToken, url, notified, notifyError });
   }
 
   async joinShort(req: Request, res: Response) {
