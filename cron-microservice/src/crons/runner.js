@@ -25,7 +25,11 @@ class CronRunner {
       try {
         state.lastResult = await task(options);
         state.lastCompletedAt = new Date();
-        this.logger.info(`[cron:${name}] completed`);
+        if (state.lastResult?.skipped) {
+          this.logger.info(`[cron:${name}] skipped (reason: ${state.lastResult.reason})`);
+        } else {
+          this.logger.info(`[cron:${name}] completed`, JSON.stringify(state.lastResult));
+        }
       } catch (error) {
         state.lastError = error.message;
         this.logger.error(`[cron:${name}] ${error.stack || error.message}`);

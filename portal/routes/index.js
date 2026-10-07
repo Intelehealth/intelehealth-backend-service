@@ -36,6 +36,7 @@ router.use("/turn-appointment", require("./turn-appointment.route"));
 router.use("/insights", require("./insight.route"));
 router.use("/ai-issue-reports", require("./ai-issue-report.route"));
 router.use("/ddx-ttx-overrides", require("./ddx-ttx-override.route"));
+router.use("/ai-ddx", require("./ai-ddx.route"));
 router.use('/auth', require("./auth.route"));
 router.use("/links", require("./links.route"));
 router.use("/support", require("./support.route"));
