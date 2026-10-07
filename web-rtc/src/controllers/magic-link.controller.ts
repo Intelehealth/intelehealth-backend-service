@@ -21,7 +21,7 @@ const notice = (title: string, detail: string) => `<!doctype html>
 
 export class MagicLinkController {
   async generate(req: Request, res: Response) {
-    const { visitUuid, roomId, doctorName, patientName, name, ttlMinutes, notify } =
+    const { visitUuid, roomId, doctorName, patientName, name, ttlMinutes, notify, phone: bodyPhone } =
       req.body || {};
 
     if (!visitUuid) {
@@ -51,8 +51,15 @@ export class MagicLinkController {
     let notified: boolean | undefined;
     let notifyError: string | undefined;
     if (notify) {
+      console.log(`[magic-link] notify requested visit=${visitUuid} room=${room} phoneFromBody=${bodyPhone ? 'yes' : 'no'}`);
       try {
-        const { phone, name: contactName } = await getPatientContact(room);
+        // The doctor portal sends the phone it already has; only look it up in
+        // OpenMRS when the caller didn't.
+        const contact = bodyPhone
+          ? { phone: String(bodyPhone), name: null }
+          : await getPatientContact(room);
+        const { phone, name: contactName } = contact;
+        console.log(`[magic-link] phone source=${bodyPhone ? 'request' : 'openmrs'} phone=${phone || 'none'}`);
         if (!phone) throw new Error('no phone number on patient record');
         await sendDoctorWaiting({
           number: phone,
@@ -60,11 +67,20 @@ export class MagicLinkController {
           patientName: patientName ? String(patientName) : contactName,
         });
         notified = true;
+        console.log(`[magic-link] call link sent to ${phone}`);
       } catch (err: any) {
         notified = false;
         notifyError = err?.response?.data?.message || err?.message || 'send failed';
-        console.error('[magic-link] call link not sent:', notifyError);
+        console.error(
+          '[magic-link] call link not sent:',
+          'url=', err?.config?.url,
+          'status=', err?.response?.status,
+          'body=', JSON.stringify(err?.response?.data),
+          'error=', notifyError
+        );
       }
+    } else {
+      console.log(`[magic-link] notify not requested visit=${visitUuid}`);
     }
 
     return res.json({ success: true, magicToken, url, notified, notifyError });
