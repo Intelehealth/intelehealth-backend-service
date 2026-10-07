@@ -81,6 +81,18 @@ const listForDoctor = async (req, res) => {
 };
 
 /**
+ * GET /api/queue/doctor/:doctorUuid/visits — the doctor's ongoing visit plus
+ * every waiting case in the speciality.
+ */
+const listDoctorVisits = async (req, res) => {
+  const { doctorUuid } = req.params;
+  if (!req.auth.isAdmin && !req.auth.isService && req.auth.userUuid !== doctorUuid) {
+    throw new ForbiddenError("You can only read your own visits", "NOT_SELF");
+  }
+  return success(res, await queueService.listDoctorVisits(doctorUuid, req.validatedQuery || {}));
+};
+
+/**
  * POST /api/queue/:queueEntryId/claim
  * Exactly one of two simultaneous claims wins; the loser gets a 409 with
  * CASE_ALREADY_CLAIMED so the webapp can say so instead of failing silently.
@@ -220,6 +232,7 @@ module.exports = {
   list,
   specialities,
   listForDoctor,
+  listDoctorVisits,
   claim,
   claimNext,
   release,

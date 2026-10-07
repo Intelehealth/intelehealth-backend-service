@@ -18,6 +18,7 @@ const {
   IN_SERVICE_STATUSES,
   TERMINAL_STATUSES,
   POST_CALL_STATUSES,
+  ONGOING_VISIT_STATUSES,
   DOCTOR_STATUS,
   EMERGENCY_LEVEL,
 } = require("../constants");
@@ -759,6 +760,48 @@ const listForDoctor = async (doctorUuid, { speciality, limit = 50, offset = 0 } 
 };
 
 /**
+ * GET /api/queue/doctor/:doctorUuid/visits — the doctor's working list.
+ *
+ * Two parts, in /list's item shape:
+ *  - currentVisit: the one visit this doctor still owns — ASSIGNED,
+ *    CALL_CONNECTING, CALL_CONNECTED or CALL_COMPLETED (prescription owed).
+ *    Never PRESCRIPTION_COMPLETED or CANCELLED. Not limited to `speciality`:
+ *    it is whatever the doctor is on right now. A live call outranks one that
+ *    only owes a prescription; after that, the most recently assigned wins.
+ *  - items: every waiting case in `speciality`, in the order the lane is
+ *    served, with positions against the full lane rather than the page.
+ */
+const listDoctorVisits = async (doctorUuid, { speciality, limit = 50, offset = 0, includeEta = true } = {}) => {
+  const [current, lane] = await Promise.all([
+    models.queue_entries.findOne({
+      where: { assignedDoctorUuid: doctorUuid, status: { [Op.in]: ONGOING_VISIT_STATUSES } },
+      order: [
+        [models.sequelize.literal(`(status = '${STATUS.CALL_COMPLETED}')`), "ASC"],
+        ["assignedAt", "DESC"],
+        ["id", "DESC"],
+      ],
+    }),
+    queueLane.listLane({ speciality }, { limit, offset }),
+  ]);
+
+  const positionById = new Map(lane.rows.map((row, index) => [row.id, offset + index + 1]));
+  const etaById = includeEta ? await etaService.estimateMany(lane.rows, positionById) : new Map();
+
+  return {
+    currentVisit: current ? toListItem(current) : null,
+    items: lane.rows.map((row) =>
+      toListItem(row, { position: positionById.get(row.id), eta: etaById.get(row.id) || null })
+    ),
+    total: lane.total,
+    limit,
+    offset,
+    hasMore: offset + lane.rows.length < lane.total,
+    doctorUuid,
+    speciality,
+  };
+};
+
+/**
  * POST /api/queue/:id/claim — a doctor picks a specific case off the panel.
  *
  * Two doctors can click the same case within the same second. This has to
@@ -1244,6 +1287,7 @@ module.exports = {
   listQueue,
   specialitySummary,
   listForDoctor,
+  listDoctorVisits,
   toListItem,
   STATUS_GROUPS,
   claim,

@@ -473,6 +473,45 @@ module.exports = {
       },
     },
 
+    "/api/queue/doctor/{doctorUuid}/visits": {
+      get: {
+        tags: ["Doctor"],
+        summary: "The doctor's current visit and the speciality's waiting list",
+        description: [
+          "Two parts, both in the `/list` item shape:",
+          "",
+          "- `currentVisit` — the one visit this doctor still owns: `ASSIGNED`, `CALL_CONNECTING`, `CALL_CONNECTED` or `CALL_COMPLETED` (prescription still owed). Never `PRESCRIPTION_COMPLETED` or `CANCELLED`. Not limited to `speciality`. A live call outranks one that only owes a prescription; after that the most recently assigned wins. `null` when the doctor has none.",
+          "- `items` — every waiting case (`QUEUED`, `ESCALATED`, `RE_QUEUED`) in `speciality`, in the order the lane is served. Positions are against the full lane, not the page.",
+          "",
+          "**Access.** The doctor themselves, admins, and internal services; anyone else gets **403 `NOT_SELF`**.",
+        ].join("\n"),
+        parameters: [
+          { name: "doctorUuid", in: "path", required: true, schema: { type: "string" } },
+          { name: "speciality", in: "query", required: true, schema: { type: "string" } },
+          { name: "includeEta", in: "query", schema: { type: "boolean", default: true } },
+          { name: "limit", in: "query", schema: { type: "integer", default: 50, minimum: 1, maximum: 200 } },
+          { name: "offset", in: "query", schema: { type: "integer", default: 0, minimum: 0 } },
+        ],
+        responses: {
+          200: ok({
+            type: "object",
+            properties: {
+              currentVisit: { allOf: [{ $ref: "#/components/schemas/QueueItem" }], nullable: true },
+              items: { type: "array", items: { $ref: "#/components/schemas/QueueItem" } },
+              total: { type: "integer" },
+              limit: { type: "integer" },
+              offset: { type: "integer" },
+              hasMore: { type: "boolean" },
+              doctorUuid: { type: "string" },
+              speciality: { type: "string" },
+            },
+          }),
+          403: errorResponse,
+          default: errorResponse,
+        },
+      },
+    },
+
     "/api/queue/doctor/{doctorUuid}/next": {
       post: {
         tags: ["Doctor"],

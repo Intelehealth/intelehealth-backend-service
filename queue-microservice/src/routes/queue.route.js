@@ -133,6 +133,17 @@ router.get(
   asyncHandler(controller.listForDoctor)
 );
 
+router.get(
+  "/doctor/:doctorUuid/visits",
+  validateQuery({
+    speciality: { type: "string", required: true, maxLength: 100 },
+    includeEta: { type: "boolean", default: true },
+    limit: { type: "integer", default: 50, min: 1, max: 200 },
+    offset: { type: "integer", default: 0, min: 0 },
+  }),
+  asyncHandler(controller.listDoctorVisits)
+);
+
 router.post(
   "/doctor/:doctorUuid/next",
   validateBody({
