@@ -5,10 +5,17 @@ on:
     branches: [development_master_qms_service]
     paths:
       - 'queue-microservice/**'
+      - '.github/workflows/queue-microservice-deploy.yml'
   workflow_dispatch: {}
+
+# Prevent two deploys from running at the same time and fighting over port 3600
+concurrency:
+  group: queue-microservice-deploy
+  cancel-in-progress: false
 
 env:
   DOCKER_IMAGE_NAME: queue-microservice
+  APP_PORT: 3600
 
 jobs:
   build:
@@ -36,12 +43,20 @@ jobs:
     runs-on: ubuntu-latest
     env:
       REMOTE_PORT: 22
+      REMOTE_TAR: /tmp/queue-microservice-${{ github.run_id }}-${{ github.run_attempt }}.tar
       ENV_FILE_PATH: /home/ubuntu/deploy/queue-microservice/.env
       PEM_FOLDER_PATH: /home/ubuntu/deploy/queue-microservice/.pem
       REMOTE_HOST: ${{ secrets.DEV_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
       - name: Download image artifact
         uses: actions/download-artifact@v4
         with:
@@ -49,105 +64,122 @@ jobs:
 
       - name: Deploy to dev host
         run: |
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-
-          REMOTE_TAR="/tmp/app-image-queue-microservice-${{ github.run_id }}.tar"
-
           scp -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=no \
               -P $REMOTE_PORT \
               app-image.tar \
               $REMOTE_USER@$REMOTE_HOST:$REMOTE_TAR
 
+          # Values are passed in as env vars and the heredoc is quoted ('EOF'),
+          # so nothing in the script gets expanded on the GitHub runner by mistake.
           ssh -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=no \
               -p $REMOTE_PORT \
-              $REMOTE_USER@$REMOTE_HOST <<EOF
-            set -e
-            DOCKER_IMAGE_NAME="${{ env.DOCKER_IMAGE_NAME }}"
-            ENV_FILE_PATH="${{ env.ENV_FILE_PATH }}"
-            PEM_FOLDER_PATH="${{ env.PEM_FOLDER_PATH }}"
-            REMOTE_TAR="$REMOTE_TAR"
+              $REMOTE_USER@$REMOTE_HOST \
+              "IMAGE='$DOCKER_IMAGE_NAME' TAG='${{ github.sha }}' PORT='$APP_PORT' \
+               REMOTE_TAR='$REMOTE_TAR' ENV_FILE_PATH='$ENV_FILE_PATH' \
+               PEM_FOLDER_PATH='$PEM_FOLDER_PATH' bash -s" <<'EOF'
+          set -euo pipefail
 
-            docker load -i "\$REMOTE_TAR"
-            rm "\$REMOTE_TAR"
+          # 1. Validate config BEFORE touching the running container
+          if [ ! -f "$ENV_FILE_PATH" ]; then
+            echo "Error: .env file not found at $ENV_FILE_PATH"; exit 1
+          fi
+          if [ ! -d "$PEM_FOLDER_PATH" ]; then
+            echo "Error: .pem folder not found at $PEM_FOLDER_PATH"; exit 1
+          fi
 
-            if [ ! -f "\$ENV_FILE_PATH" ]; then
-              echo "Error: .env file not found at \$ENV_FILE_PATH"
+          # 2. Load the new image
+          docker load -i "$REMOTE_TAR"
+          rm -f "$REMOTE_TAR"
+
+          # 3. Run migrations from the NEW image as a one-off container BEFORE
+          #    touching the running one. If they fail, set -e aborts here and
+          #    the old container keeps serving traffic.
+          docker run --rm --env-file "$ENV_FILE_PATH" "$IMAGE:$TAG" npm run migrate
+
+          # 4. Remove the old container, plus any container (running OR stopped)
+          #    that publishes this port under a different name
+          docker ps -aq --filter "name=^/${IMAGE}$" | xargs -r docker rm -f
+          docker ps -aq --filter "publish=$PORT" | xargs -r docker rm -f
+
+          # 5. Wait for the port to be free
+          port_busy() { ss -ltn "( sport = :$PORT )" | grep -q ":$PORT"; }
+          for i in $(seq 1 10); do
+            port_busy || break
+            sleep 1
+          done
+
+          # 6. Still busy? No container owns it any more, so it is an orphaned
+          #    process (usually a root-owned docker-proxy left behind after a
+          #    reboot or daemon restart). Show it, then kill it WITH sudo —
+          #    plain `fuser -k` as ubuntu cannot kill root processes.
+          if port_busy; then
+            echo "Port $PORT is still in use with no container owning it. Holder:"
+            sudo -n ss -ltnp "( sport = :$PORT )" || true
+            sudo -n fuser -k "$PORT/tcp" || true
+            sleep 2
+            if port_busy; then
+              echo "Error: port $PORT could not be freed. Run on the server:"
+              echo "  sudo ss -ltnp | grep :$PORT"
               exit 1
             fi
+            echo "Port $PORT freed"
+          fi
 
-            if [ ! -d "\$PEM_FOLDER_PATH" ]; then
-              echo "Error: .pem folder not found at \$PEM_FOLDER_PATH"
-              exit 1
+          # 7. Start the new container
+          docker run -d \
+            --name "$IMAGE" \
+            --restart unless-stopped \
+            -p 0.0.0.0:$PORT:$PORT \
+            --env-file "$ENV_FILE_PATH" \
+            -v "$PEM_FOLDER_PATH":/app/.pem \
+            --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
+            --log-opt max-size=10m --log-opt max-file=3 \
+            "$IMAGE:$TAG"
+
+          # 8. Clean up old images — keep the current one + the previous one for rollback
+          docker images "$IMAGE" --format '{{.Repository}}:{{.Tag}}' \
+            | grep -v ":${TAG}$" \
+            | tail -n +2 \
+            | xargs -r docker rmi || true
+          docker image prune -f
+
+          echo "queue-microservice deployment to dev completed"
+          EOF
+
+      - name: Verify deployment on dev
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              -p $REMOTE_PORT \
+              $REMOTE_USER@$REMOTE_HOST \
+              "IMAGE='$DOCKER_IMAGE_NAME' bash -s" <<'EOF'
+          set -euo pipefail
+
+          # Wait up to 90s. If the image defines a HEALTHCHECK, wait for "healthy";
+          # otherwise just require the container to stay running without restarts.
+          for i in $(seq 1 18); do
+            sleep 5
+            status=$(docker inspect -f '{{.State.Status}}' "$IMAGE")
+            health=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$IMAGE")
+            restarts=$(docker inspect -f '{{.RestartCount}}' "$IMAGE")
+            echo "[$((i*5))s] status=$status health=$health restarts=$restarts"
+
+            if [ "$status" != "running" ] || [ "$restarts" -gt 0 ] || [ "$health" = "unhealthy" ]; then
+              break
             fi
-
-            # Run migrations from the new image as a one-off container BEFORE
-            # touching the running one — if they fail, \`set -e\` aborts the
-            # script here and the old container is left serving traffic.
-            docker run --rm \
-              --env-file \$ENV_FILE_PATH \
-              \$DOCKER_IMAGE_NAME:${{ github.sha }} \
-              npm run migrate
-
-            docker stop \$DOCKER_IMAGE_NAME || true
-            docker rm \$DOCKER_IMAGE_NAME || true
-
-            docker ps -a | grep queue-microservice | awk '{print $1}' | xargs -r docker rm -f || true
-
-            # Belt-and-braces: the name-based cleanup above does nothing if
-            # host port 3600 is actually held by some OTHER container — a
-            # stale one from a previous failed deploy, or a manual run under
-            # a different name. Find it by which host port it PUBLISHES
-            # instead, and remove that.
-            PORT_HOLDERS=\$(docker ps -q --filter "publish=3600")
-            if [ -n "\$PORT_HOLDERS" ]; then
-              echo "Port 3600 is held by another container — removing it: \$PORT_HOLDERS"
-              docker rm -f \$PORT_HOLDERS || true
+            if [ "$health" = "healthy" ] || { [ "$health" = "none" ] && [ "$i" -ge 3 ]; }; then
+              echo "queue-microservice deployment successful! Ports: $(docker port "$IMAGE" | tr '\n' ' ')"
+              exit 0
             fi
+          done
 
-            fuser -k 3600/tcp || true
-
-            # Wait longer for the kernel to release the socket after cleanup.
-            # This avoids the race where the container has been removed but
-            # port 3600 is still bound for a short time.
-            for i in \$(seq 1 30); do
-              if ! ss -tlnp 2>/dev/null | grep -q ':3600 '; then
-                echo "Port 3600 is now free"
-                break
-              fi
-              echo "Waiting for port 3600 to be released... attempt \$i/30"
-              sleep 1
-            done
-
-            if ss -tlnp 2>/dev/null | grep -q ':3600 '; then
-              echo "Port 3600 is still in use after cleanup; attempting final process kill"
-              fuser -k 3600/tcp 2>/dev/null || true
-              sleep 2
-            fi
-
-            # Releasing a published port is not always instant once the
-            # container is gone; poll briefly instead of a fixed sleep that
-            # could still lose the race under load.
-            for i in \$(seq 1 15); do
-              if ! docker ps -q --filter "publish=3600" | grep -q .; then
-                break
-              fi
-              sleep 1
-            done
-
-            docker run -d \
-              --name \$DOCKER_IMAGE_NAME \
-              --restart unless-stopped \
-              -p 3600:3600 \
-              --env-file \$ENV_FILE_PATH \
-              -v \$PEM_FOLDER_PATH:/app/.pem \
-              --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
-              \$DOCKER_IMAGE_NAME:${{ github.sha }}
-
-            docker image prune -f
-            echo "queue-microservice deployment to dev completed successfully"
+          echo "Deployment FAILED — last 100 log lines:"
+          docker logs --tail 100 "$IMAGE"
+          if [ "$health" != "none" ]; then
+            echo "Last healthcheck results:"
+            docker inspect -f '{{range .State.Health.Log}}{{.Output}}{{end}}' "$IMAGE" | tail -20
+          fi
+          exit 1
           EOF
