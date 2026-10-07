@@ -31,8 +31,8 @@ name: Cron Microservice Deploy
 on:
   workflow_dispatch:
     inputs:
-      deploy_nasprod:
-        description: 'Deploy to nasprod host'
+      deploy_ttxai:
+        description: 'Deploy to ttxai host'
         type: boolean
         default: false  
   push:
@@ -53,11 +53,11 @@ jobs:
         id: set-matrix
         run: |
           if [ "${{ github.event_name }}" == "push" ]; then
-            matrix='{"include":[{"environment":"nasprod"}]}'
+            matrix='{"include":[{"environment":"ttxai"}]}'
           else
             includes='[]'
-            if [ "${{ inputs.deploy_nasprod }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c '. += [{"environment":"nasprod"}]')
+            if [ "${{ inputs.deploy_ttxai }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"ttxai"}]')
             fi
             matrix="{\"include\":$includes}"
           fi
@@ -65,8 +65,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
-    outputs:
-      migrations_changed: ${{ steps.check-migrations.outputs.changed }}
+   
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -123,7 +122,7 @@ jobs:
       REMOTE_PORT: 22
       ENV_FILE_PATH: /home/ubuntu/deploy/cron-microservice/.env
       # All host secrets mapped upfront — dynamic secret refs aren't supported in GitHub Actions
-      REMOTE_HOST: ${{ secrets.NAS_HOST }}
+      REMOTE_HOST: ${{ secrets.TTXAI_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
