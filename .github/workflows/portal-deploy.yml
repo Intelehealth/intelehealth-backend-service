@@ -1,16 +1,17 @@
-# Auth Gateway Deploy
+# Portal Deploy
 #
-# Builds the auth-gateway Docker image once and deploys it to one or more remote hosts.
+# Builds the portal Docker image once and deploys it to one or more remote hosts.
 #
 # Triggers:
-#   - push to nas-ida5-development-master (auth-gateway/** changes) → deploys to nasstaging ONLY
+#   - push to nas-ida5-development-master (portal/** changes) → deploys to nasstaging ONLY
 #   - workflow_dispatch (manual) → deploys to the hosts selected via checkboxes
 #     (nasprod is manual-dispatch-only; it is never deployed on push)
 #
 # Jobs:
 #   1. prepare-matrix  Decides which environments to deploy based on trigger/inputs
 #   2. build           Builds the Docker image and uploads it as a workflow artifact
-#   3. deploy          Matrix job — downloads the artifact and deploys to each host in parallel
+#   3. deploy          Matrix job — downloads the artifact, swaps the container,
+#                      and waits for it to become healthy
 #
 # Required secrets:
 #   NASSTAGING_HOST, NASPROD_HOST — SSH hostnames/IPs
@@ -20,7 +21,7 @@
 # Optional: create a GitHub Environment named "nasprod" (Settings → Environments)
 # with "Required reviewers" so production deploys need manual approval.
 
-name: Auth Gateway Deploy
+name: Portal Deploy
 
 on:
   workflow_dispatch:
@@ -37,17 +38,18 @@ on:
   push:
     branches: [nas-ida5-development-master]
     paths:
-      - 'auth-gateway/**'
-      - '.github/workflows/auth-gateway-deploy.yml'
+      - 'portal/**'
+      - '.github/workflows/portal-deploy.yml'
 
-# Prevent two deploys from running at the same time and fighting over port 3030
+# Serialize runs: two pushes (or push + manual dispatch) must not deploy
+# concurrently. New runs queue instead of cancelling an in-flight deploy.
 concurrency:
-  group: auth-gateway-deploy
+  group: portal-deploy
   cancel-in-progress: false
 
 env:
-  DOCKER_IMAGE_NAME: auth-gateway
-  APP_PORT: 3030
+  DOCKER_IMAGE_NAME: portal
+  APP_PORT: 3004
 
 jobs:
   prepare-matrix:
@@ -85,36 +87,32 @@ jobs:
     runs-on: ubuntu-latest
     needs: prepare-matrix
     if: needs.prepare-matrix.outputs.has_targets == 'true'
-    outputs:
-      migrations_changed: ${{ steps.check-migrations.outputs.changed }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Check for migration file changes
-        id: check-migrations
-        run: |
-          if [ "${{ github.event_name }}" != "push" ]; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-          else
-            git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q "^auth-gateway/migrations/" \
-              && echo "changed=true" >> $GITHUB_OUTPUT \
-              || echo "changed=false" >> $GITHUB_OUTPUT
-          fi
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: portal/package-lock.json
+
+      - name: Install dependencies
+        run: npm i --production=false
+        working-directory: portal
 
       - name: Build Docker image
         run: |
-          docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} ./auth-gateway
+          docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} ./portal
           docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > app-image.tar
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
-          name: auth-gateway-image
+          name: portal-image
           path: app-image.tar
           retention-days: 1
 
@@ -128,54 +126,59 @@ jobs:
       fail-fast: false  # a failure on one host should not cancel the other
     env:
       REMOTE_PORT: 22
-      ENV_FILE_PATH: /home/ubuntu/deploy/auth-gateway/.env
-      PEM_FOLDER_PATH: /home/ubuntu/deploy/auth-gateway/.pem
+      DEPLOY_DIR: /home/ubuntu/deploy/portal
+      ENV_FILE_PATH: /home/ubuntu/deploy/portal/.env
+      PEM_FOLDER_PATH: /home/ubuntu/deploy/portal/.pem
       # All host secrets mapped upfront — dynamic secret refs aren't supported in GitHub Actions
       NASSTAGING_HOST: ${{ secrets.NASSTAGING_HOST }}
       NASPROD_HOST: ${{ secrets.NASPROD_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
-      - name: Resolve host for environment
+      - name: Resolve host and set up SSH
         run: |
           case "${{ matrix.environment }}" in
-            nasstaging) echo "REMOTE_HOST=$NASSTAGING_HOST" >> $GITHUB_ENV ;;
-            nasprod)    echo "REMOTE_HOST=$NASPROD_HOST"    >> $GITHUB_ENV ;;
+            nasstaging) host="$NASSTAGING_HOST" ;;
+            nasprod)    host="$NASPROD_HOST" ;;
             *)          echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
+          echo "REMOTE_HOST=$host" >> $GITHUB_ENV
 
-      - name: Set up SSH key
-        run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+          # Pin this host's SSH key (trust-on-first-use) so ssh/scp below can
+          # use StrictHostKeyChecking=yes instead of trusting any host.
+          ssh-keyscan -p $REMOTE_PORT -H "$host" >> ~/.ssh/known_hosts 2>/dev/null
+          chmod 600 ~/.ssh/known_hosts
 
       - name: Download image artifact
         uses: actions/download-artifact@v4
         with:
-          name: auth-gateway-image
+          name: portal-image
 
       - name: Deploy to ${{ matrix.environment }} host
         run: |
           scp -i ~/.ssh/deploy_key \
-              -o StrictHostKeyChecking=no \
+              -o StrictHostKeyChecking=yes \
               -P $REMOTE_PORT \
               app-image.tar \
-              $REMOTE_USER@$REMOTE_HOST:/tmp/
+              $REMOTE_USER@$REMOTE_HOST:$DEPLOY_DIR/app-image.tar
 
           # Values are passed in as env vars and the heredoc is quoted ('EOF'),
           # so nothing in the script gets expanded on the GitHub runner by mistake.
           ssh -i ~/.ssh/deploy_key \
-              -o StrictHostKeyChecking=no \
+              -o StrictHostKeyChecking=yes \
               -p $REMOTE_PORT \
               $REMOTE_USER@$REMOTE_HOST \
               "IMAGE='$DOCKER_IMAGE_NAME' TAG='${{ github.sha }}' PORT='$APP_PORT' \
-               ENV_FILE_PATH='$ENV_FILE_PATH' PEM_FOLDER_PATH='$PEM_FOLDER_PATH' \
-               TARGET='${{ matrix.environment }}' bash -s" <<'EOF'
+               DEPLOY_DIR='$DEPLOY_DIR' ENV_FILE_PATH='$ENV_FILE_PATH' \
+               PEM_FOLDER_PATH='$PEM_FOLDER_PATH' TARGET='${{ matrix.environment }}' bash -s" <<'EOF'
           set -euo pipefail
 
-          # 1. Validate config BEFORE touching the running container
+          # 1. Validate config BEFORE touching the running container,
+          #    so a failure here leaves the current version serving traffic.
           if [ ! -f "$ENV_FILE_PATH" ]; then
             echo "Error: .env file not found at $ENV_FILE_PATH"; exit 1
           fi
@@ -184,10 +187,10 @@ jobs:
           fi
 
           # 2. Load the new image
-          docker load -i /tmp/app-image.tar
-          rm -f /tmp/app-image.tar
+          docker load -i "$DEPLOY_DIR/app-image.tar"
+          rm -f "$DEPLOY_DIR/app-image.tar"
 
-          # 3. Remove the old container(s) — Docker releases the port when the container is removed
+          # 3. Remove the old container — Docker releases the port when it is removed
           docker ps -aq --filter "name=^/${IMAGE}$" | xargs -r docker rm -f
 
           # 4. Wait for the port to be free
@@ -219,48 +222,48 @@ jobs:
             --log-opt max-size=10m --log-opt max-file=3 \
             "$IMAGE:$TAG"
 
-          # 7. Clean up old auth-gateway images — keep the current one + the previous one for rollback
+          # 7. Clean up old portal images — keep the current one + the previous one for rollback
           docker images "$IMAGE" --format '{{.Repository}}:{{.Tag}}' \
             | grep -v ":${TAG}$" \
             | tail -n +2 \
             | xargs -r docker rmi || true
           docker image prune -f
 
-          echo "Auth-gateway deployment to $TARGET completed"
+          echo "Portal deployment to $TARGET completed"
           EOF
-
-#      - name: Run migrations on ${{ matrix.environment }} host
-#        if: needs.build.outputs.migrations_changed == 'true'
-#        run: |
-#          ssh -i ~/.ssh/deploy_key \
-#              -o StrictHostKeyChecking=no \
-#              -p $REMOTE_PORT \
-#              $REMOTE_USER@$REMOTE_HOST \
-#              "docker exec ${{ env.DOCKER_IMAGE_NAME }} npm run migrate"
 
       - name: Verify deployment on ${{ matrix.environment }}
         run: |
           ssh -i ~/.ssh/deploy_key \
-              -o StrictHostKeyChecking=no \
+              -o StrictHostKeyChecking=yes \
               -p $REMOTE_PORT \
               $REMOTE_USER@$REMOTE_HOST \
-              "IMAGE='$DOCKER_IMAGE_NAME' PORT='$APP_PORT' TARGET='${{ matrix.environment }}' bash -s" <<'EOF'
+              "IMAGE='$DOCKER_IMAGE_NAME' TARGET='${{ matrix.environment }}' bash -s" <<'EOF'
           set -euo pipefail
 
-          # Give the app time to start (or crash)
-          sleep 15
+          # Wait up to 90s. If the image defines a HEALTHCHECK, wait for "healthy";
+          # otherwise just require the container to stay running without restarts.
+          for i in $(seq 1 18); do
+            sleep 5
+            status=$(docker inspect -f '{{.State.Status}}' "$IMAGE")
+            health=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$IMAGE")
+            restarts=$(docker inspect -f '{{.RestartCount}}' "$IMAGE")
+            echo "[$((i*5))s] status=$status health=$health restarts=$restarts"
 
-          status=$(docker inspect -f '{{.State.Status}}' "$IMAGE")
-          restarts=$(docker inspect -f '{{.RestartCount}}' "$IMAGE")
-          ports=$(docker port "$IMAGE" || true)
+            if [ "$status" != "running" ] || [ "$restarts" -gt 0 ] || [ "$health" = "unhealthy" ]; then
+              break
+            fi
+            if [ "$health" = "healthy" ] || { [ "$health" = "none" ] && [ "$i" -ge 3 ]; }; then
+              echo "Portal deployment on $TARGET successful! Ports: $(docker port "$IMAGE" | tr '\n' ' ')"
+              exit 0
+            fi
+          done
 
-          echo "Status: $status | Restarts: $restarts | Ports: $ports"
-
-          if [ "$status" != "running" ] || [ "$restarts" -gt 0 ] || [ -z "$ports" ]; then
-            echo "Deployment on $TARGET FAILED — last 100 log lines:"
-            docker logs --tail 100 "$IMAGE"
-            exit 1
+          echo "Deployment on $TARGET FAILED — last 100 log lines:"
+          docker logs --tail 100 "$IMAGE"
+          if [ "$health" != "none" ]; then
+            echo "Last healthcheck results:"
+            docker inspect -f '{{range .State.Health.Log}}{{.Output}}{{end}}' "$IMAGE" | tail -20
           fi
-
-          echo "Auth-gateway deployment on $TARGET successful!"
+          exit 1
           EOF
