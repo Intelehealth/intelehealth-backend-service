@@ -13,6 +13,9 @@ const postMessage = async (payload: any) => {
     console.log('[turn-io] DRY RUN, not sending:', JSON.stringify(payload));
     return;
   }
+  console.log(
+    `[turn-io] sending ${payload?.type} to ${payload?.to} via ${TURN_API_URL} (token ${process.env.TURN_API_TOKEN ? 'set' : 'MISSING'})`
+  );
   await axios.post(TURN_API_URL, payload, {
     headers: {
       Authorization: `Bearer ${process.env.TURN_API_TOKEN}`,
