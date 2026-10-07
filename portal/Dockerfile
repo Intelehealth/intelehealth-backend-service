@@ -34,9 +34,7 @@ COPY . .
 # Expose the port your app runs on
 EXPOSE 3004
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD curl -fsS -H "X-Healthcheck-Token: ${HEALTHCHECK_TOKEN:-}" \
-  http://127.0.0.1:${PORT:-3004}/health || exit 1
+HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 CMD curl -sk -o /dev/null https://127.0.0.1:3004/ || exit 1
 
 # Start the application
 CMD ["npm", "start"]
