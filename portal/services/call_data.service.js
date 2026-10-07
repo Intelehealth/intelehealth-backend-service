@@ -8,6 +8,7 @@ const {
   encounter_type,
   encounter_provider,
   person,
+  person_address,
   provider,
   location,
   Sequelize,
@@ -84,11 +85,11 @@ module.exports = (function () {
     }
   };
 
-    this._getWebrtcStatuses = async () => {
+  // WebRTC call log for doctor<->health-worker calls (call_data, webapp only).
+  this._getWebrtcStatuses = async () => {
     try {
+      const isTurnServer = process.env.IS_TURN_SERVER === 'true';
       let callData = await call_data.findAll({
-        // offset: query.start ? parseInt(query.start) : 0,
-        // limit: query.limit ? parseInt(query.limit) : 10,
         raw: true,
       });
       const visitIds = Array.isArray(callData)
@@ -100,10 +101,12 @@ module.exports = (function () {
         },
         attributes: ["uuid", "date_stopped", "date_created"],
         include: [
-          {
+          // Sevika/CHW name only applies to the webapp (doctor<->health-worker) flow, not turn's direct patient calls.
+          ...(isTurnServer ? [] : [{
             model: encounter,
             as: "encounters",
             attributes: ["encounter_datetime"],
+            required: false,
             include: [
               {
                 model: encounter_type,
@@ -140,7 +143,7 @@ module.exports = (function () {
             where: {
               voided: 0,
             }
-          },
+          }]),
           {
             model: patient_identifier,
             as: "patient",
@@ -151,6 +154,22 @@ module.exports = (function () {
             as: "patient_name",
             attributes: ["given_name", "family_name", "middle_name"],
           },
+          // State/Block/Village are only shown for turn (direct-to-patient) calls.
+          ...(isTurnServer ? [{
+            model: person,
+            as: "person",
+            attributes: ["person_id"],
+            required: false,
+            include: [
+              {
+                model: person_address,
+                as: "person_address",
+                attributes: ["county_district", "address3", "city_village"],
+                required: false,
+                where: { voided: 0, preferred: 1 },
+              },
+            ],
+          }] : []),
           {
             model: location,
             as: "location",
@@ -159,16 +178,23 @@ module.exports = (function () {
         ],
         order: [["visit_id", "DESC"]]
       });
-      const query = "SELECT u.uuid AS userUuid, p.uuid AS personUuid,CONCAT(pn.given_name, ' ', pn.family_name) AS doctorName FROM users u LEFT JOIN person p ON p.person_id = u.person_id LEFT JOIN person_name pn ON pn.person_id = u.person_id WHERE u.uuid IN ('" + callData.map(d => d.doctor_id).join("','") + "') AND pn.preferred = 1 AND u.retired = 0";
-      const queryResult = await sequelize.query(query, {
-        type: QueryTypes.SELECT,
-      });
-      const visitsByCallData = await this.setVisitsByCallData(callData, visits);
+      const doctorIds = [...new Set(callData.map(d => d.doctor_id).filter(Boolean))];
+      const queryResult = doctorIds.length
+        ? await sequelize.query(
+            `SELECT u.uuid AS userUuid, p.uuid AS personUuid, CONCAT(pn.given_name, ' ', pn.family_name) AS doctorName
+             FROM users u
+             LEFT JOIN person p ON p.person_id = u.person_id
+             LEFT JOIN person_name pn ON pn.person_id = u.person_id
+             WHERE u.uuid IN (:doctorIds) AND pn.preferred = 1 AND u.retired = 0`,
+            { replacements: { doctorIds }, type: QueryTypes.SELECT }
+          )
+        : [];
+      const visitsByCallData = this.setVisitsByCallData(callData, visits);
       const merged = visitsByCallData.map(item1 => {
         const item2 = queryResult.find(item => item.userUuid === item1.doctor_id);
         return {
           ...item1,
-          doctorName: item2?.doctorName
+          doctorName: item2?.doctorName || null,
         };
       });
       return { callData: merged, totalCount: merged.length };
@@ -177,27 +203,44 @@ module.exports = (function () {
     }
   };
 
-  this.setVisitsByCallData = async (callData, visits) => {
-   // const data = await this.setSanchForVisits(visits)
-    const merged = callData.map(item1 => {
+  this.setVisitsByCallData = (callData, visits) => {
+    const isTurnServer = process.env.IS_TURN_SERVER === 'true';
+
+    return callData.map(item1 => {
       const item2 = visits.find(item => item.uuid === item1.visit_id);
-      return {
+
+      const row = {
         doctor_id: item1.doctor_id,
         sevika_id: item1.chw_id,
+        room_id: item1.room_id,
         call_status: item1.call_status,
         call_duration: item1.call_duration,
         start_time: item1.start_time,
         end_time: item1.end_time,
         reason: item1.reason,
-        patientId: item2?.patient?.identifier,
-        patientName: `${item2?.patient_name?.given_name} ${item2?.patient_name?.family_name}`,
-        location: item2?.location?.name,
+        patientId: item2?.patient?.identifier || item1.room_id,
+        patientName: item2?.patient_name
+          ? `${item2.patient_name.given_name || ''} ${item2.patient_name.family_name || ''}`.trim()
+          : null,
+        location: item2?.location?.name || null,
         district: 'Nashik',
         state: 'Maharashtra',
-        sevikaName: `${item2?.encounters?.find(e => e.type?.name === 'Vitals')?.encounter_provider?.provider?.person?.person_name?.given_name} ${item2?.encounters?.find(e => e.type?.name === 'Vitals')?.encounter_provider?.provider?.person?.person_name?.family_name}`
       };
+
+      if (isTurnServer) {
+        row.block = item2?.person?.person_address?.address3 || null;
+        row.village = item2?.person?.person_address?.city_village || null;
+        row.city = item2?.person?.person_address?.county_district || null;
+      } else {
+        const vitalsEncounter = item2?.encounters?.find(e => e.type?.name === 'Vitals');
+        const sevikaGiven = vitalsEncounter?.encounter_provider?.provider?.person?.person_name?.given_name;
+        const sevikaFamily = vitalsEncounter?.encounter_provider?.provider?.person?.person_name?.family_name;
+        row.sevikaName = sevikaGiven || sevikaFamily ? `${sevikaGiven || ''} ${sevikaFamily || ''}`.trim() : null;
+      }
+
+      return row;
     });
-    return merged;
   };
+
   return this;
 })();

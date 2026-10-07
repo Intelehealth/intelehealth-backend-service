@@ -11,12 +11,14 @@ const axios = require("axios");
 const { MESSAGE } = require("../constants/messages");
 const { logStream } = require("../logger/index");
 const Constant = require("../constants/constant");
+const { withDoctorPrefix } = require("../handlers/helper");
 
 module.exports = (function () {
   const DATE_FORMAT = "DD/MM/YYYY";
   const TIME_FORMAT = "LT";
   const FILTER_TIME_DATE_FORMAT = "DD/MM/YYYY HH:mm:ss";
-  // Slots are IST-based. 
+
+  // Slots are IST-based.
   const APP_UTC_OFFSET = "+05:30";
   // A slot's absolute start time, anchored to IST.
   const slotMoment = (slotDate, slotTime) =>
@@ -94,8 +96,6 @@ module.exports = (function () {
     });
     return dates;
   };
-
-  const MAX_SLOTS = 6;
 
   const computeOpenSlots = async ({ userUuid, speciality, fromDate, toDate }) => {
     fromDate = normalizeDate(fromDate);
@@ -188,12 +188,20 @@ module.exports = (function () {
     return openSlots;
   };
 
+  const buildFlowSlots = (dates) =>
+    JSON.stringify(
+      dates.map((s) => ({
+        id: `${s.slotTime}|${s.userUuid}`,
+        title: s.slotTime,
+        description: s.drName,
+      }))
+    );
+
   this.getUserAppointmentSlots = async ({
     userUuid,
     speciality,
     fromDate,
     toDate,
-    limit,
   }) => {
     logStream("debug", "Turn Appointment Service", "Get User Appointment Slots");
     const openSlots = await computeOpenSlots({
@@ -202,45 +210,49 @@ module.exports = (function () {
       fromDate,
       toDate,
     });
-    const cap = Math.min(Math.max(parseInt(limit, 10) || MAX_SLOTS, 1), MAX_SLOTS);
-    const capped = openSlots.slice(0, cap).map(({ startsAt, ...s }) => s);
+    const dates = openSlots.map(({ startsAt, ...s }) => s);
     logStream("debug", "Success", "Get User Appointment Slots");
-    return { dates: capped, count: capped.length };
+    return { dates, count: dates.length, flowSlots: buildFlowSlots(dates) };
   };
 
   const buildCallLink = async (appointment) => {
+    //console.log("[buildCallLink] appointment:", appointment);
     const base = (process.env.WEBRTC_API_URL || "").replace(/\/+$/, "");
     if (!base) {
-      logStream("error", "WEBRTC_API_URL not set — cannot build call link");
+      console.log("[buildCallLink] WEBRTC_API_URL not set — cannot build call link");
       return null;
     }
-    if (!appointment.patientId) return null;
+    if (!appointment.patientId) {
+      console.log("[buildCallLink] no patientId on appointment — cannot build call link");
+      return null;
+    }
 
     const tail = Number(process.env.TURN_CALL_LINK_OPEN_AFTER_MINUTES) || 120;
     const minsUntilSlot = moment(appointment.slotJsDate).diff(moment(), "minutes");
     const ttlMinutes = Math.max(60, minsUntilSlot + tail);
 
+    const requestBody = {
+      visitUuid: appointment.visitUuid,
+      roomId: appointment.patientId,
+      doctorName: withDoctorPrefix(appointment.drName),
+      patientName: appointment.patientName,
+      ttlMinutes,
+    };
+     console.log(`[buildCallLink] POST ${base}/magic-link`, requestBody);
+
     try {
-      const { data } = await axios.post(
-        `${base}/magic-link`,
-        {
-          visitUuid: appointment.visitUuid,
-          roomId: appointment.patientId,
-          doctorName: appointment.drName,
-          patientName: appointment.patientName,
-          ttlMinutes,
-        },
-        { timeout: 15000 }
-      );
+      const { data } = await axios.post(`${base}/magic-link`, requestBody, { timeout: 15000 });
+      console.log("[buildCallLink] response:", data);
       if (!data || !data.success || !data.url) {
-        logStream("error", `magic-link returned no url: ${JSON.stringify(data)}`);
+        console.log("[buildCallLink] no url in response");
         return null;
       }
       return { url: data.url, magicToken: data.magicToken };
     } catch (err) {
-      logStream(
-        "error",
-        `magic-link call failed: ${err.response ? JSON.stringify(err.response.data) : err.message}`
+      console.log(
+        "[buildCallLink] request failed:",
+        err.response?.status,
+        err.response ? err.response.data : err.message
       );
       return null;
     }
@@ -297,7 +309,7 @@ module.exports = (function () {
       logStream("debug", "Visit already booked — returning existing", "Book Appointment");
       return {
         alreadyBooked: true,
-        data: existing,
+        data: { ...existing, drName: withDoctorPrefix(existing.drName) },
         joinUrl: link ? link.url : null,
         magicToken: link ? link.magicToken : null,
       };
@@ -342,10 +354,7 @@ module.exports = (function () {
       patientName,
       locationUuid,
       hwUUID: hwUUID || null,
-      slotJsDate: moment(
-        `${slotDate} ${slotTime}`,
-        "DD/MM/YYYY HH:mm A"
-      ).format(),
+      slotJsDate: slotMoment(slotDate, slotTime).format(),
       createdBy: hwUUID || userUuid,
       type: "appointment",
     });
@@ -356,7 +365,7 @@ module.exports = (function () {
     logStream("debug", "Success", "Book Appointment");
     return {
       alreadyBooked: false,
-      data: appointment,
+      data: { ...appointment, drName: withDoctorPrefix(appointment.drName) },
       joinUrl: link ? link.url : null,
       magicToken: link ? link.magicToken : null,
     };

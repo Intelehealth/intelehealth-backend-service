@@ -6,6 +6,7 @@ const axios = require('axios');
  * 60s model-call timeout rather than racing it.
  */
 const REQUEST_TIMEOUT_MS = 150000;
+
 function envValue(name) {
   const raw = process.env[name];
   if (!raw) {
@@ -55,14 +56,6 @@ async function ttxv1(body) {
   return forward('/ttxv1', body);
 }
 
-async function ddxmanual(body) {
-  return forward('/ddx/manual', body);
-}
-
-async function ttxmanual(body) {
-  return forward('/ttx/manual', body);
-}
-
 async function ddxfinal(body) {
   return forward('/ddxfinal', body);
 }
@@ -71,4 +64,12 @@ async function ttxfinal(body) {
   return forward('/ttxfinal', body);
 }
 
-module.exports = { ddx, ttxv1, ddxmanual, ttxmanual, ddxfinal, ttxfinal };
+async function ddxManual(body) {
+  return forward('/ddx/manual', body);
+}
+
+async function ttxManual(body) {
+  return forward('/ttx/manual', body);
+}
+
+module.exports = { ddx, ttxv1, ddxfinal, ttxfinal, ddxManual, ttxManual };

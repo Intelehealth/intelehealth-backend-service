@@ -4,14 +4,13 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 import express from 'express';
 import IndexRouter from './routes';
+import { createHealthRouter } from './routes/health';
 import { WebSocketController } from './controllers/websocket.controller';
 import { startAppointmentCallLinkJob } from './jobs/appointment-call-link.job';
 import * as http from 'http';
 import * as https from 'https';
 const cors = require('cors');
 const db = require("./models");
-const Dummy = 'dummy';  
-
 
 class Server {
     app: express.Application;
@@ -88,6 +87,11 @@ class Server {
     }
 
     init() {
+        this.app.use(createHealthRouter({
+            service: 'web-rtc',
+            databases: { portal: db.sequelize },
+        }));
+
         this.app.use('/api', IndexRouter);
         Sentry.setupExpressErrorHandler(this.app);
     }

@@ -1,23 +1,28 @@
 # Web RTC Deploy
 #
-# Builds the web-rtc Docker image once and deploys it to one or more remote hosts.
+# Builds the web-rtc Docker image natively per CPU architecture and deploys it to
+# one or more remote hosts.
 #
 # Triggers:
-#   - push to development_master (web-rtc/** changes) → deploys to nasstaging ONLY
+#   - push to development_master (web-rtc/** changes) ? deploys to nasstaging ONLY
 #     (nasstaging is the only host wired into the push-triggered matrix; if more
 #     hosts are added later, do NOT add them to the push matrix unless you want
 #     push to deploy to them too — keep new hosts manual-dispatch-only instead)
-#   - workflow_dispatch (manual) → deploys to selected hosts via checkboxes
+#   - workflow_dispatch (manual) ? deploys to selected hosts via checkboxes
 #
 # Jobs:
-#   1. prepare-matrix  Decides which environments to deploy based on trigger/inputs
-#   2. build           Builds the Docker image and uploads it as a workflow artifact
-#   3. deploy          Matrix job — downloads the artifact and deploys to each host in parallel
+#   1. prepare-matrix  Decides which environments to deploy, computes needed archs + runner map
+#   2. build           Builds ONLY the required architectures natively (no QEMU) and uploads artifacts
+#   3. deploy          Matrix job downloads the matching-arch artifact and deploys to each host in parallel
 #
 # Required secrets:
-#   DEV_HOST, NASSTSGING_HOST — SSH hostnames/IPs
-#   DEV_USER                  — SSH username
-#   DEV_SSH_KEY                — SSH private key
+#   DEV_HOST, NASSTSGING_HOST SSH hostnames/IPs
+#   DEV_USER                  SSH username
+#   DEV_SSH_KEY                SSH private key
+#
+# Architecture mapping (hardcoded): each environment maps to a target arch so we build ONLY
+# what's needed, natively, on the matching runner (no QEMU). Update `*_arch` in prepare-matrix
+# when adding/changing a host. arm64 builds on the ARM64 runner, amd64 on the x64 runner.
 #
 # To add a new host: add a secret for the hostname, map it in the deploy job env block,
 # add a case in "Resolve host", add a boolean input, and add it to the push matrix.
@@ -36,6 +41,22 @@ on:
         type: boolean
         default: true
 
+      deploy_ttxai:
+        description: 'Deploy to TTXAI host'
+        type: boolean
+        default: false  
+      deploy_pathqa:
+        description: 'Deploy to PATHQA host'
+        type: boolean
+        default: false
+      deploy_testturn:
+        description: 'Deploy to TESTTURN host'
+        type: boolean
+        default: false 
+      deploy_turn:
+        description: 'Deploy to TURN host'
+        type: boolean
+        default: false   
   push:
     branches: [nas-ida5-development-master]
     paths:
@@ -49,15 +70,58 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+      build_matrix: ${{ steps.set-matrix.outputs.build_matrix }}
     steps:
       - name: Build deployment matrix
         id: set-matrix
         run: |
+          # Host -> CPU architecture map. Each arch builds natively on its
+          # matching runner (see build_matrix below).
+          dev_arch=amd64
+          ttxai_arch=amd64
+          testturn_arch=amd64
+          pathqa_arch=arm64
+          turn_arch=amd64
+          
+
           if [ "${{ github.event_name }}" == "push" ]; then
             # On push, deploy to nasstaging only
             matrix='{"include":[{"environment":"nasstaging"},{"environment":"nas"}]}'
           else
+            # On push, deploy to all hosts
             includes='[]'
+            for env in dev turn ttxai pathqa turn; do
+              arch_var="${env}_arch"
+              includes=$(echo "$includes" | jq -c --arg e "$env" --arg a "${!arch_var}" '. += [{"environment":$e,"arch":$a}]')
+            done
+          else
+            # On manual dispatch, deploy only to selected hosts.
+            # NOTE: "inputs.deploy_x" is GitHub expression syntax, not a bash
+            # variable - indirect expansion (${!...}) fails on the dots, so
+            # each input is expanded literally via the case below.
+            includes='[]'
+            for env in dev turn ttxai pathqa testturn turn; do
+              case "$env" in
+                dev)    selected="${{ inputs.deploy_dev }}" ;;
+                ttxai)  selected="${{ inputs.deploy_ttxai }}" ;;
+                pathqa) selected="${{ inputs.deploy_pathqa }}" ;;
+                testturn) selected="${{ inputs.deploy_testturn }}" ;;
+                turn) selected="${{ inputs.deploy_turn }}" ;;
+              esac
+              if [ "$selected" == "true" ]; then
+                arch_var="${env}_arch"
+                includes=$(echo "$includes" | jq -c --arg e "$env" --arg a "${!arch_var}" '. += [{"environment":$e,"arch":$a}]')
+              fi
+            done
+          fi
+          matrix="{\"include\":$includes}"
+          # De-duplicated arch -> runner mapping for the build job.
+          # arm64 builds natively on the ARM64 runner (no QEMU emulation),
+          # amd64 on the standard x64 runner.
+          build_includes=$(echo "$includes" | jq -c '[.[].arch] | unique | map(
+            if . == "arm64" then {arch: ., os: "ubuntu-24.04-arm"}
+            else {arch: ., os: "ubuntu-latest"} end
+          )')
             if [ "${{ inputs.deploy_nasstaging }}" == "true" ]; then
               includes=$(echo "$includes" | jq -c '. += [{"environment":"nasstaging"}]')
             fi
@@ -69,8 +133,14 @@ jobs:
           fi
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
   build:
-    runs-on: ubuntu-latest
+    needs: prepare-matrix
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix: ${{ fromJson(needs.prepare-matrix.outputs.build_matrix) }}
+      fail-fast: false
     outputs:
+      # Computed identically in every arch leg, so the value is the same
+      # regardless of which leg the deploy job reads it from.
       migrations_changed: ${{ steps.check-migrations.outputs.changed }}
     steps:
       - name: Checkout code
@@ -103,13 +173,15 @@ jobs:
           fi
       - name: Build Docker image
         run: |
-          docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} ./web-rtc
-          docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > app-image.tar
+          cd web-rtc
+          docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} .
+          docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > ../app-image-${{ matrix.arch }}.tar
+
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
-          name: web-rtc
-          path: app-image.tar
+          name: web-rtc-${{ matrix.arch }}
+          path: app-image-${{ matrix.arch }}.tar
           retention-days: 3
 
   deploy:
@@ -122,8 +194,12 @@ jobs:
       REMOTE_PORT: 22
       ENV_FILE_PATH: /home/ubuntu/deploy/web-rtc/.env
       PEM_FOLDER_PATH: /home/ubuntu/deploy/web-rtc/.pem
-      # All host secrets mapped upfront — dynamic secret refs aren't supported in GitHub Actions
+      # All host secrets mapped upfront dynamic secret refs aren't supported in GitHub Actions
       DEV_HOST: ${{ secrets.DEV_HOST }}
+      TTXAI_HOST: ${{ secrets.TTXAI_HOST }}
+      PATHQA_HOST: ${{ secrets.PATHQA_HOST }}
+      TESTTURN_HOST: ${{ secrets.TESTTURN_HOST }}
+      TURN_HOST: ${{ secrets.TURN_HOST }}
       NASSTSGING_HOST: ${{ secrets.NASSTSGING_HOST }}
       NAS_HOST: ${{ secrets.NAS_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
@@ -137,11 +213,23 @@ jobs:
       - name: Resolve host for environment
         run: |
           case "${{ matrix.environment }}" in
+            dev)  echo "REMOTE_HOST=$DEV_HOST"  >> $GITHUB_ENV ;;
+            ttxai) echo "REMOTE_HOST=$TTXAI_HOST" >> $GITHUB_ENV ;;
+            pathqa) echo "REMOTE_HOST=$PATHQA_HOST" >> $GITHUB_ENV ;;
+            testturn) echo "REMOTE_HOST=$TESTTURN_HOST" >> $GITHUB_ENV ;;
+            turn) echo "REMOTE_HOST=$TURN_HOST" >> $GITHUB_ENV ;;
+            *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
             nasstaging)  echo "REMOTE_HOST=$NASSTSGING_HOST"  >> $GITHUB_ENV ;;
             nas)  echo "REMOTE_HOST=$NAS_HOST"  >> $GITHUB_ENV ;;
 
              *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
+
+      - name: Download image artifact for ${{ matrix.arch }}
+        uses: actions/download-artifact@v4
+        with:
+          name: web-rtc-${{ matrix.arch }}
+
       - name: Deploy to ${{ matrix.environment }} host
         run: |
           mkdir -p ~/.ssh
@@ -152,7 +240,7 @@ jobs:
           scp -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=no \
               -P $REMOTE_PORT \
-              app-image.tar \
+              app-image-${{ matrix.arch }}.tar \
               $REMOTE_USER@$REMOTE_HOST:$REMOTE_TAR
           ssh -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=no \
@@ -183,7 +271,7 @@ jobs:
             docker run -d \
               --name \$DOCKER_IMAGE_NAME \
               --restart unless-stopped \
-              -p 3000:3000 \
+              -p 0.0.0.0:3000:3000 \
               --env-file \$ENV_FILE_PATH \
               -v \$PEM_FOLDER_PATH:/app/.pem \
               --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
@@ -191,17 +279,17 @@ jobs:
             docker image prune -f
             echo "Web-rtc deployment to ${{ matrix.environment }} completed successfully"
           EOF
-#      - name: Run migrations on ${{ matrix.environment }} host
-#        if: needs.build.outputs.migrations_changed == 'true'
-#        run: |
-#          mkdir -p ~/.ssh
-#          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-#          chmod 600 ~/.ssh/deploy_key
-#          ssh -i ~/.ssh/deploy_key \
-#              -o StrictHostKeyChecking=no \
-#              -p $REMOTE_PORT \
-#              $REMOTE_USER@$REMOTE_HOST \
-#              "docker exec ${{ env.DOCKER_IMAGE_NAME }} npm run migrate"
+      - name: Run migrations on ${{ matrix.environment }} host
+        if: needs.build.outputs.migrations_changed == 'true'
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              -p $REMOTE_PORT \
+              $REMOTE_USER@$REMOTE_HOST \
+              "docker exec ${{ env.DOCKER_IMAGE_NAME }} npm run migrate"
       - name: Verify deployment on ${{ matrix.environment }}
         run: |
           mkdir -p ~/.ssh

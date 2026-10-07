@@ -27,6 +27,7 @@ router.get("/mindmap/download", [authMiddleware, downloadMindmaps]);
 router.post("/mindmap/toggleStatus", [authMiddleware, toggleMindmapActiveStatus]);
 router.get("/instructionRemarkList", [authMiddleware, getInstructionRemarks]);
 router.post("/instructionRemarks", [authMiddleware, addInstructionRemarks]);
+router.get("/mindmap/getWebrtcStatuses", [authMiddleware, getWebrtcStatuses]);
 
 router.use("/mindmap", require("./notification.route"));
 router.use("/messages", require("./message.route"));
@@ -35,6 +36,7 @@ router.use("/appointment", require("./appointment.route"));
 router.use("/turn-appointment", require("./turn-appointment.route"));
 router.use("/insights", require("./insight.route"));
 router.use("/ai-issue-reports", require("./ai-issue-report.route"));
+router.use("/ddx-ttx-overrides", require("./ddx-ttx-override.route"));
 router.use('/auth', require("./auth.route"));
 router.use("/links", require("./links.route"));
 router.use("/support", require("./support.route"));

@@ -224,6 +224,15 @@ const generateHash = (length) =>
     .toString(36)
     .slice(1);
 
+/**
+ * Prefix a doctor's name with "Dr."
+ */
+const withDoctorPrefix = (drName) => {
+  const name = String(drName ?? "").trim();
+  if (!name) return drName;
+  return /^dr\.?\s/i.test(name) ? name : `Dr. ${name}`;
+};
+
 module.exports = {
   axiosInstance,
   sendWebPushNotification,
@@ -234,5 +243,6 @@ module.exports = {
   asyncForEach,
   getDataFromQuery,
   generateHash,
-  sendPrescriptionCloudNotification
+  sendPrescriptionCloudNotification,
+  withDoctorPrefix
 };

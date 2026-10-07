@@ -20,6 +20,12 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: "person_id",
         sourceKey: "person_id",
       });
+
+      this.hasOne(models.person_address, {
+        as: "person_address",
+        foreignKey: "person_id",
+        sourceKey: "person_id",
+      });
     }
   }
   person.init(

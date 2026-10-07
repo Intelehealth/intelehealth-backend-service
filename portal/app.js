@@ -4,11 +4,12 @@ const Sequelize = require("sequelize");
 const session = require("express-session");
 const SequelizeStore = require("connect-session-sequelize")(session.Store);
 const db = require("./models");
+const openMrsDb = require("./openmrs_models");
+const { createHealthRouter } = require("./handlers/health");
 const morganMiddleware = require("./middleware/morgan");
 const swaggerUi = require('swagger-ui-express');
 const swaggerDocument = require('./swagger.json');
 const path =   require('path');
- const k = 'Y';
 const app = express();
 
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS && JSON.parse(process.env.ALLOWED_ORIGINS) || [];
@@ -27,6 +28,9 @@ app.use(function (req, res, next) {
     "Access-Control-Allow-Headers",
     "Origin, X-Requested-With, Content-Type, Accept, Authorization"
   );
+ if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
   next();
 });
 
@@ -35,6 +39,14 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 app.use(cookieParser());
+
+app.use(createHealthRouter({
+  service: "portal",
+  databases: {
+    portal: db.sequelize,
+    openmrs: openMrsDb.sequelize,
+  },
+}));
 
 app.set("trust proxy", 1); // trust first proxy
 

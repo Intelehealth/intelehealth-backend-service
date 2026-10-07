@@ -198,7 +198,10 @@ WHERE
           message: MESSAGE.APPOINTMENT.APPOINTMENT_UPDATED_SUCCESSFULLY,
           data: await Schedule.update(update, opts),
         };
-        await this.rescheduleOrCancelAppointment(userUuid);
+        // On the Turn server, already-booked appointments are left as they are:
+        if (process.env.IS_TURN_SERVER !== 'true') {
+          await this.rescheduleOrCancelAppointment(userUuid);
+        }
         logStream('debug','Appointment Updated', 'Upsert Appointment Schedule');
         return resp;
       } else {
@@ -895,9 +898,10 @@ WHERE
       patientName,
       locationUuid,
       hwUUID,
+      // slotDate/slotTime are entered in IST -- 
       slotJsDate: moment(
-        `${slotDate} ${slotTime}`,
-        "DD/MM/YYYY HH:mm A"
+        `${slotDate} ${slotTime} +05:30`,
+        "DD/MM/YYYY HH:mm A Z"
       ).format(),
       createdBy: hwUUID,
       ...rest,

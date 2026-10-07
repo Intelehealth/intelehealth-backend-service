@@ -1,0 +1,108 @@
+name: Queue Microservice Deploy
+ 
+on:
+  push:
+    branches: [development_master_qms_service]
+    paths:
+      - 'queue-microservice/**'
+  workflow_dispatch: {}
+ 
+env:
+  DOCKER_IMAGE_NAME: queue-microservice
+ 
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+ 
+      - name: Build Docker image
+        run: |
+          docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} ./queue-microservice
+          docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > app-image.tar
+ 
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: queue-microservice-image
+          path: app-image.tar
+          retention-days: 1
+ 
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      REMOTE_PORT: 22
+      ENV_FILE_PATH: /home/ubuntu/deploy/queue-microservice/.env
+      PEM_FOLDER_PATH: /home/ubuntu/deploy/queue-microservice/.pem
+      REMOTE_HOST: ${{ secrets.DEV_HOST }}
+      REMOTE_USER: ${{ secrets.DEV_USER }}
+      SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
+    steps:
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: queue-microservice-image
+ 
+      - name: Deploy to dev host
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+ 
+          REMOTE_TAR="/tmp/app-image-queue-microservice-${{ github.run_id }}.tar"
+ 
+          scp -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              -P $REMOTE_PORT \
+              app-image.tar \
+              $REMOTE_USER@$REMOTE_HOST:$REMOTE_TAR
+ 
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              -p $REMOTE_PORT \
+              $REMOTE_USER@$REMOTE_HOST <<EOF
+            set -e
+            DOCKER_IMAGE_NAME="${{ env.DOCKER_IMAGE_NAME }}"
+            ENV_FILE_PATH="${{ env.ENV_FILE_PATH }}"
+            PEM_FOLDER_PATH="${{ env.PEM_FOLDER_PATH }}"
+            REMOTE_TAR="$REMOTE_TAR"
+ 
+            docker load -i "\$REMOTE_TAR"
+            rm "\$REMOTE_TAR"
+ 
+            docker stop \$DOCKER_IMAGE_NAME || true
+            docker rm \$DOCKER_IMAGE_NAME || true
+ 
+            if [ ! -f "\$ENV_FILE_PATH" ]; then
+              echo "Error: .env file not found at \$ENV_FILE_PATH"
+              exit 1
+            fi
+ 
+            if [ ! -d "\$PEM_FOLDER_PATH" ]; then
+              echo "Error: .pem folder not found at \$PEM_FOLDER_PATH"
+              exit 1
+            fi
+ 
+            docker ps -a | grep queue-microservice | awk '{print $1}' | xargs -r docker rm -f || true
+ 
+            fuser -k 3600/tcp || true
+ 
+            sleep 2
+ 
+            docker run -d \
+              --name \$DOCKER_IMAGE_NAME \
+              --restart unless-stopped \
+              -p 3600:3600 \
+              --env-file \$ENV_FILE_PATH \
+              -v \$PEM_FOLDER_PATH:/app/.pem \
+              \$DOCKER_IMAGE_NAME:${{ github.sha }}
+ 
+            docker image prune -f
+            echo "queue-microservice deployment to dev completed successfully"
+          EOF
+ 
