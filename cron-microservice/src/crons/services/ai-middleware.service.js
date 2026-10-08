@@ -15,6 +15,17 @@ const configMissing = (name) => {
   return err;
 };
 
+const parseBody = (text) => {
+  if (!text) {
+    return null;
+  }
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    return text;
+  }
+};
+
 const ddx = async (body, { timeout } = {}) => {
   const baseURL = envValue('AI_MIDDLEWARE_BASE_URL');
   if (!baseURL) {
@@ -41,6 +52,7 @@ const ddx = async (body, { timeout } = {}) => {
       const text = await response.text().catch(() => '');
       const err = new Error(`AI middleware responded ${response.status}${text ? `: ${text}` : ''}`);
       err.status = response.status;
+      err.responseBody = { status: response.status, body: parseBody(text) };
       throw err;
     }
 

@@ -84,6 +84,7 @@ const assertUsableResponse = (response, visitUuid) => {
   if (!data || !Array.isArray(data.result)) {
     const err = new Error(`DDx response for ${visitUuid} has no usable result payload`);
     err.code = 'DDX_EMPTY_RESPONSE';
+    err.responseBody = response ?? null;
     throw err;
   }
   return data;
@@ -142,8 +143,20 @@ const computeForVisit = async (visitUuid, { timeout } = {}) => {
     return { skipped: true };
   }
 
-  const response = await aiMiddleware.ddx({ casehistory, visitUuid }, { timeout });
-  const data = assertUsableResponse(response, visitUuid);
+  let response;
+  let data;
+  try {
+    response = await aiMiddleware.ddx({ casehistory, visitUuid }, { timeout });
+    data = assertUsableResponse(response, visitUuid);
+  } catch (error) {
+    error.ddxContext = {
+      patient_uuid: patientUuid,
+      payload_hash: payloadHash,
+      request_payload: casehistory,
+      response: error.responseBody ?? null,
+    };
+    throw error;
+  }
   const conclusion = response?.conclusion || data.conclusion || '';
 
   await upsertSuccess(existing, {
@@ -164,19 +177,37 @@ const recordFailure = async (visitUuid, error) => {
   const existing = await findResult(visitUuid);
   const now = new Date();
   const message = error?.message || String(error);
+  const context = error?.ddxContext || {};
+  const details = {
+    patient_uuid: context.patient_uuid ?? null,
+    payload_hash: context.payload_hash ?? null,
+    request_payload: context.request_payload ?? null,
+    response: context.response == null ? null : JSON.stringify(context.response),
+  };
 
   if (existing) {
     await database.query(
-      'UPDATE ai_ddx_results SET status = :status, error = :error, attempts = :attempts, updatedAt = :now WHERE id = :id',
-      { status: STATUS_FAILED, error: message, attempts: existing.attempts + 1, now, id: existing.id }
+      `UPDATE ai_ddx_results SET
+         status = :status,
+         error = :error,
+         attempts = :attempts,
+         patient_uuid = COALESCE(:patient_uuid, patient_uuid),
+         payload_hash = COALESCE(:payload_hash, payload_hash),
+         request_payload = COALESCE(:request_payload, request_payload),
+         response = COALESCE(:response, response),
+         updatedAt = :now
+       WHERE id = :id`,
+      { ...details, status: STATUS_FAILED, error: message, attempts: existing.attempts + 1, now, id: existing.id }
     );
     return;
   }
 
   await database.query(
-    `INSERT INTO ai_ddx_results (visit_uuid, status, error, attempts, createdAt, updatedAt)
-     VALUES (:visit_uuid, :status, :error, 1, :now, :now)`,
-    { visit_uuid: visitUuid, status: STATUS_FAILED, error: message, now }
+    `INSERT INTO ai_ddx_results
+       (visit_uuid, patient_uuid, payload_hash, request_payload, response, status, error, attempts, createdAt, updatedAt)
+     VALUES
+       (:visit_uuid, :patient_uuid, :payload_hash, :request_payload, :response, :status, :error, 1, :now, :now)`,
+    { ...details, visit_uuid: visitUuid, status: STATUS_FAILED, error: message, now }
   );
 };
 
