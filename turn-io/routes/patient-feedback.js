@@ -1,16 +1,10 @@
 const express = require("express");
-const { randomUUID } = require("crypto");
-const { pushData } = require("../lib/openmrs");
+const { getVisitEncounterTypes } = require("../lib/openmrs");
+const { saveFeedback, holdFeedback } = require("../lib/feedback");
 const {
-  OPENMRS_LOCATION_UUID,
   OPENMRS_ENCOUNTER_TYPE_PATIENT_EXIT_SURVEY,
-  OPENMRS_ENCOUNTER_ROLE_UUID,
-  OPENMRS_PROVIDER_UUID,
-  OPENMRS_CONCEPT_RATING,
-  OPENMRS_CONCEPT_COMMENTS,
+  OPENMRS_ENCOUNTER_TYPE_VISIT_COMPLETE,
 } = require("../constants");
-
-const formatDatetime = (d) => d.toISOString().replace("Z", "+0000");
 
 // An unset Turn contact field arrives as the literal "@contact.foo" template.
 const isBlank = (v) =>
@@ -38,35 +32,6 @@ const readSurvey = (body) => {
   };
 };
 
-// No visits[] entry: the visit exists, and re-posting would overwrite its attributes.
-const buildSurveyBundle = ({ personUuid, visitUuid, rating, feedback }) => {
-  const obs = [{ concept: OPENMRS_CONCEPT_RATING, value: rating, comments: "" }];
-  if (feedback) obs.push({ concept: OPENMRS_CONCEPT_COMMENTS, value: feedback, comments: "" });
-
-  return {
-    appointments: [],
-    providers: [],
-    persons: [],
-    patients: [],
-    visits: [],
-    encounters: [
-      {
-        uuid: randomUUID(),
-        encounterDatetime: formatDatetime(new Date()),
-        encounterType: OPENMRS_ENCOUNTER_TYPE_PATIENT_EXIT_SURVEY,
-        encounterProviders: [
-          { encounterRole: OPENMRS_ENCOUNTER_ROLE_UUID, provider: OPENMRS_PROVIDER_UUID },
-        ],
-        location: OPENMRS_LOCATION_UUID,
-        patient: personUuid,
-        visit: visitUuid,
-        voided: 0,
-        obs: obs.map((o) => ({ uuid: randomUUID(), ...o })),
-      },
-    ],
-  };
-};
-
 const router = express.Router();
 
 router.post("/feedback_push", async (req, res) => {
@@ -87,19 +52,34 @@ router.post("/feedback_push", async (req, res) => {
       return res.status(400).json({ success: false, error: "feedback_rating must be a number from 1 to 5" });
     }
 
-    const bundle = buildSurveyBundle({ personUuid, visitUuid, rating, feedback });
+    let encounterTypes;
+    try {
+      encounterTypes = await getVisitEncounterTypes(visitUuid);
+    } catch (err) {
+      const status = err.response?.status;
+      console.error(`[feedback_push] could not read visit ${visitUuid}:`, status || err.message);
+      if (status === 404) {
+        return res.status(404).json({ success: false, error: "visit not found" });
+      }
+      return res.status(502).json({ success: false, error: "could not verify visit status" });
+    }
+    if (encounterTypes.includes(OPENMRS_ENCOUNTER_TYPE_PATIENT_EXIT_SURVEY)) {
+      console.warn(`[feedback_push] rejected: visit ${visitUuid} already has feedback`);
+      return res.status(409).json({ success: false, error: "feedback already recorded for this visit" });
+    }
 
-    const { data } = await pushData(bundle);
-    console.log("[feedback_push] pushdata response:", JSON.stringify(data));
+    const result = { success: true, patient_uuid: personUuid, visit_uuid: visitUuid, rating, feedback_saved: Boolean(feedback) };
 
-    res.json({
-      success: true,
-      patient_uuid: personUuid,
-      visit_uuid: visitUuid,
-      encounter_uuid: bundle.encounters[0].uuid,
-      rating,
-      feedback_saved: Boolean(feedback),
-    });
+    // The doctor portal treats an exit survey as "visit ended" and hides "Start visit note",
+    // so hold the rating until the prescription is shared (see prescription/route.js).
+    if (!encounterTypes.includes(OPENMRS_ENCOUNTER_TYPE_VISIT_COMPLETE)) {
+      holdFeedback({ personUuid, visitUuid, rating, feedback });
+      console.log(`[feedback_push] held for visit ${visitUuid} until the prescription is shared`);
+      return res.json({ ...result, held: true });
+    }
+
+    const encounterUuid = await saveFeedback({ personUuid, visitUuid, rating, feedback });
+    res.json({ ...result, held: false, encounter_uuid: encounterUuid });
   } catch (err) {
     const detail = err.response?.data || err.message;
     console.error("[feedback_push] error:", detail);

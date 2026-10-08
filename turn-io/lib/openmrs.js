@@ -32,6 +32,22 @@ const getOpenmrsId = async (personUuid) => {
    return match?.identifier || ids[0]?.identifier || "";
 };
 
+// Encounter type uuids of a visit's non-voided encounters.
+const getVisitEncounterTypes = async (visitUuid) => {
+   const base = restUrl();
+   if (!base) throw new Error("OPENMRS_REST_URL is not set");
+
+   const { data } = await axios.get(`${base}/visit/${visitUuid}`, {
+      params: { v: "custom:(uuid,encounters:(voided,encounterType:(uuid)))" },
+      headers: { Authorization: basicAuth, Accept: "application/json" },
+   });
+
+   return (data?.encounters || [])
+      .filter((e) => !e.voided)
+      .map((e) => e.encounterType?.uuid)
+      .filter(Boolean);
+};
+
 // Upload an image as a complex obs so it shows under "Additional Documents" in
 // the doctor portal.
 const uploadComplexObs = async ({ personUuid, encounterUuid, concept, buffer, filename, mime, comment }) => {
@@ -63,4 +79,4 @@ const uploadComplexObs = async ({ personUuid, encounterUuid, concept, buffer, fi
    return resp.json();
 };
 
-module.exports = { pushData, basicAuth, getOpenmrsId, uploadComplexObs };
+module.exports = { pushData, basicAuth, getOpenmrsId, getVisitEncounterTypes, uploadComplexObs };

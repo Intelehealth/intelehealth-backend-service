@@ -4,6 +4,7 @@ const { buildPrescriptionData, hasPrescription, fmtFollowUpDate } = require("./d
 const { generatePrescriptionPdf } = require("./pdf");
 const { notifyPrescriptionReady, notifyFollowUpScheduled } = require("./turn");
 const { runFollowUpReminders, getCronInfo, remindersEnabled } = require("./followup-cron");
+const { flushHeldFeedback } = require("../lib/feedback");
 
 const NOT_READY_MSG =
    "Prescription not generated yet. Once it's ready, the doctor will send it to you.";
@@ -114,6 +115,12 @@ router.post("/prescription/notify", async (req, res) => {
       }
       const opts = { number: src.number, baseUrl: publicBase(req), visit: src.visit || null, resend: Boolean(src.resend) };
       const result = await notifyForVisit(visitUuid, opts);
+      if (result.ok) {
+         // The prescription is shared now, so a rating the patient gave earlier can be written.
+         flushHeldFeedback(visitUuid)
+            .then((enc) => enc && console.log(`[prescription notify] ${visitUuid}: held feedback saved as ${enc}`))
+            .catch((err) => console.error(`[prescription notify] ${visitUuid}: held feedback not saved:`, errDetail(err)));
+      }
       if (result.skipped) {
          console.log(`[prescription notify] already notified ${visitUuid} -- skipping`);
          return res.json({ success: true, skipped: true, visit_uuid: visitUuid });

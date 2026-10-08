@@ -11,6 +11,8 @@ module.exports = {
    OPENMRS_ENCOUNTER_TYPE_VITALS: "67a71486-1a54-468f-ac3e-7091a9a79584",
    // The doctor webapp reads this encounter's existence as "visit ended".
    OPENMRS_ENCOUNTER_TYPE_PATIENT_EXIT_SURVEY: "629a9d0b-48eb-405e-953d-a5964c88dc30",
+   // Written when the doctor signs the visit; an exit survey is only allowed after it.
+   OPENMRS_ENCOUNTER_TYPE_VISIT_COMPLETE: "bd1fbfaa-f5fb-4ebd-b75c-564506fc309e",
    OPENMRS_ENCOUNTER_ROLE_UUID: "73bbb069-9781-4afc-a9d1-54b6b2270e04",
 
    // Provider (doctor1)
