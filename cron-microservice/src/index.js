@@ -11,6 +11,9 @@ const start = async () => {
   const port = await listen(server);
   const count = runner.start();
   console.info(`[cron-microservice] listening on ${port}; ${count} cron job(s) active`);
+  for (const { name, enabled, disabledReason } of runner.status()) {
+    console.info(`[cron-microservice]   ${enabled ? "on " : "off"} ${name}${enabled ? "" : ` (${disabledReason})`}`);
+  }
 
   const shutdown = async () => {
     runner.stop();

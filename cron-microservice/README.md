@@ -238,6 +238,39 @@ environment so they do not all post into the same channel.
 `CRONS_ENABLED=false` remains the simplest way to run the HTTP endpoints on a
 host without scheduling anything there.
 
+## Choosing which crons run
+
+All crons are declared in one list in `src/crons/index.js`. Whether each one runs
+on a host is decided in this order, and the first rule that applies wins:
+
+| # | Setting | Effect |
+| --- | --- | --- |
+| 1 | `CRONS_ENABLED=false` | nothing is scheduled |
+| 2 | `CRONS_DISABLED=a,b` | the named crons are off |
+| 3 | `CRONS_ONLY=a,b` | every cron not named is off |
+| 4 | the cron's own flag | `DAILY_REPORT_CRON_ENABLED` for `daily-operations-report`, `AI_DDX_PIPELINE_ENABLED` for `visit-queue-sync` and `ddx-worker` |
+
+The two lists only ever turn crons off. Naming a cron in `CRONS_ONLY` does not
+switch it on when its own flag is off, so a host cannot start posting to Slack
+or calling the AI middleware just because someone narrowed the list. A cron
+name in either list that does not exist fails start-up, so a typo cannot leave a
+cron running that was meant to be stopped.
+
+Disabled crons are not hidden. Start-up logs every cron as `on` or `off` with
+the reason, `GET /health` lists them with `enabled: false` and `disabledReason`,
+and a manual trigger of a disabled cron returns `409` instead of running it.
+
+Examples:
+
+```
+# Only the DDx pipeline on this host, no daily report
+CRONS_ONLY=visit-queue-sync,ddx-worker
+AI_DDX_PIPELINE_ENABLED=true
+
+# Everything except the DDx worker
+CRONS_DISABLED=ddx-worker
+```
+
 ## Timezones across hosts
 
 `CRON_TIMEZONE` is the single source of truth for *when a day starts*. It drives
@@ -346,7 +379,7 @@ overlap a scheduled one:
 | response | meaning |
 | --- | --- |
 | `200` | ran, body is the report row |
-| `409` | a run for this cron is already in progress |
+| `409` | a run for this cron is already in progress, or the cron is disabled on this host |
 | `404` | unknown cron name, or the route is disabled (no token configured) |
 | `401` | wrong or missing token |
 | `500` | the run threw; `error` in the body has the message |
