@@ -93,9 +93,14 @@ Every run:
 4. Success: result stored in `ai_ddx_results` as `done`, queue row `done`.
    A visit whose case history hash is unchanged since its last `done` result is
    not re-sent.
-5. Failure: error stored in `ai_ddx_results` as `failed`, queue row back to
-   `waiting` with `attempts + 1`. At `AI_DDX_MAX_ATTEMPTS` (default 3) the queue
-   row becomes `failed` and is never retried automatically.
+5. Failure: the same `ai_ddx_results` row (one per visit) is set to `failed`
+   with `error`, `attempts + 1`, and whatever was known when it failed:
+   `patient_uuid`, `request_payload` and `payload_hash` once the case history was
+   built, and `response` as `{ status, body }` for an HTTP error or the raw body
+   for a 200 with no usable result. A field this failure did not reach keeps its
+   earlier value. The queue row goes back to `waiting` with `attempts + 1`; at
+   `AI_DDX_MAX_ATTEMPTS` (default 3) it becomes `failed` and is never retried
+   automatically.
 
 `AI_DDX_WORKER_BATCH_SIZE` is **not read by any code**. Setting it does nothing.
 
