@@ -256,7 +256,7 @@ const claimNext = async (limit = 5) => {
        WHERE status = :waiting AND attempts < :maxAttempts
        ORDER BY FIELD(priority, 'high', 'normal') ASC, visit_created_at ASC, id ASC
        LIMIT ${safeLimit}
-       FOR UPDATE SKIP LOCKED`,
+       FOR UPDATE`,
       { waiting: STATUS_WAITING, maxAttempts: MAX_ATTEMPTS }
     );
 
