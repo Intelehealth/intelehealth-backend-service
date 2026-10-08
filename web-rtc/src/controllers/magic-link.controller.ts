@@ -6,7 +6,6 @@ import {
   verifyShortCode,
 } from '../services/magic-link.service';
 import { findById, slotStartMillis } from '../services/appointment.repository';
-import { getPatientContact } from '../services/openmrs.service';
 import { sendDoctorWaiting } from '../services/turn-io.service';
 
 const notice = (title: string, detail: string) => `<!doctype html>
@@ -51,20 +50,16 @@ export class MagicLinkController {
     let notified: boolean | undefined;
     let notifyError: string | undefined;
     if (notify) {
-      console.log(`[magic-link] notify requested visit=${visitUuid} room=${room} phoneFromBody=${bodyPhone ? 'yes' : 'no'}`);
+      console.log(`[magic-link] notify requested visit=${visitUuid} room=${room}`);
       try {
-        // The doctor portal sends the phone it already has; only look it up in
-        // OpenMRS when the caller didn't.
-        const contact = bodyPhone
-          ? { phone: String(bodyPhone), name: null }
-          : await getPatientContact(room);
-        const { phone, name: contactName } = contact;
-        console.log(`[magic-link] phone source=${bodyPhone ? 'request' : 'openmrs'} phone=${phone || 'none'}`);
-        if (!phone) throw new Error('no phone number on patient record');
+        // The phone comes only from the doctor portal's visit summary page.
+        const phone = bodyPhone ? String(bodyPhone).trim() : '';
+        console.log(`[magic-link] phone from request=${phone || 'none'}`);
+        if (!phone) throw new Error('phone number not sent by the visit summary page');
         await sendDoctorWaiting({
           number: phone,
           joinUrl: url,
-          patientName: patientName ? String(patientName) : contactName,
+          patientName: patientName ? String(patientName) : null,
         });
         notified = true;
         console.log(`[magic-link] call link sent to ${phone}`);
