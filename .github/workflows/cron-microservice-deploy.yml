@@ -123,7 +123,7 @@ jobs:
       REMOTE_PORT: 22
       ENV_FILE_PATH: /home/ubuntu/deploy/cron-microservice/.env
       # All host secrets mapped upfront — dynamic secret refs aren't supported in GitHub Actions
-      REMOTE_HOST: ${{ secrets.ttxai }}
+      REMOTE_HOST: ${{ secrets.TTXAI_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
