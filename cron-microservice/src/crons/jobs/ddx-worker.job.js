@@ -1,7 +1,8 @@
 const { withAdvisoryLock } = require('../../database/advisory-lock');
-const { claimNext, markDone, markFailed } = require('../../database/visit-queue.repository');
+const { claimNext, markDone, markFailed, MAX_ATTEMPTS } = require('../../database/visit-queue.repository');
 const { computeForVisit, recordFailure } = require('../../database/ai-ddx-result.repository');
 const { isFeatureEnabled } = require('../services/ai-llm-feature.service');
+const { notifyDdxStatus } = require('../services/ai-ddx-notify.service');
 
 const DDX_WORKER_LOCK = 'cron_microservice_ddx_worker';
 const AI_DDX_PRECOMPUTE_KEY = 'ai_ddx_precompute';
@@ -12,6 +13,8 @@ const processQueue = async (limit, dependencies = {}) => {
   const recordFail = dependencies.recordFailure || recordFailure;
   const markRowDone = dependencies.markDone || markDone;
   const markRowFailed = dependencies.markFailed || markFailed;
+  const notify = dependencies.notifyDdxStatus || notifyDdxStatus;
+  const maxAttempts = dependencies.maxAttempts || MAX_ATTEMPTS;
   const timeout = Number(process.env.AI_VISIT_CRON_REQUEST_TIMEOUT) || 60000;
   const parallelRequests = Number(process.env.AI_VISIT_CRON_PARALLEL_REQUEST_TO_CALL_DDX) || 1;
 
@@ -28,10 +31,14 @@ const processQueue = async (limit, dependencies = {}) => {
       await compute(row.visit_uuid, { timeout });
       await markRowDone(row.id);
       done += 1;
+      await notify(row.visit_uuid, 'done');
     } catch (error) {
       await recordFail(row.visit_uuid, error);
       await markRowFailed(row.id, row.attempts);
       failed += 1;
+      if ((row.attempts || 0) + 1 >= maxAttempts) {
+        await notify(row.visit_uuid, 'failed');
+      }
     }
   };
 
