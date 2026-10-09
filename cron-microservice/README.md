@@ -271,6 +271,17 @@ AI_DDX_PIPELINE_ENABLED=true
 CRONS_DISABLED=ddx-worker
 ```
 
+## Telling the portal a DDx is ready
+
+After the DDx worker marks a visit `done`, or `failed` on its last attempt, it calls the portal's `POST /api/ai-ddx/notify` so an open visit page loads the result over its socket instead of polling. Set both keys, with the token matching the portal's `AI_DDX_NOTIFY_TOKEN`:
+
+```
+AI_DDX_NOTIFY_URL=http://<portal-host>:3004/api/ai-ddx/notify
+AI_DDX_NOTIFY_TOKEN=<shared secret>
+```
+
+With either unset the worker skips notifying. A failed notify is logged and never fails the job: the result is already stored, and the page still gets it on reload.
+
 ## Timezones across hosts
 
 `CRON_TIMEZONE` is the single source of truth for *when a day starts*. It drives
