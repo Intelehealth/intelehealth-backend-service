@@ -83,12 +83,16 @@ export async function sendDoctorWaiting(
     throw new Error('recipient number is required');
   }
 
-  const greeting = msg.patientName ? `Hello ${msg.patientName}, ` : '';
+  // Notification only: .
+  const name = msg.patientName ? ` ${msg.patientName}` : '';
   await postMessage({
     to,
     type: 'text',
     text: {
-      body: `${greeting}your doctor is waiting — please join now:\n\n${msg.joinUrl}`,
+      body:
+        `🔴 *Your doctor is waiting for you*\n\n` +
+        `*Hello${name}, your doctor is ready for your video consultation right now.*\n\n` +
+        `Please join immediately.`,
     },
   });
 }
