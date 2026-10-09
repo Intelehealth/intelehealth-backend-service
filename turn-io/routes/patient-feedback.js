@@ -28,7 +28,8 @@ const readSurvey = (body) => {
 
   return {
     rating: parseRating(src.feedback_rating ?? src.rating),
-    feedback: clean(src.feedback_comment ?? src.comments),
+    // The Turn journey encodes line breaks in the comment as "[NL]"; restore them.
+    feedback: clean(src.feedback_comment ?? src.comment ?? src.comments).replaceAll("[NL]", "\n").trim(),
   };
 };
 
