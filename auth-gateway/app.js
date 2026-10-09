@@ -13,7 +13,6 @@ const cors = require("cors");
 const Sequelize = require("sequelize");
 const db = require("./models");
 const { createHealthRouter } = require("./handlers/health");
-//const z = 0;
 const app = express();
 app.set("view engine", "html");
 

@@ -3,134 +3,90 @@
 # Builds the portal Docker image once and deploys it to one or more remote hosts.
 #
 # Triggers:
-#   - push to development_master (portal/** changes) ? deploys to ALL hosts
-#   - workflow_dispatch (manual) ? deploys to selected hosts via checkboxes
+#   - push to nas-ida5-development-master (portal/** changes) → deploys to nasstaging ONLY
+#   - workflow_dispatch (manual) → deploys to the hosts selected via checkboxes
+#     (nasprod is manual-dispatch-only; it is never deployed on push)
 #
 # Jobs:
 #   1. prepare-matrix  Decides which environments to deploy based on trigger/inputs
 #   2. build           Builds the Docker image and uploads it as a workflow artifact
-#   3. deploy          Matrix job   downloads the artifact, runs migrations (if any), swaps the container, and waits for it to become healthy
+#   3. deploy          Matrix job — downloads the artifact, swaps the container,
+#                      and waits for it to become healthy
 #
 # Required secrets:
-#   DEV_HOST, TURN_HOST     SSH hostnames/IPs
-#   DEV_USER                SSH username
-#   DEV_SSH_KEY             SSH private key
+#   NASSTAGING_HOST, NASPROD_HOST — SSH hostnames/IPs
+#   DEV_USER                      — SSH username
+#   DEV_SSH_KEY                   — SSH private key
 #
-# To add a new host: add a secret for the hostname, map it in the deploy job env block,
-# add a case in "Resolve host", add a boolean input, and add it to the push matrix.
+# Optional: create a GitHub Environment named "nasprod" (Settings → Environments)
+# with "Required reviewers" so production deploys need manual approval.
 
 name: Portal Deploy
 
 on:
   workflow_dispatch:
     inputs:
-      deploy_dev:
-        description: 'Deploy to DEV host'
+      deploy_nasstaging:
+        description: 'Deploy to NAS Staging host'
+        type: boolean
+        default: true
+      deploy_nasprod:
+        description: 'Deploy to NAS Prod host'
         type: boolean
         default: false
-      deploy_ttxai:
-        description: 'Deploy to TTXAI host'
-        type: boolean
-        default: false
-      deploy_turn:
-        description: 'Deploy to TURN host'
-        type: boolean
-        default: false
-      deploy_testturn:
-        description: 'Deploy to TESTTURN host'
-        type: boolean
-        default: false
-      deploy_pathqa:
-        description: 'Deploy to PATHQA host'
-        type: boolean
-        default: false
-      deploy_demoai:
-        description: 'Deploy to DEMOAI host'
-        type: boolean
-        default: false    
+
   push:
-    branches: [development_master]
+    branches: [nas-ida5-development-master]
     paths:
       - 'portal/**'
+      - '.github/workflows/portal-deploy.yml'
 
-# Serialize runs per branch: two pushes (or push + manual dispatch) must not
-# deploy to the same hosts concurrently. New runs queue instead of cancelling
-# an in-flight deploy.
+# Serialize runs: two pushes (or push + manual dispatch) must not deploy
+# concurrently. New runs queue instead of cancelling an in-flight deploy.
 concurrency:
-  group: portal-deploy-${{ github.ref }}
+  group: portal-deploy
   cancel-in-progress: false
 
 env:
   DOCKER_IMAGE_NAME: portal
+  APP_PORT: 3004
 
 jobs:
   prepare-matrix:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
-      build_matrix: ${{ steps.set-matrix.outputs.build_matrix }}
+      has_targets: ${{ steps.set-matrix.outputs.has_targets }}
     steps:
       - name: Build deployment matrix
         id: set-matrix
         run: |
-          # Host -> CPU architecture map. Each arch builds natively on its
-          # matching runner (see build_matrix below).
-          dev_arch=amd64
-          ttxai_arch=amd64
-          testturn_arch=amd64
-          turn_arch=amd64
-          demoai_arch=amd64
-          pathqa_arch=arm64
-
+          includes='[]'
           if [ "${{ github.event_name }}" == "push" ]; then
-            # On push, deploy to all hosts
-            includes='[]'
-            for env in dev turn ttxai testturn pathqa demoai; do
-              arch_var="${env}_arch"
-              includes=$(echo "$includes" | jq -c --arg e "$env" --arg a "${!arch_var}" '. += [{"environment":$e,"arch":$a}]')
-            done
+            # On push, deploy to nasstaging only
+            includes='[{"environment":"nasstaging"}]'
           else
-            # On manual dispatch, deploy only to selected hosts.
-            # NOTE: "inputs.deploy_x" is GitHub expression syntax, not a bash
-            # variable - indirect expansion (${!...}) fails on the dots, so
-            # each input is expanded literally via the case below.
-            includes='[]'
-            for env in dev turn ttxai testturn pathqa demoai; do
-              case "$env" in
-                dev)      selected="${{ inputs.deploy_dev }}" ;;
-                ttxai)    selected="${{ inputs.deploy_ttxai }}" ;;
-                testturn) selected="${{ inputs.deploy_testturn }}" ;;
-                turn)    selected="${{ inputs.deploy_turn }}" ;;
-                pathqa)   selected="${{ inputs.deploy_pathqa }}" ;;
-                demoai)    selected="${{ inputs.deploy_demoai }}" ;;
-              esac
-              if [ "$selected" == "true" ]; then
-                arch_var="${env}_arch"
-                includes=$(echo "$includes" | jq -c --arg e "$env" --arg a "${!arch_var}" '. += [{"environment":$e,"arch":$a}]')
-              fi
-            done
+            if [ "${{ inputs.deploy_nasstaging }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"nasstaging"}]')
+            fi
+            if [ "${{ inputs.deploy_nasprod }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"nasprod"}]')
+            fi
           fi
-          matrix="{\"include\":$includes}"
-          # De-duplicated arch -> runner mapping for the build job.
-          # arm64 builds natively on the ARM64 runner (no QEMU emulation),
-          # amd64 on the standard x64 runner.
-          build_includes=$(echo "$includes" | jq -c '[.[].arch] | unique | map(
-            if . == "arm64" then {arch: ., os: "ubuntu-24.04-arm"}
-            else {arch: ., os: "ubuntu-latest"} end
-          )')
-          echo "matrix=$matrix" >> $GITHUB_OUTPUT
-          echo "build_matrix={\"include\":$build_includes}" >> $GITHUB_OUTPUT
+
+          count=$(echo "$includes" | jq 'length')
+          if [ "$count" -eq 0 ]; then
+            echo "No hosts selected — nothing to deploy."
+            echo "has_targets=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_targets=true" >> $GITHUB_OUTPUT
+          fi
+          echo "matrix={\"include\":$includes}" >> $GITHUB_OUTPUT
 
   build:
+    runs-on: ubuntu-latest
     needs: prepare-matrix
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix: ${{ fromJson(needs.prepare-matrix.outputs.build_matrix) }}
-      fail-fast: false
-#    outputs:
-      # Computed identically in every arch leg, so the value is the same
-      # regardless of which leg the deploy job reads it from.
-  #    migrations_changed: ${{ steps.check-migrations.outputs.changed }}
+    if: needs.prepare-matrix.outputs.has_targets == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -148,124 +104,166 @@ jobs:
         run: npm i --production=false
         working-directory: portal
 
-  #     - name: Check for migration file changes
-  #       id: check-migrations
-  #       run: |
-  #         if [ "${{ github.event_name }}" != "push" ]; then
-  #           echo "changed=true" >> $GITHUB_OUTPUT
-  #         elif [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
-  #           echo "changed=true" >> $GITHUB_OUTPUT
-  #         else
-  #           git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q "^portal/migrations/" \
-  #             && echo "changed=true" >> $GITHUB_OUTPUT \
-  #             || echo "changed=false" >> $GITHUB_OUTPUT
-  #         fi
-      # Every leg builds natively: amd64 on the x64 runner, arm64 on the
-      # ARM64 runner. No QEMU emulation needed.
-      - name: Build Docker image (${{ matrix.arch }}, native)
+      - name: Build Docker image
         run: |
-          cd portal
-          docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} .
-          docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > ../app-image-${{ matrix.arch }}.tar
+          docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} ./portal
+          docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > app-image.tar
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
-          name: portal-${{ matrix.arch }}
-          path: app-image-${{ matrix.arch }}.tar
+          name: portal-image
+          path: app-image.tar
           retention-days: 1
 
   deploy:
     needs: [prepare-matrix, build]
+    if: needs.prepare-matrix.outputs.has_targets == 'true'
     runs-on: ubuntu-latest
+    environment: ${{ matrix.environment }}
     strategy:
       matrix: ${{ fromJson(needs.prepare-matrix.outputs.matrix) }}
       fail-fast: false  # a failure on one host should not cancel the other
     env:
       REMOTE_PORT: 22
+      DEPLOY_DIR: /home/ubuntu/deploy/portal
       ENV_FILE_PATH: /home/ubuntu/deploy/portal/.env
       PEM_FOLDER_PATH: /home/ubuntu/deploy/portal/.pem
-      # All host secrets mapped upfront  dynamic secret refs aren't supported in GitHub Actions
-      DEV_HOST: ${{ secrets.DEV_HOST }}
-      TTXAI_HOST: ${{ secrets.TTXAI_HOST }}
-      DEMOAI_HOST: ${{ secrets.DEMOAI_HOST }}
-      TESTTURN_HOST: ${{ secrets.TESTTURN_HOST }}
-      TURN_HOST: ${{ secrets.TURN_HOST }}
-      PATHQA_HOST: ${{ secrets.PATHQA_HOST }}
+      # All host secrets mapped upfront — dynamic secret refs aren't supported in GitHub Actions
+      NASSTAGING_HOST: ${{ secrets.NASSTAGING_HOST }}
+      NASPROD_HOST: ${{ secrets.NASPROD_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
-      - name: Resolve host for environment
+      - name: Resolve host and set up SSH
         run: |
           case "${{ matrix.environment }}" in
-            dev)      host="$DEV_HOST" ;;
-            ttxai)    host="$TTXAI_HOST" ;;
-            testturn) host="$TESTTURN_HOST" ;;
-            turn)     host="$TURN_HOST" ;;
-            pathqa)   host="$PATHQA_HOST" ;;
-            demoai)    host="$DEMOAI_HOST" ;;
-            *)        echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
+            nasstaging) host="$NASSTAGING_HOST" ;;
+            nasprod)    host="$NASPROD_HOST" ;;
+            *)          echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
           echo "REMOTE_HOST=$host" >> $GITHUB_ENV
-          # Pin this host's SSH public key for the rest of the job so the
-          # ssh/scp steps below can verify it (StrictHostKeyChecking=yes)
-          # instead of blindly trusting any host (StrictHostKeyChecking=no).
-          # This is trust-on-first-use; for full pinning, commit a known_hosts
-          # file to the repo and copy it here instead.
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          ssh-keyscan -p $REMOTE_PORT -H "$host" >> ~/.ssh/known_hosts 2>/dev/null
-          chmod 600 ~/.ssh/known_hosts
-      - name: Download image artifact for ${{ matrix.arch }}
-        uses: actions/download-artifact@v4
-        with:
-          name: portal-${{ matrix.arch }}
 
-      - name: Deploy to ${{ matrix.environment }} host
-        run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          # Copy Docker image to remote host
+          # Pin this host's SSH key (trust-on-first-use) so ssh/scp below can
+          # use StrictHostKeyChecking=yes instead of trusting any host.
+          ssh-keyscan -p $REMOTE_PORT -H "$host" >> ~/.ssh/known_hosts 2>/dev/null
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: portal-image
+
+      - name: Deploy to ${{ matrix.environment }} host
+        run: |
           scp -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=yes \
               -P $REMOTE_PORT \
-              app-image-${{ matrix.arch }}.tar $REMOTE_USER@$REMOTE_HOST:/home/ubuntu/deploy/portal/app-image.tar
-          # SSH into remote host and deploy
+              app-image.tar \
+              $REMOTE_USER@$REMOTE_HOST:$DEPLOY_DIR/app-image.tar
+
+          # Values are passed in as env vars and the heredoc is quoted ('EOF'),
+          # so nothing in the script gets expanded on the GitHub runner by mistake.
           ssh -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=yes \
               -p $REMOTE_PORT \
-              $REMOTE_USER@$REMOTE_HOST <<EOF
-            DOCKER_IMAGE_NAME="${{ env.DOCKER_IMAGE_NAME }}"
-            ENV_FILE_PATH="${{ env.ENV_FILE_PATH }}"
-            PEM_FOLDER_PATH="${{ env.PEM_FOLDER_PATH }}"
-            docker load -i /home/ubuntu/deploy/portal/app-image.tar
-            rm /home/ubuntu/deploy/portal/app-image.tar
-            # Validate prerequisites BEFORE touching the running container,
-            # so any failure below leaves the current version serving traffic.
-            if [ ! -f "\$ENV_FILE_PATH" ]; then
-              echo "Error: .env file not found at \$ENV_FILE_PATH"
-              exit 1
-            fi
-            if [ ! -d "\$PEM_FOLDER_PATH" ]; then
-              echo "Error: .pem folder not found at \$PEM_FOLDER_PATH"
-              exit 1
-            fi
-            # Run migrations from the NEW image as a one-off container BEFORE
-            # swapping. If they fail, abort and keep the old container live.
+              $REMOTE_USER@$REMOTE_HOST \
+              "IMAGE='$DOCKER_IMAGE_NAME' TAG='${{ github.sha }}' PORT='$APP_PORT' \
+               DEPLOY_DIR='$DEPLOY_DIR' ENV_FILE_PATH='$ENV_FILE_PATH' \
+               PEM_FOLDER_PATH='$PEM_FOLDER_PATH' TARGET='${{ matrix.environment }}' bash -s" <<'EOF'
+          set -euo pipefail
 
-            docker stop \$DOCKER_IMAGE_NAME || true
-            docker rm \$DOCKER_IMAGE_NAME || true
-            docker run -d \
-              --name \$DOCKER_IMAGE_NAME \
-              --restart unless-stopped \
-              -p 3004:3004 \
-              --env-file \$ENV_FILE_PATH \
-              -v \$PEM_FOLDER_PATH:/app/.pem \
-              --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
-              \$DOCKER_IMAGE_NAME:${{ github.sha }}
-            docker image prune -f
-            echo "Portal deployment to ${{ matrix.environment }} completed successfully"
+          # 1. Validate config BEFORE touching the running container,
+          #    so a failure here leaves the current version serving traffic.
+          if [ ! -f "$ENV_FILE_PATH" ]; then
+            echo "Error: .env file not found at $ENV_FILE_PATH"; exit 1
+          fi
+          if [ ! -d "$PEM_FOLDER_PATH" ]; then
+            echo "Error: .pem folder not found at $PEM_FOLDER_PATH"; exit 1
+          fi
+
+          # 2. Load the new image
+          docker load -i "$DEPLOY_DIR/app-image.tar"
+          rm -f "$DEPLOY_DIR/app-image.tar"
+
+          # 3. Remove the old container — Docker releases the port when it is removed
+          docker ps -aq --filter "name=^/${IMAGE}$" | xargs -r docker rm -f
+
+          # 4. Wait for the port to be free
+          port_busy() { ss -ltn "( sport = :$PORT )" | grep -q ":$PORT"; }
+          for i in $(seq 1 10); do
+            port_busy || break
+            sleep 1
+          done
+
+          # 5. If something still holds the port (e.g. an orphaned docker-proxy), log it and free it
+          if port_busy; then
+            echo "Port $PORT is still in use. Holder:"
+            sudo -n ss -ltnp "( sport = :$PORT )" || true
+            sudo -n fuser -k "$PORT/tcp" || true
+            sleep 2
+            if port_busy; then
+              echo "Error: port $PORT could not be freed"; exit 1
+            fi
+          fi
+
+          # 6. Start the new container
+          docker run -d \
+            --name "$IMAGE" \
+            --restart unless-stopped \
+            -p 0.0.0.0:$PORT:$PORT \
+            --env-file "$ENV_FILE_PATH" \
+            -v "$PEM_FOLDER_PATH":/app/.pem \
+            --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
+            --log-opt max-size=10m --log-opt max-file=3 \
+            "$IMAGE:$TAG"
+
+          # 7. Clean up old portal images — keep the current one + the previous one for rollback
+          docker images "$IMAGE" --format '{{.Repository}}:{{.Tag}}' \
+            | grep -v ":${TAG}$" \
+            | tail -n +2 \
+            | xargs -r docker rmi || true
+          docker image prune -f
+
+          echo "Portal deployment to $TARGET completed"
           EOF
 
+      - name: Verify deployment on ${{ matrix.environment }}
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=yes \
+              -p $REMOTE_PORT \
+              $REMOTE_USER@$REMOTE_HOST \
+              "IMAGE='$DOCKER_IMAGE_NAME' TARGET='${{ matrix.environment }}' bash -s" <<'EOF'
+          set -euo pipefail
+
+          # Wait up to 90s. If the image defines a HEALTHCHECK, wait for "healthy";
+          # otherwise just require the container to stay running without restarts.
+          for i in $(seq 1 18); do
+            sleep 5
+            status=$(docker inspect -f '{{.State.Status}}' "$IMAGE")
+            health=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$IMAGE")
+            restarts=$(docker inspect -f '{{.RestartCount}}' "$IMAGE")
+            echo "[$((i*5))s] status=$status health=$health restarts=$restarts"
+
+            if [ "$status" != "running" ] || [ "$restarts" -gt 0 ] || [ "$health" = "unhealthy" ]; then
+              break
+            fi
+            if [ "$health" = "healthy" ] || { [ "$health" = "none" ] && [ "$i" -ge 3 ]; }; then
+              echo "Portal deployment on $TARGET successful! Ports: $(docker port "$IMAGE" | tr '\n' ' ')"
+              exit 0
+            fi
+          done
+
+          echo "Deployment on $TARGET FAILED — last 100 log lines:"
+          docker logs --tail 100 "$IMAGE"
+          if [ "$health" != "none" ]; then
+            echo "Last healthcheck results:"
+            docker inspect -f '{{range .State.Health.Log}}{{.Output}}{{end}}' "$IMAGE" | tail -20
+          fi
+          exit 1
+          EOF

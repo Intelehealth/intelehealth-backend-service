@@ -1,4 +1,5 @@
 import { WebRTCService } from "../services/webrtc.service";
+import * as Sentry from '@sentry/node';
 const { logStream } = require("../logger/index");
 
 
@@ -31,5 +32,6 @@ export class WebSocketController {
 
     onWebSocketError(err: any) {
         logStream('debug', JSON.stringify(err), 'On WebSocket Error')
+        Sentry.captureException(err);
     }
 }

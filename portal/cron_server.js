@@ -91,7 +91,6 @@ const tempStorageCronString = process.env.TEMP_STORAGE_CLEANUP_CRON || "0 20 * *
 const tempStorageCleanup = async () => {
   try {
     const result = await cleanupRecords();
-    console.log(`Temp storage cleanup completed: ${JSON.stringify(result)}`);
   } catch (err) {
     console.error(`Temp storage cleanup failed: ${err.message}`);
   }

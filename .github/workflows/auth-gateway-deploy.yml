@@ -1,42 +1,90 @@
+# Auth Gateway Deploy
+#
+# Builds the auth-gateway Docker image once and deploys it to one or more remote hosts.
+#
+# Triggers:
+#   - push to nas-ida5-development-master (auth-gateway/** changes) → deploys to nasstaging ONLY
+#   - workflow_dispatch (manual) → deploys to the hosts selected via checkboxes
+#     (nasprod is manual-dispatch-only; it is never deployed on push)
+#
+# Jobs:
+#   1. prepare-matrix  Decides which environments to deploy based on trigger/inputs
+#   2. build           Builds the Docker image and uploads it as a workflow artifact
+#   3. deploy          Matrix job — downloads the artifact and deploys to each host in parallel
+#
+# Required secrets:
+#   NASSTAGING_HOST, NASPROD_HOST — SSH hostnames/IPs
+#   DEV_USER                      — SSH username
+#   DEV_SSH_KEY                   — SSH private key
+#
+# Optional: create a GitHub Environment named "nasprod" (Settings → Environments)
+# with "Required reviewers" so production deploys need manual approval.
+
 name: Auth Gateway Deploy
 
 on:
   workflow_dispatch:
     inputs:
-      deploy_dev:
-        description: 'Deploy to DEV host'
+      deploy_nasstaging:
+        description: 'Deploy to NAS Staging host'
         type: boolean
         default: true
-      deploy_ttxai:
-        description: 'Deploy to TTXAI host'
+      deploy_nasprod:
+        description: 'Deploy to NAS Prod host'
         type: boolean
         default: false
-      deploy_testturn:
-        description: 'Deploy to TESTTURN host'
-        type: boolean
-        default: false
-      deploy_turn:
-        description: 'Deploy to TURN host'
-        type: boolean
-        default: false
-      deploy_pathqa:
-        description: 'Deploy to PATHQA host'
-        type: boolean
-        default: false
+
   push:
-    branches: [development_master]
+    branches: [nas-ida5-development-master]
     paths:
       - 'auth-gateway/**'
 
+# Prevent two deploys from running at the same time and fighting over port 3030
+concurrency:
+  group: auth-gateway-deploy
+  cancel-in-progress: false
+
 env:
   DOCKER_IMAGE_NAME: auth-gateway
+  APP_PORT: 3030
 
 jobs:
   prepare-matrix:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
-      archs: ${{ steps.set-matrix.outputs.archs }}
+      has_targets: ${{ steps.set-matrix.outputs.has_targets }}
+    steps:
+      - name: Build deployment matrix
+        id: set-matrix
+        run: |
+          includes='[]'
+          if [ "${{ github.event_name }}" == "push" ]; then
+            # On push, deploy to nasstaging only
+            includes='[{"environment":"nasstaging"}]'
+          else
+            if [ "${{ inputs.deploy_nasstaging }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"nasstaging"}]')
+            fi
+            if [ "${{ inputs.deploy_nasprod }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"nasprod"}]')
+            fi
+          fi
+
+          count=$(echo "$includes" | jq 'length')
+          if [ "$count" -eq 0 ]; then
+            echo "No hosts selected — nothing to deploy."
+            echo "has_targets=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_targets=true" >> $GITHUB_OUTPUT
+          fi
+          echo "matrix={\"include\":$includes}" >> $GITHUB_OUTPUT
+
+  build:
+    runs-on: ubuntu-latest
+    needs: prepare-matrix
+    if: needs.prepare-matrix.outputs.has_targets == 'true'
+    outputs:
       migrations_changed: ${{ steps.check-migrations.outputs.changed }}
     steps:
       - name: Checkout code
@@ -57,178 +105,161 @@ jobs:
               || echo "changed=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build deployment matrix
-        id: set-matrix
-        run: |
-          # Hardcoded architecture mapping. All hosts are amd64 unless listed here.
-          arch_of() {
-            case "$1" in
-              pathqa) echo "arm64" ;;
-              *)      echo "amd64" ;;
-            esac
-          }
-          includes='[]'
-          if [ "${{ github.event_name }}" == "push" ]; then
-            for env in dev turn ttxai testturn pathqa; do
-              includes=$(echo "$includes" | jq -c --arg env "$env" --arg arch "$(arch_of "$env")" '. += [{"environment":$env,"arch":$arch}]')
-            done
-          else
-            if [ "${{ inputs.deploy_dev }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c --arg arch "$(arch_of dev)" '. += [{"environment":"dev","arch":$arch}]')
-            fi
-            if [ "${{ inputs.deploy_ttxai }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c --arg arch "$(arch_of ttxai)" '. += [{"environment":"ttxai","arch":$arch}]')
-            fi
-            if [ "${{ inputs.deploy_turn }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c --arg arch "$(arch_of turn)" '. += [{"environment":"turn","arch":$arch}]')
-            fi
-            if [ "${{ inputs.deploy_testturn }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c --arg arch "$(arch_of testturn)" '. += [{"environment":"testturn","arch":$arch}]')
-            fi
-            if [ "${{ inputs.deploy_pathqa }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c --arg arch "$(arch_of pathqa)" '. += [{"environment":"pathqa","arch":$arch}]')
-            fi
-          fi
-          archs=$(echo "$includes" | jq -r '.[].arch' | sort -u | paste -sd, -)
-          matrix="{\"include\":$includes}"
-          echo "matrix=$matrix" >> $GITHUB_OUTPUT
-          echo "archs=$archs" >> $GITHUB_OUTPUT
-
-  build:
-    runs-on: ubuntu-latest
-    needs: prepare-matrix
-    if: ${{ contains(needs.prepare-matrix.outputs.archs, 'amd64') }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Build Docker image (amd64)
+      - name: Build Docker image
         run: |
           docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} ./auth-gateway
           docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > app-image.tar
 
-      - name: Upload amd64 image artifact
+      - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
-          name: auth-gateway-image-amd64
-          path: app-image.tar
-          retention-days: 1
-
-  build-arm64:
-    runs-on: ubuntu-24.04-arm
-    needs: prepare-matrix
-    if: ${{ contains(needs.prepare-matrix.outputs.archs, 'arm64') }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Build Docker image (arm64)
-        run: |
-          docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} ./auth-gateway
-          docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > app-image.tar
-
-      - name: Upload arm64 image artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: auth-gateway-image-arm64
+          name: auth-gateway-image
           path: app-image.tar
           retention-days: 1
 
   deploy:
-    needs: [prepare-matrix, build, build-arm64]
-    if: |
-      always() &&
-      needs.prepare-matrix.result == 'success' &&
-      !contains(needs.*.result, 'failure') &&
-      !contains(needs.*.result, 'cancelled')
+    needs: [prepare-matrix, build]
+    if: needs.prepare-matrix.outputs.has_targets == 'true'
     runs-on: ubuntu-latest
+    environment: ${{ matrix.environment }}
     strategy:
       matrix: ${{ fromJson(needs.prepare-matrix.outputs.matrix) }}
-      fail-fast: false
+      fail-fast: false  # a failure on one host should not cancel the other
     env:
       REMOTE_PORT: 22
       ENV_FILE_PATH: /home/ubuntu/deploy/auth-gateway/.env
       PEM_FOLDER_PATH: /home/ubuntu/deploy/auth-gateway/.pem
-      DEV_HOST: ${{ secrets.DEV_HOST }}
-      TURN_HOST: ${{ secrets.TURN_HOST }}
-      TTXAI_HOST: ${{ secrets.TTXAI_HOST }}
-      TESTTURN_HOST: ${{ secrets.TESTTURN_HOST }}
-      PATHQA_HOST: ${{ secrets.PATHQA_HOST }}
+      # All host secrets mapped upfront — dynamic secret refs aren't supported in GitHub Actions
+      NASSTAGING_HOST: ${{ secrets.NASSTAGING_HOST }}
+      NASPROD_HOST: ${{ secrets.NASPROD_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
       - name: Resolve host for environment
         run: |
           case "${{ matrix.environment }}" in
-            dev)  echo "REMOTE_HOST=$DEV_HOST"  >> $GITHUB_ENV ;;
-            ttxai) echo "REMOTE_HOST=$TTXAI_HOST" >> $GITHUB_ENV ;;
-            testturn) echo "REMOTE_HOST=$TESTTURN_HOST" >> $GITHUB_ENV ;;
-            turn) echo "REMOTE_HOST=$TURN_HOST" >> $GITHUB_ENV ;;
-            pathqa) echo "REMOTE_HOST=$PATHQA_HOST" >> $GITHUB_ENV ;;
-            *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
+            nasstaging) echo "REMOTE_HOST=$NASSTAGING_HOST" >> $GITHUB_ENV ;;
+            nasprod)    echo "REMOTE_HOST=$NASPROD_HOST"    >> $GITHUB_ENV ;;
+            *)          echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
 
-      - name: Download image artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: auth-gateway-image-${{ matrix.arch }}
-
-      - name: Deploy to ${{ matrix.environment }} host
+      - name: Set up SSH key
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
 
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: auth-gateway-image
+
+      - name: Deploy to ${{ matrix.environment }} host
+        run: |
           scp -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=no \
               -P $REMOTE_PORT \
               app-image.tar \
               $REMOTE_USER@$REMOTE_HOST:/tmp/
 
+          # Values are passed in as env vars and the heredoc is quoted ('EOF'),
+          # so nothing in the script gets expanded on the GitHub runner by mistake.
           ssh -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=no \
               -p $REMOTE_PORT \
-              $REMOTE_USER@$REMOTE_HOST <<EOF
-            DOCKER_IMAGE_NAME="${{ env.DOCKER_IMAGE_NAME }}"
-            ENV_FILE_PATH="${{ env.ENV_FILE_PATH }}"
-            PEM_FOLDER_PATH="${{ env.PEM_FOLDER_PATH }}"
+              $REMOTE_USER@$REMOTE_HOST \
+              "IMAGE='$DOCKER_IMAGE_NAME' TAG='${{ github.sha }}' PORT='$APP_PORT' \
+               ENV_FILE_PATH='$ENV_FILE_PATH' PEM_FOLDER_PATH='$PEM_FOLDER_PATH' \
+               TARGET='${{ matrix.environment }}' bash -s" <<'EOF'
+          set -euo pipefail
 
-            docker load -i /tmp/app-image.tar
-            rm /tmp/app-image.tar
+          # 1. Validate config BEFORE touching the running container
+          if [ ! -f "$ENV_FILE_PATH" ]; then
+            echo "Error: .env file not found at $ENV_FILE_PATH"; exit 1
+          fi
+          if [ ! -d "$PEM_FOLDER_PATH" ]; then
+            echo "Error: .pem folder not found at $PEM_FOLDER_PATH"; exit 1
+          fi
 
-            docker stop \$DOCKER_IMAGE_NAME || true
-            docker rm \$DOCKER_IMAGE_NAME || true
+          # 2. Load the new image
+          docker load -i /tmp/app-image.tar
+          rm -f /tmp/app-image.tar
 
-            if [ ! -f "\$ENV_FILE_PATH" ]; then
-              echo "Error: .env file not found at \$ENV_FILE_PATH"
-              exit 1
-            fi
+          # 3. Remove the old container(s) — Docker releases the port when the container is removed
+          docker ps -aq --filter "name=^/${IMAGE}$" | xargs -r docker rm -f
 
-            if [ ! -d "\$PEM_FOLDER_PATH" ]; then
-              echo "Error: .pem folder not found at \$PEM_FOLDER_PATH"
-              exit 1
-            fi
+          # 4. Wait for the port to be free
+          port_busy() { ss -ltn "( sport = :$PORT )" | grep -q ":$PORT"; }
+          for i in $(seq 1 10); do
+            port_busy || break
+            sleep 1
+          done
 
-            docker ps -a | grep auth-gateway | awk '{print $1}' | xargs -r docker rm -f || true
-
-            fuser -k 3030/tcp || true
-
+          # 5. If something still holds the port (e.g. an orphaned docker-proxy), log it and free it
+          if port_busy; then
+            echo "Port $PORT is still in use. Holder:"
+            sudo -n ss -ltnp "( sport = :$PORT )" || true
+            sudo -n fuser -k "$PORT/tcp" || true
             sleep 2
+            if port_busy; then
+              echo "Error: port $PORT could not be freed"; exit 1
+            fi
+          fi
 
-            docker run -d \
-              --name \$DOCKER_IMAGE_NAME \
-              --restart unless-stopped \
-              -p 0.0.0.0:3030:3030 \
-              --env-file \$ENV_FILE_PATH \
-              -v \$PEM_FOLDER_PATH:/app/.pem \
-              --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
-              \$DOCKER_IMAGE_NAME:${{ github.sha }}
+          # 6. Start the new container
+          docker run -d \
+            --name "$IMAGE" \
+            --restart unless-stopped \
+            -p 0.0.0.0:$PORT:$PORT \
+            --env-file "$ENV_FILE_PATH" \
+            -v "$PEM_FOLDER_PATH":/app/.pem \
+            --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
+            --log-opt max-size=10m --log-opt max-file=3 \
+            "$IMAGE:$TAG"
 
-            docker image prune -f
-            echo "Auth-gateway deployment to ${{ matrix.environment }} completed successfully"
+          # 7. Clean up old auth-gateway images — keep the current one + the previous one for rollback
+          docker images "$IMAGE" --format '{{.Repository}}:{{.Tag}}' \
+            | grep -v ":${TAG}$" \
+            | tail -n +2 \
+            | xargs -r docker rmi || true
+          docker image prune -f
+
+          echo "Auth-gateway deployment to $TARGET completed"
+          EOF
+
+#      - name: Run migrations on ${{ matrix.environment }} host
+#        if: needs.build.outputs.migrations_changed == 'true'
+#        run: |
+#          ssh -i ~/.ssh/deploy_key \
+#              -o StrictHostKeyChecking=no \
+#              -p $REMOTE_PORT \
+#              $REMOTE_USER@$REMOTE_HOST \
+#              "docker exec ${{ env.DOCKER_IMAGE_NAME }} npm run migrate"
+
+      - name: Verify deployment on ${{ matrix.environment }}
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              -p $REMOTE_PORT \
+              $REMOTE_USER@$REMOTE_HOST \
+              "IMAGE='$DOCKER_IMAGE_NAME' PORT='$APP_PORT' TARGET='${{ matrix.environment }}' bash -s" <<'EOF'
+          set -euo pipefail
+
+          # Give the app time to start (or crash)
+          sleep 15
+
+          status=$(docker inspect -f '{{.State.Status}}' "$IMAGE")
+          restarts=$(docker inspect -f '{{.RestartCount}}' "$IMAGE")
+          ports=$(docker port "$IMAGE" || true)
+
+          echo "Status: $status | Restarts: $restarts | Ports: $ports"
+
+          if [ "$status" != "running" ] || [ "$restarts" -gt 0 ] || [ -z "$ports" ]; then
+            echo "Deployment on $TARGET FAILED — last 100 log lines:"
+            docker logs --tail 100 "$IMAGE"
+            exit 1
+          fi
+
+          echo "Auth-gateway deployment on $TARGET successful!"
           EOF

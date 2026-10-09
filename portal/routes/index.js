@@ -18,6 +18,7 @@ const authMiddleware = require("../middleware/auth");
 
 router.post("/mindmap/upload", [authMiddleware, addUpdateMindMap]);
 router.get("/mindmap", [authMiddleware, getMindmapKeys]);
+router.get("/mindmap/getWebrtcStatuses", [getWebrtcStatuses]);
 
 router.post("/mindmap/addUpdatekey", [authMiddleware, addUpdateLicenceKey]);
 router.get("/mindmap/details/:key", [authMiddleware, getMindmapDetails]);
@@ -42,6 +43,7 @@ router.use("/links", require("./links.route"));
 router.use("/support", require("./support.route"));
 router.use("/openai", require("./openai.route"));
 router.use('/signature', require("./signature.route"));
+router.use('/kaleyra', require('./kaleyra.route'));
 router.use('/pincode', require("./pincode.route"));
 router.use('/temp-storage', require("./temp-storage.route"));
 router.use("/", require("./ai-diagnosis.route"));

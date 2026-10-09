@@ -174,7 +174,6 @@ module.exports = function (server) {
 
       // If call was already handled in cancel_dr
       if (socketUser && socketUser.callTerminated) {
-        console.log("Skipping bye: already handled by cancel_dr");
         return;
       } else {
         if (data.doctorId) {

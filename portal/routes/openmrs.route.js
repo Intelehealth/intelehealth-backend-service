@@ -12,6 +12,7 @@ const {
   getEndedVisits,
   getFollowUpVisits
 } = require("../controllers/openMrs.controller");
+const { getReferredVisits } = require("../controllers/openMrs.controller");
 const authMiddleware = require("../middleware/auth");
 
 router.get("/getVisitCounts", [authMiddleware, getVisitCounts]);
@@ -31,5 +32,6 @@ router.get("/getInProgressVisits", [authMiddleware, getInProgressVisits]);
 router.get("/getCompletedVisits", [authMiddleware, getCompletedVisits]);
 router.get("/getEndedVisits", [authMiddleware, getEndedVisits]);
 router.get("/getFollowUpVisits", [authMiddleware, getFollowUpVisits]);
+router.get("/getReferredVisits", [authMiddleware, getReferredVisits]);
 
 module.exports = router;
