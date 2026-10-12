@@ -277,50 +277,6 @@ module.exports = (function () {
    * 14 - Visit Complete
    * 15 - Flagged
    */
-  /*
-    OpenMRS writes DATETIME columns in the database server's local zone, but
-    Sequelize reads them as UTC. The offset is read from the database's own
-    clock so the timestamps sent to clients are true UTC whatever zone MySQL
-    keeps (IST on some hosts, UTC in containers).
-  */
-  let dbOffsetPromise = null;
-  const getDbOffsetMinutes = () => {
-    if (!dbOffsetPromise) {
-      dbOffsetPromise = sequelize
-        .query("SELECT TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(), NOW()) AS offset_seconds", { type: QueryTypes.SELECT })
-        .then((rows) => {
-          const seconds = Number(rows[0]?.offset_seconds);
-          if (!Number.isFinite(seconds)) throw new Error("Could not read the OpenMRS database timezone offset");
-          return Math.round(seconds / 60);
-        })
-        .catch((error) => {
-          dbOffsetPromise = null;
-          throw error;
-        });
-    }
-    return dbOffsetPromise;
-  };
-
-  /**
-  * Convert visit and encounter datetimes from database-local time to true UTC.
-  * Applied only on a TURN server; other deployments keep the old response.
-  * @param { Array } visits - Visits returned by Sequelize
-  */
-  const toUtcVisits = async (visits) => {
-    if (process.env.IS_TURN_SERVER !== 'true') return visits;
-    const offsetMinutes = await getDbOffsetMinutes();
-    const toUtc = (value) => value ? moment.utc(value).subtract(offsetMinutes, "minutes").toISOString() : value;
-    return visits.map((v) => {
-      const data = v.toJSON();
-      data.date_created = toUtc(data.date_created);
-      data.date_stopped = toUtc(data.date_stopped);
-      data.encounters?.forEach((e) => {
-        e.encounter_datetime = toUtc(e.encounter_datetime);
-      });
-      return data;
-    });
-  };
-
   /**
   * Get visits by type
   * @param { string } speciality - Doctor speciality
@@ -414,7 +370,7 @@ module.exports = (function () {
           offset,
         });
         resp.currentCount = visits.length;
-        resp.visits = await toUtcVisits(visits);
+        resp.visits = visits;
       }
       resp.totalCount = visitIds.length;
 
