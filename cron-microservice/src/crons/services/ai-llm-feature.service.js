@@ -39,10 +39,7 @@ const getPublishedAiLlmFlags = async () => {
 
 const isFeatureEnabled = async (key) => {
   const flags = await getPublishedAiLlmFlags();
-  if (flags[key] === undefined) {
-    return true;
-  }
-  return Boolean(flags[key]);
+  return flags[key] === true;
 };
 
 module.exports = { isFeatureEnabled, getPublishedAiLlmFlags };
