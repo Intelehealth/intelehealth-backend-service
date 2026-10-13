@@ -49,8 +49,17 @@ export class MagicLinkController {
 
     let notified: boolean | undefined;
     let notifyError: string | undefined;
-    if (notify) {
-      console.log(`[magic-link] notify requested visit=${visitUuid} room=${room}`);
+    // A patient who joined first is already waiting in the room, so "your doctor is waiting" is noise.
+    const patientInRoom = notify
+      ? (await new WebRTCService().listParticipants(room)).some((p: any) =>
+          String(p.identity || '').startsWith('guest-')
+        )
+      : false;
+    if (notify && patientInRoom) {
+      notified = false;
+      console.log(` notify skipped visit=${visitUuid} room=${room}: patient already in the call`);
+    } else if (notify) {
+      console.log(` notify requested visit=${visitUuid} room=${room}`);
       try {
         // The phone comes only from the doctor portal's visit summary page.
         const phone = bodyPhone ? String(bodyPhone).trim() : '';
