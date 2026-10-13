@@ -4,8 +4,7 @@ const models = require("../models");
 const config = require("../config/env");
 const logger = require("../utils/logger");
 const queueService = require("../services/queue.service");
-const doctorStatus = require("../services/doctorStatus.service");
-const { STATUS, WAITING_STATUSES, DOCTOR_STATUS } = require("../constants");
+const { STATUS, WAITING_STATUSES } = require("../constants");
 
 /**
  * Housekeeping sweeps.
@@ -72,8 +71,9 @@ const sweepStuckConnections = async (now = new Date()) => {
 };
 
 /**
- * Connected, but nothing ever reported the call finished. Closing these is what
- * keeps a crashed client from pinning a doctor as in_consult forever.
+ * Connected, but nothing ever reported the call finished. Closing these moves
+ * the case on to awaiting its prescription, so the doctor is freed once that is
+ * shared rather than being pinned to a call that is no longer happening.
  */
 const sweepStaleCalls = async (now = new Date()) => {
   const cutoff = new Date(now.getTime() - config.queue.staleAfterMinutes * 60000);
@@ -96,14 +96,11 @@ const sweepStaleCalls = async (now = new Date()) => {
       // knows the call stopped, and knows nothing whatsoever about whether a
       // prescription was written. Marking the visit finished here would have a
       // timeout job assert a clinical act that may never have happened.
+      //
+      // The doctor stays in_consult: they go online once the prescription is
+      // shared, as with any other finished call.
       logger.warn("Closing a call that never reported finishing", { queueEntryId: entry.id });
       await entry.update({ status: STATUS.CALL_COMPLETED, callEndedAt: now });
-      if (entry.assignedDoctorUuid) {
-        await doctorStatus.setStatus(entry.assignedDoctorUuid, DOCTOR_STATUS.ONLINE, {
-          speciality: entry.speciality,
-        });
-      }
-      await queueService.dispatchLane(queueService.scopeOf(entry));
       closed += 1;
     } catch (err) {
       logger.warn("Could not close stale call", { queueEntryId: entry.id, error: err.message });

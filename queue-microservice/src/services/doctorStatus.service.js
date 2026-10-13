@@ -85,9 +85,10 @@ const findOngoingVisit = async (doctorUuid) => findAssignedCase(doctorUuid, ONGO
  *     ASSIGNED, CALL_CONNECTING, CALL_CONNECTED and CALL_COMPLETED — the visit
  *     only ends once the prescription is shared.
  *
- *  3. "online" from a doctor who still holds a case keeps them in_consult. The
- *     app re-announcing itself mid-call (relaunch, reconnect) must not mark the
- *     doctor free and let dispatch hand them a second patient.
+ *  3. "online" from a doctor with an ongoing visit keeps them in_consult. The
+ *     app re-announcing itself mid-call (relaunch, reconnect), or the doctor
+ *     toggling online before the prescription is shared, must not mark them
+ *     free to claim a second patient. Sharing the prescription frees them.
  *
  * Returns { row, requestedStatus, heldInConsult }.
  */
@@ -114,7 +115,7 @@ const changeStatus = async (doctorUuid, status, { speciality } = {}) => {
   }
 
   if (status === DOCTOR_STATUS.ONLINE) {
-    const active = await findInServiceCase(doctorUuid);
+    const active = await findOngoingVisit(doctorUuid);
     if (active) {
       const row = await setStatus(doctorUuid, DOCTOR_STATUS.IN_CONSULT, {
         speciality,

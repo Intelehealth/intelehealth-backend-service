@@ -7,8 +7,8 @@ const { ForbiddenError, BadRequestError } = require("../utils/errors");
 
 /**
  * POST /api/queue/submit
- * Called right after a visit is uploaded to OpenMRS. Scores priority, checks
- * for a free doctor, and either hands back READY immediately or enqueues.
+ * Called right after a visit is uploaded to OpenMRS. Scores priority and
+ * enqueues; a doctor takes the case with claim or claim-next.
  * Safe to call twice by accident — dedupes on visitUuid.
  */
 const submit = async (req, res) => {

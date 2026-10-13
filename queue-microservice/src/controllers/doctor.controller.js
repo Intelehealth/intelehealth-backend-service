@@ -1,8 +1,6 @@
 const doctorStatus = require("../services/doctorStatus.service");
-const queueService = require("../services/queue.service");
 const { success } = require("../utils/apiResponse");
 const { NotFoundError } = require("../utils/errors");
-const { DOCTOR_STATUS } = require("../constants");
 
 /** Doctor live status — backend LLD §09.3. */
 
@@ -24,20 +22,11 @@ const updateStatus = async (req, res) => {
     speciality,
   });
 
-  // A doctor coming online is a dispatch trigger: case-first, the front of
-  // their lane gets looked at straight away rather than waiting for the next
-  // submit. Keyed on the status actually stored — a doctor held in_consult is
-  // not free and must not be dispatched to.
-  let dispatched = [];
-  if (row.status === DOCTOR_STATUS.ONLINE && row.speciality) {
-    dispatched = await queueService.dispatchLane({ speciality: row.speciality });
-  }
-
+  // Coming online assigns nothing — the doctor takes the next case themselves.
   return success(res, {
     ...toStatusItem(row),
     requestedStatus,
     heldInConsult,
-    dispatched,
   });
 };
 

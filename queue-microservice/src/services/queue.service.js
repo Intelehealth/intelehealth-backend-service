@@ -8,7 +8,6 @@ const priorityConfig = require("./priorityConfig.service");
 const queueLane = require("./queueLane.service");
 const etaService = require("./eta.service");
 const doctorStatus = require("./doctorStatus.service");
-const doctorAssignment = require("./doctorAssignment.service");
 const notification = require("./notification.service");
 const { assertTransition, canTransition } = require("../utils/stateMachine");
 const { matchLevel } = require("../utils/speciality");
@@ -37,9 +36,11 @@ const {
  * Every state change goes through the §04 state machine before it is written.
  * Every claim goes through a conditional UPDATE whose affected-row count is the
  * race verdict — never a read-then-write assumption.
+ *
+ * Nothing is auto-assigned. A doctor who comes online — at login, or once a
+ * prescription is shared — takes the next case themselves through claim or
+ * claim-next; the queue never pushes a case onto a doctor.
  */
-
-const MAX_DISPATCH_PER_PASS = 25;
 
 const scopeOf = (entry) => ({ speciality: entry.speciality });
 
@@ -180,7 +181,7 @@ const CASE_TAKEN = Symbol("CASE_TAKEN");
  * DOCTOR_NOT_ONLINE, and the same doctor firing two claims at once wins at most
  * one. If the case is lost, the reservation rolls back with it.
  */
-const assignCase = async (entry, doctorUuid, { source = "DISPATCH" } = {}) => {
+const assignCase = async (entry, doctorUuid, { source = "CLAIM" } = {}) => {
   const now = new Date();
   let outcome;
   try {
@@ -230,40 +231,6 @@ const assignCase = async (entry, doctorUuid, { source = "DISPATCH" } = {}) => {
   notification.scheduleLaneUpdate(scopeOf(entry));
 
   return entry;
-};
-
-/**
- * Case-first dispatch (Priority Engine §06).
- *
- * Pop the highest-priority waiting case for the lane, THEN score the doctors
- * eligible for that specific case. Never the other way round: picking the best
- * case per idle doctor would let a lower-priority case jump the line because it
- * happened to suit whoever was free.
- */
-const dispatchLane = async (scope, { limit = MAX_DISPATCH_PER_PASS } = {}) => {
-  const assigned = [];
-
-  for (let i = 0; i < limit; i += 1) {
-    const entry = await queueLane.peekNext(scope);
-    if (!entry) break;
-
-    const { doctor } = await doctorAssignment.selectDoctorFor(entry);
-    if (!doctor) break; // nobody eligible — everything behind this case waits too
-
-    let result;
-    try {
-      result = await assignCase(entry, doctor.doctorUuid, { source: "DISPATCH" });
-    } catch (err) {
-      // The selected doctor went away/offline or was taken by another claim
-      // between selection and assignment; reselect for the same case.
-      if (err.code === "DOCTOR_NOT_ONLINE") continue;
-      throw err;
-    }
-    if (!result) continue; // lost the race for this case; try the next one
-    assigned.push({ queueEntryId: result.id, doctorUuid: doctor.doctorUuid });
-  }
-
-  return assigned;
 };
 
 /**
@@ -325,35 +292,22 @@ const submit = async (input) => {
 
   await stampInitialEstimate(entry);
 
-  // The case is in the line before anyone is chosen for it, so dispatch stays
-  // case-first: if something ahead of it outranks it, that case is assigned and
-  // this one waits — no queue-jumping just because a doctor happened to be free
-  // at the moment of submission.
-  const assigned = await dispatchLane(scopeOf(entry));
-  await entry.reload();
+  // The case always waits: nothing is auto-assigned, so a doctor takes it with
+  // claim or claim-next. Tell the health worker it landed, and tell every
+  // doctor in the speciality that someone is waiting for them. Both are
+  // one-shot and immediate — the §08 tiering damps repeated position churn,
+  // which this is not.
+  const position = await queueLane.getPosition(entry);
+  const depth = await queueLane.getLaneDepth(scopeOf(entry));
 
-  const wasAssigned = assigned.some((a) => a.queueEntryId === entry.id);
-
-  if (!wasAssigned) {
-    // The visit is waiting. Tell the health worker it landed, and tell every
-    // doctor in the speciality that someone is waiting for them. Both are
-    // one-shot and immediate — the §08 tiering damps repeated position churn,
-    // which this is not.
-    //
-    // Skipped when the case was assigned on the spot: the health worker gets
-    // queue:ready instead, and there is nothing for other doctors to pick up.
-    const position = await queueLane.getPosition(entry);
-    const depth = await queueLane.getLaneDepth(scopeOf(entry));
-
-    await notification.notifyCaseQueued(entry, { position, etaAt: entry.etaAt });
-    await notification.notifyDoctorsOfNewCase(entry, { waiting: depth.total });
-  }
+  await notification.notifyCaseQueued(entry, { position, etaAt: entry.etaAt });
+  await notification.notifyDoctorsOfNewCase(entry, { waiting: depth.total });
 
   notification.scheduleLaneUpdate(scopeOf(entry));
 
   return {
     deduped: false,
-    status: wasAssigned ? "READY" : "QUEUED",
+    status: "QUEUED",
     entry: await statusPayload(entry),
   };
 };
@@ -1075,25 +1029,44 @@ const updateConsultStats = async (doctorUuid, speciality, durationMin) => {
 };
 
 /**
+ * The visit is over — set its doctor back to online, so they can take the next
+ * case themselves. Nothing is dispatched to them.
+ *
+ * Skipped when the doctor is already in_consult on a different case: they have
+ * moved on, and marking them online would let a second case be claimed onto a
+ * doctor who is mid-consult.
+ */
+const freeDoctor = async (doctorUuid, entry) => {
+  const current = await doctorStatus.getStatus(doctorUuid);
+  if (
+    current?.status === DOCTOR_STATUS.IN_CONSULT &&
+    current.currentQueueEntryId &&
+    current.currentQueueEntryId !== entry.id
+  ) {
+    logger.info("Doctor left in_consult — already on another case", {
+      doctorUuid,
+      queueEntryId: entry.id,
+      currentQueueEntryId: current.currentQueueEntryId,
+    });
+    return;
+  }
+  await doctorStatus.setStatus(doctorUuid, DOCTOR_STATUS.ONLINE, { speciality: entry.speciality });
+};
+
+/**
  * The call has ended. Shared by every path that ends one.
  *
- * TWO THINGS HAPPEN HERE AND NOWHERE ELSE, and both are about the call rather
- * than the visit:
+ * The consult duration feeds doctor_service_stats.avg_consult_min — μ in the
+ * §07 wait estimate. It is measured connected -> call ended. It CANNOT be
+ * measured to completed_at any more: once a prescription gates completion,
+ * that gap includes however long the doctor took to write it, and folding that
+ * into μ would inflate every ETA in the speciality.
  *
- *  1. The consult duration feeds doctor_service_stats.avg_consult_min — μ in
- *     the §07 wait estimate. It is measured connected -> call ended. It CANNOT
- *     be measured to completed_at any more: once a prescription gates
- *     completion, that gap includes however long the doctor took to write it,
- *     and folding that into μ would inflate every ETA in the speciality.
- *
- *  2. The doctor is freed and the lane is dispatched. A doctor who has finished
- *     talking to a patient is available for the next one; making them wait on
- *     their own paperwork would let one forgotten prescription stall the lane.
- *
- * Where the case lands afterwards is the caller's business — CALL_COMPLETED
- * when a prescription is required, PRESCRIPTION_COMPLETED when it is not.
+ * The doctor is freed only when `release` is set — i.e. the visit is done.
+ * While a prescription is still owed they stay in_consult on this case, and go
+ * online once it is shared.
  */
-const finishCall = async (entry, doctorUuid, { now = new Date() } = {}) => {
+const finishCall = async (entry, doctorUuid, { now = new Date(), release = true } = {}) => {
   // Measured from connected_at only. A case that is closed out without a call
   // ever connecting — an asynchronous consultation, where the doctor writes the
   // prescription straight from the notes — has no consult duration to report,
@@ -1108,7 +1081,7 @@ const finishCall = async (entry, doctorUuid, { now = new Date() } = {}) => {
     // updateConsultStats ignores a non-finite duration, so a call that never
     // connected frees the doctor without touching the EMA.
     await updateConsultStats(doctor, entry.speciality, durationMin);
-    await doctorStatus.setStatus(doctor, DOCTOR_STATUS.ONLINE, { speciality: entry.speciality });
+    if (release) await freeDoctor(doctor, entry);
   }
 
   return { doctor, durationMin };
@@ -1120,9 +1093,10 @@ const finishCall = async (entry, doctorUuid, { now = new Date() } = {}) => {
  * With REQUIRE_PRESCRIPTION_TO_COMPLETE on, this does NOT finish the visit: it
  * moves the case to CALL_COMPLETED, because a finished call is not a
  * finished consultation while the doctor still owes a prescription. Only
- * POST /prescription-shared closes it.
+ * POST /prescription-shared closes it, and the doctor stays in_consult until
+ * then.
  *
- * With the flag off, behaviour is unchanged and the case completes here.
+ * With the flag off, the case completes here and the doctor goes online.
  */
 const complete = async (queueEntryId, doctorUuid, { source = "DOCTOR" } = {}) => {
   const entry = await findEntry(queueEntryId);
@@ -1139,10 +1113,14 @@ const complete = async (queueEntryId, doctorUuid, { source = "DOCTOR" } = {}) =>
   let durationMin = null;
   let doctor = doctorUuid || entry.assignedDoctorUuid;
 
+  const visitDone = target === STATUS.PRESCRIPTION_COMPLETED;
   if (endingACall) {
-    const finished = await finishCall(entry, doctorUuid, { now });
+    const finished = await finishCall(entry, doctorUuid, { now, release: visitDone });
     doctor = finished.doctor;
     durationMin = finished.durationMin;
+  } else if (doctor) {
+    // Closing out a CALL_COMPLETED case: the doctor was held for it.
+    await freeDoctor(doctor, entry);
   }
 
   await entry.update(
@@ -1162,12 +1140,7 @@ const complete = async (queueEntryId, doctorUuid, { source = "DOCTOR" } = {}) =>
     { queueEntryId, doctorUuid: doctor, durationMin, source }
   );
 
-  if (endingACall) {
-    // A doctor just became free — the trigger for case-first dispatch of
-    // whatever is now at the front of the lane.
-    await dispatchLane(scopeOf(entry));
-    notification.scheduleLaneUpdate(scopeOf(entry));
-  }
+  if (endingACall) notification.scheduleLaneUpdate(scopeOf(entry));
 
   return statusPayload(entry);
 };
@@ -1207,13 +1180,21 @@ const sharePrescription = async (visitUuid, { doctorUuid = null } = {}) => {
   const now = new Date();
   const outstanding = prescriptionOutstandingMinutes(entry);
 
+  // Either way the doctor goes online now — and only online: nothing is
+  // assigned to them; they take the next case themselves.
+  //
   // The prescription may arrive while the doctor is still holding the case —
   // an asynchronous consultation (ASSIGNED straight to done), or a doctor who
-  // writes it before the room closes. Those paths end the call here, so the
-  // doctor is freed and the lane moves; a case already in CALL_COMPLETED was
-  // freed when its call ended and must not be counted a second time.
+  // writes it before the room closes. Those paths end the call here; a case
+  // already in CALL_COMPLETED had its call timed when it ended and must not be
+  // counted a second time.
   const stillHoldingTheCase = IN_SERVICE_STATUSES.includes(entry.status);
-  if (stillHoldingTheCase) await finishCall(entry, doctorUuid, { now });
+  const doctor = doctorUuid || entry.assignedDoctorUuid;
+  if (stillHoldingTheCase) {
+    await finishCall(entry, doctorUuid, { now });
+  } else if (doctor) {
+    await freeDoctor(doctor, entry);
+  }
 
   await entry.update({
     status: STATUS.PRESCRIPTION_COMPLETED,
@@ -1224,15 +1205,12 @@ const sharePrescription = async (visitUuid, { doctorUuid = null } = {}) => {
   logger.info("Prescription shared — visit completed", {
     queueEntryId: entry.id,
     visitUuid,
-    doctorUuid: doctorUuid || entry.assignedDoctorUuid,
+    doctorUuid: doctor,
     outstandingMinutes: outstanding,
     endedCall: stillHoldingTheCase,
   });
 
-  if (stillHoldingTheCase) {
-    await dispatchLane(scopeOf(entry));
-    notification.scheduleLaneUpdate(scopeOf(entry));
-  }
+  notification.scheduleLaneUpdate(scopeOf(entry));
 
   return { changed: true, entry: await statusPayload(entry) };
 };
@@ -1300,7 +1278,6 @@ module.exports = {
   findByVisit,
   handleCallConnected,
   handleCallDisconnected,
-  dispatchLane,
   assignCase,
   statusPayload,
   findEntry,

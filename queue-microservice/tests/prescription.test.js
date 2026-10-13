@@ -86,10 +86,10 @@ test("it is NOT a waiting status — no position, no ETA", () => {
   assert.ok(!WAITING_STATUSES.includes(STATUS.CALL_COMPLETED));
 });
 
-test("it is NOT an in-service status — the doctor is freed at call end", () => {
-  // This is the one that keeps the queue moving: if it counted as in-service,
-  // a doctor who forgot to write a prescription would stall their whole lane
-  // and would keep inflating Lq in the wait estimate.
+test("it is NOT an in-service status — no live call to count in Lq", () => {
+  // The doctor stays in_consult until the prescription is shared, but the
+  // patient is no longer on a call; counting it as in-service would keep
+  // inflating Lq in the wait estimate.
   assert.ok(!IN_SERVICE_STATUSES.includes(STATUS.CALL_COMPLETED));
 });
 

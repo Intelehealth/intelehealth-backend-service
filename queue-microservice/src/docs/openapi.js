@@ -197,7 +197,7 @@ module.exports = {
         tags: ["Health worker"],
         summary: "Submit a visit to the queue",
         description: [
-          "Called right after a visit is uploaded to OpenMRS. Scores priority, checks for a free doctor, and either returns `READY` (a doctor is assigned — go call getToken) or `QUEUED`.",
+          "Called right after a visit is uploaded to OpenMRS. Scores priority and returns `QUEUED`. Nothing is auto-assigned — a doctor takes the case with claim or claim-next. `READY` is only returned by a repeat submit for a case a doctor has already claimed.",
           "",
           "**Idempotent on `visitUuid`.** A flaky mobile connection means the app may retry after a timeout even though the first attempt succeeded; a repeat submit returns the existing entry's status rather than putting the same visit in the queue twice.",
         ].join("\n"),

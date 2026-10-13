@@ -145,10 +145,18 @@ for (const status of [DOCTOR_STATUS.OFFLINE, DOCTOR_STATUS.AWAY]) {
   });
 }
 
-test("online after the call ends (prescription owed) is online, not held in_consult", async (t) => {
-  // The doctor is freed when the call ends so one owed prescription cannot
-  // stall the lane; the pending prescription only blocks logging off.
+test("online after the call ends (prescription owed) stays in_consult until it is shared", async (t) => {
+  // The doctor goes online only once the prescription is shared, so they
+  // cannot claim the next patient while this one is still owed one.
   stubModels(t, { activeCase: { id: 42, status: STATUS.CALL_COMPLETED } });
+  const { row, heldInConsult } = await doctorStatus.changeStatus("doc-1", DOCTOR_STATUS.ONLINE);
+  assert.equal(row.status, DOCTOR_STATUS.IN_CONSULT);
+  assert.equal(row.currentQueueEntryId, 42);
+  assert.equal(heldInConsult, true);
+});
+
+test("online once the prescription is shared goes online", async (t) => {
+  stubModels(t, { activeCase: { id: 42, status: STATUS.PRESCRIPTION_COMPLETED } });
   const { row, heldInConsult } = await doctorStatus.changeStatus("doc-1", DOCTOR_STATUS.ONLINE);
   assert.equal(row.status, DOCTOR_STATUS.ONLINE);
   assert.equal(heldInConsult, false);
