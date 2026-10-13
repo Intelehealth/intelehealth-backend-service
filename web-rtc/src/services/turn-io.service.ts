@@ -90,9 +90,9 @@ export async function sendDoctorWaiting(
     type: 'text',
     text: {
       body:
-        `🔴 *Your doctor is waiting for you*\n\n` +
-        `*Hello${name}, your doctor is ready for your video consultation right now.*\n\n` +
-        `Please join immediately.`,
+        `🔴 *आपके डॉक्टर आपका इंतज़ार कर रहे हैं*\n\n` +
+        `*नमस्ते${name}, आपके डॉक्टर अभी आपके वीडियो परामर्श के लिए तैयार हैं।*\n\n` +
+        `कृपया तुरंत जुड़ें।`,
     },
   });
 }
