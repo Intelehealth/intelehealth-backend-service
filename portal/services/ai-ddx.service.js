@@ -1,14 +1,18 @@
 'use strict';
+const crypto = require('crypto');
 const { Op } = require('sequelize');
 const { ai_ddx_result, visit_queue } = require('../models');
 const { visit, person } = require('../openmrs_models');
+const aiDiagnosisService = require('./ai-diagnosis.service');
 
 const STATUS_DONE = 'done';
 const STATUS_PENDING = 'pending';
 const QUEUE_WAITING = 'waiting';
 const QUEUE_PROCESSING = 'processing';
+const QUEUE_DONE = 'done';
 const QUEUE_PENDING_STATUSES = [QUEUE_WAITING, QUEUE_PROCESSING];
 const PRIORITY_HIGH = 'high';
+const SOURCE_NOTES = 'notes';
 
 const getStoredDdx = async (visitUuid) => {
   const row = await ai_ddx_result.findOne({
@@ -87,8 +91,68 @@ const requeue = async (visitUuid) => {
   return { queued: true };
 };
 
+const serializePayload = (casehistory) =>
+  typeof casehistory === 'string' ? casehistory : JSON.stringify(casehistory);
+
+const hashPayload = (payload) => crypto.createHash('sha256').update(payload).digest('hex');
+
+const isUsableResponse = (response) => Array.isArray(response?.result?.data?.result);
+
+const computeWithPayload = async (visitUuid, casehistory) => {
+  const requestPayload = serializePayload(casehistory);
+  const payloadHash = hashPayload(requestPayload);
+
+  const existing = await ai_ddx_result.findOne({ where: { visit_uuid: visitUuid } });
+  if (existing && existing.status === STATUS_DONE && existing.payload_hash === payloadHash && existing.response) {
+    return { response: existing.response, saved: false, cached: true };
+  }
+
+  const response = await aiDiagnosisService.ddx({ casehistory, visitUuid });
+  if (!isUsableResponse(response)) {
+    return { response, saved: false };
+  }
+
+  const values = {
+    payload_hash: payloadHash,
+    request_payload: requestPayload,
+    response,
+    conclusion: response?.conclusion || response?.result?.data?.conclusion || '',
+    status: STATUS_DONE,
+    error: null,
+    computed_at: new Date(),
+    source: SOURCE_NOTES,
+  };
+
+  if (existing) {
+    await existing.update({ ...values, attempts: existing.attempts + 1 });
+  } else {
+    const visitRow = await loadVisitForQueue(visitUuid);
+    try {
+      await ai_ddx_result.create({
+        visit_uuid: visitUuid,
+        patient_uuid: visitRow?.patient_uuid || null,
+        attempts: 1,
+        ...values,
+      });
+    } catch (error) {
+      if (error.name !== 'SequelizeUniqueConstraintError') {
+        throw error;
+      }
+      await ai_ddx_result.update(values, { where: { visit_uuid: visitUuid } });
+    }
+  }
+
+  await visit_queue.update(
+    { status: QUEUE_DONE, picked_at: null },
+    { where: { visit_uuid: visitUuid, status: QUEUE_WAITING } }
+  );
+
+  return { response, saved: true };
+};
+
 module.exports = {
   getStoredDdx,
   getStatus,
   requeue,
+  computeWithPayload,
 };

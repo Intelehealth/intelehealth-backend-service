@@ -120,4 +120,4 @@ const ttxManual = async (req, res) => {
   }
 };
 
-module.exports = { ddx, ttxv1, ddxfinal, ttxfinal, ddxManual, ttxManual };
+module.exports = { ddx, ttxv1, ddxfinal, ttxfinal, ddxManual, ttxManual, respondWithError };

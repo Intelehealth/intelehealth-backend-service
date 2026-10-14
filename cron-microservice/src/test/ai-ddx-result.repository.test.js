@@ -72,3 +72,38 @@ test("a retry updates the same row and keeps earlier details when this failure h
   assert.equal(params.request_payload, null);
   assert.match(params.error, /Visit visit-1 not found/);
 });
+
+test("a notes-based row is never recomputed by the worker", async (t) => {
+  const writes = setup(t, { existing: { id: 9, status: "done", source: "notes", payload_hash: "x", attempts: 2 } });
+  const ddx = t.mock.method(aiMiddleware, "ddx", async () => ({ result: { data: { result: [] } } }));
+
+  assert.deepEqual(await computeForVisit("visit-1"), { skipped: true });
+  assert.equal(ddx.mock.callCount(), 0);
+  assert.equal(writes.length, 0);
+});
+
+test("a worker success never overwrites a row that became notes-based mid-flight", async (t) => {
+  const writes = setup(t, { existing: { id: 9, status: "done", source: "precompute", payload_hash: "old", attempts: 1 } });
+  t.mock.method(aiMiddleware, "ddx", async () => ({ result: { data: { result: [{ diagnosis: "flu" }] } } }));
+
+  await computeForVisit("visit-1");
+  const { sql, params } = writes.at(-1);
+  assert.match(sql, /WHERE id = :id AND source <> :notesSource/);
+  assert.equal(params.notesSource, "notes");
+});
+
+test("a worker insert yields to a notes row created mid-flight", async (t) => {
+  const writes = setup(t);
+  t.mock.method(aiMiddleware, "ddx", async () => ({ result: { data: { result: [{ diagnosis: "flu" }] } } }));
+
+  await computeForVisit("visit-1");
+  assert.match(writes.at(-1).sql, /ON DUPLICATE KEY UPDATE visit_uuid = visit_uuid/);
+});
+
+test("a worker failure never marks a notes-based row failed", async (t) => {
+  t.mock.method(aiMiddleware, "ddx", async () => { throw new Error("boom"); });
+  const { sql, params } = await failOnce(t, { existing: { id: 9, status: "done", source: "precompute", attempts: 1 } });
+
+  assert.match(sql, /WHERE id = :id AND source <> :notesSource/);
+  assert.equal(params.notesSource, "notes");
+});

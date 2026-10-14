@@ -4,6 +4,7 @@ const aiMiddleware = require('../crons/services/ai-middleware.service');
 
 const STATUS_DONE = 'done';
 const STATUS_FAILED = 'failed';
+const SOURCE_NOTES = 'notes';
 
 const VISIT_PAYLOAD_QUERY = `SELECT
     v.visit_id,
@@ -105,13 +106,14 @@ const upsertSuccess = async (existing, values) => {
          attempts = :attempts,
          computed_at = :computed_at,
          updatedAt = :now
-       WHERE id = :id`,
+       WHERE id = :id AND source <> :notesSource`,
       {
         ...values,
         response: JSON.stringify(values.response),
         attempts: existing.attempts + 1,
         now,
         id: existing.id,
+        notesSource: SOURCE_NOTES,
       }
     );
     return;
@@ -121,7 +123,8 @@ const upsertSuccess = async (existing, values) => {
     `INSERT INTO ai_ddx_results
        (visit_uuid, patient_uuid, payload_hash, request_payload, response, conclusion, status, attempts, computed_at, createdAt, updatedAt)
      VALUES
-       (:visit_uuid, :patient_uuid, :payload_hash, :request_payload, :response, :conclusion, :status, 1, :computed_at, :now, :now)`,
+       (:visit_uuid, :patient_uuid, :payload_hash, :request_payload, :response, :conclusion, :status, 1, :computed_at, :now, :now)
+     ON DUPLICATE KEY UPDATE visit_uuid = visit_uuid`,
     { ...values, response: JSON.stringify(values.response), now }
   );
 };
@@ -139,6 +142,9 @@ const computeForVisit = async (visitUuid, { timeout } = {}) => {
   const patientUuid = visitRow?.person?.uuid || null;
 
   const existing = await findResult(visitUuid);
+  if (existing?.source === SOURCE_NOTES) {
+    return { skipped: true };
+  }
   if (existing && existing.status === STATUS_DONE && existing.payload_hash === payloadHash) {
     return { skipped: true };
   }
@@ -196,8 +202,8 @@ const recordFailure = async (visitUuid, error) => {
          request_payload = COALESCE(:request_payload, request_payload),
          response = COALESCE(:response, response),
          updatedAt = :now
-       WHERE id = :id`,
-      { ...details, status: STATUS_FAILED, error: message, attempts: existing.attempts + 1, now, id: existing.id }
+       WHERE id = :id AND source <> :notesSource`,
+      { ...details, status: STATUS_FAILED, error: message, attempts: existing.attempts + 1, now, id: existing.id, notesSource: SOURCE_NOTES }
     );
     return;
   }
@@ -206,7 +212,8 @@ const recordFailure = async (visitUuid, error) => {
     `INSERT INTO ai_ddx_results
        (visit_uuid, patient_uuid, payload_hash, request_payload, response, status, error, attempts, createdAt, updatedAt)
      VALUES
-       (:visit_uuid, :patient_uuid, :payload_hash, :request_payload, :response, :status, :error, 1, :now, :now)`,
+       (:visit_uuid, :patient_uuid, :payload_hash, :request_payload, :response, :status, :error, 1, :now, :now)
+     ON DUPLICATE KEY UPDATE visit_uuid = visit_uuid`,
     { ...details, visit_uuid: visitUuid, status: STATUS_FAILED, error: message, now }
   );
 };
