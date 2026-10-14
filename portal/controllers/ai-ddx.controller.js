@@ -1,11 +1,13 @@
 'use strict';
 const crypto = require('crypto');
 const aiDdxService = require('../services/ai-ddx.service');
+const { respondWithError } = require('./ai-diagnosis.controller');
 const { emitAiDdxStatus } = require('../handlers/ai-ddx-socket');
 const { logStream } = require('../logger/index');
 
 const MESSAGES = {
   missingVisit: 'visitUuid is required.',
+  missingCasehistory: 'casehistory is required.',
   pending: 'The AI diagnosis for this visit is still being generated.',
   notFound: 'No AI diagnosis has been generated for this visit yet.',
   failed: 'The AI diagnosis for this visit could not be generated.',
@@ -61,6 +63,28 @@ const retryDdx = async (req, res) => {
   }
 };
 
+const computeDdx = async (req, res) => {
+  const { visitUuid } = req.params;
+  const { casehistory } = req.body || {};
+
+  if (!visitUuid) {
+    return res.status(400).json({ success: false, message: MESSAGES.missingVisit });
+  }
+  if (!casehistory) {
+    return res.status(400).json({ success: false, message: MESSAGES.missingCasehistory });
+  }
+
+  try {
+    const { response, saved } = await aiDdxService.computeWithPayload(visitUuid, casehistory);
+    if (saved) {
+      emitAiDdxStatus(visitUuid, 'done');
+    }
+    return res.status(200).json(response);
+  } catch (err) {
+    return respondWithError(res, `/ai-ddx/${visitUuid}/compute`, err);
+  }
+};
+
 const NOTIFY_STATUSES = ['done', 'failed'];
 
 const notifyTokenMatches = (req) => {
@@ -84,4 +108,4 @@ const notifyDdx = (req, res) => {
   return res.status(204).end();
 };
 
-module.exports = { getDdx, retryDdx, notifyDdx };
+module.exports = { getDdx, retryDdx, computeDdx, notifyDdx };

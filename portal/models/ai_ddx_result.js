@@ -29,7 +29,12 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: 0
     },
     error: DataTypes.TEXT,
-    computed_at: DataTypes.DATE
+    computed_at: DataTypes.DATE,
+    source: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
+      defaultValue: 'precompute'
+    }
   }, {
     sequelize,
     modelName: 'ai_ddx_result',
