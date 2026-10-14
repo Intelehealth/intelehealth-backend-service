@@ -199,10 +199,12 @@ const prescriptionShared = async (req, res) => {
   );
 };
 
-/** GET /api/queue/visit/:visitUuid — resolve a visit to its queue entry. */
+/**
+ * GET /api/queue/visit/:visitUuid — resolve a visit to its queue entry.
+ * Open to any authenticated user (no case-ownership check).
+ */
 const getByVisit = async (req, res) => {
   const entry = await queueService.findByVisit(req.params.visitUuid);
-  assertCaseAccess(req.auth, entry);
   return success(res, await queueService.getStatus(entry.id));
 };
 
