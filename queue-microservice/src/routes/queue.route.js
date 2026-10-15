@@ -77,7 +77,7 @@ router.put("/config", adminOnly, asyncHandler(analyticsController.updateConfig))
 router.get(
   "/list",
   validateQuery({
-    // Named group (WAITING | ACTIVE | ALL) or a comma-separated list of
+    // Named group (WAITING | ACTIVE | OPEN | AWAITING_PRESCRIPTION | ALL) or a comma-separated list of
     // explicit statuses. Defaults to WAITING — the queue proper.
     status: { type: "string", maxLength: 200 },
     speciality: { type: "string", maxLength: 100 },

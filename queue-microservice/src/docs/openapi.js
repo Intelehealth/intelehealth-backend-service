@@ -322,7 +322,7 @@ module.exports = {
           "",
           "Positions are computed against the **full lane**, not the returned page: asking for page 3 does not renumber anyone from 1.",
           "",
-          "**Access.** Admins and internal services (`x-qms-secret`) see everything. Any other caller is scoped to cases they submitted or are assigned to, so an ordinary login cannot read the whole patient list (LLD §13.1). The response echoes `appliedFilters.scopedToCaller` so a client can tell which it got.",
+          "**Access.** Any authenticated caller (valid user JWT or `x-qms-secret`) sees every case; results are not filtered by the caller's token.",
           "",
           "`priorityScore` is withheld unless `includeScore=true` **and** the caller is privileged — Priority Engine §01: P is a sort key, never a display value. Show `position` and `etaMinutes` instead.",
         ].join("\n"),
@@ -331,7 +331,7 @@ module.exports = {
             name: "status",
             in: "query",
             description:
-              "Group — `WAITING` (default; QUEUED + ESCALATED + RE_QUEUED), `ACTIVE` (adds ASSIGNED/CALL_CONNECTING/CALL_CONNECTED and CALL_COMPLETED), `AWAITING_PRESCRIPTION` (just CALL_COMPLETED), `ALL` — or a comma-separated list of explicit statuses.",
+              "Group — `WAITING` (default; QUEUED + ESCALATED + RE_QUEUED), `ACTIVE` (adds ASSIGNED/CALL_CONNECTING/CALL_CONNECTED and CALL_COMPLETED), `AWAITING_PRESCRIPTION` (just CALL_COMPLETED), `OPEN` (everything except CANCELLED and PRESCRIPTION_COMPLETED), `ALL` — or a comma-separated list of explicit statuses.",
             schema: { type: "string", default: "WAITING" },
           },
           { name: "speciality", in: "query", schema: { type: "string" } },

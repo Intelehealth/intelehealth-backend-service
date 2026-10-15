@@ -105,6 +105,10 @@ test("listing groups treat it as an open case", () => {
   assert.ok(!STATUS_GROUPS.WAITING.includes(STATUS.CALL_COMPLETED));
   assert.deepEqual(STATUS_GROUPS.AWAITING_PRESCRIPTION, [STATUS.CALL_COMPLETED]);
   assert.ok(STATUS_GROUPS.ALL.includes(STATUS.CALL_COMPLETED));
+  assert.ok(STATUS_GROUPS.OPEN.includes(STATUS.CALL_COMPLETED));
+  assert.ok(STATUS_GROUPS.OPEN.includes(STATUS.SUBMITTED));
+  assert.ok(!STATUS_GROUPS.OPEN.includes(STATUS.CANCELLED));
+  assert.ok(!STATUS_GROUPS.OPEN.includes(STATUS.PRESCRIPTION_COMPLETED));
 });
 
 /* ── How long a prescription has been outstanding ───────────────────────── */

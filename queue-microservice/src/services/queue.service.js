@@ -25,7 +25,6 @@ const {
   NotFoundError,
   ConflictError,
   BadRequestError,
-  ForbiddenError,
 } = require("../utils/errors");
 
 /**
@@ -372,6 +371,9 @@ const STATUS_GROUPS = {
   // the question rather than the status, so `?status=CALL_COMPLETED` still
   // works as a plain status filter and means the same thing.
   AWAITING_PRESCRIPTION: [...POST_CALL_STATUSES],
+  // Everything except the two endings — cancelled and prescription shared.
+  // Unlike ACTIVE this also includes SUBMITTED.
+  OPEN: Object.values(STATUS).filter((s) => !TERMINAL_STATUSES.includes(s)),
   ALL: Object.values(STATUS),
 };
 
@@ -460,9 +462,8 @@ const toListItem = (entry, { position = null, eta = null, includeScore = false }
  * Positions are computed against the FULL lane, not the returned page — asking
  * for page 3 does not renumber anyone from 1.
  *
- * Access (LLD §13.1): admins and internal services see everything. Anyone else
- * is scoped to cases they submitted or are assigned to, so this endpoint cannot
- * become a way to read the whole patient list with an ordinary login.
+ * Access: any authenticated caller (valid user JWT or x-qms-secret) sees every
+ * case; results are not filtered by the caller's token.
  */
 const listQueue = async (filters = {}, auth = null) => {
   const statuses = resolveStatuses(filters.status);
@@ -488,13 +489,9 @@ const listQueue = async (filters = {}, auth = null) => {
     };
   }
 
+  // Any authenticated caller sees every case — the token proves who is asking,
+  // it does not narrow what they see. `privileged` only gates includeScore.
   const privileged = Boolean(auth?.isAdmin || auth?.isService);
-  if (auth && !privileged) {
-    if (!auth.userUuid) {
-      throw new ForbiddenError("No user identity on this token", "NO_IDENTITY");
-    }
-    where[Op.or] = [{ hwUserUuid: auth.userUuid }, { assignedDoctorUuid: auth.userUuid }];
-  }
 
   const limit = Math.min(Math.max(Number(filters.limit) || 50, 1), 200);
   const offset = Math.max(Number(filters.offset) || 0, 0);
@@ -550,7 +547,6 @@ const listQueue = async (filters = {}, auth = null) => {
       speciality: filters.speciality || null,
       locationUuid: filters.locationUuid || null,
       sort,
-      scopedToCaller: Boolean(auth && !privileged),
     },
   };
 };
@@ -565,19 +561,12 @@ const listQueue = async (filters = {}, auth = null) => {
  * `withItems` attaches the top N cases per speciality so a dashboard can render
  * counts and a preview in one round trip.
  */
-const specialitySummary = async (filters = {}, auth = null) => {
+const specialitySummary = async (filters = {}) => {
   const statuses = resolveStatuses(filters.status || "ACTIVE");
   const where = { status: { [Op.in]: statuses } };
   if (filters.speciality) where.speciality = filters.speciality;
   if (filters.locationUuid) where.locationUuid = filters.locationUuid;
 
-  const privileged = Boolean(auth?.isAdmin || auth?.isService);
-  if (auth && !privileged) {
-    if (!auth.userUuid) {
-      throw new ForbiddenError("No user identity on this token", "NO_IDENTITY");
-    }
-    where[Op.or] = [{ hwUserUuid: auth.userUuid }, { assignedDoctorUuid: auth.userUuid }];
-  }
 
   const rows = await models.queue_entries.findAll({
     where,
@@ -665,7 +654,6 @@ const specialitySummary = async (filters = {}, auth = null) => {
       status: statuses,
       speciality: filters.speciality || null,
       locationUuid: filters.locationUuid || null,
-      scopedToCaller: Boolean(auth && !privileged),
     },
     specialities,
   };

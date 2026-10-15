@@ -503,10 +503,8 @@ Three things worth knowing about the list:
   or internal service. Priority Engine §01: P is a sort key, never a display value —
   clients should render `position` and `etaMinutes`.
 
-**Access.** Admins and `x-qms-secret` callers see everything. Any other login is scoped to
-cases it submitted or is assigned to, so an ordinary token cannot read the whole patient
-list (§13.1). The response echoes `appliedFilters.scopedToCaller` so a client can tell
-which it got.
+**Access.** Any authenticated caller (valid user JWT or `x-qms-secret`) sees every case;
+results are not filtered by the caller's token.
 
 ## Integration from the existing services
 

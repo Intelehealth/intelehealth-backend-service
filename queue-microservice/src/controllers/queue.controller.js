@@ -56,8 +56,7 @@ const heartbeat = async (req, res) => {
 /**
  * GET /api/queue/list
  * All queue items, or one speciality's, in the order the queue is served.
- * Admins and internal services see everything; anyone else is scoped to cases
- * they submitted or are assigned to (LLD §13.1).
+ * Any authenticated caller sees every case — not filtered by the caller's token.
  */
 const list = async (req, res) =>
   success(res, await queueService.listQueue(req.validatedQuery || {}, req.auth));
@@ -68,7 +67,7 @@ const list = async (req, res) =>
  * preview of the top cases in each.
  */
 const specialities = async (req, res) =>
-  success(res, await queueService.specialitySummary(req.validatedQuery || {}, req.auth));
+  success(res, await queueService.specialitySummary(req.validatedQuery || {}));
 
 /** GET /api/queue/doctor/:doctorUuid/list — the doctor queue panel. */
 const listForDoctor = async (req, res) => {
