@@ -4,6 +4,7 @@ const { QueryTypes } = require("sequelize");
 const { getFirebaseAdmin, sendCloudNotification } = require("./helper");
 const { deliveredById } = require("../services/message.service");
 const { createCallRecordOfWebrtc, updateCallRecordOfWebrtc } = require("../services/call_data.service")
+const { registerAiDdxSocket } = require("./ai-ddx-socket");
 
 const admin = getFirebaseAdmin();
 
@@ -73,6 +74,7 @@ module.exports = function (server) {
     }
 
     emitAllUserStatus();
+    registerAiDdxSocket(socket);
 
     socket.on("disconnect", async (data) => {
       if (users[socket.id].callStatus === 'calling') {
