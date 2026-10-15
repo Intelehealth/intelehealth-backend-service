@@ -50,6 +50,7 @@ export class MagicLinkController {
     let notified: boolean | undefined;
     let notifyError: string | undefined;
     // A patient who joined first is already waiting in the room, so "your doctor is waiting" is noise.
+    console.log("notify", notify, "room", room);
     const patientInRoom = notify
       ? (await new WebRTCService().listParticipants(room)).some((p: any) =>
           String(p.identity || '').startsWith('guest-')
