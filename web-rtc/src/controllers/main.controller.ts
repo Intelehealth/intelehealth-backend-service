@@ -64,7 +64,7 @@ export class MainController {
 
             const response = await new WebRTCService().startRecording(req.body.roomId as string, recordingParams);
 
-            // Tell QMS the call has started. Inert unless QMS_ENABLED=true, and
+            // Tell QMS the call has started. Inert unless qms_section is on, and
             // deliberately NOT awaited into the response path: a queue update
             // must never delay or fail the recording that just succeeded.
             notifyCallConnected({

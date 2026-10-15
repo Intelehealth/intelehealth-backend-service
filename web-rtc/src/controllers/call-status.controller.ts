@@ -86,6 +86,6 @@ export class CallStatusController {
    * Whether this deployment is wired to QMS at all. No secrets in the response.
    */
   async status(_req: Request, res: Response) {
-    return res.json({ success: true, qms: qmsStatus() });
+    return res.json({ success: true, qms: await qmsStatus() });
   }
 }

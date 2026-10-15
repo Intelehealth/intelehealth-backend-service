@@ -511,7 +511,7 @@ which it got.
 ## Integration from the existing services
 
 QMS is a separate deployment; if it isn't wanted, it simply isn't deployed. But any QMS
-call added to portal or web-rtc **must** be env-flag gated (`QMS_ENABLED`, default off)
+call added to portal or web-rtc **must** be gated on the `qms_section` config flag (default off)
 and fail-safe — wrap it in `try/catch` so a QMS outage can never break a WebRTC call or a
 visit upload. Callers authenticate with the `x-qms-secret` header.
 

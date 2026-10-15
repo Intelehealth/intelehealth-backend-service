@@ -12,9 +12,9 @@ const { call_recordings } = require("../models");
  *
  * ── TWO RULES THIS FILE EXISTS TO ENFORCE ───────────────────────────────────
  *
- * 1. DEFAULT OFF. Nothing here runs unless QMS_ENABLED=true. A deployment that
- *    does not run QMS behaves exactly as it does today, with no new network
- *    calls and no new failure modes.
+ * 1. DEFAULT OFF. Nothing here runs unless the published config has
+ *    qms_section on. A deployment that does not run QMS behaves exactly as it
+ *    does today, with no calls to QMS and no new failure modes.
  *
  * 2. NEVER BREAK THE CALL. Every function swallows its own errors and returns
  *    a result object instead of throwing. A QMS outage, a timeout, a 500, a
@@ -32,7 +32,47 @@ export interface QmsResult {
   error?: string;
 }
 
-const enabled = (): boolean => String(process.env.QMS_ENABLED).toLowerCase() === "true";
+/**
+ * The on/off switch: the `qms_section` feature flag from the published config
+ * (configuration-microservice), the same flag the webapp reads. Cached so a
+ * call event never waits on the config service more than once a minute.
+ *
+ * On a failed fetch the last known value is kept; if it was never fetched,
+ * QMS is treated as disabled — default off, as everywhere else in this file.
+ */
+const CONFIG_TTL_MS = 60 * 1000;
+let qmsSection: boolean | null = null;
+let qmsSectionFetchedAt = 0;
+
+const configUrl = (): string => (process.env.CONFIG_URL || "").replace(/\/+$/, "");
+
+const fetchQmsSection = async (): Promise<boolean> => {
+  if (qmsSection !== null && Date.now() - qmsSectionFetchedAt < CONFIG_TTL_MS) {
+    return qmsSection;
+  }
+  if (!configUrl()) {
+    logStream("error", "QMS: CONFIG_URL is empty, treating qms_section as off", "qms");
+    // Cache the "off" so this logs at most once per TTL, not on every call event.
+    qmsSection = false;
+    qmsSectionFetchedAt = Date.now();
+    return false;
+  }
+  try {
+    const response = await axios.get(`${configUrl()}/config/getPublishedConfig`, { timeout: timeoutMs() });
+    qmsSection = response.data?.qms_section === true;
+    qmsSectionFetchedAt = Date.now();
+  } catch (err: any) {
+    logStream("error", `QMS: could not read qms_section from config: ${err?.message}`, "qms");
+    // Retry on the next event rather than hammering, but keep the last known value.
+    qmsSectionFetchedAt = Date.now();
+  }
+  return qmsSection ?? false;
+};
+
+/** QMS runs only when qms_section is on. */
+const enabled = (): Promise<boolean> => fetchQmsSection();
+
+const SKIPPED = "qms_section is off";
 
 const baseUrl = (): string => (process.env.QMS_BASE_URL || "").replace(/\/+$/, "");
 
@@ -86,9 +126,9 @@ const post = async (
   body: Record<string, unknown>,
   authorization?: string | null
 ): Promise<QmsResult> => {
-  if (!enabled()) return { attempted: false, ok: false, skipped: "QMS_ENABLED is not true" };
+  if (!(await enabled())) return { attempted: false, ok: false, skipped: SKIPPED };
   if (!baseUrl()) {
-    logStream("error", "QMS: QMS_ENABLED=true but QMS_BASE_URL is empty", "qms");
+    logStream("error", "QMS: qms_section is on but QMS_BASE_URL is empty", "qms");
     return { attempted: false, ok: false, skipped: "QMS_BASE_URL missing" };
   }
 
@@ -130,7 +170,7 @@ export const notifyCallConnected = async (params: {
   doctorId?: string;
   authorization?: string | null;
 }): Promise<QmsResult> => {
-  if (!enabled()) return { attempted: false, ok: false, skipped: "QMS_ENABLED is not true" };
+  if (!(await enabled())) return { attempted: false, ok: false, skipped: SKIPPED };
 
   const visitId = params.visitId || (await resolveVisitIdFromRoom(params.roomId));
   if (!visitId) {
@@ -158,7 +198,7 @@ export const notifyCallDisconnected = async (params: {
   reason?: string;
   authorization?: string | null;
 }): Promise<QmsResult> => {
-  if (!enabled()) return { attempted: false, ok: false, skipped: "QMS_ENABLED is not true" };
+  if (!(await enabled())) return { attempted: false, ok: false, skipped: SKIPPED };
 
   const visitId = params.visitId || (await resolveVisitIdFromRoom(params.roomId));
   if (!visitId) {
@@ -178,8 +218,8 @@ export const notifyCallDisconnected = async (params: {
 };
 
 /** Config snapshot, for the health/debug surface. */
-export const qmsStatus = () => ({
-  enabled: enabled(),
+export const qmsStatus = async () => ({
+  enabled: await enabled(),
   baseUrl: baseUrl() || null,
   hasServiceSecret: Boolean(process.env.QMS_SERVICE_SECRET),
   timeoutMs: timeoutMs(),

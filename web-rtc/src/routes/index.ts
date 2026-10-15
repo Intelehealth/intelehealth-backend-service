@@ -24,7 +24,7 @@ class IndexRoute {
         router.get('/magic-link/room-status', this.magicLinkController.roomStatus)
         router.get('/magic-link/j/:code', this.magicLinkController.joinShort)
 
-        // Call-lifecycle webhooks -> QMS. Inert unless QMS_ENABLED=true.
+        // Call-lifecycle webhooks -> QMS. Inert unless qms_section is on.
         router.post('/call/connected', [authMiddleware, this.callStatusController.connected])
         router.post('/call/disconnected', [authMiddleware, this.callStatusController.disconnected])
         router.get('/call/qms-status', this.callStatusController.status)
