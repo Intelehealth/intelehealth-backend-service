@@ -13,6 +13,9 @@ const postMessage = async (payload: any) => {
     console.log('[turn-io] DRY RUN, not sending:', JSON.stringify(payload));
     return;
   }
+  console.log(
+    `[turn-io] sending ${payload?.type} to ${payload?.to} via ${TURN_API_URL} (token ${process.env.TURN_API_TOKEN ? 'set' : 'MISSING'})`
+  );
   await axios.post(TURN_API_URL, payload, {
     headers: {
       Authorization: `Bearer ${process.env.TURN_API_TOKEN}`,
@@ -65,6 +68,34 @@ const buildTextPayload = (to: string, msg: AppointmentCallLinkMessage) => {
     },
   };
 };
+
+// Sent when the doctor opens the call, so it is phrased as "join now" rather
+// than the reminder wording the scheduled job uses.
+export async function sendDoctorWaiting(
+  msg: AppointmentCallLinkMessage
+): Promise<void> {
+  if (!process.env.TURN_API_TOKEN && !isDryRun()) {
+    throw new Error('TURN_API_TOKEN is not set');
+  }
+
+  const to = normalizeNumber(msg.number);
+  if (!to) {
+    throw new Error('recipient number is required');
+  }
+
+  // Notification only: .
+  const name = msg.patientName ? ` ${msg.patientName}` : '';
+  await postMessage({
+    to,
+    type: 'text',
+    text: {
+      body:
+        `🔴 *आपके डॉक्टर आपका इंतज़ार कर रहे हैं*\n\n` +
+        `*नमस्ते${name}, आपके डॉक्टर अभी आपके वीडियो परामर्श के लिए तैयार हैं।*\n\n` +
+        `कृपया तुरंत जुड़ें।`,
+    },
+  });
+}
 
 export async function sendAppointmentCallLink(
   msg: AppointmentCallLinkMessage

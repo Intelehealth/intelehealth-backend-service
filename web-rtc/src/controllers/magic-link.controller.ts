@@ -6,6 +6,7 @@ import {
   verifyShortCode,
 } from '../services/magic-link.service';
 import { findById, slotStartMillis } from '../services/appointment.repository';
+import { sendDoctorWaiting } from '../services/turn-io.service';
 
 const notice = (title: string, detail: string) => `<!doctype html>
 <html><head><meta charset="utf-8">
@@ -19,7 +20,7 @@ const notice = (title: string, detail: string) => `<!doctype html>
 
 export class MagicLinkController {
   async generate(req: Request, res: Response) {
-    const { visitUuid, roomId, doctorName, patientName, name, ttlMinutes } =
+    const { visitUuid, roomId, doctorName, patientName, name, ttlMinutes, notify, phone: bodyPhone } =
       req.body || {};
 
     if (!visitUuid) {
@@ -45,7 +46,49 @@ export class MagicLinkController {
     const base = rawBase.endsWith('/') ? rawBase : `${rawBase}/`;
     const url = `${base}#/join/${magicToken}`;
 
-    return res.json({ success: true, magicToken, url });
+
+    let notified: boolean | undefined;
+    let notifyError: string | undefined;
+    // A patient who joined first is already waiting in the room, so "your doctor is waiting" is noise.
+    console.log("notify", notify, "room", room);
+    const patientInRoom = notify
+      ? (await new WebRTCService().listParticipants(room)).some((p: any) =>
+          String(p.identity || '').startsWith('guest-')
+        )
+      : false;
+    if (notify && patientInRoom) {
+      notified = false;
+      console.log(` notify skipped visit=${visitUuid} room=${room}: patient already in the call`);
+    } else if (notify) {
+      console.log(` notify requested visit=${visitUuid} room=${room}`);
+      try {
+        // The phone comes only from the doctor portal's visit summary page.
+        const phone = bodyPhone ? String(bodyPhone).trim() : '';
+        console.log(`[magic-link] phone from request=${phone || 'none'}`);
+        if (!phone) throw new Error('phone number not sent by the visit summary page');
+        await sendDoctorWaiting({
+          number: phone,
+          joinUrl: url,
+          patientName: patientName ? String(patientName) : null,
+        });
+        notified = true;
+        console.log(`[magic-link] call link sent to ${phone}`);
+      } catch (err: any) {
+        notified = false;
+        notifyError = err?.response?.data?.message || err?.message || 'send failed';
+        console.error(
+          '[magic-link] call link not sent:',
+          'url=', err?.config?.url,
+          'status=', err?.response?.status,
+          'body=', JSON.stringify(err?.response?.data),
+          'error=', notifyError
+        );
+      }
+    } else {
+      console.log(`[magic-link] notify not requested visit=${visitUuid}`);
+    }
+
+    return res.json({ success: true, magicToken, url, notified, notifyError });
   }
 
   async joinShort(req: Request, res: Response) {

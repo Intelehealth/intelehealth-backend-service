@@ -85,7 +85,9 @@ const createHttpServer = ({ runner, database }) => {
       }
       writeJson(response, 200, { triggered: cronName, force, result });
     } catch (error) {
-      const status = error.message.startsWith("Unknown cron") ? 404 : 500;
+      const status = error.message.startsWith("Unknown cron") ? 404
+        : error.message.startsWith("Cron disabled") ? 409
+          : 500;
       writeJson(response, status, { triggered: cronName, force, error: error.message });
     }
   };
