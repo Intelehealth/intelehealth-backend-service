@@ -37,16 +37,26 @@ const logger =createLogger({
   ],
 });
 
+// Without this, a transport write failure (disk full, permission issue, rotation
+// lock, etc.) is an unhandled EventEmitter error and crashes the whole process.
+logger.on('error', (err) => {
+  console.error('Logger transport error:', err);
+});
+
 exports.logStream = (type, data, prefix) => {
-  switch(type) {
-    case 'info':
-      logger.log("info", data)
-    break
-    case 'debug':
-      logger.log("debug", `${prefix}---${JSON.stringify(data)}`)
-    break
-    case 'error':
-      logger.log("error", data)
-    break
+  try {
+    switch(type) {
+      case 'info':
+        logger.log("info", data)
+      break
+      case 'debug':
+        logger.log("debug", `${prefix}---${JSON.stringify(data)}`)
+      break
+      case 'error':
+        logger.log("error", data)
+      break
+    }
+  } catch (err) {
+    console.error('logStream failed:', err);
   }
 }
