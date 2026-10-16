@@ -10,13 +10,23 @@
 # Jobs:
 #   1. prepare-matrix  Decides which environments to deploy based on trigger/inputs
 #   2. build           Builds the Docker image and uploads it as a workflow artifact
-#   3. deploy          Matrix job — downloads the artifact, swaps the container,
-#                      runs migrations (if changed), and waits for it to become healthy
+#   3. deploy          Matrix job — downloads the artifact, runs migrations with the
+#                      NEW image (if changed) BEFORE swapping, swaps the container,
+#                      and waits for it to become healthy
+#
+# Migration safety:
+#   Migrations run in a throwaway container from the new image while the OLD
+#   container is still serving traffic. If a migration fails, the deploy stops
+#   and the current version keeps running untouched.
 #
 # Required secrets:
-#   NASSTAGING_HOST, NAS_HOST     — SSH hostnames/IPs (NAS_HOST = NAS prod)
+#   NASSTAGING_HOST, NASPROD_HOST — SSH hostnames/IPs
 #   DEV_USER                      — SSH username
 #   DEV_SSH_KEY                   — SSH private key
+#
+# Each host's .env should set NODE_ENV (e.g. staging / production) so that
+# sequelize-cli picks the right block from src/config/config.cli.js instead of
+# falling back to "development".
 #
 # Optional: create a GitHub Environment named "nasprod" (Settings → Environments)
 # with "Required reviewers" so production deploys need manual approval.
@@ -34,6 +44,10 @@ on:
         description: 'Deploy to NAS Prod host'
         type: boolean
         default: false
+      run_migrations:
+        description: 'Run DB migrations (manual runs only)'
+        type: boolean
+        default: true
 
   push:
     branches: [nas-ida5-development-master]
@@ -73,7 +87,6 @@ jobs:
               includes=$(echo "$includes" | jq -c '. += [{"environment":"nasprod"}]')
             fi
           fi
-
           count=$(echo "$includes" | jq 'length')
           if [ "$count" -eq 0 ]; then
             echo "No hosts selected — nothing to deploy."
@@ -110,7 +123,12 @@ jobs:
         id: check-migrations
         run: |
           if [ "${{ github.event_name }}" != "push" ]; then
-            echo "changed=true" >> $GITHUB_OUTPUT
+            # Manual run: respect the checkbox
+            if [ "${{ inputs.run_migrations }}" == "true" ]; then
+              echo "changed=true" >> $GITHUB_OUTPUT
+            else
+              echo "changed=false" >> $GITHUB_OUTPUT
+            fi
           elif [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
             echo "changed=true" >> $GITHUB_OUTPUT
           else
@@ -144,6 +162,7 @@ jobs:
       DEPLOY_DIR: /home/ubuntu/deploy/web-rtc
       ENV_FILE_PATH: /home/ubuntu/deploy/web-rtc/.env
       PEM_FOLDER_PATH: /home/ubuntu/deploy/web-rtc/.pem
+      RUN_MIGRATIONS: ${{ needs.build.outputs.migrations_changed }}
       # All host secrets mapped upfront — dynamic secret refs aren't supported in GitHub Actions
       NASSTAGING_HOST: ${{ secrets.NASSTAGING_HOST }}
       NASPROD_HOST: ${{ secrets.NASPROD_HOST }}
@@ -157,8 +176,11 @@ jobs:
             nasprod)    host="$NASPROD_HOST" ;;
             *)          echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
+          if [ -z "$host" ]; then
+            echo "Error: host secret for ${{ matrix.environment }} is empty — check repository/environment secrets."
+            exit 1
+          fi
           echo "REMOTE_HOST=$host" >> $GITHUB_ENV
-
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
@@ -180,7 +202,6 @@ jobs:
               -P $REMOTE_PORT \
               app-image.tar \
               $REMOTE_USER@$REMOTE_HOST:$DEPLOY_DIR/app-image.tar
-
           # Values are passed in as env vars and the heredoc is quoted ('EOF'),
           # so nothing in the script gets expanded on the GitHub runner by mistake.
           ssh -i ~/.ssh/deploy_key \
@@ -189,7 +210,8 @@ jobs:
               $REMOTE_USER@$REMOTE_HOST \
               "IMAGE='$DOCKER_IMAGE_NAME' TAG='${{ github.sha }}' PORT='$APP_PORT' \
                DEPLOY_DIR='$DEPLOY_DIR' ENV_FILE_PATH='$ENV_FILE_PATH' \
-               PEM_FOLDER_PATH='$PEM_FOLDER_PATH' TARGET='${{ matrix.environment }}' bash -s" <<'EOF'
+               PEM_FOLDER_PATH='$PEM_FOLDER_PATH' RUN_MIGRATIONS='$RUN_MIGRATIONS' \
+               TARGET='${{ matrix.environment }}' bash -s" <<'EOF'
           set -euo pipefail
 
           # 1. Validate config BEFORE touching the running container,
@@ -200,22 +222,45 @@ jobs:
           if [ ! -d "$PEM_FOLDER_PATH" ]; then
             echo "Error: .pem folder not found at $PEM_FOLDER_PATH"; exit 1
           fi
+          if ! grep -qE '^NODE_ENV=' "$ENV_FILE_PATH"; then
+            echo "Warning: NODE_ENV is not set in $ENV_FILE_PATH — sequelize-cli will use the 'development' config."
+          fi
 
           # 2. Load the new image
           docker load -i "$DEPLOY_DIR/app-image.tar"
           rm -f "$DEPLOY_DIR/app-image.tar"
 
-          # 3. Remove the old container — Docker releases the port when it is removed
+          # 3. Run migrations with the NEW image in a throwaway container,
+          #    while the OLD container is still serving traffic.
+          #    If this fails, the script exits and the current version stays up.
+          if [ "$RUN_MIGRATIONS" = "true" ]; then
+            echo "Running migrations with $IMAGE:$TAG ..."
+            if ! docker run --rm \
+                --name "${IMAGE}-migrate" \
+                --env-file "$ENV_FILE_PATH" \
+                -v "$PEM_FOLDER_PATH":/app/.pem \
+                --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
+                "$IMAGE:$TAG" \
+                npm run migrate; then
+              echo "Error: migrations failed — aborting deploy. The current container on $TARGET was NOT changed."
+              exit 1
+            fi
+            echo "Migrations completed."
+          else
+            echo "No migration changes — skipping migrations."
+          fi
+
+          # 4. Remove the old container — Docker releases the port when it is removed
           docker ps -aq --filter "name=^/${IMAGE}$" | xargs -r docker rm -f
 
-          # 4. Wait for the port to be free
+          # 5. Wait for the port to be free
           port_busy() { ss -ltn "( sport = :$PORT )" | grep -q ":$PORT"; }
           for i in $(seq 1 10); do
             port_busy || break
             sleep 1
           done
 
-          # 5. If something still holds the port (e.g. an orphaned docker-proxy), log it and free it
+          # 6. If something still holds the port (e.g. an orphaned docker-proxy), log it and free it
           if port_busy; then
             echo "Port $PORT is still in use. Holder:"
             sudo -n ss -ltnp "( sport = :$PORT )" || true
@@ -226,7 +271,7 @@ jobs:
             fi
           fi
 
-          # 6. Start the new container
+          # 7. Start the new container
           docker run -d \
             --name "$IMAGE" \
             --restart unless-stopped \
@@ -237,7 +282,7 @@ jobs:
             --log-opt max-size=10m --log-opt max-file=3 \
             "$IMAGE:$TAG"
 
-          # 7. Clean up old web-rtc images — keep the current one + the previous one for rollback
+          # 8. Clean up old web-rtc images — keep the current one + the previous one for rollback
           docker images "$IMAGE" --format '{{.Repository}}:{{.Tag}}' \
             | grep -v ":${TAG}$" \
             | tail -n +2 \
@@ -247,15 +292,6 @@ jobs:
           echo "Web-rtc deployment to $TARGET completed"
           EOF
 
-      - name: Run migrations on ${{ matrix.environment }} host
-        if: needs.build.outputs.migrations_changed == 'true'
-        run: |
-          ssh -i ~/.ssh/deploy_key \
-              -o StrictHostKeyChecking=yes \
-              -p $REMOTE_PORT \
-              $REMOTE_USER@$REMOTE_HOST \
-              "docker exec $DOCKER_IMAGE_NAME npm run migrate"
-
       - name: Verify deployment on ${{ matrix.environment }}
         run: |
           ssh -i ~/.ssh/deploy_key \
@@ -264,7 +300,6 @@ jobs:
               $REMOTE_USER@$REMOTE_HOST \
               "IMAGE='$DOCKER_IMAGE_NAME' TARGET='${{ matrix.environment }}' bash -s" <<'EOF'
           set -euo pipefail
-
           # Wait up to 90s. If the image defines a HEALTHCHECK, wait for "healthy";
           # otherwise just require the container to stay running without restarts.
           for i in $(seq 1 18); do
@@ -273,7 +308,6 @@ jobs:
             health=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$IMAGE")
             restarts=$(docker inspect -f '{{.RestartCount}}' "$IMAGE")
             echo "[$((i*5))s] status=$status health=$health restarts=$restarts"
-
             if [ "$status" != "running" ] || [ "$restarts" -gt 0 ] || [ "$health" = "unhealthy" ]; then
               break
             fi
@@ -282,7 +316,6 @@ jobs:
               exit 0
             fi
           done
-
           echo "Deployment on $TARGET FAILED — last 100 log lines:"
           docker logs --tail 100 "$IMAGE"
           if [ "$health" != "none" ]; then
