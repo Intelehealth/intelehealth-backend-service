@@ -22,6 +22,7 @@ const MESSAGE = {
         YOUR_ACCOUNT_CREDENTIALS_AT_INTELEHEALTH: "Your account credentials at Intelehealth",
         PASSWORD_RESET_SUCCESSFUL: "Password reset successful.",
         NO_PHONENUMBER_EMAIL_UPDATED_FOR_THIS_USERNAME: "No phoneNumber/email updated for this username.",
+        OTP_NOT_SENT: "Unable to send OTP. Please try again.",
         NO_USER_EXISTS_WITH_THIS_PHONE_NUMBER_EMAIL_USERNAME: "No user exists with this phone number/email/username."
     },
     NOTIFICATION: {
