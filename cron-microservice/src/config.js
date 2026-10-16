@@ -10,10 +10,15 @@ const parseJsonArray = (value, fallback) => {
   return parsed;
 };
 
+const parseList = (value) => String(value ?? "")
+  .split(",")
+  .map((item) => item.trim())
+  .filter(Boolean);
+
 const numberFromEnv = (value, fallback) => {
   const parsed = Number(value ?? fallback);
   if (!Number.isInteger(parsed) || parsed <= 0) throw new Error(`Invalid numeric configuration: ${value}`);
   return parsed;
 };
 
-module.exports = { parseBoolean, parseJsonArray, numberFromEnv };
+module.exports = { parseBoolean, parseJsonArray, parseList, numberFromEnv };

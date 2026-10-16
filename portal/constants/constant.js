@@ -46,7 +46,11 @@ module.exports = {
     DAYS: "days",
     USERNAME: "username",
     PASSWORD: "password",
-    VERIFICATON: "verificaton",
+    VERIFICATION: "verification",
+    OTP_REASON: {
+        EXPIRED: "EXPIRED",
+        INCORRECT: "INCORRECT"
+    },
     PHONE_NUMBER: "phoneNumber",
     COUNTRY_CODE: "countryCode",
     EMAIL_ID: "emailId",

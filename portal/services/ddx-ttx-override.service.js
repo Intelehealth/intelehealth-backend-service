@@ -1,6 +1,31 @@
 'use strict';
 const { ddx_ttx_override } = require('../models');
-const { capRawSuggestion } = require('./ai-issue-report.service');
+
+const RAW_SUGGESTION_LIMIT = 8000;
+
+function capRawSuggestion(rawSuggestion) {
+  if (rawSuggestion == null) return null;
+  let serialised;
+  try {
+    serialised = JSON.stringify(rawSuggestion);
+  } catch (e) {
+    return null;
+  }
+  if (serialised.length <= RAW_SUGGESTION_LIMIT) return rawSuggestion;
+
+  const truncateReasons = (item) => {
+    if (item && Array.isArray(item.reasons)) {
+      return { ...item, reasons: item.reasons.slice(0, 2), _truncated: true };
+    }
+    return item;
+  };
+
+  const truncated = Array.isArray(rawSuggestion)
+    ? rawSuggestion.map(truncateReasons)
+    : truncateReasons(rawSuggestion);
+
+  return truncated;
+}
 
 // Merge by name so an untouched diagnosis keeps its previously-recorded reason.
 function mergeDiagnoses(existingList, newList) {
