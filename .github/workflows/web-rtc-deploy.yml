@@ -146,7 +146,7 @@ jobs:
       PEM_FOLDER_PATH: /home/ubuntu/deploy/web-rtc/.pem
       # All host secrets mapped upfront — dynamic secret refs aren't supported in GitHub Actions
       NASSTAGING_HOST: ${{ secrets.NASSTAGING_HOST }}
-      NAS_HOST: ${{ secrets.NAS_HOST }}
+      NASPROD_HOST: ${{ secrets.NASPROD_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
@@ -154,7 +154,7 @@ jobs:
         run: |
           case "${{ matrix.environment }}" in
             nasstaging) host="$NASSTAGING_HOST" ;;
-            nasprod)    host="$NAS_HOST" ;;
+            nasprod)    host="$NASPROD_HOST" ;;
             *)          echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
           echo "REMOTE_HOST=$host" >> $GITHUB_ENV
