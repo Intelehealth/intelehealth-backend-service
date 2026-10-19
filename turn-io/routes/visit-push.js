@@ -197,6 +197,7 @@ const FIELD_ORDER = [
   "radiate",
   "radiates_to",
   "character",
+  "at_rest",
   "severity",
   "timing",
   "diurnal_variation",
@@ -217,12 +218,22 @@ const fieldRank = (key, protocolId = "") => {
   let k = String(key);
   if (prefix && k.startsWith(prefix)) k = k.slice(prefix.length);
   const idx = FIELD_ORDER.indexOf(k);
-  return idx === -1 ? FIELD_ORDER.length : idx;
+  if (idx !== -1) return idx;
+  // Keys that still carry a prefix (e.g. "back_pain_at_rest") rank by their
+  // longest matching suffix.
+  const suffix = FIELD_ORDER
+    .filter((f) => k.endsWith(`_${f}`))
+    .sort((a, b) => b.length - a.length)[0];
+  return suffix ? FIELD_ORDER.indexOf(suffix) : FIELD_ORDER.length;
 };
+
+// Flow bookkeeping, not patient answers -- never shown to the doctor.
+// `version` is which flow variant ran (e.g. "Shorter").
+const HIDDEN_KEYS = new Set(["submitted", "flow_token", "version"]);
 
 const answerRows = (protocolId, answers = {}) =>
   Object.entries(answers)
-    .filter(([key]) => key !== "submitted" && key !== "flow_token")
+    .filter(([key]) => !HIDDEN_KEYS.has(key))
     .map(([key, value], index) => ({
       index,
       rank: fieldRank(key, protocolId),
