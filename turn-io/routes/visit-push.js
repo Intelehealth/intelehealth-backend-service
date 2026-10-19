@@ -201,9 +201,10 @@ const FIELD_ORDER = [
   "severity",
   "timing",
   "diurnal_variation",
-  "aggravating_factors",
+  // Relieving before aggravating: matches the WhatsApp flows' question order.
   "relieving_factors",
   "relieving_medication",
+  "aggravating_factors",
   "associated_symptoms",
   "associated_features",
   "other_symptoms",
