@@ -18,12 +18,20 @@ module.exports = (function () {
         if (user) {
             user.otp = otp;
             user.otpFor = otpFor;
+            /*
+             * Models are defined with timestamps: false, so Sequelize does not
+             * bump updatedAt on save. OTP expiry is computed from updatedAt, so
+             * it must be refreshed explicitly or every re-issued OTP looks expired.
+             */
+            user.updatedAt = new Date();
             await user.save();
         } else {
             user = await user_settings.create({
               user_uuid: userUuid,
               otp,
-              otpFor
+              otpFor,
+              createdAt: new Date(),
+              updatedAt: new Date()
             });
         }
         return user;

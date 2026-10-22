@@ -80,11 +80,17 @@ module.exports = (function () {
         try {
           messages = await getMessages(fromUser, toUser, patientId, visitId);
         } catch (error) {}
+        /*
+         * Only emit when the message was actually created and serialised.
+         * Previously a failed create (or a toJSON error) was swallowed and an
+         * empty object was emitted as the "updateMessage" payload.
+         */
         for (const key in users) {
+          if (!data.success) break;
           if (Object.hasOwnProperty.call(users, key)) {
             const user = users[key];
-            let messageData = {};
             if (user && user.uuid == toUser) {
+              let messageData = null;
               try {
                 data.data.dataValues.createdAt = new Date(
                   data.data.dataValues.createdAt
@@ -92,8 +98,10 @@ module.exports = (function () {
                 messageData = data.data.toJSON();
                 data.data.dataValues.allMessages = messages.data;
               } catch (error) {}
-              io.to(key).emit("updateMessage", messageData);
-              isLiveMessageSent = true;
+              if (messageData && Object.keys(messageData).length) {
+                io.to(key).emit("updateMessage", messageData);
+                isLiveMessageSent = true;
+              }
             }
           }
         }

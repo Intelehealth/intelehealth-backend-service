@@ -33,6 +33,12 @@ module.exports = (function () {
         patientName,
         hwName,
         hwPic,
+        /*
+         * The messages table has NOT NULL createdAt/updatedAt with no DB
+         * default, so set them explicitly.
+         */
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
 
       if (type) msg.type = type;
