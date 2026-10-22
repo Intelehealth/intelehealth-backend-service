@@ -110,7 +110,7 @@ const deliver = async (payloads) => {
 
       for (const payload of list) {
         const { title, body } = messages.build(payload, target.locale);
-        const data = messages.toDataPayload(payload);
+        const data = messages.toDataPayload(payload, title);
 
         if (target.tokens.length) {
           await pushService.sendCloudNotification({
@@ -144,7 +144,11 @@ const basePayload = (entry, event, extra = {}) => ({
   event,
   queueEntryId: entry.id,
   visitUuid: entry.visitUuid,
+  patientUuid: entry.patientUuid,
   hwUserUuid: entry.hwUserUuid,
+  // Capital D on purpose — the client contract. Recipient routing reads the
+  // lowercase doctorUuid, so this never redirects a push.
+  DoctorUuid: entry.assignedDoctorUuid,
   speciality: entry.speciality,
   status: entry.status,
   ...extra,
@@ -383,6 +387,8 @@ const notifyDoctorsOfNewCase = async (entry, { excludeDoctorUuid = null, waiting
       doctorUuid,
       queueEntryId: entry.id,
       visitUuid: entry.visitUuid,
+      patientUuid: entry.patientUuid,
+      DoctorUuid: entry.assignedDoctorUuid,
       speciality: entry.speciality,
       emergencyLevel: entry.emergencyLevel,
       caseType: entry.caseType,

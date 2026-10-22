@@ -85,6 +85,7 @@ const line = (label, value) => console.log(`  ${label.padEnd(26)} ${value}`);
   line("snoozed", target.snoozed ? "YES — notifications withheld" : "no");
 
   const sample = {
+    event: "queue:position",
     queueEntryId: 0,
     hwUserUuid: userUuid,
     visitUuid: "00000000-0000-0000-0000-000000000000",
@@ -93,9 +94,8 @@ const line = (label, value) => console.log(`  ${label.padEnd(26)} ${value}`);
     speciality: "Diagnostics",
     status: "QUEUED",
     position: 2,
-    etaTime: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
-    title: "QMS Notification",
-    type: "Queue update",
+    // etaTime, title and type are added by toDataPayload, as for a real push.
+    etaAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
   };
 
   console.log("\nWhat would be sent");

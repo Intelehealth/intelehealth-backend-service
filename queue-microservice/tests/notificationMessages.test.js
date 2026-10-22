@@ -186,3 +186,19 @@ test("a doctor panel payload is summarised, never shipped whole", () => {
   assert.ok(!("cases" in data));
   assert.doesNotMatch(JSON.stringify(data), /chest pain|fever/);
 });
+
+test("every data payload carries the event's title and type 'Queue Update'", () => {
+  const data = messages.toDataPayload({
+    event: "queue:position",
+    queueEntryId: 7,
+    position: 2,
+    etaAt: "2026-10-16T10:00:00.000Z",
+  });
+  assert.equal(data.title, "You are number 2 in the queue");
+  assert.equal(data.type, "Queue Update");
+  assert.equal(data.etaTime, "2026-10-16T10:00:00.000Z");
+
+  const cancelled = messages.toDataPayload({ event: "queue:cancelled", queueEntryId: 7 });
+  assert.equal(cancelled.title, "Case cancelled");
+  assert.equal(cancelled.type, "Queue Update");
+});

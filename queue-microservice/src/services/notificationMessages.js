@@ -188,7 +188,10 @@ const build = (payload, locale = "en") => {
  * Clinical content never enters this object; it carries identifiers, position
  * and ETA only (LLD §13.3).
  */
-const toDataPayload = (payload) => {
+/** Every QMS push carries this as data.type; data.event says which one it is. */
+const NOTIFICATION_TYPE = "Queue Update";
+
+const toDataPayload = (payload, title = null) => {
   const out = {};
   for (const [key, value] of Object.entries(payload)) {
     if (value === null || value === undefined) continue;
@@ -198,7 +201,12 @@ const toDataPayload = (payload) => {
     }
     out[key] = typeof value === "string" ? value : JSON.stringify(value);
   }
+  // Client contract: etaTime is the expected instant (same value as etaAt),
+  // title is the event's notification title, type is fixed.
+  if (out.etaAt) out.etaTime = out.etaAt;
+  out.title = title || build(payload).title;
+  out.type = NOTIFICATION_TYPE;
   return out;
 };
 
-module.exports = { build, toDataPayload, BUILDERS, clockTime };
+module.exports = { build, toDataPayload, BUILDERS, clockTime, NOTIFICATION_TYPE };
