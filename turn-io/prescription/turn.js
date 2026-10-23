@@ -63,7 +63,9 @@ const sendTemplate = async ({ number, name, language, bodyParams = [] }) => {
    const to = normalizeNumber(number);
    if (!to) throw new Error("recipient number is required");
 
-   await postMessage({
+   // Turn's reply carries the WhatsApp message id (messages[0].id) -- returned so
+   // callers can trace delivery of a specific send.
+   const { data } = await postMessage({
       to,
       type: "template",
       template: {
@@ -73,6 +75,7 @@ const sendTemplate = async ({ number, name, language, bodyParams = [] }) => {
          components: [{ type: "body", parameters: bodyParams.map((text) => ({ type: "text", text: String(text) })) }],
       },
    });
+   return { messageId: data?.messages?.[0]?.id || null, response: data };
 };
 
 // Same-day follow-up reminder (approved template: followup_reminder). {{1}} patient, {{2}} doctor, {{3}} date.
@@ -89,11 +92,26 @@ const notifyFollowUpStart = ({ number, patientName, doctorName, date, language =
       bodyParams: [patientName || "", doctorName || "", date],
    });
 
+// Post-consultation survey (IDTP-177): Hindi utility template (default
+// arogyapath_post_consultation_intro). {{1}} patient name, {{2}} consultation date.
+// Returns the template name too, so each send records which template it used.
+const notifyPostConsultationSurvey = async ({ number, patientName, date }) => {
+   const template = process.env.SURVEY_TEMPLATE_NAME || "arogyapath_post_consultation_intro";
+   const result = await sendTemplate({
+      number,
+      name: template,
+      language: process.env.SURVEY_TEMPLATE_LANGUAGE || "hi",
+      bodyParams: [patientName || "", date],
+   });
+   return { ...result, template };
+};
+
 module.exports = {
    notifyPrescriptionReady,
    notifyFollowUpScheduled,
    sendTemplate,
    notifyFollowUpReminder,
    notifyFollowUpStart,
+   notifyPostConsultationSurvey,
    normalizeNumber,
 };

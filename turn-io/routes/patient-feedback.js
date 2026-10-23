@@ -1,8 +1,8 @@
 const express = require("express");
-const { getVisitEncounterTypes } = require("../lib/openmrs");
+const { getVisitContents } = require("../lib/openmrs");
 const { saveFeedback, holdFeedback } = require("../lib/feedback");
 const {
-  OPENMRS_ENCOUNTER_TYPE_PATIENT_EXIT_SURVEY,
+  OPENMRS_CONCEPT_RATING,
   OPENMRS_ENCOUNTER_TYPE_VISIT_COMPLETE,
 } = require("../constants");
 
@@ -53,9 +53,9 @@ router.post("/feedback_push", async (req, res) => {
       return res.status(400).json({ success: false, error: "feedback_rating must be a number from 1 to 5" });
     }
 
-    let encounterTypes;
+    let encounterTypes, obsConcepts;
     try {
-      encounterTypes = await getVisitEncounterTypes(visitUuid);
+      ({ encounterTypes, obsConcepts } = await getVisitContents(visitUuid));
     } catch (err) {
       const status = err.response?.status;
       console.error(`[feedback_push] could not read visit ${visitUuid}:`, status || err.message);
@@ -64,7 +64,8 @@ router.post("/feedback_push", async (req, res) => {
       }
       return res.status(502).json({ success: false, error: "could not verify visit status" });
     }
-    if (encounterTypes.includes(OPENMRS_ENCOUNTER_TYPE_PATIENT_EXIT_SURVEY)) {
+    // Post-consultation survey (IDTP-177): check the rating concept, since survey answers share the exit-survey encounter.
+    if (obsConcepts.includes(OPENMRS_CONCEPT_RATING)) {
       console.warn(`[feedback_push] rejected: visit ${visitUuid} already has feedback`);
       return res.status(409).json({ success: false, error: "feedback already recorded for this visit" });
     }

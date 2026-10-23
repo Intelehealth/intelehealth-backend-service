@@ -78,39 +78,53 @@ const getEnabledSpecialities = async (token) => {
    return cachedSpecialities;
 };
 
-const FOLLOWUP_VISITS_PAGE_SIZE = 25; // fixed by the mindmap service, not configurable
+const VISITS_PAGE_SIZE = 25; // mindmap's default page size (we never pass `limit`)
 
-// One speciality's full follow-up list; getFollowUpVisits has no "all specialities" option.
-const getFollowUpVisitsForSpeciality = async (speciality, token) => {
+// One speciality's full list from a mindmap visit endpoint (getFollowUpVisits,
+// getCompletedVisits, ...); none of them has an "all specialities" option.
+// Pages come newest-first, so `stopAfterPage(results)` can end the scan early.
+const getMindmapVisitsForSpeciality = async (endpoint, speciality, token, stopAfterPage) => {
    const all = [];
    for (let page = 1; page <= MAX_PAGES; page++) {
-      const { data } = await axios.get(`${mindmapBase()}/openmrs/getFollowUpVisits`, {
+      const { data } = await axios.get(`${mindmapBase()}/openmrs/${endpoint}`, {
          params: { speciality, page },
          headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       });
       const results = data?.data || [];
       all.push(...results);
-      if (results.length < FOLLOWUP_VISITS_PAGE_SIZE) break; // short page = last page
+      if (results.length < VISITS_PAGE_SIZE) break; // short page = last page
+      if (stopAfterPage?.(results)) break;
    }
    return all;
 };
 
-// All follow-up visits across every enabled speciality; each item's `uuid` feeds straight into getVisit.
-const getFollowUpVisits = async () => {
+// Every visit from `endpoint` across all enabled specialities, de-duplicated by uuid.
+const getMindmapVisits = async (endpoint, { tag = "[mindmap]", stopAfterPage } = {}) => {
    if (!mindmapBase()) {
-      console.warn("[followup mindmap] MIND_MAP_URL is not set -- skipping mindmap lookup");
+      console.warn(`${tag} MIND_MAP_URL is not set -- skipping mindmap lookup`);
       return [];
    }
 
    const token = await getMindmapToken();
    const specialities = await getEnabledSpecialities(token);
-   const all = [];
+   const byUuid = new Map();
    for (const speciality of specialities) {
-      all.push(...(await getFollowUpVisitsForSpeciality(speciality, token)));
+      for (const v of await getMindmapVisitsForSpeciality(endpoint, speciality, token, stopAfterPage)) {
+         if (v?.uuid && !byUuid.has(v.uuid)) byUuid.set(v.uuid, v);
+      }
    }
 
-   console.log(`[followup mindmap] fetched ${all.length} follow-up visits across ${specialities.length} specialities`);
+   const all = [...byUuid.values()];
+   console.log(`${tag} fetched ${all.length} visits from ${endpoint} across ${specialities.length} specialities`);
    return all;
 };
 
-module.exports = { getVisit, getFollowUpVisits };
+// All follow-up visits across every enabled speciality; each item's `uuid` feeds straight into getVisit.
+const getFollowUpVisits = () => getMindmapVisits("getFollowUpVisits", { tag: "[followup mindmap]" });
+
+// Post-consultation survey (IDTP-177): the survey cron picks its patients from this list.
+// Completed (prescription shared) visits. Items carry encounters[].{encounter_datetime, type.name}.
+const getCompletedVisits = (opts = {}) =>
+   getMindmapVisits("getCompletedVisits", { tag: "[survey mindmap]", ...opts });
+
+module.exports = { getVisit, getFollowUpVisits, getCompletedVisits };

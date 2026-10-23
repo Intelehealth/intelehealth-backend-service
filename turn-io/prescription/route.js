@@ -4,6 +4,7 @@ const { buildPrescriptionData, hasPrescription, fmtFollowUpDate } = require("./d
 const { generatePrescriptionPdf } = require("./pdf");
 const { notifyPrescriptionReady, notifyFollowUpScheduled } = require("./turn");
 const { runFollowUpReminders, getCronInfo, remindersEnabled } = require("./followup-cron");
+const { runSurvey, getSurveyCronInfo } = require("./survey-cron");
 const { flushHeldFeedback } = require("../lib/feedback");
 
 const NOT_READY_MSG =
@@ -196,6 +197,37 @@ router.get("/followup/status", (_req, res) => {
       res.json(getCronInfo());
    } catch (err) {
       fail(res, "followup status", err);
+   }
+});
+
+// Post-consultation survey (IDTP-177): manual/bulk send trigger and cron status.
+// Body: { from?, to?, visit_uuid?, force?, limit? } -- always sends for real.
+//   a window:         { "from": "2026-09-01", "to": "2026-10-16", "limit": 5 }
+//   one patient test: { "visit_uuid": "<uuid>" }
+router.post("/survey/run", async (req, res) => {
+   const src = { ...req.query, ...req.body };
+   console.log("\n[survey run] received:", JSON.stringify(src));
+   const flag = (v) => v === true || v === "true";
+   try {
+      const result = await runSurvey({
+         from: clean(src.from) || undefined,
+         to: clean(src.to) || undefined,
+         visitUuid: clean(src.visit_uuid || src.visitUuid) || null,
+         force: flag(src.force),
+         limit: Number(src.limit) || 0,
+         trigger: src.from || src.to ? "bulk" : "manual",
+      });
+      res.status(result.busy ? 409 : 200).json(result);
+   } catch (err) {
+      fail(res, "survey run", err);
+   }
+});
+
+router.get("/survey/status", (_req, res) => {
+   try {
+      res.json(getSurveyCronInfo());
+   } catch (err) {
+      fail(res, "survey status", err);
    }
 });
 

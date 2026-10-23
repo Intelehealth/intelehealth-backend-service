@@ -4,8 +4,11 @@ const express = require("express");
 const patientRegistration = require("./routes/patient-registration");
 const visitPush = require("./routes/visit-push");
 const patientFeedback = require("./routes/patient-feedback");
+// Post-consultation survey (IDTP-177): answers endpoint below, send cron started at the bottom.
+const surveyResponse = require("./routes/survey-response");
 const prescription = require("./prescription");
 const followUpCron = require("./prescription/followup-cron");
+const surveyCron = require("./prescription/survey-cron");
 
 const app = express();
 
@@ -48,9 +51,11 @@ app.get("/", (_req, res) => res.send("Server working"));
 app.use("/webhooks/turn", patientRegistration);
 app.use("/webhooks/turn", visitPush);
 app.use("/webhooks/turn", patientFeedback);
+app.use("/webhooks/turn", surveyResponse);
 app.use("/webhooks/turn", prescription);
 
 followUpCron.start();
+surveyCron.start();
 
 const port = process.env.PORT || 3000;
 

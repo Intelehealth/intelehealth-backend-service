@@ -32,20 +32,48 @@ const getOpenmrsId = async (personUuid) => {
    return match?.identifier || ids[0]?.identifier || "";
 };
 
-// Encounter type uuids of a visit's non-voided encounters.
-const getVisitEncounterTypes = async (visitUuid) => {
+// Post-consultation survey (IDTP-177): getVisitContents + getEncounter support saving and verifying survey answers.
+// Encounter type uuids and obs concept uuids of a visit's non-voided encounters,
+// in one call. Concepts let two kinds of answer share one encounter type (the
+// exit survey holds both the rating and the 86B survey) and still be told apart.
+const getVisitContents = async (visitUuid) => {
    const base = restUrl();
    if (!base) throw new Error("OPENMRS_REST_URL is not set");
 
    const { data } = await axios.get(`${base}/visit/${visitUuid}`, {
-      params: { v: "custom:(uuid,encounters:(voided,encounterType:(uuid)))" },
+      params: { v: "custom:(uuid,encounters:(voided,encounterType:(uuid),obs:(voided,concept:(uuid))))" },
       headers: { Authorization: basicAuth, Accept: "application/json" },
    });
 
-   return (data?.encounters || [])
-      .filter((e) => !e.voided)
-      .map((e) => e.encounterType?.uuid)
-      .filter(Boolean);
+   const encounters = (data?.encounters || []).filter((e) => !e.voided);
+   return {
+      encounterTypes: encounters.map((e) => e.encounterType?.uuid).filter(Boolean),
+      obsConcepts: encounters.flatMap((e) => e.obs || []).filter((o) => !o.voided)
+         .map((o) => o.concept?.uuid).filter(Boolean),
+   };
+};
+
+// Encounter type uuids of a visit's non-voided encounters.
+const getVisitEncounterTypes = async (visitUuid) => (await getVisitContents(visitUuid)).encounterTypes;
+
+// Read an encounter back with its obs -- proves a pushData write really landed
+// (the middleware can answer "OK" without saving). null if OpenMRS doesn't have it.
+const getEncounter = async (encounterUuid) => {
+   const base = restUrl();
+   if (!base) throw new Error("OPENMRS_REST_URL is not set");
+   try {
+      const { data } = await axios.get(`${base}/encounter/${encounterUuid}`, {
+         params: {
+            v: "custom:(uuid,encounterDatetime,voided,encounterType:(uuid,display),visit:(uuid)," +
+               "patient:(uuid,display),obs:(uuid,value,voided,concept:(uuid,display)))",
+         },
+         headers: { Authorization: basicAuth, Accept: "application/json" },
+      });
+      return data;
+   } catch (err) {
+      if (err.response?.status === 404 || /doesn't exist/i.test(JSON.stringify(err.response?.data || ""))) return null;
+      throw err;
+   }
 };
 
 // Upload an image as a complex obs so it shows under "Additional Documents" in
@@ -79,4 +107,4 @@ const uploadComplexObs = async ({ personUuid, encounterUuid, concept, buffer, fi
    return resp.json();
 };
 
-module.exports = { pushData, basicAuth, getOpenmrsId, getVisitEncounterTypes, uploadComplexObs };
+module.exports = { pushData, basicAuth, getOpenmrsId, getVisitContents, getVisitEncounterTypes, getEncounter, uploadComplexObs };
