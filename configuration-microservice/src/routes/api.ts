@@ -15,6 +15,7 @@ import PatientRegistrationRoutes from './PatientRegistrationRoutes';
 import authMw from './middleware/authMw';
 import ThemeConfigRoutes from './ThemeConfigRoutes';
 import multer from 'multer';
+import fs from 'fs';
 import WebrtcRoutes from './WebrtcRoutes';
 import FeaturesRoutes from './FeaturesRoutes';
 import PatientVisitSummaryRoutes from './PatientVisitSummaryRoutes';
@@ -218,9 +219,16 @@ apiRouter.use(Paths.PatientResgistration.Base, authMw, patientRegistrationRouter
 
 const themeConfigRouter = Router();
 
+// Upload folders are relative to the service's working directory and may not exist there yet
+// (fresh dist, different start dir) — create them so the upload doesn't fail with ENOENT.
+const ensureDir = (dir: string): string => {
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+};
+
 const uploadConfigImage = multer({ storage: multer.diskStorage({
     destination: function (req, file, cb) {
-      cb(null, imageUploadPath)
+      cb(null, ensureDir(imageUploadPath))
     },
     filename: function (req, file, cb) {
       const filePrefix = req.body.key ? req.body.key : 'image';
@@ -232,7 +240,7 @@ const uploadConfigImage = multer({ storage: multer.diskStorage({
 
 const uploadSlideImage = multer({ storage: multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, slideImageUploadPath)
+    cb(null, ensureDir(slideImageUploadPath))
   },
   filename: function (req, file, cb) {
     const filePrefix = 'slide';
