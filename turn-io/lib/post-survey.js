@@ -101,16 +101,28 @@ const parseAnswers = (src = {}) =>
 
 const formatDatetime = (d) => d.toISOString().replace("Z", "+0000");
 
+// Stored form: answers keyed q1..q4 with just the option number and its English
+// label. Question texts / Hindi labels are fixed, so they live in QUESTIONS (by
+// option number) 
+const compactAnswers = (answers) =>
+  Object.fromEntries(answers.map((a) => [a.q.toLowerCase(), {
+    option: a.option,
+    answer: a.answer_en,
+    ...(a.other_text ? { other: a.other_text } : {}),
+    ...(!a.option && a.raw ? { raw: a.raw } : {}),
+  }]));
+
 // Writes the survey encounter; returns { encounterUuid, value } (value = the stored JSON).
 const saveSurveyResponse = async ({ personUuid, visitUuid, answers, meta = {} }) => {
   const answeredAt = new Date();
   const value = JSON.stringify({
     survey: "post_consultation",
+    v: 2, // stored-format version (v1 = verbose rows with question texts)
     template: meta.template || null,
     prescription_date: meta.prescriptionDate || null,
     sent_at: meta.sentAt || null,
     answered_at: answeredAt.toISOString(),
-    answers,
+    answers: compactAnswers(answers),
   });
 
   // No visits[] entry: the visit exists, and re-posting would overwrite its attributes.
