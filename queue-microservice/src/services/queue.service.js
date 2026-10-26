@@ -493,7 +493,7 @@ const listQueue = async (filters = {}, auth = null) => {
   // it does not narrow what they see. `privileged` only gates includeScore.
   const privileged = Boolean(auth?.isAdmin || auth?.isService);
 
-  const limit = Math.min(Math.max(Number(filters.limit) || 50, 1), 200);
+  const limit = Math.min(Math.max(Number(filters.limit) || 50, 1), 1000);
   const offset = Math.max(Number(filters.offset) || 0, 0);
 
   const SORTS = {

@@ -103,7 +103,7 @@ router.get(
     // Priority Engine §01 — the raw score is a sort key, never a display value.
     // Honoured for admins and internal services only.
     includeScore: { type: "boolean", default: false },
-    limit: { type: "integer", default: 50, min: 1, max: 200 },
+    limit: { type: "integer", default: 50, min: 1, max: 1000 },
     offset: { type: "integer", default: 0, min: 0 },
   }),
   asyncHandler(controller.list)
@@ -127,7 +127,7 @@ router.get(
   "/doctor/:doctorUuid/list",
   validateQuery({
     speciality: { type: "string", maxLength: 100 },
-    limit: { type: "integer", default: 50, min: 1, max: 200 },
+    limit: { type: "integer", default: 50, min: 1, max: 1000 },
     offset: { type: "integer", default: 0, min: 0 },
   }),
   asyncHandler(controller.listForDoctor)
@@ -138,7 +138,7 @@ router.get(
   validateQuery({
     speciality: { type: "string", required: true, maxLength: 100 },
     includeEta: { type: "boolean", default: true },
-    limit: { type: "integer", default: 50, min: 1, max: 200 },
+    limit: { type: "integer", default: 50, min: 1, max: 1000 },
     offset: { type: "integer", default: 0, min: 0 },
   }),
   asyncHandler(controller.listDoctorVisits)

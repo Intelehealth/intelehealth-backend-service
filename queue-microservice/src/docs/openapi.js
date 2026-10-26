@@ -367,7 +367,7 @@ module.exports = {
             schema: { type: "boolean", default: true },
           },
           { name: "includeScore", in: "query", schema: { type: "boolean", default: false } },
-          { name: "limit", in: "query", schema: { type: "integer", default: 50, maximum: 200 } },
+          { name: "limit", in: "query", schema: { type: "integer", default: 50, maximum: 1000 } },
           { name: "offset", in: "query", schema: { type: "integer", default: 0 } },
         ],
         responses: {
@@ -489,7 +489,7 @@ module.exports = {
           { name: "doctorUuid", in: "path", required: true, schema: { type: "string" } },
           { name: "speciality", in: "query", required: true, schema: { type: "string" } },
           { name: "includeEta", in: "query", schema: { type: "boolean", default: true } },
-          { name: "limit", in: "query", schema: { type: "integer", default: 50, minimum: 1, maximum: 200 } },
+          { name: "limit", in: "query", schema: { type: "integer", default: 50, minimum: 1, maximum: 1000 } },
           { name: "offset", in: "query", schema: { type: "integer", default: 0, minimum: 0 } },
         ],
         responses: {
