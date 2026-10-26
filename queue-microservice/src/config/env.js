@@ -15,6 +15,17 @@ const num = (value, fallback) => {
 const csv = (value, fallback = []) =>
   value ? String(value).split(",").map((s) => s.trim()).filter(Boolean) : fallback;
 
+// Portal's format is a JSON array; a plain comma list is accepted too.
+const list = (value, fallback = []) => {
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
+  } catch (_) {
+    // not JSON — fall through to the comma list
+  }
+  return csv(value, fallback);
+};
+
 module.exports = {
   env: process.env.NODE_ENV || "development",
   port: num(process.env.PORT, 3600),
@@ -51,6 +62,13 @@ module.exports = {
     serviceSecret: process.env.QMS_SERVICE_SECRET || "",
     // LLD §13.1 — only these roles may act on behalf of another user.
     adminRoles: csv(process.env.QMS_ADMIN_ROLES, ["admin", "superadmin"]),
+  },
+
+  // Browser origins allowed to call QMS — same ALLOWED_ORIGINS variable as
+  // portal. Empty keeps the old behaviour (any origin), so a deploy that has
+  // not set it yet keeps working.
+  cors: {
+    allowedOrigins: list(process.env.ALLOWED_ORIGINS),
   },
 
   // LLD §13.2 — stop one bad client from flooding the queue.

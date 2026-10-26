@@ -15,7 +15,15 @@ const { success } = require("./utils/apiResponse");
 const app = express();
 
 app.disable("x-powered-by");
-app.use(cors());
+// With an allow-list, only those origins get CORS headers (credentials allowed,
+// as in portal); server-to-server calls send no Origin and are unaffected.
+app.use(
+  cors(
+    config.cors.allowedOrigins.length
+      ? { origin: config.cors.allowedOrigins, credentials: true }
+      : undefined
+  )
+);
 app.use(bodyParser.json({ limit: "1mb" }));
 app.use(bodyParser.urlencoded({ extended: true }));
 
