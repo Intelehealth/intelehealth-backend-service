@@ -1,5 +1,6 @@
 const axios = require("axios");
 const { mobilabAxiosInstance, callMobilab } = require("../handlers/axiosHelper");
+const { SCOPES } = require("../constants/mobilab.constants");
 
 /**
  * POST AUTH_GATEWAY_URL/auth/login - IH login, used by the Swagger UI to get the IH JWT
@@ -24,6 +25,7 @@ async function ihLogin(payload) {
 async function issueApiKey(payload) {
   return mobilabAxiosInstance.post("/v1/auth/token", {
     ...payload,
+    scopes: payload?.scopes?.length ? payload.scopes : SCOPES,
     client_id: process.env.MOBILAB_CLIENT_ID,
     client_secret: process.env.MOBILAB_CLIENT_SECRET,
     schema_name: process.env.MOBILAB_SCHEMA_NAME

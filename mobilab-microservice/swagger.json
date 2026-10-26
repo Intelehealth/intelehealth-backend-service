@@ -75,7 +75,8 @@
                 "results:read",
                 "results:write"
               ]
-            }
+            },
+            "description": "Omit for all scopes (recommended for MOBILAB_API_KEY)"
           },
           "rate_limit_per_hour": {
             "type": "integer",
@@ -86,7 +87,7 @@
           "expires_at": {
             "type": "string",
             "format": "date-time",
-            "description": "Optional, must be in the future. Omit it to use Mobilab's default."
+            "description": "Must be in the future; omit for a non-expiring key"
           },
           "mode": {
             "type": "string",
@@ -108,7 +109,8 @@
         "properties": {
           "api_key": {
             "type": "string",
-            "description": "Key to revoke. Defaults to the configured MOBILAB_API_KEY."
+            "description": "Key to revoke. Omit ONLY to revoke this service's own MOBILAB_API_KEY",
+            "pattern": "^mlab_[0-9a-f]{64}$"
           }
         }
       },
@@ -130,10 +132,12 @@
           },
           "password": {
             "type": "string",
-            "minLength": 8
+            "minLength": 8,
+            "format": "password"
           },
           "role_id": {
-            "type": "integer"
+            "type": "integer",
+            "minimum": 1
           },
           "phone_number": {
             "type": "string",
@@ -278,10 +282,12 @@
           },
           "password": {
             "type": "string",
-            "minLength": 8
+            "minLength": 8,
+            "format": "password"
           },
           "role_id": {
-            "type": "integer"
+            "type": "integer",
+            "minimum": 1
           },
           "clinic_ids": {
             "type": "array",
@@ -296,7 +302,7 @@
                 }
               ]
             },
-            "description": "Numeric clinic IDs or clinic_codes"
+            "description": "Numeric clinic IDs or clinic_codes; at least one"
           }
         }
       },
@@ -318,7 +324,8 @@
           },
           "role_id": {
             "type": "integer",
-            "nullable": true
+            "nullable": true,
+            "minimum": 1
           }
         }
       },
@@ -369,7 +376,8 @@
           },
           "dob": {
             "type": "string",
-            "format": "date"
+            "format": "date",
+            "example": "1990-06-15"
           },
           "gender": {
             "type": "string",
@@ -379,12 +387,14 @@
             ]
           },
           "clinic_id": {
-            "type": "integer"
+            "type": "integer",
+            "minimum": 1
           },
           "assigned_to": {
             "type": "integer",
             "nullable": true,
-            "description": "Single phlebotomist; null/omitted = all active phlebotomists of the clinic"
+            "description": "Single phlebotomist; null/omitted = all active phlebotomists of the clinic",
+            "minimum": 1
           },
           "sys": {
             "type": "number",
@@ -404,7 +414,9 @@
           },
           "spo2": {
             "type": "number",
-            "description": "SpO2 (%)"
+            "description": "SpO2 (%)",
+            "minimum": 0,
+            "maximum": 100
           },
           "questionaires": {
             "type": "object",
@@ -421,11 +433,13 @@
         "minProperties": 1,
         "properties": {
           "clinic_id": {
-            "type": "integer"
+            "type": "integer",
+            "minimum": 1
           },
           "assigned_to": {
             "type": "integer",
-            "nullable": true
+            "nullable": true,
+            "minimum": 1
           },
           "sys": {
             "type": "number",
@@ -445,7 +459,9 @@
           },
           "spo2": {
             "type": "number",
-            "description": "SpO2 (%)"
+            "description": "SpO2 (%)",
+            "minimum": 0,
+            "maximum": 100
           },
           "questionaires": {
             "type": "object",
@@ -535,6 +551,22 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/IssueToken"
+              },
+              "examples": {
+                "allScopes": {
+                  "summary": "Live key, all scopes (use for MOBILAB_API_KEY)",
+                  "value": {
+                    "name": "IH Mobilab Integration",
+                    "mode": "live"
+                  }
+                },
+                "testKey": {
+                  "summary": "Test-mode key, all scopes",
+                  "value": {
+                    "name": "IH Sandbox Integration",
+                    "mode": "test"
+                  }
+                }
               }
             }
           }
@@ -584,6 +616,14 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RevokeToken"
+              },
+              "examples": {
+                "specificKey": {
+                  "summary": "Revoke a specific key (replace the placeholder)",
+                  "value": {
+                    "api_key": "mlab_<64 hex chars of the key to revoke>"
+                  }
+                }
               }
             }
           }
@@ -862,6 +902,37 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreateClinic"
+              },
+              "examples": {
+                "noOwner": {
+                  "summary": "Clinic without owner (clinic_code must be unique)",
+                  "value": {
+                    "name": "City Diagnostics",
+                    "clinic_code": "CITY-DIAG-001",
+                    "city": "Mumbai",
+                    "state": "Maharashtra",
+                    "country": "India",
+                    "zip_code": "400001"
+                  }
+                },
+                "withOwner": {
+                  "summary": "Clinic + new owner (owner email/phone unique across tenants, role_id from GET /v1/roles)",
+                  "value": {
+                    "name": "City Diagnostics",
+                    "owner": {
+                      "name": "Dr. Priya Sharma",
+                      "email": "priya.sharma@example.com",
+                      "phone_number": "919876543210",
+                      "password": "SecurePass123",
+                      "role_id": 3
+                    },
+                    "clinic_code": "CITY-DIAG-001",
+                    "city": "Mumbai",
+                    "state": "Maharashtra",
+                    "country": "India",
+                    "zip_code": "400001"
+                  }
+                }
               }
             }
           }
@@ -986,7 +1057,8 @@
             "required": true,
             "description": "Clinic ID",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "minimum": 1
             }
           }
         ],
@@ -1036,7 +1108,8 @@
             "required": true,
             "description": "Clinic ID",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "minimum": 1
             }
           }
         ],
@@ -1046,6 +1119,21 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateClinic"
+              },
+              "examples": {
+                "update": {
+                  "summary": "Update fields",
+                  "value": {
+                    "name": "City Diagnostics Updated",
+                    "phone_number": "912299887766"
+                  }
+                },
+                "deactivate": {
+                  "summary": "Deactivate clinic",
+                  "value": {
+                    "status": "inactive"
+                  }
+                }
               }
             }
           }
@@ -1281,6 +1369,20 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreateUser"
+              },
+              "examples": {
+                "phlebotomist": {
+                  "summary": "Create user (email/phone unique, role_id from GET /v1/roles)",
+                  "value": {
+                    "full_name": "Ravi Kumar",
+                    "email": "ravi.kumar@example.com",
+                    "phone_number": "919988776655",
+                    "role_id": 2,
+                    "clinic_ids": [
+                      "1"
+                    ]
+                  }
+                }
               }
             }
           }
@@ -1333,7 +1435,8 @@
             "required": true,
             "description": "User ID",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "minimum": 1
             }
           }
         ],
@@ -1383,7 +1486,8 @@
             "required": true,
             "description": "User ID",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "minimum": 1
             }
           }
         ],
@@ -1393,6 +1497,16 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateUser"
+              },
+              "examples": {
+                "update": {
+                  "summary": "Update user",
+                  "value": {
+                    "full_name": "Ravi Kumar Singh",
+                    "email": "ravi.new@example.com",
+                    "role_id": 3
+                  }
+                }
               }
             }
           }
@@ -1443,7 +1557,8 @@
             "required": true,
             "description": "User ID",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "minimum": 1
             }
           }
         ],
@@ -1596,6 +1711,78 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreateBooking"
+              },
+              "examples": {
+                "singleAssignee": {
+                  "summary": "Scenario 1 - one phlebotomist (booking_id must be unique; codes from /lab-tests, /lab-profiles)",
+                  "value": {
+                    "booking_id": "BK-2026-00142",
+                    "patient_name": "Priya Sharma",
+                    "patient_phone": "919876543210",
+                    "dob": "1990-06-15",
+                    "gender": "female",
+                    "selected_tests": {
+                      "test_codes": [
+                        "ALB",
+                        "GLU"
+                      ],
+                      "profile_codes": [
+                        "LFT"
+                      ],
+                      "package_codes": []
+                    },
+                    "clinic_id": 1,
+                    "assigned_to": 4,
+                    "sys": 120,
+                    "dia": 80,
+                    "height": 165,
+                    "weight": 58,
+                    "spo2": 98.5,
+                    "is_dummy": false
+                  }
+                },
+                "clinicWide": {
+                  "summary": "Scenario 2 - all phlebotomists of the clinic",
+                  "value": {
+                    "booking_id": "BK-2026-00143",
+                    "patient_name": "Priya Sharma",
+                    "patient_phone": "919876543210",
+                    "dob": "1990-06-15",
+                    "gender": "female",
+                    "selected_tests": {
+                      "test_codes": [
+                        "ALB",
+                        "GLU"
+                      ],
+                      "profile_codes": [],
+                      "package_codes": []
+                    },
+                    "clinic_id": 1,
+                    "assigned_to": null,
+                    "sys": 120,
+                    "dia": 80,
+                    "height": 165,
+                    "weight": 58,
+                    "spo2": 98.5,
+                    "is_dummy": false
+                  }
+                },
+                "dummy": {
+                  "summary": "Dummy / QC booking",
+                  "value": {
+                    "booking_id": "QC-2026-06-27",
+                    "patient_name": "QC Patient",
+                    "patient_phone": "910000000000",
+                    "dob": "1990-01-01",
+                    "gender": "male",
+                    "selected_tests": {
+                      "profile_codes": [
+                        "CBC"
+                      ]
+                    },
+                    "is_dummy": true
+                  }
+                }
               }
             }
           }
@@ -1708,6 +1895,22 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateBooking"
+              },
+              "examples": {
+                "update": {
+                  "summary": "Move clinic + vitals",
+                  "value": {
+                    "clinic_id": 2,
+                    "spo2": 98.5,
+                    "weight": 59.2
+                  }
+                },
+                "reassign": {
+                  "summary": "Reassign to one phlebotomist",
+                  "value": {
+                    "assigned_to": 4
+                  }
+                }
               }
             }
           }
@@ -1821,7 +2024,8 @@
             "required": true,
             "description": "tests[].id from results",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "minimum": 1
             }
           }
         ],
@@ -1831,6 +2035,22 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateReading"
+              },
+              "examples": {
+                "approve": {
+                  "summary": "Approve",
+                  "value": {
+                    "action": "approve",
+                    "remarks": "Value within expected range."
+                  }
+                },
+                "repeat": {
+                  "summary": "Flag for repeat",
+                  "value": {
+                    "action": "repeat",
+                    "remarks": "Insufficient sample"
+                  }
+                }
               }
             }
           }

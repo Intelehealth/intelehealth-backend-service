@@ -18,10 +18,10 @@ exports.issueTokenSchema = Joi.object()
   });
 
 // Revokes the key sent here, or MOBILAB_API_KEY when omitted.
-// Live keys start with mlab_, test-mode keys with test_
+// Live and test-mode keys are both mlab_ + 64 hex chars
 exports.revokeTokenSchema = Joi.object()
   .keys({
-    api_key: Joi.string().pattern(/^(mlab|test)_[0-9a-f]{64}$/).optional().messages({
-      "string.pattern.base": "\"api_key\" must be a valid mlab_ or test_ key"
+    api_key: Joi.string().pattern(/^mlab_[0-9a-f]{64}$/).optional().messages({
+      "string.pattern.base": "\"api_key\" must be a valid mlab_ key"
     })
   });
