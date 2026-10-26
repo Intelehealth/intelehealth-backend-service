@@ -3,8 +3,8 @@
 //
 //   Daily cron -> prescriptions dated SURVEY_START_DATE .. (today - delay), so a
 //                 missed day is caught up on the next run.
-//   Bulk       -> ONE-TIME, automatic on the first cron run: past records 1 Sep - 16 Oct
-//                 (see "ONE-TIME BULK" below; delete that block once it has run).
+//   Bulk       -> manual only, run once by hand for past records:
+//                 POST /survey/run { "from": "2026-09-01", "to": "2026-10-16" }
 //   Manual     -> POST /survey/run { from, to } or { visit_uuid } to send a window or one visit now.
 //
 // Each visit gets the survey at most once. The sent-log keeps when it was sent
@@ -21,7 +21,7 @@ const CRON_SCHEDULE = process.env.SURVEY_CRON_SCHEDULE || "0 10 * * *"; // 10:00
 const CRON_TIMEZONE = "Asia/Kolkata";
 
 const DELAY_DAYS = Number(process.env.SURVEY_DELAY_DAYS || 7);
-// First prescription date the daily cron covers; older ones go through the one-time bulk.
+// First prescription date the daily cron covers; older ones go through the manual bulk.
 const START_DATE = process.env.SURVEY_START_DATE || "2026-10-17";
 // Pause between sends so a bulk run doesn't burst the Turn API.
 const SEND_DELAY_MS = Number(process.env.SURVEY_SEND_DELAY_MS || 500);
@@ -262,34 +262,6 @@ const runSurvey = async ({ from, to, visitUuid = null, force = false, limit = 0,
    }
 };
 
-// ============ ONE-TIME BULK (86B past records) -- remove this block once done ============
-// Runs before the daily pass on each cron tick until it completes once, then never
-// again (marker file). Visits already in the sent-log are skipped, so a retry after a
-// partial failure only re-sends what didn't go out.
-const BULK_FROM = "2026-09-01";
-const BULK_TO = "2026-10-16";
-const BULK_DONE_PATH = path.join(__dirname, ".survey-bulk-done.json");
-
-const bulkDone = () => fs.existsSync(BULK_DONE_PATH);
-
-const runBulkOnce = async () => {
-   if (bulkDone()) return;
-   const r = await runSurvey({ from: BULK_FROM, to: BULK_TO, limit: MAX_PER_RUN, trigger: "bulk" });
-   const sendFailed = (r.results || []).filter((x) => x.status === "send-failed" || x.status === "lookup-failed").length;
-   // Stopped at the per-run limit = more patients left, so not done: the next day continues.
-   if (r.ok && !r.disabled && !sendFailed && !r.limited) {
-      fs.writeFileSync(BULK_DONE_PATH, JSON.stringify({
-         completed_at: new Date().toISOString(), from: BULK_FROM, to: BULK_TO,
-         considered: r.considered, sent: r.sent, skipped: r.skipped, failed: r.failed,
-      }, null, 1), "utf8");
-      console.log(`[survey bulk] one-time bulk ${BULK_FROM}..${BULK_TO} complete -- sent ${r.sent}; it will not run again`);
-   } else {
-      const why = r.error || (r.limited ? `sent ${r.sent}, the per-run limit` : `${sendFailed} send/lookup failures`);
-      console.warn(`[survey bulk] not complete (${why}) -- continues on the next cron run`);
-   }
-};
-// ============ END ONE-TIME BULK ============
-
 let task = null;
 
 // node-cron fires per process, so run only one instance to avoid duplicate sends.
@@ -301,7 +273,6 @@ const start = () => {
    if (task) return task;
    task = cron.schedule(CRON_SCHEDULE, async () => {
       try {
-         await runBulkOnce(); // ONE-TIME BULK -- remove this line with the block above
          await runSurvey({ limit: MAX_PER_RUN });
       } catch (err) {
          console.error("[survey cron] unexpected error:", err);
@@ -323,7 +294,6 @@ const getSurveyCronInfo = () => {
       busy: running, next_run: task?.getNextRun?.()?.toISOString() || null,
       last_run: last ? { at: last.date?.toISOString?.() || null, error: last.error?.message || null } : null,
       today, server_time_utc: new Date().toISOString(), pid: process.pid,
-      bulk_once: { from: BULK_FROM, to: BULK_TO, done: bulkDone() }, // ONE-TIME BULK -- remove with the block
       sent_log: {
          path: SENT_LOG_PATH, total_sent: entries.length,
          sent_today: entries.filter((e) => e.sent_at && istDate(e.sent_at) === today).length,
