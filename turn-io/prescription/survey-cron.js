@@ -272,11 +272,13 @@ const start = () => {
    }
    if (task) return task;
    task = cron.schedule(CRON_SCHEDULE, async () => {
+      console.log(`[survey cron] tick at ${new Date().toISOString()}`);
       try {
          await runSurvey({ limit: MAX_PER_RUN });
       } catch (err) {
          console.error("[survey cron] unexpected error:", err);
       }
+      console.log(`[survey cron] next run ${task?.getNextRun?.()?.toISOString() || "unknown"}`);
    }, { timezone: CRON_TIMEZONE, name: "post-consultation-survey", noOverlap: true });
    console.log(`[survey cron] scheduled "${CRON_SCHEDULE}" (${CRON_TIMEZONE}), ${DELAY_DAYS} days after prescription, ` +
       `from ${START_DATE} -- next run ${task.getNextRun()?.toISOString() || "unknown"}`);
