@@ -251,6 +251,13 @@ const runSurvey = async ({ from, to, visitUuid = null, force = false, limit = 0,
          if (SEND_DELAY_MS) await sleep(SEND_DELAY_MS);
       }
 
+      // Why each one wasn't sent, so a "failed N" in the log can be acted on.
+      for (const r of results.filter((x) => !["sent", "already-sent"].includes(x.status))) {
+         console.warn(`${tag} ${r.visit_uuid}: NOT sent -- ${r.status}` +
+            (r.patient_name ? ` (${r.patient_name}${r.openmrs_id ? ", " + r.openmrs_id : ""})` : "") +
+            (r.reason ? `: ${JSON.stringify(r.reason).slice(0, 200)}` : ""));
+      }
+
       console.log(`${tag} run finished -- sent ${sent}, skipped ${skipped}, failed ${failed}` +
          (limited ? ` -- stopped at limit ${limit}, the rest go out on the next run` : ""));
       return {
