@@ -145,6 +145,37 @@ const BUILDERS = {
           body: p.reason ? `Reason: ${p.reason}` : "The case has been removed from the queue.",
         },
 
+  /**
+   * To each health worker with a case waiting, when a doctor there goes away
+   * or comes back from away.
+   */
+  [EVENT.DOCTOR_STATUS]: (p, locale) => {
+    const away = p.doctorStatus === "away";
+    const back = p.doctorStatus === "online" && p.previousDoctorStatus === "away";
+    if (locale === "ru") {
+      if (away) {
+        return {
+          title: `Врач отошёл — ${p.speciality}`,
+          body: "Пациент остаётся в очереди. Ожидание может увеличиться.",
+        };
+      }
+      if (back) {
+        return { title: `Врач вернулся — ${p.speciality}`, body: "Врач снова принимает пациентов из очереди." };
+      }
+      return { title: `Статус врача — ${p.speciality}`, body: `Врач сейчас: ${p.doctorStatus}.` };
+    }
+    if (away) {
+      return {
+        title: `A doctor is away — ${p.speciality}`,
+        body: "Your patient stays in the queue. The wait may be longer.",
+      };
+    }
+    if (back) {
+      return { title: `A doctor is back — ${p.speciality}`, body: "A doctor is taking patients from the queue again." };
+    }
+    return { title: `Doctor status — ${p.speciality}`, body: `A doctor is now ${p.doctorStatus}.` };
+  },
+
   [EVENT.DOCTOR_QUEUE_UPDATE]: (p, locale) => {
     const count = Array.isArray(p.cases) ? p.cases.length : 0;
     if (locale === "ru") {

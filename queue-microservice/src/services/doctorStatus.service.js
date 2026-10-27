@@ -90,7 +90,8 @@ const findOngoingVisit = async (doctorUuid) => findAssignedCase(doctorUuid, ONGO
  *     toggling online before the prescription is shared, must not mark them
  *     free to claim a second patient. Sharing the prescription frees them.
  *
- * Returns { row, requestedStatus, heldInConsult }.
+ * Returns { row, requestedStatus, heldInConsult, previousStatus }. previousStatus
+ * is null for a doctor QMS has not seen before.
  */
 const changeStatus = async (doctorUuid, status, { speciality } = {}) => {
   if (status === DOCTOR_STATUS.IN_CONSULT) {
@@ -99,6 +100,8 @@ const changeStatus = async (doctorUuid, status, { speciality } = {}) => {
       "IN_CONSULT_SYSTEM_OWNED"
     );
   }
+
+  const previousStatus = (await getStatus(doctorUuid))?.status ?? null;
 
   // Going offline or away mid-visit would strand the patient — on an assigned
   // or live call, or waiting on a prescription — so it is refused until the
@@ -125,12 +128,12 @@ const changeStatus = async (doctorUuid, status, { speciality } = {}) => {
         doctorUuid,
         queueEntryId: active.id,
       });
-      return { row, requestedStatus: status, heldInConsult: true };
+      return { row, requestedStatus: status, heldInConsult: true, previousStatus };
     }
   }
 
   const row = await setStatus(doctorUuid, status, { speciality });
-  return { row, requestedStatus: status, heldInConsult: false };
+  return { row, requestedStatus: status, heldInConsult: false, previousStatus };
 };
 
 const getStatus = async (doctorUuid) =>

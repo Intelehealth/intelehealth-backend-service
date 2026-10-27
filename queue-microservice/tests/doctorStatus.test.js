@@ -31,9 +31,11 @@ const stubModels = (t, { activeCase = null } = {}) => {
   const entriesModel = models.queue_entries;
   const original = {
     findOrCreate: statusModel.findOrCreate,
+    statusFindOne: statusModel.findOne,
     findOne: entriesModel.findOne,
   };
 
+  statusModel.findOne = async ({ where }) => rows.get(where.doctorUuid) || null;
   statusModel.findOrCreate = async ({ where, defaults }) => {
     const existing = rows.get(where.doctorUuid);
     if (existing) return [existing, false];
@@ -53,6 +55,7 @@ const stubModels = (t, { activeCase = null } = {}) => {
 
   t.after(() => {
     statusModel.findOrCreate = original.findOrCreate;
+    statusModel.findOne = original.statusFindOne;
     entriesModel.findOne = original.findOne;
   });
   return rows;
@@ -92,6 +95,16 @@ test("online with no case held goes online", async (t) => {
   assert.equal(row.currentQueueEntryId, null);
   assert.equal(heldInConsult, false);
   assert.equal(requestedStatus, DOCTOR_STATUS.ONLINE);
+});
+
+test("changeStatus reports the status the doctor had before", async (t) => {
+  stubModels(t);
+  const first = await doctorStatus.changeStatus("doc-1", DOCTOR_STATUS.ONLINE);
+  assert.equal(first.previousStatus, null, "a doctor QMS has never seen has no previous status");
+
+  const second = await doctorStatus.changeStatus("doc-1", DOCTOR_STATUS.AWAY);
+  assert.equal(second.previousStatus, DOCTOR_STATUS.ONLINE);
+  assert.equal(second.row.status, DOCTOR_STATUS.AWAY);
 });
 
 test("online while still holding a case keeps the doctor in_consult on that case", async (t) => {

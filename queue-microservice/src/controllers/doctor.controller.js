@@ -1,4 +1,6 @@
 const doctorStatus = require("../services/doctorStatus.service");
+const notification = require("../services/notification.service");
+const logger = require("../utils/logger");
 const { success } = require("../utils/apiResponse");
 const { NotFoundError } = require("../utils/errors");
 
@@ -18,9 +20,19 @@ const updateStatus = async (req, res) => {
   const { doctorUuid } = req.params;
   const { status, speciality } = req.validated;
 
-  const { row, requestedStatus, heldInConsult } = await doctorStatus.changeStatus(doctorUuid, status, {
-    speciality,
-  });
+  const { row, requestedStatus, heldInConsult, previousStatus } = await doctorStatus.changeStatus(
+    doctorUuid,
+    status,
+    { speciality }
+  );
+
+  // Only on an actual change, so an app re-sending "away" doesn't push again.
+  // Not awaited: the doctor's toggle shouldn't wait on pushes to every HW.
+  if (row.status !== previousStatus) {
+    notification
+      .notifyHwsOfDoctorStatus({ doctorUuid, status: row.status, previousStatus, speciality: row.speciality })
+      .catch((err) => logger.warn("Doctor status announcement failed", { error: err.message }));
+  }
 
   // Coming online assigns nothing — the doctor takes the next case themselves.
   return success(res, {

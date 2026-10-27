@@ -197,6 +197,10 @@ module.exports = {
     // Announce every newly queued case to all doctors in that speciality.
     // One push per case, not per position change.
     notifyDoctorsOnNewCase: bool(process.env.NOTIFY_DOCTORS_ON_NEW_CASE, true),
+    // Doctor statuses that are pushed to the health workers with a case waiting
+    // in that speciality; set empty to turn it off. "online" is only pushed when
+    // coming back from away, so a doctor logging in doesn't push to every HW.
+    hwDoctorStatuses: csv(process.env.NOTIFY_HW_ON_DOCTOR_STATUS ?? "away,online"),
     debounceMs: num(process.env.NOTIFICATION_DEBOUNCE_MS, 500),
     deferredBatchMs: num(process.env.NOTIFICATION_DEFERRED_BATCH_MS, 10000),
     periodicBatchMs: num(process.env.NOTIFICATION_PERIODIC_BATCH_MS, 75000),

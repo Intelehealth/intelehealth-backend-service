@@ -91,6 +91,7 @@ Two deliberate differences, both about not being able to break the queue:
 | `queue:ready` | the health worker | when a doctor takes the case |
 | `queue:escalated` | the health worker | on SLA breach, bypasses tiering |
 | `queue:cancelled` | the health worker | on withdrawal |
+| `doctor:status` | **each health worker with a case waiting in the speciality**, once each | when a doctor's status actually changes to one in `NOTIFY_HW_ON_DOCTOR_STATUS` (`away,online` by default; `online` only when coming back from away) |
 
 The two submit-time events are **not tiered**. §08's tiering exists to damp *repeated*
 position churn for a case already in the queue; a case joining is a one-shot event, so it
@@ -106,7 +107,8 @@ doctors are included deliberately: telling an offline doctor a patient is waitin
 one comes online.
 
 `NOTIFICATION_ENABLED` is the master switch; `NOTIFY_DOCTORS_ON_NEW_CASE` turns off the
-doctor fan-out alone; `WEB_PUSH_ENABLED` turns the browser transport off on its own. FCM
+doctor fan-out alone; `NOTIFY_HW_ON_DOCTOR_STATUS` lists the doctor statuses announced
+to health workers (empty turns it off); `WEB_PUSH_ENABLED` turns the browser transport off on its own. FCM
 is active whenever a Firebase credential is present.
 [tools/check-push-recipient.js](tools/check-push-recipient.js) resolves one user against
 the live database and tells you whether a missing notification is a bad credential, a

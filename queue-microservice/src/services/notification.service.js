@@ -6,7 +6,7 @@ const pushService = require("./push.service");
 const recipients = require("./recipients.service");
 const messages = require("./notificationMessages");
 const doctorStatus = require("./doctorStatus.service");
-const { NOTIFICATION_TIER, WAITING_STATUSES } = require("../constants");
+const { DOCTOR_STATUS, NOTIFICATION_TIER, WAITING_STATUSES } = require("../constants");
 const { EVENT } = require("../constants/events");
 const { describeError } = require("../utils/errors");
 
@@ -406,6 +406,66 @@ const notifyDoctorsOfNewCase = async (entry, { excludeDoctorUuid = null, waiting
   return targets.length;
 };
 
+/**
+ * Whether a doctor's status change is announced to health workers: the new
+ * status must be in NOTIFY_HW_ON_DOCTOR_STATUS, and "online" only counts when
+ * coming back from away — otherwise every doctor login would push to every HW.
+ */
+const announcesDoctorStatus = (status, previousStatus) => {
+  if (!config.notification.hwDoctorStatuses.includes(status)) return false;
+  if (status === DOCTOR_STATUS.ONLINE) return previousStatus === DOCTOR_STATUS.AWAY;
+  return true;
+};
+
+/**
+ * Tell the health workers waiting on a speciality that one of its doctors
+ * changed status — for now going away and coming back from away
+ * (NOTIFY_HW_ON_DOCTOR_STATUS, see announcesDoctorStatus).
+ *
+ * One push per health worker, however many cases they have waiting. The doctor
+ * travels as capital-D DoctorUuid, like every HW payload, so routing reads
+ * hwUserUuid and the push goes to the health worker, not back to the doctor.
+ *
+ * Callers should only call on an actual change: re-announcing the same status
+ * would push again.
+ */
+const notifyHwsOfDoctorStatus = async ({ doctorUuid, status, previousStatus = null, speciality }) => {
+  if (!announcesDoctorStatus(status, previousStatus)) return 0;
+  if (!speciality) {
+    logger.debug("Doctor has no speciality — status change not announced", { status });
+    return 0;
+  }
+
+  let hwUuids = [];
+  try {
+    const { rows } = await queueLane.listLane({ speciality }, { limit: Infinity });
+    hwUuids = [...new Set(rows.map((entry) => entry.hwUserUuid).filter(Boolean))];
+  } catch (err) {
+    logger.warn("Could not list waiting cases for doctor status announcement", { error: describeError(err) });
+    return 0;
+  }
+  if (!hwUuids.length) return 0;
+
+  await deliver(
+    hwUuids.map((hwUserUuid) => ({
+      event: EVENT.DOCTOR_STATUS,
+      hwUserUuid,
+      DoctorUuid: doctorUuid,
+      speciality,
+      doctorStatus: status,
+      previousDoctorStatus: previousStatus,
+    }))
+  );
+
+  logger.info("Doctor status announced to health workers", {
+    doctorUuid,
+    status,
+    speciality,
+    healthWorkers: hwUuids.length,
+  });
+  return hwUuids.length;
+};
+
 const notifyReady = (entry, extra) => pushImmediate(entry, EVENT.READY, extra);
 const notifyEscalated = (entry, extra) => pushImmediate(entry, EVENT.ESCALATED, extra);
 const notifyCancelled = (entry, reason) => pushImmediate(entry, EVENT.CANCELLED, { reason });
@@ -441,6 +501,8 @@ module.exports = {
   refreshEntry,
   notifyCaseQueued,
   notifyDoctorsOfNewCase,
+  announcesDoctorStatus,
+  notifyHwsOfDoctorStatus,
   notifyReady,
   notifyEscalated,
   notifyCancelled,

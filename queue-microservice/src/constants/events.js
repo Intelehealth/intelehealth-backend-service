@@ -20,6 +20,9 @@ const EVENT = {
   // To every doctor in the speciality, once, when a visit joins their queue.
   NEW_CASE: "queue:new_case",
   DOCTOR_QUEUE_UPDATE: "doctor:queue_update",
+  // To each health worker with a case waiting in the speciality, when a doctor
+  // there changes status (only the statuses in NOTIFY_HW_ON_DOCTOR_STATUS).
+  DOCTOR_STATUS: "doctor:status",
 };
 
 module.exports = { EVENT };
