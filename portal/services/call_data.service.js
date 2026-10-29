@@ -15,8 +15,11 @@ const {
   sequelize
 } = require("../openmrs_models");
 const Op = Sequelize.Op;
-const { QueryTypes } = require("sequelize");
+const { QueryTypes, Op: SequelizeOp } = require("sequelize");
 const { locationQuery } = require("../controllers/queries");
+
+// How far back findOpenCallRecord looks; covers a long call ending with bye.
+const OPEN_CALL_WINDOW_MS = 3 * 60 * 60 * 1000;
 
 module.exports = (function () {
 
@@ -44,13 +47,51 @@ module.exports = (function () {
     }
   };
 
+  /**
+   * Latest still-ringing/ongoing row of a doctor's call. Used when the socket that started the
+   * call is gone (page re-created its socket, network reconnect), so its recordId is lost.
+   */
+  this.findOpenCallRecord = async ({ doctorId, roomId, nurseId }) => {
+    if (!doctorId) return null;
+    const where = {
+      doctor_id: doctorId,
+      call_status: "calling",
+      createdAt: { [SequelizeOp.gte]: new Date(Date.now() - OPEN_CALL_WINDOW_MS) },
+    };
+    if (roomId) where.room_id = roomId;
+    else if (nurseId) where.chw_id = nurseId;
+    else return null;
+    return call_data.findOne({ where, order: [["id", "DESC"]] });
+  };
+
+  this.isCallRecordOpen = async (recordId) => {
+    if (!recordId) return false;
+    const callRecord = await call_data.findOne({ where: { id: recordId } });
+    return callRecord?.call_status === "calling";
+  };
+
   this.updateCallRecordOfWebrtc = async (usersRecord) => {
     try {
       let endTime = new Date(new Date().getTime() + (5.5 * 60 * 60 * 1000));
 
-      const callRecord = await call_data.findOne({
-        where: { id: usersRecord.recordId }
-      });
+      let callRecord = usersRecord.recordId
+        ? await call_data.findOne({ where: { id: usersRecord.recordId } })
+        : null;
+      if (!callRecord && usersRecord.findOpen) {
+        callRecord = await this.findOpenCallRecord(usersRecord);
+      }
+
+      if (!callRecord) {
+        if (usersRecord.callStatus) {
+          logStream("error", `updateCallRecordOfWebrtc: no call_data row for record ${usersRecord.recordId}, doctor ${usersRecord.doctorId}, room ${usersRecord.roomId}; status ${usersRecord.callStatus} / ${usersRecord.reason} not saved`);
+        }
+        return { success: false, data: null };
+      }
+
+      // A finished call is final; a late or repeated event must not overwrite it.
+      if (callRecord.call_status === "success") {
+        return { success: true, data: call_data };
+      }
 
       if (callRecord) {
         let callDuration = Math.floor((endTime - callRecord.start_time) / 1000); // Duration in seconds
@@ -81,6 +122,7 @@ module.exports = (function () {
 
       return { success: true, data: call_data };
     } catch (error) {
+      logStream("error", `updateCallRecordOfWebrtc failed for call_data ${usersRecord?.recordId}: ${error?.message}`);
       return { success: false, data: null, error };
     }
   };

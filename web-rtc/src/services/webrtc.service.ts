@@ -1,5 +1,5 @@
 import { WebSocketServer } from 'ws';
-import { RoomServiceClient, Room, AccessToken, EgressClient, EncodedFileOutput, VideoGrant, EncodingOptionsPreset, EncodedFileType } from 'livekit-server-sdk';
+import { RoomServiceClient, Room, AccessToken, EgressClient, EncodedFileOutput, VideoGrant, EncodingOptionsPreset, EncodedFileType, EgressInfo, EgressStatus } from 'livekit-server-sdk';
 import moment from 'moment';
 import nodemailer from 'nodemailer';
 import * as Sentry from '@sentry/node';
@@ -43,6 +43,14 @@ async function retryWithExponentialBackoff<T>(
     throw lastError || new Error(`${operationName} failed after maximum retries`);
 }
 
+function escapeHtml(value: string): string {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
 async function sendRecordingFailureAlert({
     roomName,
     visitId,
@@ -62,7 +70,10 @@ async function sendRecordingFailureAlert({
             MAIL_PASSWORD,
             MAIL_ALERT_RECIPIENT
         } = process.env;
-        if (!MAIL_USERNAME || !MAIL_PASSWORD || !MAIL_ALERT_RECIPIENT) return;
+        if (!MAIL_USERNAME || !MAIL_PASSWORD || !MAIL_ALERT_RECIPIENT) {
+            logStream('error', `Recording failure alert not sent, MAIL_USERNAME/MAIL_PASSWORD/MAIL_ALERT_RECIPIENT not configured. Room: ${roomName || '-'}, visit: ${visitId || '-'}`, 'sendRecordingFailureAlert');
+            return;
+        }
         const transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: {
@@ -75,11 +86,11 @@ async function sendRecordingFailureAlert({
             to: MAIL_ALERT_RECIPIENT,
             subject: `ALERT: WebRTC Recording Failed - Room: ${roomName || ''}`,
             html: `<b>WebRTC Recording Failure Detected</b><br>
-                Room: ${roomName || '-'}<br>
-                Visit ID: ${visitId || '-'}<br>
-                Doctor ID: ${doctorId || '-'}<br>
-                Patient ID: ${patientId || '-'}<br>
-                Error: <pre>${error}</pre><br>
+                Room: ${escapeHtml(roomName || '-')}<br>
+                Visit ID: ${escapeHtml(visitId || '-')}<br>
+                Doctor ID: ${escapeHtml(doctorId || '-')}<br>
+                Patient ID: ${escapeHtml(patientId || '-')}<br>
+                Error: <pre>${escapeHtml(error)}</pre><br>
                 Detected at: ${new Date().toISOString()}`
             };
         await transporter.sendMail(mailOptions);
@@ -180,7 +191,9 @@ export class WebRTCService {
         try {
             const svc = new RoomServiceClient(host, process.env.API_KEY, process.env.SECRET);
             return await svc.listParticipants(roomName);
-        } catch (err) {
+        } catch (err: any) {
+            logStream('error', `Failed to list participants for room ${roomName}: ${err?.message}`, 'listParticipants');
+            Sentry.captureException(err, { tags: { roomName } });
             return [];
         }
     }
@@ -250,51 +263,64 @@ export class WebRTCService {
                 throw new Error(error);
             }
 
-            // racing another INSERT into call_recordings.
-            const existingRecording = await call_recordings.findOne({
-                where: { room_id: roomName, end_time: null },
-                order: [['id', 'DESC']]
-            });
-
-            if (existingRecording) {
-                logStream('debug', `Recording already in progress for room ${roomName}, returning existing recording`, 'startRecording');
-                return {
-                    egressId: existingRecording.egress_id,
-                    filePath: existingRecording.file_path,
-                    recordingId: existingRecording.id,
-                    startTime: existingRecording.start_time,
-                    s3_url: existingRecording.s3_url,
-                    success: true
-                };
-            }
-
             // Use existing egressSvc or initialize if not available
             if (!this.egressSvc) {
                 logStream('debug', 'EgressClient not initialized, initializing now', 'startRecording');
                 this.egressSvc = new EgressClient(LIVEHOST as string, API_KEY, SECRET);
             }
 
-            const activeRooms = await this.egressSvc.listEgress({ roomName: roomName }).catch((err: any) => {
-                logStream('warn', `listEgress failed for room ${roomName}: ${err?.message}`, 'startRecording');
+            const roomEgresses = await this.egressSvc.listEgress({ roomName: roomName }).catch((err: any) => {
+                logStream('error', `listEgress failed for room ${roomName}, starting a new recording without checking for a live one: ${err?.message}`, 'startRecording');
                 Sentry.captureException(err, { tags: { roomName } });
                 return undefined;
             });
 
-            const activeEgresses = activeRooms?.filter(
-                (info: { status: number; }) => info.status < 2,
+            const activeEgresses = roomEgresses?.filter(
+                (info: { status: number; }) => info.status < EgressStatus.EGRESS_ENDING,
             );
 
+            // The room is the patient uuid, so it is shared by every visit of that patient.
+            // An open row only means a recording is live if LiveKit still runs its egress for
+            // the same visit; otherwise it was never stopped (tab closed, crash, egress ended
+            // on its own) and returning it would silently skip recording this call.
+            const openRecordings = await call_recordings.findAll({
+                where: { room_id: roomName, end_time: null },
+                order: [['id', 'DESC']]
+            });
+
+            const liveRecording = openRecordings.find((rec: any) =>
+                rec.visit_id === params?.visitId &&
+                activeEgresses?.some((info) => info.egressId === rec.egress_id)
+            );
+
+            if (liveRecording) {
+                logStream('info', `Recording egress ${liveRecording.egress_id} already active for room ${roomName}, visit ${params?.visitId}`, 'startRecording');
+                return {
+                    egressId: liveRecording.egress_id,
+                    filePath: liveRecording.file_path,
+                    recordingId: liveRecording.id,
+                    startTime: liveRecording.start_time,
+                    s3_url: liveRecording.s3_url,
+                    success: true
+                };
+            }
+
+            // Egresses still running in this room belong to an earlier call; stop them so the
+            // new recording does not overlap. Only the ones that stopped get their row closed.
+            const stoppedEgressIds = new Set<string>();
             if (activeEgresses && activeEgresses.length > 0) {
-                await Promise.all(activeEgresses.map((info: { egressId: any; }) => {
-                    if (this.egressSvc) {
-                        return this.egressSvc.stopEgress(info.egressId).catch((err: any) => {
-                            logStream('debug', `stopEgress ignored for ${info.egressId}: ${err?.message}`, 'startRecording');
-                            Sentry.captureException(err, { tags: { roomName }, extra: { egressId: info.egressId } });
-                        });
+                await Promise.all(activeEgresses.map(async (info) => {
+                    try {
+                        await this.egressSvc!.stopEgress(info.egressId);
+                        stoppedEgressIds.add(info.egressId);
+                    } catch (err: any) {
+                        logStream('error', `Failed to stop leftover egress ${info.egressId} in room ${roomName}: ${err?.message}`, 'startRecording');
+                        Sentry.captureException(err, { tags: { roomName }, extra: { egressId: info.egressId } });
                     }
-                    return Promise.resolve();
                 }));
             }
+
+            await this.closeOpenRecordings(openRecordings, roomEgresses, stoppedEgressIds, roomName, 'startRecording');
             const strlocation = (params?.location) ? (params.location) : "Other";
             const strVisitId = (params?.visitId) ? (params.visitId) : "unknown-visit";
             const timestamp = new Date();
@@ -329,7 +355,8 @@ export class WebRTCService {
                 encodingOptions: EncodingOptionsPreset.H264_1080P_30 // H264 video encoding preset (1080p at 30fps)
             };
 
-            logStream('debug', `Starting egress with output: ${JSON.stringify(output)}`, 'startRecording');
+            // Never log `output` itself: it carries the S3 access key and secret.
+            logStream('debug', `Starting egress for room ${roomName} to s3://${S3_BUCKET_NAME}/${filePath}`, 'startRecording');
             logStream('debug', `Starting egress with options: ${JSON.stringify(options)}`, 'startRecording');
 
             const startEgressResponse = await this.egressSvc.startRoomCompositeEgress(roomName, output, options)
@@ -406,11 +433,42 @@ export class WebRTCService {
                 this.egressSvc = new EgressClient(LIVEHOST as string, API_KEY, SECRET);
             }
 
-            const activeRooms = await this.egressSvc.listEgress({ roomName });
+            const roomEgresses = await this.egressSvc.listEgress({ roomName });
 
-            const activeEgresses = activeRooms?.filter(
-                (info: { status: number; }) => info.status < 2,
+            const activeEgresses = roomEgresses.filter(
+                (info: { status: number; }) => info.status < EgressStatus.EGRESS_ENDING,
             );
+
+            // Stop all active egresses
+            const stoppedEgressIds = new Set<string>();
+            const stopFailures: string[] = [];
+            await Promise.all(activeEgresses.map(async (info) => {
+                try {
+                    await this.egressSvc!.stopEgress(info.egressId);
+                    stoppedEgressIds.add(info.egressId);
+                } catch (err: any) {
+                    logStream('error', `Failed to stop egress ${info.egressId} in room ${roomName}: ${err?.message}`, 'stopRecording');
+                    Sentry.captureException(err, { tags: { roomName }, extra: { egressId: info.egressId } });
+                    stopFailures.push(`${info.egressId}: ${err?.message}`);
+                }
+            }));
+
+            // Close every open row of the room, including ones whose egress LiveKit already
+            // ended (room emptied, egress failed) before this request arrived.
+            const openRecordings = await call_recordings.findAll({
+                where: { room_id: roomName, end_time: null }
+            });
+            const closeFailures = await this.closeOpenRecordings(openRecordings, roomEgresses, stoppedEgressIds, roomName, 'stopRecording');
+
+            if (stopFailures.length > 0 || closeFailures.length > 0) {
+                const error = `Recording stop incomplete for room ${roomName}. Stop failures: [${stopFailures.join('; ')}]. Row update failures: [${closeFailures.join('; ')}]`;
+                await sendRecordingFailureAlert({ roomName, error });
+                return {
+                    status: 500,
+                    message: error,
+                    success: false
+                };
+            }
 
             if (activeEgresses.length === 0) {
                 return {
@@ -420,46 +478,120 @@ export class WebRTCService {
                 };
             }
 
-            const endTime = new Date();
-
-            // Stop all active egresses
-            await Promise.all(activeEgresses.map(async (info: { egressId: any; }) => {
-                if (!this.egressSvc) {
-                    return Promise.resolve();
-                }
-                await this.egressSvc.stopEgress(info.egressId).catch((err: any) => {
-                    logStream('debug', `stopEgress ignored for ${info.egressId}: ${err?.message}`, 'stopRecording');
-                    Sentry.captureException(err, { tags: { roomName }, extra: { egressId: info.egressId } });
-                });
-
-                // Update the recording end time in database with retry logic
-                await retryWithExponentialBackoff(
-                    () => call_recordings.update(
-                        { end_time: endTime },
-                        { where: { egress_id: info.egressId } }
-                    ),
-                    `Update recording end time for egress ${info.egressId}`,
-                    7,
-                    1000
-                ).catch((err: any) => {
-                    logStream('error', `Failed to update end_time for egress ${info.egressId}: ${err?.message}`, 'stopRecording');
-                    Sentry.captureException(err, { tags: { roomName }, extra: { egressId: info.egressId } });
-                });
-            })).catch((err: any) => {
-                logStream('error', `Unexpected error while stopping recordings for room ${roomName}: ${err?.message}`, 'stopRecording');
-                Sentry.captureException(err, { tags: { roomName } });
-            });
-
             return {
                 activeEgresses,
-                endTime,
                 message: 'Recording stopped and database updated',
                 success: true
             };
         } catch (err: any) {
+            logStream('error', `Failed to stop recording for room ${roomName}: ${err?.message}`, 'stopRecording');
             Sentry.captureException(err, { tags: { roomName } });
             throw new Error(err?.message ?? 'Something went wrong!')
         }
     }
+
+    async reportClientRecordingError(params: {
+        action: string;
+        roomId?: string;
+        visitId?: string;
+        doctorId?: string;
+        patientId?: string;
+        recordingId?: string | number;
+        error?: string;
+    }) {
+        const error = `Doctor webapp reported ${params.action} failure (recording ${params.recordingId ?? '-'}): ${String(params.error ?? 'no detail').slice(0, 2000)}`;
+        logStream('error', `${error}. Room: ${params.roomId || '-'}, visit: ${params.visitId || '-'}`, 'reportClientRecordingError');
+        Sentry.captureMessage(error, {
+            level: 'error',
+            tags: { roomName: params.roomId },
+            extra: { visitId: params.visitId, doctorId: params.doctorId, patientId: params.patientId }
+        });
+        await sendRecordingFailureAlert({
+            roomName: params.roomId,
+            visitId: params.visitId,
+            doctorId: params.doctorId,
+            patientId: params.patientId,
+            error
+        });
+    }
+
+    /**
+     * Sets end_time on open call_recordings rows whose egress is known to be over: either
+     * stopped by this request, or reported ended by LiveKit. Rows with no confirmed end are
+     * left open. Failed or empty egresses are reported, since nothing else surfaces them.
+     * Returns the rows that could not be updated.
+     */
+    private async closeOpenRecordings(
+        openRecordings: any[],
+        roomEgresses: EgressInfo[] | undefined,
+        stoppedEgressIds: Set<string>,
+        roomName: string,
+        caller: string
+    ): Promise<string[]> {
+        const failures: string[] = [];
+        for (const recording of openRecordings) {
+            const info = roomEgresses?.find((egress) => egress.egressId === recording.egress_id);
+            let endTime: Date | null = null;
+            if (stoppedEgressIds.has(recording.egress_id)) {
+                endTime = new Date();
+            } else if (info && info.endedAt > BigInt(0)) {
+                endTime = new Date(Number(info.endedAt / BigInt(1000000)));
+            }
+
+            if (!endTime) {
+                logStream('warn', `Recording ${recording.id} (egress ${recording.egress_id}, visit ${recording.visit_id}) has no confirmed end in LiveKit; leaving it open`, caller);
+                continue;
+            }
+
+            if (info) {
+                await reportEgressOutcome(info, recording, roomName, caller);
+            }
+
+            try {
+                await retryWithExponentialBackoff(
+                    () => call_recordings.update(
+                        { end_time: endTime },
+                        { where: { id: recording.id } }
+                    ),
+                    `Update recording end time for egress ${recording.egress_id}`,
+                    7,
+                    1000
+                );
+            } catch (err: any) {
+                logStream('error', `Failed to update end_time for recording ${recording.id} (egress ${recording.egress_id}): ${err?.message}`, caller);
+                Sentry.captureException(err, { tags: { roomName }, extra: { recordingId: recording.id, egressId: recording.egress_id } });
+                failures.push(`${recording.egress_id}: ${err?.message}`);
+            }
+        }
+        return failures;
+    }
+}
+
+const FAILED_EGRESS_STATUSES = [
+    EgressStatus.EGRESS_FAILED,
+    EgressStatus.EGRESS_ABORTED,
+    EgressStatus.EGRESS_LIMIT_REACHED
+];
+
+/**
+ * Logs and alerts when LiveKit reports that an egress failed or completed with an empty file.
+ */
+async function reportEgressOutcome(info: EgressInfo, recording: any, roomName: string, caller: string) {
+    const emptyFile = info.status === EgressStatus.EGRESS_COMPLETE &&
+        info.fileResults.length > 0 &&
+        info.fileResults.every((file) => file.size === BigInt(0));
+    if (!FAILED_EGRESS_STATUSES.includes(info.status) && !emptyFile) return;
+
+    const error = `Egress ${info.egressId} for recording ${recording.id} ended with status ${EgressStatus[info.status]}` +
+        `${emptyFile ? ' and an empty file' : ''}: ${info.error || 'no error reported'}`;
+    logStream('error', error, caller);
+    Sentry.captureMessage(error, { level: 'error', tags: { roomName }, extra: { recordingId: recording.id, visitId: recording.visit_id } });
+    await sendRecordingFailureAlert({
+        roomName,
+        visitId: recording.visit_id,
+        doctorId: recording.doctor_id,
+        patientId: recording.patient_id,
+        error
+    });
 }
 
