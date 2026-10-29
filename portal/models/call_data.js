@@ -22,6 +22,7 @@ module.exports = (sequelize, DataTypes) => {
     reason: DataTypes.STRING,
     call_duration: DataTypes.INTEGER,
     start_time: DataTypes.DATE,
+    connected_at: DataTypes.DATE,
     end_time: DataTypes.DATE,
     call_type: {
       type: DataTypes.ENUM('video', 'audio'),

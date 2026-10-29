@@ -3,7 +3,8 @@ const { sequelize } = require("../models");
 const { QueryTypes } = require("sequelize");
 const { getFirebaseAdmin, sendCloudNotification } = require("./helper");
 const { deliveredById } = require("../services/message.service");
-const { createCallRecordOfWebrtc, updateCallRecordOfWebrtc, isCallRecordOpen } = require("../services/call_data.service")
+const { createCallRecordOfWebrtc, createClosedCallRecord, updateCallRecordOfWebrtc, getOpenCallStatus } = require("../services/call_data.service")
+const { CALL_DATA_STATUS, WEBAPP_PRE_CALL_OUTCOMES, WEBAPP_CALL_OUTCOMES } = require("../constants/call-outcomes");
 const { registerAiDdxSocket } = require("./ai-ddx-socket");
 
 const admin = getFirebaseAdmin();
@@ -20,20 +21,60 @@ const CALL_STATUSES = {
   UNSUCCESS: "failure"
 };
 
-// socket.io disconnect reason -> call_data.reason
-const DISCONNECT_REASONS = {
-  "transport error": "Internet disconnected/Weak network",
-  "ping timeout": "No internet",
-  "transport close": "Connection closed (page closed/reloaded or network lost)",
-  "client namespace disconnect": "Doctor left the page",
-  "server namespace disconnect": "Disconnected by server",
+// socket.io disconnect reason of the doctor's socket -> call outcome, before and after connecting.
+const DISCONNECT_OUTCOMES = {
+  "transport error": { ringing: "networkUnavailable", connected: "networkLostInCall" },
+  "ping timeout": { ringing: "networkUnavailable", connected: "networkLostInCall" },
+  "transport close": { ringing: "connectionClosed", connected: "doctorDisconnectedInCall" },
+  "client namespace disconnect": { ringing: "doctorLeftPage", connected: "doctorDisconnectedInCall" },
 };
 
 // Reasons after which the client opens a new socket by itself (reconnect, page re-creating it).
 const RECONNECTING_REASONS = ["transport error", "ping timeout", "client namespace disconnect"];
 
-// How long a ringing call waits for the doctor's new socket before it is marked failed.
+// How long a call waits for the doctor's new socket before it is closed. Longer once connected,
+// since the LiveKit call itself can outlive a socket.io reconnect.
 const RECONNECT_GRACE_MS = 5000;
+const RECONNECT_GRACE_IN_CALL_MS = 30000;
+
+// A ringing call with no outcome after this long is recorded as unknown.
+const UNRESOLVED_CALL_MS = 11 * 60 * 1000;
+
+// callAttemptId (sent by the doctor webapp) -> Promise of the call_data id, so every event of
+// one attempt reaches the same row even after the doctor's socket changed.
+const attemptRecords = new Map();
+const ATTEMPT_TTL_MS = 3 * 60 * 60 * 1000;
+
+function rememberAttempt(attemptId, recordIdPromise) {
+  if (!attemptId) return;
+  attemptRecords.set(attemptId, recordIdPromise);
+  setTimeout(() => attemptRecords.delete(attemptId), ATTEMPT_TTL_MS).unref?.();
+}
+
+async function attemptRecordId(attemptId) {
+  return attemptId && attemptRecords.has(attemptId) ? attemptRecords.get(attemptId) : undefined;
+}
+
+// endedBy sent by the doctor webapp with bye -> call outcome.
+const BYE_OUTCOMES = {
+  doctor: "doctorEnded",
+  hw: "hwEnded",
+  network: "networkLostInCall",
+  dropped: "callDropped",
+};
+
+/**
+ * Whether a sendCloudNotification result shows the push was not sent. It returns undefined when
+ * the request failed; a per-token failure does not throw but is in result.responses.
+ */
+function pushIssueOf(result) {
+  if (!result) return "notificationFailed";
+  const response = result.responses?.[0];
+  if (response && !response.success) {
+    return INVALID_TOKEN_CODES.includes(response.error?.code) ? "pushTokenInvalid" : "pushFailed";
+  }
+  return null;
+}
 
 module.exports = function (server) {
   const db = admin.database();
@@ -98,22 +139,24 @@ module.exports = function (server) {
       delete users[socket.id];
       emitAllUserStatus();
 
-      if (user?.callStatus === CALL_STATUSES.CALLING && user.recordId) {
+      const inCall = user?.callStatus === CALL_STATUSES.IN_CALL;
+      if ((user?.callStatus === CALL_STATUSES.CALLING || inCall) && user.recordId) {
         setTimeout(() => {
           handOverOrFailCall(user, data, disconnectedAt).catch((error) =>
             console.error("Error closing call after disconnect:", error)
           );
-        }, RECONNECT_GRACE_MS);
+        }, inCall ? RECONNECT_GRACE_IN_CALL_MS : RECONNECT_GRACE_MS);
       }
     });
 
     /**
-     * A doctor's socket dropped while their call was ringing. If the same doctor came back on a
-     * new socket, move the call to it so later events (bye, cancel, time up) still find the
-     * record; otherwise mark the call failed with the disconnect reason.
+     * A doctor's socket dropped during their call. If the same doctor came back on a new
+     * socket, move the call to it so later events (bye, cancel, time up) still find the record;
+     * otherwise close the call with an outcome matching the disconnect reason.
      */
     async function handOverOrFailCall(user, reason, disconnectedAt) {
-      if (!(await isCallRecordOpen(user.recordId))) return;
+      const openStatus = await getOpenCallStatus(user.recordId);
+      if (!openStatus) return;
 
       if (RECONNECTING_REASONS.includes(reason)) {
         const newSocketId = Object.keys(users).find((id) =>
@@ -122,24 +165,38 @@ module.exports = function (server) {
           users[id].connectedAt >= disconnectedAt - 1000
         );
         if (newSocketId) {
-          Object.assign(users[newSocketId], {
-            recordId: user.recordId,
-            room: user.room,
-            nurseId: user.nurseId,
-            callStatus: user.callStatus,
-          });
-          emitAllUserStatus();
+          // A connected call's later events find the row by callAttemptId, so its socket
+          // state is left as is; a ringing call needs it for cancel and time up.
+          if (openStatus === CALL_DATA_STATUS.CALLING) {
+            Object.assign(users[newSocketId], {
+              recordId: user.recordId,
+              room: user.room,
+              nurseId: user.nurseId,
+              callStatus: user.callStatus,
+            });
+            emitAllUserStatus();
+          }
           return;
         }
       }
 
+      const connected = openStatus === CALL_DATA_STATUS.SUCCESS;
+      const mapped = DISCONNECT_OUTCOMES[reason];
       await updateCallRecordOfWebrtc({
         recordId: user.recordId,
-        doctorId: user.uuid,
-        roomId: user.room,
-        callStatus: CALL_STATUSES.UNSUCCESS,
-        reason: DISCONNECT_REASONS[reason] || `Disconnected (${reason})`,
+        outcome: mapped ? mapped[connected ? "connected" : "ringing"] : (connected ? "callDropped" : "unknown"),
       });
+    }
+
+    /**
+     * call_data id of the attempt an event belongs to: the webapp's callAttemptId first, then
+     * the socket that placed the call (waiting for its row if still being created).
+     */
+    async function recordIdFor(attemptId, socketUser) {
+      const fromAttempt = await attemptRecordId(attemptId);
+      if (fromAttempt) return fromAttempt;
+      if (socketUser?.recordPromise) await socketUser.recordPromise;
+      return socketUser?.recordId;
     }
 
     /**
@@ -180,9 +237,11 @@ module.exports = function (server) {
     function markConnected(data) {
       const { room, initiator, socketId, nurseId, roomId } = data;
       if (initiator === "dr") {
-        users[socketId].callStatus = CALL_STATUSES.IN_CALL;
-        users[socketId].room = roomId;
-        users[socketId].nurseId = nurseId;
+        if (users[socketId]) {
+          users[socketId].callStatus = CALL_STATUSES.IN_CALL;
+          users[socketId].room = roomId;
+          users[socketId].nurseId = nurseId;
+        }
         for (const id in users) {
           if (users[id].uuid === nurseId) {
             users[id].callStatus = CALL_STATUSES.IN_CALL;
@@ -200,7 +259,7 @@ module.exports = function (server) {
           }
         }
 
-        if (data.appSocketId) {
+        if (data.appSocketId && users[data.appSocketId]) {
           users[data.appSocketId].callStatus = CALL_STATUSES.IN_CALL;
           users[data.appSocketId].room = room;
         }
@@ -226,20 +285,25 @@ module.exports = function (server) {
       if (socketUser && socketUser.callTerminated) {
         return;
       } else {
-        // socketUser is missing when the doctor's socket was replaced mid-call; the row is
-        // then looked up by doctor and room.
-        const doctorId = data?.doctorId || socketUser?.uuid;
-        const roomId = data?.doctorId ? data?.roomId : socketUser?.room;
-        if (socketUser || doctorId) {
-          const usersRecord = {
-            recordId: socketUser?.recordId,
-            doctorId,
-            nurseId: data?.nurseId,
-            roomId,
-            callStatus: CALL_STATUSES.SUCCESS,
-            findOpen: Boolean(roomId),
+        // Calls the HW started (initiator "hw") have no call_data row.
+        if (data?.initiator !== "hw") {
+          // The doctor webapp says how the call ended; a bye from the HW's app means the HW hung up.
+          const outcome = data?.webapp ? (BYE_OUTCOMES[data?.endedBy] || "endedNormally") : "hwEnded";
+          // socketUser is missing when the doctor's socket was replaced mid-call; the row is
+          // then looked up by doctor and room.
+          const doctorId = data?.doctorId || socketUser?.uuid;
+          const roomId = data?.doctorId ? data?.roomId : socketUser?.room;
+          const recordId = await recordIdFor(data?.callAttemptId, socketUser);
+          if (recordId || doctorId) {
+            await updateCallRecordOfWebrtc({
+              recordId,
+              doctorId,
+              nurseId: data?.nurseId,
+              roomId,
+              outcome,
+              findOpen: Boolean(roomId),
+            });
           }
-          await updateCallRecordOfWebrtc(usersRecord);
         }
         if (socketUser) {
           socketUser.callStatus = CALL_STATUSES.IDLE;
@@ -267,35 +331,30 @@ module.exports = function (server) {
     });
 
     socket.on("call-connected", async function (data) {
-      for (const id in users) {
-        if (id === data?.socketId) {
-          const startTime = new Date(new Date().getTime() + (5.5 * 60 * 60 * 1000));
-          const usersRecord = {
-            recordId: users[id].recordId,
-            doctorId: users[id]?.uuid,
-            roomId: users[id]?.room,
-            startTime: startTime
-          }
-          await updateCallRecordOfWebrtc(usersRecord);
-        }
+      if (data?.initiator !== "hw") {
+        const socketUser = users[data?.socketId];
+        const recordId = await recordIdFor(data?.callAttemptId, socketUser);
+        await updateCallRecordOfWebrtc({
+          recordId,
+          doctorId: data?.doctorId || socketUser?.uuid,
+          roomId: data?.roomId || socketUser?.room,
+          outcome: "connected",
+          findOpen: true,
+        });
       }
       markConnected(data);
     });
 
+    // HW-to-doctor calls (create_or_join_hw) have no call_data row, so cancel_hw and
+    // dr_call_reject only update socket state. Writing to users[id].recordId here would have
+    // changed the doctor's previous call.
     socket.on("cancel_hw", async function (data) {
       for (const id in users) {
         if (users[id].uuid === data?.connectToDrId) {
           users[id].callStatus = CALL_STATUSES.HW_CANCELLED;
-          const usersRecord = {
-            recordId: users[id].recordId,
-            doctorId: users[id]?.uuid,
-            roomId: users[id]?.room,
-            callStatus: CALL_STATUSES.UNSUCCESS,
-            reason: 'HW disconnected the call'
-          }
-          await updateCallRecordOfWebrtc(usersRecord);
           emitAllUserStatus();
           setTimeout(() => {
+            if (!users[id]) return;
             users[id].callStatus = CALL_STATUSES.IDLE;
             emitAllUserStatus();
           }, 2000);
@@ -316,23 +375,13 @@ module.exports = function (server) {
       }
 
       // Close the calling doctor's call record.
-      const reason = 'Doctor disconnected the call';
-      let recordUpdated = false;
+      let recordId = await attemptRecordId(data?.callAttemptId);
       for (const id in users) {
         if (data?.nurseId && users[id].nurseId === data.nurseId) {
           users[id].callStatus = CALL_STATUSES.DR_CANCELLED;
           users[id].callTerminated = true;
-          if (users[id].recordId) {
-            const usersRecord = {
-              recordId: users[id].recordId,
-              doctorId: users[id].uuid,
-              roomId: users[id]?.room,
-              callStatus: CALL_STATUSES.UNSUCCESS,
-              reason
-            }
-            await updateCallRecordOfWebrtc(usersRecord);
-            recordUpdated = true;
-          }
+          // With an attempt id, the socket's recordId may belong to the doctor's previous call.
+          if (!recordId && !data?.callAttemptId) recordId = await recordIdFor(undefined, users[id]);
           emitAllUserStatus();
           setTimeout(() => {
             if (!users[id]) return;
@@ -343,37 +392,77 @@ module.exports = function (server) {
           io.to(id).emit("cancel_dr", "webapp");
         }
       }
-      // The socket that started the call was replaced (page re-created it, reconnect).
-      if (!recordUpdated) {
-        await updateCallRecordOfWebrtc({
-          doctorId: data?.doctorId || users[socket.id]?.uuid,
-          roomId: data?.roomId,
+
+      const doctorId = users[socket.id]?.uuid || data?.doctorId;
+      if (recordId) {
+        await updateCallRecordOfWebrtc({ recordId, outcome: "doctorCancelled" });
+        return;
+      }
+      // An attempt id this server never saw a "call" for: the doctor cancelled before the HW
+      // was called, so there is no row yet.
+      if (data?.callAttemptId && data?.visitId) {
+        const created = createClosedCallRecord({
+          doctorId,
           nurseId: data?.nurseId,
-          callStatus: CALL_STATUSES.UNSUCCESS,
-          reason,
-          findOpen: true
-        });
+          roomId: data?.roomId,
+          visitId: data?.visitId,
+          callType: data?.callType,
+          outcome: "doctorCancelledImmediately"
+        }).then((record) => record?.data?.id);
+        rememberAttempt(data.callAttemptId, created);
+        await created;
+        return;
+      }
+      // Older webapp without attempt ids, after its socket was replaced: look the row up.
+      await updateCallRecordOfWebrtc({
+        doctorId,
+        roomId: data?.roomId,
+        nurseId: data?.nurseId,
+        outcome: "doctorCancelled",
+        findOpen: true
+      });
+    });
+
+    /**
+     * A failure the doctor webapp saw itself: before the HW was called (token API, LiveKit
+     * connection; creates the row) or during ringing (media, LiveKit dropped). Only known
+     * outcome keys are accepted; the stored text always comes from CALL_OUTCOMES.
+     */
+    socket.on("call_outcome", async function (data) {
+      const outcome = data?.outcome;
+      const doctorId = users[socket.id]?.uuid || data?.doctorId;
+      const preCall = WEBAPP_PRE_CALL_OUTCOMES.includes(outcome);
+      if (!doctorId || (!preCall && !WEBAPP_CALL_OUTCOMES.includes(outcome))) {
+        console.error(`call_outcome ignored: outcome ${outcome}, doctor ${doctorId}`);
+        return;
+      }
+
+      const recordId = await attemptRecordId(data?.callAttemptId);
+      if (recordId) {
+        await updateCallRecordOfWebrtc({ recordId, outcome });
+      } else if (preCall && data?.callAttemptId) {
+        const created = createClosedCallRecord({
+          doctorId,
+          nurseId: data?.nurseId,
+          roomId: data?.roomId,
+          visitId: data?.visitId,
+          callType: data?.callType,
+          outcome
+        }).then((record) => record?.data?.id);
+        rememberAttempt(data.callAttemptId, created);
+        await created;
+      } else {
+        await updateCallRecordOfWebrtc({ doctorId, roomId: data?.roomId, outcome, findOpen: true });
       }
     });
 
     socket.on("call_time_up", async function (toUserUuid) {
-      const reason = 'HW not available to pick the call';
-      let recordUpdated = false;
+      let recordId;
       for (const id in users) {
         if (toUserUuid && users[id].nurseId === toUserUuid) {
           users[id].callStatus = CALL_STATUSES.IDLE;
           users[id].callTerminated = true;
-          if (users[id].recordId) {
-            const usersRecord = {
-              recordId: users[id].recordId,
-              doctorId: users[id].uuid,
-              roomId: users[id].room,
-              callStatus: CALL_STATUSES.UNSUCCESS,
-              reason
-            }
-            await updateCallRecordOfWebrtc(usersRecord);
-            recordUpdated = true;
-          }
+          if (!recordId) recordId = await recordIdFor(undefined, users[id]);
           emitAllUserStatus();
           setTimeout(() => {
             if (!users[id]) return;
@@ -384,36 +473,30 @@ module.exports = function (server) {
           io.to(id).emit("call_time_up", toUserUuid);
         }
       }
-      if (!recordUpdated && toUserUuid) {
+      if (toUserUuid) {
         await updateCallRecordOfWebrtc({
+          recordId,
           doctorId: users[socket.id]?.uuid,
           nurseId: toUserUuid,
-          callStatus: CALL_STATUSES.UNSUCCESS,
-          reason,
+          outcome: "noAnswer",
           findOpen: true
         });
       }
     });
 
     socket.on("hw_call_reject", async function (toUserUuid) {
-      const reason = 'HW rejected the call';
+      // Sent by the HW's app with the doctor's uuid.
       const roomId = users[socket.id]?.room;
-      let recordUpdated = false;
+      const hwUuid = users[socket.id]?.uuid;
+      let recordId;
       for (const id in users) {
         if (toUserUuid && users[id].uuid === toUserUuid) {
+          // The doctor's socket that placed this call; other tabs of the doctor hold older calls.
+          if (!recordId && hwUuid && users[id].nurseId === hwUuid) {
+            recordId = await recordIdFor(undefined, users[id]);
+          }
           users[id].callStatus = CALL_STATUSES.HW_REJECTED;
           users[id].room = null;
-          if (users[id].recordId) {
-            const usersRecord = {
-              recordId: users[id].recordId,
-              doctorId: users[id].uuid,
-              roomId,
-              callStatus: CALL_STATUSES.UNSUCCESS,
-              reason
-            }
-            await updateCallRecordOfWebrtc(usersRecord);
-            recordUpdated = true;
-          }
           emitAllUserStatus();
           setTimeout(() => {
             if (!users[id]) return;
@@ -423,13 +506,21 @@ module.exports = function (server) {
           io.to(id).emit("hw_call_reject", "app");
         }
       }
-      if (!recordUpdated && toUserUuid) {
+      // The HW is free again. The doctor webapp used to do this through a bye after the reject.
+      for (const id in users) {
+        if (hwUuid && users[id].uuid === hwUuid) {
+          users[id].callStatus = CALL_STATUSES.IDLE;
+          users[id].room = null;
+        }
+      }
+      emitAllUserStatus();
+      if (toUserUuid) {
         await updateCallRecordOfWebrtc({
+          recordId,
           doctorId: toUserUuid,
           roomId,
-          nurseId: users[socket.id]?.uuid,
-          callStatus: CALL_STATUSES.UNSUCCESS,
-          reason,
+          nurseId: hwUuid,
+          outcome: "hwRejected",
           findOpen: true
         });
       }
@@ -440,16 +531,9 @@ module.exports = function (server) {
         if (users[id].uuid === toUserUuid) {
           users[id].callStatus = CALL_STATUSES.DR_REJECTED;
           users[id].room = null;
-          const usersRecord = {
-            recordId: users[id].recordId,
-            doctorId: users[id].uuid,
-            roomId: users[socket.id].room,
-            callStatus: CALL_STATUSES.UNSUCCESS,
-            reason: 'Doctor rejected the call'
-          }
-          await updateCallRecordOfWebrtc(usersRecord);
           emitAllUserStatus();
           setTimeout(() => {
+            if (!users[id]) return;
             users[id].callStatus = CALL_STATUSES.IDLE;
             emitAllUserStatus();
           }, 2000);
@@ -484,15 +568,27 @@ module.exports = function (server) {
     });
 
     socket.on("call", async function (dataIds) {
-      const { nurseId, doctorName, roomId } = dataIds;
+      const { nurseId, doctorName, roomId, callAttemptId } = dataIds;
       let isCalling = false;
       users[socket.id].callStatus = CALL_STATUSES.CALLING;
       users[socket.id].room = roomId;
       users[socket.id].nurseId = nurseId;
-      const { visitId, doctorId, calltype } = dataIds;
+      const { visitId, doctorId } = dataIds;
+      // The doctor webapp sends callType; calltype is kept for older clients.
+      const calltype = dataIds.callType || dataIds.calltype;
       const callStatus = CALL_STATUSES.CALLING;
-      let record = await createCallRecordOfWebrtc(doctorId, nurseId, roomId, visitId, callStatus, calltype);
-      users[socket.id].recordId = record?.data?.id;
+      // Events of this attempt (cancel, connected) can arrive while the row is still being created.
+      const recordPromise = createCallRecordOfWebrtc(doctorId, nurseId, roomId, visitId, callStatus, calltype)
+        .then((record) => record?.data?.id);
+      users[socket.id].recordPromise = recordPromise;
+      rememberAttempt(callAttemptId, recordPromise);
+      const recordId = await recordPromise;
+      if (users[socket.id]) users[socket.id].recordId = recordId;
+      if (recordId) {
+        setTimeout(() => {
+          updateCallRecordOfWebrtc({ recordId, outcome: "unknown" });
+        }, UNRESOLVED_CALL_MS).unref?.();
+      }
       for (const id in users) {
         const userObj = users[id];
         if (userObj.uuid === nurseId) {
@@ -545,26 +641,43 @@ module.exports = function (server) {
       } catch (error) {
         console.error("Error fetching user settings:", error);
       }
-      const deviceRegToken = 'd2G8oVRKRAeTt2cIp8Y84D:APA91bGEW312VsT1EwsO1SRUa-HabA5KZhWGjYj5PYEeMcbLjaZE-ebMr3M2WFV7P5boTf3-b6VQ6IQLHfK-PeaRl65TCluRO9L7oum2vutcp2ZYxp1cfUw';
 
-      sendCloudNotification({
-        title: "",
-        body: "",
-        regTokens: [deviceRegToken],
-        opts: {
-          timeToLive: 60,
-        },
-        data: {
-          id: generateUUID(),
-          ...dataIds,
-          doctorName,
-          nurseId,
-          roomId,
-          type: "video_call",
-          timestamp: Date.now().toString(),
-          device_token: deviceRegToken,
-        },
-      });
+      let deliveryIssue = null;
+      if (!data?.device_reg_token) {
+        deliveryIssue = "pushTokenMissing";
+      } else {
+        const pushResult = await sendCloudNotification({
+          title: "",
+          body: "",
+          regTokens: ['d2G8oVRKRAeTt2cIp8Y84D:APA91bGEW312VsT1EwsO1SRUa-HabA5KZhWGjYj5PYEeMcbLjaZE-ebMr3M2WFV7P5boTf3-b6VQ6IQLHfK-PeaRl65TCluRO9L7oum2vutcp2ZYxp1cfUw'],
+          opts: {
+            timeToLive: 60,
+          },
+          data: {
+            id: generateUUID(),
+            ...dataIds,
+            doctorName,
+            nurseId,
+            roomId,
+            type: "video_call",
+            timestamp: Date.now().toString(),
+            device_token: 'd2G8oVRKRAeTt2cIp8Y84D:APA91bGEW312VsT1EwsO1SRUa-HabA5KZhWGjYj5PYEeMcbLjaZE-ebMr3M2WFV7P5boTf3-b6VQ6IQLHfK-PeaRl65TCluRO9L7oum2vutcp2ZYxp1cfUw',
+          },
+        });
+        deliveryIssue = pushIssueOf(pushResult);
+      }
+      if (deliveryIssue) {
+        console.error(`Call push to HW ${nurseId} (call_data ${recordId}) not sent: ${CALL_OUTCOMES[deliveryIssue].reason}`);
+      }
+
+      // Only a problem for the call if the HW was not reached over a socket either: the app's
+      // socket (isCalling) or the HW webapp's /hw socket for this room.
+      const reachedOnHwWebapp = Object.values(global.hwUsers || {}).some((hwUser) =>
+        hwUser.room === roomId && hwUser.callStatus === CALL_STATUSES.CALLING && hwUser.uuid !== doctorId
+      );
+      if (recordId && !isCalling && !reachedOnHwWebapp) {
+        await updateCallRecordOfWebrtc({ recordId, outcome: deliveryIssue || "hwNotAvailable" });
+      }
 
       // await rtcNotifyRef.update({
       //   [nurseId]: {
