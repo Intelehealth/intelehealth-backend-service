@@ -1,6 +1,5 @@
 const { user_settings } = require("../models");
 const { sendCloudNotification } = require("../handlers/helper");
-const { createCallRecordOfWebrtc, updateCallRecordOfWebrtc } = require("./call_data.service");
 
 const CALL_STATUSES = {
   CALLING: "calling",
@@ -53,35 +52,21 @@ module.exports = function () {
     }
     emitAllHwUsers();
 
-    socket.on("disconnect", async (data) => {
-      const u = global.hwUsers[socket.id];
-      if (u && u.callStatus === CALL_STATUSES.CALLING && u.recordId) {
-        await updateCallRecordOfWebrtc({
-          recordId: u.recordId,
-          doctorId: u.uuid,
-          roomId: u.room,
-          callStatus: CALL_STATUSES.UNSUCCESS,
-          reason: data === "transport error" ? "Internet disconnected/Weak network" : "No internet",
-        });
-      }
+    socket.on("disconnect", () => {
       delete global.hwUsers[socket.id];
       emitAllHwUsers();
     });
 
+    // The doctor webapp emits "call" on the main socket as well, and that handler owns the
+    // call_data row; this one only relays the call. A second row here was never updated
+    // except by disconnect, which filled call logs with false "No internet" failures.
     socket.on("call", async function (dataIds) {
-      const { nurseId, doctorName, roomId, visitId, doctorId, calltype } = dataIds;
+      const { nurseId, doctorName, roomId } = dataIds;
 
       if (global.hwUsers[socket.id]) {
         global.hwUsers[socket.id].callStatus = CALL_STATUSES.CALLING;
         global.hwUsers[socket.id].room = roomId;
         global.hwUsers[socket.id].nurseId = nurseId;
-      }
-
-      const record = await createCallRecordOfWebrtc(
-        doctorId, nurseId, roomId, visitId, CALL_STATUSES.CALLING, calltype
-      );
-      if (global.hwUsers[socket.id]) {
-        global.hwUsers[socket.id].recordId = record?.data?.id;
       }
 
       for (const id in global.hwUsers) {

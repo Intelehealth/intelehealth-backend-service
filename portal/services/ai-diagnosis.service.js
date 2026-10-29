@@ -38,6 +38,7 @@ function client() {
   });
 }
 
+
 /*
  * Forwards the body and returns the response unchanged, so existing frontend
  * parsing keeps working.
