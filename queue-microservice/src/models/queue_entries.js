@@ -96,6 +96,9 @@ module.exports = (sequelize, DataTypes) => {
       // measured to here, not to completion, so however long a prescription
       // takes cannot inflate the speciality's wait estimates.
       callEndedAt: { type: DataTypes.DATE, allowNull: true },
+      // Why the call never happened, as the doctor picked it in the webapp.
+      // Null whenever there was a call, or nobody has said why there wasn't.
+      callNotHappenedReason: { type: DataTypes.STRING(100), allowNull: true },
       completedAt: { type: DataTypes.DATE, allowNull: true },
 
       // LLD §05.3 — stamped once by the SLA force-promote job. Its presence IS

@@ -139,6 +139,7 @@ const statusPayload = async (entry, { includeEta = true } = {}) => {
     escalated: entry.escalatedAt !== null && entry.escalatedAt !== undefined,
     heartbeatStale: heartbeatStale(entry),
     callEndedAt: entry.callEndedAt,
+    callNotHappenedReason: entry.callNotHappenedReason ?? null,
     // The call is over but the visit is not: a prescription is still owed.
     prescriptionPending: entry.status === STATUS.CALL_COMPLETED,
     prescriptionOutstandingMinutes: prescriptionOutstandingMinutes(entry),
@@ -1204,6 +1205,54 @@ const sharePrescription = async (visitUuid, { doctorUuid = null } = {}) => {
 };
 
 /**
+ * Where a call that never happened can be recorded: a doctor holds the case
+ * and no call has connected, or the visit was already closed without one.
+ */
+const CALL_NOT_HAPPENED_STATUSES = [
+  STATUS.ASSIGNED,
+  STATUS.CALL_CONNECTING,
+  STATUS.PRESCRIPTION_COMPLETED,
+];
+
+/**
+ * POST /api/queue/visit/:visitUuid/call-not-happened — record why the doctor's
+ * call with the patient never happened.
+ *
+ * Records the reason only; the case status is untouched. The doctor carries on
+ * from the notes and shares the prescription (ASSIGNED → PRESCRIPTION_COMPLETED
+ * is already allowed), so either order works. Sending it again overwrites the
+ * reason.
+ */
+const markCallNotHappened = async (visitUuid, { reason, doctorUuid = null }) => {
+  const entry = await findByVisit(visitUuid);
+
+  if (entry.connectedAt) {
+    throw new ConflictError("The call for this visit did happen", "CALL_ALREADY_HAPPENED", {
+      visitUuid,
+      status: entry.status,
+    });
+  }
+  if (!CALL_NOT_HAPPENED_STATUSES.includes(entry.status)) {
+    throw new ConflictError(
+      `Cannot record a missed call for a case in status ${entry.status} — no doctor has taken it`,
+      "NO_CALL_EXPECTED",
+      { visitUuid, status: entry.status }
+    );
+  }
+  if (doctorUuid && entry.assignedDoctorUuid && entry.assignedDoctorUuid !== doctorUuid) {
+    throw new ConflictError("This case is not assigned to you", "CASE_NOT_ASSIGNED_TO_YOU", {
+      visitUuid,
+      assignedDoctorUuid: entry.assignedDoctorUuid,
+    });
+  }
+
+  await entry.update({ callNotHappenedReason: reason });
+  logger.info("Call not happened — reason recorded", { queueEntryId: entry.id, visitUuid, reason });
+
+  return statusPayload(entry);
+};
+
+/**
  * Connection failed or timed out — LLD §04's RE_QUEUED state: back in the line
  * with a priority bump so a patient whose call keeps dropping does not slide
  * down it each time.
@@ -1274,6 +1323,7 @@ module.exports = {
   heartbeatStale,
   restorableScore,
   sharePrescription,
+  markCallNotHappened,
   prescriptionOutstandingMinutes,
   prescriptionOverdue,
 };

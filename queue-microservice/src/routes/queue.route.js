@@ -174,6 +174,17 @@ router.post(
   asyncHandler(controller.prescriptionShared)
 );
 
+const callNotHappenedSchema = {
+  reason: { type: "string", required: true, maxLength: 100 },
+};
+
+router.post(
+  "/visit/:visitUuid/call-not-happened",
+  visitParams,
+  validateBody(callNotHappenedSchema),
+  asyncHandler(controller.callNotHappened)
+);
+
 router.post(
   "/visit/:visitUuid/call-disconnected",
   visitParams,
@@ -244,6 +255,6 @@ router.post(
 // The request schemas are attached to the exported router so the tests can
 // drive the real validator against the real shapes, rather than asserting
 // against a copy that could drift from what the route actually enforces.
-router.schemas = { submit: submitSchema };
+router.schemas = { submit: submitSchema, callNotHappened: callNotHappenedSchema };
 
 module.exports = router;

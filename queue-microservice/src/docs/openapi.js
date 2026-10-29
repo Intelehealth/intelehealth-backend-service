@@ -62,6 +62,12 @@ const queueStatusResponse = {
       description:
         "When the CALL ended, which completedAt no longer stands in for: a finished call is not a finished visit. completedAt is stamped only at PRESCRIPTION_COMPLETED.",
     },
+    callNotHappenedReason: {
+      type: "string",
+      nullable: true,
+      description:
+        "Why the call never happened, as the doctor picked it in the webapp. Set by POST /visit/{visitUuid}/call-not-happened; null otherwise.",
+    },
     prescriptionPending: {
       type: "boolean",
       description:
@@ -660,6 +666,44 @@ module.exports = {
             },
           }),
           404: errorResponse,
+          default: errorResponse,
+        },
+      },
+    },
+
+    "/api/queue/visit/{visitUuid}/call-not-happened": {
+      post: {
+        tags: ["Call lifecycle"],
+        summary: "Record why the call never happened",
+        description: [
+          "The doctor marks that the call with the patient did not happen, and why — e.g. `Network Issue`, `Patient Unavailable`, `Async Consultation`. Stored on the queue entry as `callNotHappenedReason`.",
+          "",
+          "Records the reason only — the case status does not change. The doctor carries on and shares the prescription, which closes the visit (ASSIGNED reaches PRESCRIPTION_COMPLETED directly), so this can be sent before or after that. Sending it again replaces the reason.",
+          "",
+          "Allowed while a doctor holds the case without a connected call (ASSIGNED, CALL_CONNECTING), or once it is PRESCRIPTION_COMPLETED without one. A doctor can only mark their own case; admins and services can mark any.",
+          "",
+          "- **409 `CALL_ALREADY_HAPPENED`** — the call connected",
+          "- **409 `NO_CALL_EXPECTED`** — the case is still waiting, or was cancelled",
+          "- **409 `CASE_NOT_ASSIGNED_TO_YOU`** — another doctor holds the case",
+        ].join("\n"),
+        parameters: [{ name: "visitUuid", in: "path", required: true, schema: { type: "string" } }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["reason"],
+                properties: { reason: { type: "string", maxLength: 100, example: "Network Issue" } },
+              },
+            },
+          },
+        },
+        responses: {
+          200: ok({ $ref: "#/components/schemas/QueueStatus" }),
+          400: errorResponse,
+          404: errorResponse,
+          409: errorResponse,
           default: errorResponse,
         },
       },

@@ -199,6 +199,21 @@ const prescriptionShared = async (req, res) => {
 };
 
 /**
+ * POST /api/queue/visit/:visitUuid/call-not-happened
+ *
+ * The doctor says the call never happened, and why. Only a doctor's own case:
+ * admins and services may record it for any.
+ */
+const callNotHappened = async (req, res) => {
+  const doctorUuid = req.auth.isAdmin || req.auth.isService ? null : req.auth.userUuid;
+  const entry = await queueService.markCallNotHappened(req.params.visitUuid, {
+    reason: req.validated.reason,
+    doctorUuid,
+  });
+  return success(res, entry, 200, "Call not happened — reason recorded");
+};
+
+/**
  * GET /api/queue/visit/:visitUuid — resolve a visit to its queue entry.
  * Open to any authenticated user (no case-ownership check).
  */
@@ -244,5 +259,6 @@ module.exports = {
   callConnected,
   callDisconnected,
   prescriptionShared,
+  callNotHappened,
   getByVisit,
 };
