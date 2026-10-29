@@ -308,11 +308,13 @@ const physicalExamObs = (hasImages) => {
 // title physicalExamObs produces -- getImagesBySection compares case-insensitively).
 const PHYSICAL_EXAM_IMAGE_SECTION = "General Exams";
 
-// Phase-2 metrics: the Johar/Namaste message, when it arrived, and the screen
-// ids from journey start and protocol selection, as one JSON visit attribute.
+// Phase-2 metrics: which intake sent the visit (e.g. "VTT"), the Johar/Namaste
+// message, when it arrived, and the screen ids from journey start and protocol
+// selection, as one JSON visit attribute.
 // Blank fields are dropped so the value never carries empty keys.
 const journeyInfoValue = (body = {}) => {
   const fields = {
+    source: clean(body.source),
     msg_trigger: clean(body.hi_message ?? body.msg_trigger ?? body.trigger),
     msg_trigger_datetime: clean(body.hi_datetime ?? body.msg_trigger_datetime ?? body.trigger_datetime),
     screen_id_registration: clean(body.screen_id_registration),
