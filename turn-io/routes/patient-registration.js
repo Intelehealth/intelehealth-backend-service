@@ -42,6 +42,21 @@ const isJunk = (v) =>
 
 const pick = (...values) => values.find((v) => !isJunk(v)) || "";
 
+// Age may arrive as a JSON number (voice/Formbharo form_data) -- isJunk drops
+// non-strings, so stringify numbers before picking.
+const pickAge = (...values) => pick(...values.map((v) => (typeof v === "number" ? String(v) : v)));
+
+// form_data can be an object or a JSON string; {} when absent or unparseable.
+const parseFormData = (v) => {
+   if (v && typeof v === "object") return v;
+   try {
+      const parsed = JSON.parse(v);
+      return parsed && typeof parsed === "object" ? parsed : {};
+   } catch {
+      return {};
+   }
+};
+
 const router = express.Router();
 
 router.post("/patient_registration", async (req, res) => {
@@ -89,7 +104,8 @@ router.post("/patient_registration", async (req, res) => {
          .filter(([, value]) => !isJunk(value))
          .map(([attributeType, value]) => ({ value, attributeType }));
 
-      let age = parseInt(pick(b.age, r.age, c.age), 10);
+      const fd = parseFormData(b.form_data ?? r.form_data);
+      let age = parseInt(pickAge(b.age, fd.age, r.age, c.age), 10);
       const birthdayRaw = pick(b.dob, r.date_of_birth, c.date_of_birth, r.birthday, c.birthday);
       if (!(age > 0) && birthdayRaw) {
          // Tolerate Turn's Elixir date format like "~U[2016-05-14 11:24:22Z]".
