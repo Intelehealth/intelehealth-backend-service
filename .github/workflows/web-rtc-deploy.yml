@@ -232,10 +232,21 @@ jobs:
             ENV_FILE_PATH="${{ env.ENV_FILE_PATH }}"
             PEM_FOLDER_PATH="${{ env.PEM_FOLDER_PATH }}"
             REMOTE_TAR="$REMOTE_TAR"
+
             docker load -i "\$REMOTE_TAR"
             rm "\$REMOTE_TAR"
-            docker stop \$DOCKER_IMAGE_NAME || true
-            docker rm \$DOCKER_IMAGE_NAME || true
+
+            # Remove any stale instance of this service before starting a new one.
+            docker ps -aq --filter "name=^/\$DOCKER_IMAGE_NAME$" | xargs -r docker rm -f || true
+
+            # If port 3000 is still occupied, clear only the stale process bound to it.
+            PORT_PID="$(lsof -ti:3000 || true)"
+            if [ -n "\$PORT_PID" ]; then
+              echo "Port 3000 was still in use; forcing cleanup of the process bound to it"
+              echo "\$PORT_PID" | xargs -r kill -9
+              sleep 2
+            fi
+
             if [ ! -f "\$ENV_FILE_PATH" ]; then
               echo "Error: .env file not found at \$ENV_FILE_PATH"
               exit 1
@@ -244,9 +255,12 @@ jobs:
               echo "Error: .pem folder not found at \$PEM_FOLDER_PATH"
               exit 1
             fi
-            lsof -ti:3000 | xargs kill -9 2>/dev/null || true
-            docker ps -a | grep \$DOCKER_IMAGE_NAME | awk '{print \$1}' | xargs -r docker rm -f 2>/dev/null || true
-            sleep 2
+
+            if ss -lnt | awk 'NR>1 {print \$4}' | grep -q ':3000$'; then
+              echo "Port 3000 is still occupied after cleanup; refusing to start container."
+              exit 1
+            fi
+
             docker run -d \
               --name \$DOCKER_IMAGE_NAME \
               --restart unless-stopped \
