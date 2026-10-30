@@ -5,6 +5,7 @@ on:
     branches: [development_master_qms_service]
     paths:
       - 'queue-microservice/**'
+      - '.github/workflows/**'
   workflow_dispatch: {}
 
 env:
@@ -12,7 +13,6 @@ env:
 
 jobs:
   build:
-    if: ${{ hashFiles('queue-microservice/**') != '' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -20,9 +20,29 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Debug repo layout
+        run: |
+          echo "Branch: ${{ github.ref_name }}"
+          ls -la
+          find . -maxdepth 3 -name Dockerfile -not -path "./.git/*"
+
+      - name: Resolve build context
+        run: |
+          if [ -f "./queue-microservice/Dockerfile" ]; then
+            BUILD_CONTEXT="./queue-microservice"
+          elif [ -f "./Dockerfile" ]; then
+            BUILD_CONTEXT="."
+          else
+            echo "Error: no Dockerfile found in ./queue-microservice or repo root on branch '${{ github.ref_name }}'"
+            echo "Check the 'Debug repo layout' step above for where the Dockerfile actually is."
+            exit 1
+          fi
+          echo "Using build context: $BUILD_CONTEXT"
+          echo "BUILD_CONTEXT=$BUILD_CONTEXT" >> "$GITHUB_ENV"
+
       - name: Build Docker image
         run: |
-          docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} ./queue-microservice
+          docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} "$BUILD_CONTEXT"
           docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > app-image.tar
 
       - name: Upload image artifact
@@ -34,7 +54,6 @@ jobs:
 
   deploy:
     needs: build
-    if: ${{ needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false          # a failure on one server won't cancel the other
