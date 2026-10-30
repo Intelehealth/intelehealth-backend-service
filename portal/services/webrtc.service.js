@@ -68,8 +68,11 @@ module.exports = function () {
       emitAllHwUsers();
     });
 
+    // The doctor webapp emits "call" on the main socket as well, and that handler owns the
+    // call_data row; this one only relays the call. A second row here was never updated
+    // except by disconnect, which filled call logs with false "No internet" failures.
     socket.on("call", async function (dataIds) {
-      const { nurseId, doctorName, roomId, visitId, doctorId, calltype } = dataIds;
+      const { nurseId, doctorName, roomId } = dataIds;
 
       if (global.hwUsers[socket.id]) {
         global.hwUsers[socket.id].callStatus = CALL_STATUSES.CALLING;

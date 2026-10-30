@@ -1,5 +1,6 @@
 import { WebSocketServer } from 'ws';
 import { RoomServiceClient, Room, AccessToken, EgressClient, EncodedFileOutput, VideoGrant, EncodingOptionsPreset, EncodedFileType, EgressInfo, EgressStatus } from 'livekit-server-sdk';
+import { RoomServiceClient, Room, AccessToken, EgressClient, EncodedFileOutput, VideoGrant, EncodingOptionsPreset, EncodedFileType, EgressInfo, EgressStatus } from 'livekit-server-sdk';
 import moment from 'moment';
 import nodemailer from 'nodemailer';
 import * as Sentry from '@sentry/node';
@@ -43,6 +44,14 @@ async function retryWithExponentialBackoff<T>(
     throw lastError || new Error(`${operationName} failed after maximum retries`);
 }
 
+function escapeHtml(value: string): string {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
 async function sendRecordingFailureAlert({
     roomName,
     visitId,
@@ -78,11 +87,11 @@ async function sendRecordingFailureAlert({
             to: MAIL_ALERT_RECIPIENT,
             subject: `ALERT: WebRTC Recording Failed - Room: ${roomName || ''}`,
             html: `<b>WebRTC Recording Failure Detected</b><br>
-                Room: ${roomName || '-'}<br>
-                Visit ID: ${visitId || '-'}<br>
-                Doctor ID: ${doctorId || '-'}<br>
-                Patient ID: ${patientId || '-'}<br>
-                Error: <pre>${error}</pre><br>
+                Room: ${escapeHtml(roomName || '-')}<br>
+                Visit ID: ${escapeHtml(visitId || '-')}<br>
+                Doctor ID: ${escapeHtml(doctorId || '-')}<br>
+                Patient ID: ${escapeHtml(patientId || '-')}<br>
+                Error: <pre>${escapeHtml(error)}</pre><br>
                 Detected at: ${new Date().toISOString()}`
             };
         await transporter.sendMail(mailOptions);

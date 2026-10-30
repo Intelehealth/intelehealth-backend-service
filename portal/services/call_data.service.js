@@ -16,7 +16,27 @@ const {
 } = require("../openmrs_models");
 const Op = Sequelize.Op;
 const { QueryTypes, Op: SequelizeOp } = require("sequelize");
+const { QueryTypes, Op: SequelizeOp } = require("sequelize");
 const { locationQuery } = require("../controllers/queries");
+const { CALL_DATA_STATUS, CALL_OUTCOMES } = require("../constants/call-outcomes");
+
+// How far back findOpenCallRecord looks; covers a long call ending with bye.
+const OPEN_CALL_WINDOW_MS = 3 * 60 * 60 * 1000;
+// A doctor cancel this soon after the call was placed is recorded as an immediate cancel.
+const IMMEDIATE_CANCEL_MS = 5000;
+// A row is still open while ringing (calling) or connected (success) and not yet ended.
+const OPEN_STATUSES = [CALL_DATA_STATUS.CALLING, CALL_DATA_STATUS.SUCCESS];
+
+// call_data times are stored shifted to IST, as start_time always has been.
+const istTime = (ms = Date.now()) => new Date(ms + (5.5 * 60 * 60 * 1000));
+
+const isOpenRecord = (row) => OPEN_STATUSES.includes(row.call_status) && !row.end_time;
+
+const issueOutcomeOf = (reason) => Object.keys(CALL_OUTCOMES).find((key) =>
+  CALL_OUTCOMES[key].phase === "issue" && CALL_OUTCOMES[key].reason === reason
+);
+
+const secondsBetween = (from, to) => Math.max(0, Math.floor((to - new Date(from)) / 1000));
 const { CALL_DATA_STATUS, CALL_OUTCOMES } = require("../constants/call-outcomes");
 
 // How far back findOpenCallRecord looks; covers a long call ending with bye.
