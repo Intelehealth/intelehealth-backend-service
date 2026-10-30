@@ -220,14 +220,14 @@ jobs:
               -o StrictHostKeyChecking=yes \
               -p $REMOTE_PORT \
               $REMOTE_USER@$REMOTE_HOST <<EOF
-            set -e
+            set -euo pipefail
             DOCKER_IMAGE_NAME="${{ env.DOCKER_IMAGE_NAME }}"
             ENV_FILE_PATH="${{ env.ENV_FILE_PATH }}"
             PEM_FOLDER_PATH="${{ env.PEM_FOLDER_PATH }}"
             REMOTE_TAR="$REMOTE_TAR"
 
             docker load -i "\$REMOTE_TAR"
-            rm "\$REMOTE_TAR"
+            rm -f "\$REMOTE_TAR"
 
             # Validate prerequisites BEFORE touching the running container,
             # so any failure below leaves the current version serving traffic.
@@ -240,18 +240,35 @@ jobs:
               exit 1
             fi
 
-            # Run migrations from the NEW image as a one-off container BEFORE
-            # swapping. If they fail, abort and keep the old container live.
-            docker stop \$DOCKER_IMAGE_NAME || true
-            docker rm \$DOCKER_IMAGE_NAME || true
+            # Stop and replace the existing container before starting the new image.
+            docker stop "\$DOCKER_IMAGE_NAME" || true
+            docker rm "\$DOCKER_IMAGE_NAME" || true
+
             docker run -d \
-              --name \$DOCKER_IMAGE_NAME \
+              --name "\$DOCKER_IMAGE_NAME" \
               --restart unless-stopped \
               -p 3004:3004 \
-              --env-file \$ENV_FILE_PATH \
-              -v \$PEM_FOLDER_PATH:/app/.pem \
+              --env-file "\$ENV_FILE_PATH" \
+              -v "\$PEM_FOLDER_PATH:/app/.pem" \
               --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
-              \$DOCKER_IMAGE_NAME:${{ github.sha }}
-            docker image prune -f
-            echo "Portal deployment to ${{ matrix.environment }} completed successfully"
+              "\$DOCKER_IMAGE_NAME:${{ github.sha }}"
+
+            echo "Waiting for \$DOCKER_IMAGE_NAME to become healthy..."
+            for i in $(seq 1 30); do
+              status=$(docker inspect --format '{{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "\$DOCKER_IMAGE_NAME" 2>/dev/null || true)
+              echo "Attempt \$i: \$status"
+
+              if docker inspect --format '{{.State.Health.Status}}' "\$DOCKER_IMAGE_NAME" 2>/dev/null | grep -q '^healthy$'; then
+                echo "Portal deployment on ${{ matrix.environment }} successful! Ports: $(docker port "\$DOCKER_IMAGE_NAME" | tr '\n' ' ')"
+                docker image prune -f || true
+                exit 0
+              fi
+              sleep 5
+            done
+
+            echo "Portal deployment on ${{ matrix.environment }} FAILED — last 100 log lines:"
+            docker logs --tail 100 "\$DOCKER_IMAGE_NAME" || true
+            docker inspect --format '{{json .State}}' "\$DOCKER_IMAGE_NAME" || true
+            docker image prune -f || true
+            exit 1
           EOF
