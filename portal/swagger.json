@@ -20,6 +20,625 @@
     }
   ],
   "paths": {
+    "/api/openmrs/achievements/summary": {
+      "get": {
+        "summary": "Get Achievements Summary",
+        "description": "Returns the Achievements panel values for the logged-in health worker. The provider is found from the token's OpenMRS user UUID. With no parameters the range is today in IST. Send both `from` and `to` for a date range, or `period=overall` for all time. `period=today` is the default and is ignored when `from` and `to` are sent. `doctorVisitsInRange`, `beneficiariesRegisteredInRange` and `timeSpentSecondsInRange` hold the totals for the dates asked for (today when no dates are sent), whatever the range is.; `averageDailyTimeSpentSeconds` and `activeDaysCount` ignore the range. `meta.unreadableCreatedDates` is the number of patients of this provider whose created date is in no known format, so they are missing from `beneficiariesRegisteredInRange` for a date range. `doctorVisitsInRange`, `doctorVisitsCompletedTotal` and `status` are provisional. `doctorVisitsCompletedTotal` and `beneficiariesRegisteredTotal` are totals up to now: they ignore `from`, `to` and `period`, and the dashboard panel shows them. `visitsPendingFromDoctor` is the number of open visits this provider started (recorded the initial encounter of) that have no Visit Complete or Patient Exit Survey encounter yet (provisional). The visit counts use the provider recorded on the encounters; the beneficiary counts use the providerUUID tag on the patient, and the user who created the patient record when there is no tag and the patient has had a visit. `visitsPendingFromDoctor` does not depend on `from`, `to` or `period`. The doctor-visit and beneficiary counts are cached for up to a minute per provider and date range, so they may be up to a minute old.",
+        "tags": [
+          "Achievements"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "description": "Start of the range, inclusive. A real date as YYYY-MM-DD. Must be sent together with `to`.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2026-10-01"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "description": "End of the range, inclusive. A real date as YYYY-MM-DD. Not before `from`. The range is at most 366 days counting both ends.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2026-10-27"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "description": "`today` or `overall`. `overall` cannot be combined with `from` or `to`.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "today",
+                "overall"
+              ],
+              "example": "overall"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Achievements fetched successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Achievements fetched successfully!"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "from": {
+                          "type": "string",
+                          "format": "date",
+                          "nullable": true,
+                          "description": "null for period=overall"
+                        },
+                        "to": {
+                          "type": "string",
+                          "format": "date",
+                          "nullable": true,
+                          "description": "null for period=overall"
+                        },
+                        "doctorVisitsInRange": {
+                          "type": "integer",
+                          "description": "Provisional. Distinct visits with a Visit Complete encounter in the dates asked for (today when no dates are sent). A visit counts as the provider's when the provider recorded the visit's initial (ADULTINITIAL) encounter (OpenMRS keeps the provider on the encounter, so a visit belongs to one nurse only), whether or not the patient carries a provider tag."
+                        },
+                        "doctorVisitsCompletedTotal": {
+                          "type": "integer",
+                          "description": "Provisional. All visits up to now with a Visit Complete encounter. A visit counts as the provider's when the provider recorded the visit's initial (ADULTINITIAL) encounter (OpenMRS keeps the provider on the encounter, so a visit belongs to one nurse only), whether or not the patient carries a provider tag. Does not depend on from, to or period."
+                        },
+                        "visitsPendingFromDoctor": {
+                          "type": "integer",
+                          "description": "Provisional. Open visits (not ended, not voided) that have no Visit Complete and no Patient Exit Survey encounter yet. A visit counts as the provider's when the provider recorded the visit's initial (ADULTINITIAL) encounter (OpenMRS keeps the provider on the encounter, so a visit belongs to one nurse only), whether or not the patient carries a provider tag. Does not depend on from, to or period."
+                        },
+                        "beneficiariesRegisteredInRange": {
+                          "type": "integer",
+                          "description": "Distinct patients this provider registered, created inside the dates asked for (today when no dates are sent). The date is the createdDate attribute, or the day the patient record was created when there is none. A patient is the provider's when it carries the provider's providerUUID tag; a patient with no tag (or an empty or voided one) is the provider of the user who created the patient record (patient.creator), but only once that patient has had a visit that is not voided (a patient with many visits is still one patient), and a user with several providers counts for the lowest provider_id. Only real patients count: a record needs a row in the patient table."
+                        },
+                        "beneficiariesRegisteredTotal": {
+                          "type": "integer",
+                          "description": "Every patient this provider has registered up to now. A patient is the provider's when it carries the provider's providerUUID tag; a patient with no tag (or an empty or voided one) is the provider of the user who created the patient record (patient.creator), but only once that patient has had a visit that is not voided (a patient with many visits is still one patient), and a user with several providers counts for the lowest provider_id. Only real patients count: a record needs a row in the patient table. Does not depend on from, to or period."
+                        },
+                        "timeSpentSecondsInRange": {
+                          "type": "integer",
+                          "description": "Sum of heartbeat seconds in the dates asked for (today when no dates are sent)."
+                        },
+                        "averageDailyTimeSpentSeconds": {
+                          "type": "integer",
+                          "description": "Average seconds per day for this provider over every day with activity up to now, past days and today included: the all-time total divided by activeDaysCount, rounded. Days with no activity are not part of the average. Does not depend on from, to or period. 0 when there is no activity at all."
+                        },
+                        "activeDaysCount": {
+                          "type": "integer",
+                          "description": "Number of days up to now on which this provider spent any time. The divisor of averageDailyTimeSpentSeconds. Does not depend on from, to or period."
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "Active",
+                            "Inactive"
+                          ],
+                          "description": "Provisional. Active when the provider has any seconds recorded today (IST); it does not mean the provider is online right now. Not affected by the range."
+                        },
+                        "meta": {
+                          "type": "object",
+                          "properties": {
+                            "provisional": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "unreadableCreatedDates": {
+                              "type": "integer",
+                              "description": "Patients of this provider whose created date is in no known format, so they are missing from beneficiariesRegisteredInRange for a date range. Always 0 for period=overall."
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "message": "Achievements fetched successfully!",
+                  "data": {
+                    "from": "2026-10-27",
+                    "to": "2026-10-27",
+                    "doctorVisitsInRange": 3,
+                    "beneficiariesRegisteredInRange": 5,
+                    "timeSpentSecondsInRange": 5460,
+                    "doctorVisitsCompletedTotal": 42,
+                    "visitsPendingFromDoctor": 7,
+                    "beneficiariesRegisteredTotal": 120,
+                    "averageDailyTimeSpentSeconds": 4200,
+                    "activeDaysCount": 13,
+                    "status": "Active",
+                    "meta": {
+                      "provisional": [
+                        "doctorVisitsInRange",
+                        "doctorVisitsCompletedTotal",
+                        "visitsPendingFromDoctor",
+                        "status"
+                      ],
+                      "unreadableCreatedDates": 0
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A validation rule failed. Every failed rule is listed in `errors`. Rules: from and to are sent together; each date is a real YYYY-MM-DD date; from is not after to; the range is at most 366 days; period is today or overall; period=overall is not sent with from or to; each parameter appears once.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "integer"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "field": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "Validation failed",
+                  "code": 400,
+                  "errors": [
+                    {
+                      "field": "to",
+                      "message": "from and to must be sent together"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, an empty token, a bad signature or an expired token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "integer"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "field": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "Invalid token",
+                  "code": 401
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The user is blocked, or the token's user has no provider profile in OpenMRS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "integer"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "field": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "No provider is linked to this user",
+                  "code": 403
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Database or other server failure. The database message is never returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "integer"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "field": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "Something went wrong. Please try again.",
+                  "code": 500
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/activity/heartbeat": {
+      "post": {
+        "summary": "Record Activity Heartbeat",
+        "description": "Reports time the logged-in health worker spent working. A beat is a claim: it says it covers the `activeSeconds` seconds that ended `endedSecondsAgo` seconds ago (0 for a beat sent as soon as its period ends). The server keeps the time already counted for each provider and IST day as a list of intervals and adds this period to it, so time that was already counted adds nothing again, and nothing is lost: the same minutes reported twice (from two tabs or two devices) count once, and pieces may arrive in any order, in parallel, from any device (a 3-hour offline stretch sent newest piece first still counts all 3 hours; a phone that reconnects after a desktop already reported later time still counts its own hours). The time is saved under the IST day it happened in: a period that crosses IST midnight is split there by the server, the part before midnight under the day before and the part after under the day it ended in. A request that is sent a second time later with the same `endedSecondsAgo` is a new claim about a later period, so a client that retries must work out `endedSecondsAgo` again each time, or send the same `requestId`: a request with the id of one of the last 20 requests that had an id (for that provider and day) adds nothing. The figures are reported by the client. The server limits them (at most the maximum per beat, a period that ended at most a day ago, a total of 86,400 seconds a day) but cannot check that the time was really worked. The web app keeps its working time in the browser and sends it when something happens (the page is hidden for long enough, closed or left, the person logs out, the connection returns, a page loads and finds time an earlier session left, or another tab takes over), each piece with its `endedSecondsAgo`. The day's total never goes over 86,400 seconds.",
+        "tags": [
+          "Achievements"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "activeSeconds"
+                ],
+                "properties": {
+                  "activeSeconds": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 3600,
+                    "description": "A whole number from 1 to HEARTBEAT_MAX_SECONDS (default 3600, one hour): the length of the period this beat claims. Numbers sent as text are rejected.",
+                    "example": 60
+                  },
+                  "endedSecondsAgo": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 86400,
+                    "default": 0,
+                    "description": "Optional. How many seconds ago the claimed period ended, so seconds that waited (for example while the app was offline) are counted where they belong. Left out or 0 means the period ended just now. Only seconds are sent, never a clock time, so a wrong clock on the device does no harm. Waiting pieces may be sent in any order.",
+                    "example": 0
+                  },
+                  "requestId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "pattern": "^[A-Za-z0-9._:-]{1,64}$",
+                    "description": "Optional. An id that stays the same when the same request is sent again (a retry after a lost answer, a replay by a proxy). The server remembers the ids of the last 20 requests that had one for that provider and day; a request with one of those ids again adds nothing and answers with the current total. Use an id that is different for each period you report. Without it, a request that is sent a second time later counts as a claim about a later period.",
+                    "example": "1793082600000-1793082660000"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Heartbeat recorded successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Heartbeat recorded successfully!"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "activityDate": {
+                          "type": "string",
+                          "format": "date",
+                          "description": "The IST day the period ended on, the day the time was saved under"
+                        },
+                        "todaySeconds": {
+                          "type": "integer",
+                          "description": "The provider's total for that day, read after this beat was saved"
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "message": "Heartbeat recorded successfully!",
+                  "data": {
+                    "activityDate": "2026-10-27",
+                    "todaySeconds": 1860
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A validation rule failed. Rules: the body is a JSON object; activeSeconds is present, a whole number, at least 1 and at most the maximum; endedSecondsAgo, when sent, is a whole number from 0 to 86,400. Every failed rule is listed in `errors`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "integer"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "field": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "Validation failed",
+                  "code": 400,
+                  "errors": [
+                    {
+                      "field": "activeSeconds",
+                      "message": "activeSeconds must not be more than 3600"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No token, an empty token, a bad signature or an expired token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "integer"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "field": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "Invalid token",
+                  "code": 401
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The user is blocked, or the token's user has no provider profile in OpenMRS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "integer"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "field": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "No provider is linked to this user",
+                  "code": 403
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body is not valid JSON. The shared error handler answers this, with `status` instead of `success`.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "status": false,
+                  "message": "Unexpected token n in JSON at position 1"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Database or other server failure. The database message is never returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "integer"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "field": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "success": false,
+                  "message": "Something went wrong. Please try again.",
+                  "code": 500
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/mindmap/user_settings/{uuid}": {
       "get": {
         "summary": "Get User Settings",
