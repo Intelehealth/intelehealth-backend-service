@@ -12,6 +12,7 @@ env:
 
 jobs:
   build:
+    if: ${{ hashFiles('queue-microservice/**') != '' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -33,6 +34,7 @@ jobs:
 
   deploy:
     needs: build
+    if: ${{ needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false          # a failure on one server won't cancel the other
