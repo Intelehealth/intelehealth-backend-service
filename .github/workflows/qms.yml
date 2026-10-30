@@ -5,7 +5,7 @@ on:
     branches: [development_master_qms_service]
     paths:
       - 'queue-microservice/**'
-      - '.github/workflows/**'
+      - '.github/workflows/queue-microservice-deploy.yml'   # only this workflow's own file (use your real filename)
   workflow_dispatch: {}
 
 env:
