@@ -20,10 +20,8 @@ module.exports = {
   SECONDS_PER_DAY: 86400,
   // A heartbeat may report that its period ended this long ago at most (a day), for time saved while offline.
   MAX_ENDED_SECONDS_AGO: 86400,
-  // Allowance for a beat that arrives a moment early. It is 0: the app no longer sends a steady stream of
-  // beats, so there is nothing to make up for, and any allowance is added again by every repeat of a
-  // request (a retry after a lost answer, a reload), which would inflate the daily total.
-  HEARTBEAT_TOLERANCE_SECONDS: 0,
+  // The largest allowance ACHIEVEMENTS_HEARTBEAT_TOLERANCE_SECONDS may set (see DEFAULTS).
+  MAX_HEARTBEAT_TOLERANCE_SECONDS: 5,
   PERIODS: ["today", "overall"],
 
   // Values whose rule may still change.
@@ -35,6 +33,13 @@ module.exports = {
     // page is hidden or closed, a logout, the connection returns, the next page load), and a stretch
     // longer than this goes out in pieces of this size.
     HEARTBEAT_MAX_SECONDS: 3600,
+    // The longest date range the summary accepts. ACHIEVEMENTS_MAX_RANGE_DAYS overrides it.
     MAX_RANGE_DAYS: 366,
+    // Allowance for a beat that arrives a moment early. It is 0: the app no longer sends a steady stream of
+    // beats, so there is nothing to make up for, and any allowance is added again by every repeat of a
+    // request (a retry after a lost answer, a reload), which would inflate the daily total. A deployment
+    // that does want one can set ACHIEVEMENTS_HEARTBEAT_TOLERANCE_SECONDS, up to
+    // MAX_HEARTBEAT_TOLERANCE_SECONDS.
+    HEARTBEAT_TOLERANCE_SECONDS: 0,
   },
 };

@@ -26,7 +26,9 @@
     "start": "node bin/www",
     "dev": "npx nodemon bin/www",
     "migrate": "node_modules/sequelize-cli/lib/sequelize db:migrate",
-    "debug": "nodemon --inspect bin/www"
+    "debug": "nodemon --inspect bin/www",
+    "test": "node --test \"test/**/*.test.js\"",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-include=services/achievement.service.js --test-coverage-include=services/achievement-validation.js --test-coverage-include=controllers/achievement.controller.js --test-coverage-include=routes/activity.route.js --test-coverage-include=models/user_activity.js --test-coverage-include=migrations/20261027120000-create-user-activity.js --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 \"test/**/*.test.js\""
   },
   "dependencies": {
     "archiver": "^3.1.1",

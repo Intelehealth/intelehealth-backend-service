@@ -7,7 +7,6 @@ const {
   VISIT_COMPLETE_ENCOUNTER_TYPE_UUID,
   PATIENT_EXIT_SURVEY_ENCOUNTER_TYPE_UUID,
   SECONDS_PER_DAY,
-  HEARTBEAT_TOLERANCE_SECONDS,
   PROVISIONAL_FIELDS,
 } = require("../constants/achievement.constant");
 const { MESSAGE } = require("../constants/messages");
@@ -58,7 +57,11 @@ const toUtcDateTime = (date) => date.toISOString().slice(0, 19).replace("T", " "
 // The assignments run left to right: active_seconds is worked out from the old covered_until
 // first, then covered_until moves.
 // One statement adds the seconds and creates the day's row on the first beat. MySQL runs it
-// atomically, so beats at the same moment are all counted without a transaction or a lock.
+// atomically, so beats at the same moment are all counted without a transaction or a lock: InnoDB
+// takes the row's lock for the whole statement, so concurrent beats for the same row run one after the
+// other, and each works out its share from the covered_until the previous one left. Beats with
+// different periods therefore cannot overlap or lose an update, and an explicit lock (SELECT ... FOR
+// UPDATE) would only add a round trip and a deadlock risk.
 // The day's total is capped at 86,400 seconds. Holds no user input: values are bound.
 // The row is (provider_uuid, activity_date) and its numbers, nothing else: see
 // migrations/20261027120000-create-user-activity.js.
@@ -180,15 +183,25 @@ const BENEFICIARY_UNREAD_SQL = `
 // OpenMRS keeps the provider on each encounter (encounter_provider), not on the visit and not on the
 // patient. A visit counts as this provider's when the provider recorded its initial (ADULTINITIAL)
 // encounter, so a visit belongs to one nurse only, even when another nurse later adds an encounter.
-// `visitColumn` is a column name written in this file, never user input.
-const recordedByProvider = (visitColumn) => `
+// The visit column to match is picked by key from a fixed list, so no text from a caller (and none from
+// a request) is ever put into the statement as an identifier. An unknown key throws.
+const VISIT_COLUMNS = Object.freeze({
+  encounterVisit: "e.visit_id",
+  visit: "v.visit_id",
+});
+const recordedByProvider = (visitKey) => {
+  if (!Object.prototype.hasOwnProperty.call(VISIT_COLUMNS, visitKey)) {
+    throw new Error(`Unknown visit column key: ${visitKey}`);
+  }
+  return `
     EXISTS (
       SELECT 1
       FROM encounter mine
       JOIN encounter_type mt ON mt.encounter_type_id = mine.encounter_type AND mt.uuid = :initialType
       JOIN encounter_provider ep ON ep.encounter_id = mine.encounter_id AND ep.voided = 0
       JOIN provider mp ON mp.provider_id = ep.provider_id AND mp.uuid = :providerUuid
-      WHERE mine.visit_id = ${visitColumn} AND mine.voided = 0)`;
+      WHERE mine.visit_id = ${VISIT_COLUMNS[visitKey]} AND mine.voided = 0)`;
+};
 
 // Visits with a Visit Complete encounter whose initial encounter the provider recorded.
 // The date clause is only added for a range. It holds no user input.
@@ -198,7 +211,7 @@ const doctorVisitsSql = (withRange) => `
   JOIN encounter_type et ON et.encounter_type_id = e.encounter_type AND et.uuid = :visitCompleteType
   JOIN visit v ON v.visit_id = e.visit_id AND v.voided = 0
   WHERE e.voided = 0
-    AND ${recordedByProvider("e.visit_id")}
+    AND ${recordedByProvider("encounterVisit")}
     ${withRange ? "AND e.encounter_datetime >= :rangeStart AND e.encounter_datetime < :rangeEnd" : ""}`;
 
 // Visits still waiting for the doctor: open, started by the provider, and with no
@@ -208,7 +221,7 @@ const VISITS_PENDING_SQL = `
   FROM visit v
   WHERE v.voided = 0
     AND v.date_stopped IS NULL
-    AND ${recordedByProvider("v.visit_id")}
+    AND ${recordedByProvider("visit")}
     AND NOT EXISTS (
       SELECT 1
       FROM encounter e
@@ -441,7 +454,7 @@ const createAchievementService = ({
     const providerUuid = await resolveProviderUuid(userUuid);
     const current = now();
     const endedAt = new Date(current.getTime() - endedSecondsAgo * 1000);
-    const { tzOffsetMinutes } = getSettings();
+    const { tzOffsetMinutes, heartbeatToleranceSeconds } = getSettings();
     const activityDate = todayInOffset(endedAt, tzOffsetMinutes);
 
     for (let attempt = 1; ; attempt += 1) {
@@ -452,7 +465,7 @@ const createAchievementService = ({
             activityDate,
             seconds: activeSeconds,
             dailyMax: SECONDS_PER_DAY,
-            tolerance: HEARTBEAT_TOLERANCE_SECONDS,
+            tolerance: heartbeatToleranceSeconds,
             endedAt: toUtcDateTime(endedAt),
             requestId,
           },
@@ -493,4 +506,5 @@ const getAchievementService = () => {
   return defaultService;
 };
 
-module.exports = { HttpError, createAchievementService, getAchievementService };
+// recordedByProvider is exported so a test can show that it refuses any visit column not on its list.
+module.exports = { HttpError, createAchievementService, getAchievementService, recordedByProvider };
