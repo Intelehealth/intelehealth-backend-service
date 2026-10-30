@@ -23,6 +23,10 @@ on:
         description: 'Deploy to PATHQA host'
         type: boolean
         default: false
+      deploy_demoai:
+        description: 'Deploy to DEMOAI host'
+        type: boolean
+        default: false
   push:
     branches: [development_master]
     paths:
@@ -69,7 +73,7 @@ jobs:
           }
           includes='[]'
           if [ "${{ github.event_name }}" == "push" ]; then
-            for env in dev turn ttxai testturn pathqa; do
+            for env in dev turn ttxai testturn pathqa demoai; do
               includes=$(echo "$includes" | jq -c --arg env "$env" --arg arch "$(arch_of "$env")" '. += [{"environment":$env,"arch":$arch}]')
             done
           else
@@ -87,6 +91,9 @@ jobs:
             fi
             if [ "${{ inputs.deploy_pathqa }}" == "true" ]; then
               includes=$(echo "$includes" | jq -c --arg arch "$(arch_of pathqa)" '. += [{"environment":"pathqa","arch":$arch}]')
+            fi
+            if [ "${{ inputs.deploy_demoai }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c --arg arch "$(arch_of demoai)" '. += [{"environment":"demoai","arch":$arch}]')
             fi
           fi
           archs=$(echo "$includes" | jq -r '.[].arch' | sort -u | paste -sd, -)
@@ -158,6 +165,7 @@ jobs:
       TTXAI_HOST: ${{ secrets.TTXAI_HOST }}
       TESTTURN_HOST: ${{ secrets.TESTTURN_HOST }}
       PATHQA_HOST: ${{ secrets.PATHQA_HOST }}
+      DEMOAI_HOST: ${{ secrets.DEMOAI_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
@@ -169,6 +177,7 @@ jobs:
             testturn) echo "REMOTE_HOST=$TESTTURN_HOST" >> $GITHUB_ENV ;;
             turn) echo "REMOTE_HOST=$TURN_HOST" >> $GITHUB_ENV ;;
             pathqa) echo "REMOTE_HOST=$PATHQA_HOST" >> $GITHUB_ENV ;;
+            demoai) echo "REMOTE_HOST=$DEMOAI_HOST" >> $GITHUB_ENV ;;
             *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
 
