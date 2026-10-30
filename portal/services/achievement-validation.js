@@ -1,10 +1,5 @@
 "use strict";
-const {
-  PERIODS,
-  DEFAULTS,
-  MAX_ENDED_SECONDS_AGO,
-  MAX_HEARTBEAT_TOLERANCE_SECONDS,
-} = require("../constants/achievement.constant");
+const { PERIODS, DEFAULTS, MAX_ENDED_SECONDS_AGO } = require("../constants/achievement.constant");
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,64}$/;
@@ -21,11 +16,7 @@ const getConfig = (env = process.env) => {
     return Number.isFinite(n) && n > 0 ? n : fallback;
   };
   const offset = Number.parseInt(env.ACHIEVEMENTS_TZ_OFFSET_MINUTES, 10);
-  // 0 is a valid tolerance (and the default); a negative, non-numeric or too large value is not.
-  const tolerance = Number.parseInt(env.ACHIEVEMENTS_HEARTBEAT_TOLERANCE_SECONDS, 10);
-  const toleranceOk = Number.isFinite(tolerance) && tolerance >= 0 && tolerance <= MAX_HEARTBEAT_TOLERANCE_SECONDS;
   return {
-    heartbeatToleranceSeconds: toleranceOk ? tolerance : DEFAULTS.HEARTBEAT_TOLERANCE_SECONDS,
     tzOffsetMinutes: Number.isFinite(offset) ? offset : DEFAULTS.TZ_OFFSET_MINUTES,
     heartbeatMaxSeconds: positive(env.HEARTBEAT_MAX_SECONDS, DEFAULTS.HEARTBEAT_MAX_SECONDS),
     maxRangeDays: positive(env.ACHIEVEMENTS_MAX_RANGE_DAYS, DEFAULTS.MAX_RANGE_DAYS),
@@ -214,8 +205,10 @@ const pad = (n) => String(n).padStart(2, "0");
 
 /**
  * Read the "createdDate" patient attribute into YYYY-MM-DD.
- * Accepts the same shapes the health worker app accepts: an ISO date or
- * date-time, "27 October, 2026", "October 27, 2026", or anything Date can parse.
+ * Accepts only explicit formats: an ISO date or date-time, "27 October, 2026" and
+ * "October 27, 2026" (full or three-letter month). Anything else, such as "05/10/2026", is not
+ * guessed at: Date would read it as May 10 where the apps mean 5 October, and could not read
+ * "27/10/2026" at all. The caller counts the values that come back as "".
  * Returns "" when the value cannot be read.
  * @param {string} value
  */
@@ -237,10 +230,6 @@ const toIsoDate = (value) => {
     if (month) return `${monthDayYear[3]}-${month}-${pad(monthDayYear[2])}`;
   }
 
-  const parsed = new Date(text);
-  if (!Number.isNaN(parsed.getTime())) {
-    return `${parsed.getFullYear()}-${pad(parsed.getMonth() + 1)}-${pad(parsed.getDate())}`;
-  }
   return "";
 };
 

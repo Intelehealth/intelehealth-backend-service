@@ -23,7 +23,7 @@
     "/api/openmrs/achievements/summary": {
       "get": {
         "summary": "Get Achievements Summary",
-        "description": "Returns the Achievements panel values for the logged-in health worker. The provider is found from the token's OpenMRS user UUID. With no parameters the range is today in IST. Send both `from` and `to` for a date range, or `period=overall` for all time. `period=today` is the default and is ignored when `from` and `to` are sent. `doctorVisitsToday` and `beneficiariesRegisteredToday` count the dates asked for, which is today when no dates are sent. `doctorVisitsToday`, `doctorVisitsCompletedTotal` and `status` are provisional. `doctorVisitsCompletedTotal` and `beneficiariesRegisteredTotal` are totals up to now: they ignore `from`, `to` and `period`, and the dashboard panel shows them. `visitsPendingFromDoctor` is the number of open visits this provider started (recorded the initial encounter of) that have no Visit Complete or Patient Exit Survey encounter yet (provisional). The visit counts use the provider recorded on the encounters; the beneficiary counts use the providerUUID tag on the patient, and the user who created the patient record when there is no tag and the patient has had a visit. `visitsPendingFromDoctor` does not depend on `from`, `to` or `period`.",
+        "description": "Returns the Achievements panel values for the logged-in health worker. The provider is found from the token's OpenMRS user UUID. With no parameters the range is today in IST. Send both `from` and `to` for a date range, or `period=overall` for all time. `period=today` is the default and is ignored when `from` and `to` are sent. `doctorVisitsInRange`, `beneficiariesRegisteredInRange` and `timeSpentSecondsInRange` hold the totals for the dates asked for (today when no dates are sent), whatever the range is.; `averageDailyTimeSpentSeconds` and `activeDaysCount` ignore the range. `meta.unreadableCreatedDates` is the number of patients of this provider whose created date is in no known format, so they are missing from `beneficiariesRegisteredInRange` for a date range. `doctorVisitsInRange`, `doctorVisitsCompletedTotal` and `status` are provisional. `doctorVisitsCompletedTotal` and `beneficiariesRegisteredTotal` are totals up to now: they ignore `from`, `to` and `period`, and the dashboard panel shows them. `visitsPendingFromDoctor` is the number of open visits this provider started (recorded the initial encounter of) that have no Visit Complete or Patient Exit Survey encounter yet (provisional). The visit counts use the provider recorded on the encounters; the beneficiary counts use the providerUUID tag on the patient, and the user who created the patient record when there is no tag and the patient has had a visit. `visitsPendingFromDoctor` does not depend on `from`, `to` or `period`. The doctor-visit and beneficiary counts are cached for up to a minute per provider and date range, so they may be up to a minute old.",
         "tags": [
           "Achievements"
         ],
@@ -101,7 +101,7 @@
                           "nullable": true,
                           "description": "null for period=overall"
                         },
-                        "doctorVisitsToday": {
+                        "doctorVisitsInRange": {
                           "type": "integer",
                           "description": "Provisional. Distinct visits with a Visit Complete encounter in the dates asked for (today when no dates are sent). A visit counts as the provider's when the provider recorded the visit's initial (ADULTINITIAL) encounter (OpenMRS keeps the provider on the encounter, so a visit belongs to one nurse only), whether or not the patient carries a provider tag."
                         },
@@ -113,7 +113,7 @@
                           "type": "integer",
                           "description": "Provisional. Open visits (not ended, not voided) that have no Visit Complete and no Patient Exit Survey encounter yet. A visit counts as the provider's when the provider recorded the visit's initial (ADULTINITIAL) encounter (OpenMRS keeps the provider on the encounter, so a visit belongs to one nurse only), whether or not the patient carries a provider tag. Does not depend on from, to or period."
                         },
-                        "beneficiariesRegisteredToday": {
+                        "beneficiariesRegisteredInRange": {
                           "type": "integer",
                           "description": "Distinct patients this provider registered, created inside the dates asked for (today when no dates are sent). The date is the createdDate attribute, or the day the patient record was created when there is none. A patient is the provider's when it carries the provider's providerUUID tag; a patient with no tag (or an empty or voided one) is the provider of the user who created the patient record (patient.creator), but only once that patient has had a visit that is not voided (a patient with many visits is still one patient), and a user with several providers counts for the lowest provider_id. Only real patients count: a record needs a row in the patient table."
                         },
@@ -121,9 +121,9 @@
                           "type": "integer",
                           "description": "Every patient this provider has registered up to now. A patient is the provider's when it carries the provider's providerUUID tag; a patient with no tag (or an empty or voided one) is the provider of the user who created the patient record (patient.creator), but only once that patient has had a visit that is not voided (a patient with many visits is still one patient), and a user with several providers counts for the lowest provider_id. Only real patients count: a record needs a row in the patient table. Does not depend on from, to or period."
                         },
-                        "dailyTimeSpentSeconds": {
+                        "timeSpentSecondsInRange": {
                           "type": "integer",
-                          "description": "Sum of heartbeat seconds in the range"
+                          "description": "Sum of heartbeat seconds in the dates asked for (today when no dates are sent)."
                         },
                         "averageDailyTimeSpentSeconds": {
                           "type": "integer",
@@ -139,7 +139,7 @@
                             "Active",
                             "Inactive"
                           ],
-                          "description": "Provisional. Active when the provider has seconds today (IST). Not affected by the range."
+                          "description": "Provisional. Active when the provider has any seconds recorded today (IST); it does not mean the provider is online right now. Not affected by the range."
                         },
                         "meta": {
                           "type": "object",
@@ -149,6 +149,10 @@
                               "items": {
                                 "type": "string"
                               }
+                            },
+                            "unreadableCreatedDates": {
+                              "type": "integer",
+                              "description": "Patients of this provider whose created date is in no known format, so they are missing from beneficiariesRegisteredInRange for a date range. Always 0 for period=overall."
                             }
                           }
                         }
@@ -162,22 +166,23 @@
                   "data": {
                     "from": "2026-10-27",
                     "to": "2026-10-27",
-                    "doctorVisitsToday": 3,
+                    "doctorVisitsInRange": 3,
+                    "beneficiariesRegisteredInRange": 5,
+                    "timeSpentSecondsInRange": 5460,
                     "doctorVisitsCompletedTotal": 42,
                     "visitsPendingFromDoctor": 7,
-                    "beneficiariesRegisteredToday": 5,
                     "beneficiariesRegisteredTotal": 120,
-                    "dailyTimeSpentSeconds": 5460,
                     "averageDailyTimeSpentSeconds": 4200,
                     "activeDaysCount": 13,
                     "status": "Active",
                     "meta": {
                       "provisional": [
-                        "doctorVisitsToday",
+                        "doctorVisitsInRange",
                         "doctorVisitsCompletedTotal",
                         "visitsPendingFromDoctor",
                         "status"
-                      ]
+                      ],
+                      "unreadableCreatedDates": 0
                     }
                   }
                 }
@@ -360,7 +365,7 @@
     "/api/activity/heartbeat": {
       "post": {
         "summary": "Record Activity Heartbeat",
-        "description": "Reports time the logged-in health worker spent working. A beat is a claim: it says it covers the `activeSeconds` seconds that ended `endedSecondsAgo` seconds ago (0 for a beat sent as soon as its period ends). The server adds only the part of that period that no earlier beat of the same provider already counted, so the same minutes reported twice, from two tabs or two devices, are added once. The time is saved under the IST day it happened in. The row's `covered_until` holds the end of the latest period already counted; it only moves forward. There is no allowance for early beats: time that is already counted adds nothing again, apart from at most about a second of rounding. A request that is sent a second time later with the same `endedSecondsAgo` is a new claim about a later period, so a client that retries must work out `endedSecondsAgo` again each time, or send the same `requestId`: a request with the id of the last one that had an id adds nothing. A period should not cross IST midnight: it is saved wholly under the day it ended in, so the client splits it there. The figures are reported by the client. The server limits them (at most the maximum per beat, a period that ended at most a day ago, a total of 86,400 seconds a day) but cannot check that the time was really worked. The web app keeps its working time in the browser and sends it when something happens (the page is hidden for long enough, closed or left, the person logs out, the connection returns, a page loads and finds time an earlier session left, or another tab takes over), oldest piece first, one request at a time, each with its `endedSecondsAgo`. The day's total never goes over 86,400 seconds.",
+        "description": "Reports time the logged-in health worker spent working. A beat is a claim: it says it covers the `activeSeconds` seconds that ended `endedSecondsAgo` seconds ago (0 for a beat sent as soon as its period ends). The server keeps the time already counted for each provider and IST day as a list of intervals and adds this period to it, so time that was already counted adds nothing again, and nothing is lost: the same minutes reported twice (from two tabs or two devices) count once, and pieces may arrive in any order, in parallel, from any device (a 3-hour offline stretch sent newest piece first still counts all 3 hours; a phone that reconnects after a desktop already reported later time still counts its own hours). The time is saved under the IST day it happened in: a period that crosses IST midnight is split there by the server, the part before midnight under the day before and the part after under the day it ended in. A request that is sent a second time later with the same `endedSecondsAgo` is a new claim about a later period, so a client that retries must work out `endedSecondsAgo` again each time, or send the same `requestId`: a request with the id of one of the last 20 requests that had an id (for that provider and day) adds nothing. The figures are reported by the client. The server limits them (at most the maximum per beat, a period that ended at most a day ago, a total of 86,400 seconds a day) but cannot check that the time was really worked. The web app keeps its working time in the browser and sends it when something happens (the page is hidden for long enough, closed or left, the person logs out, the connection returns, a page loads and finds time an earlier session left, or another tab takes over), each piece with its `endedSecondsAgo`. The day's total never goes over 86,400 seconds.",
         "tags": [
           "Achievements"
         ],
@@ -391,7 +396,7 @@
                     "minimum": 0,
                     "maximum": 86400,
                     "default": 0,
-                    "description": "Optional. How many seconds ago the claimed period ended, so seconds that waited (for example while the app was offline) are counted where they belong. Left out or 0 means the period ended just now. Only seconds are sent, never a clock time, so a wrong clock on the device does no harm. Send waiting pieces oldest first: a piece that ended before the time already counted adds nothing.",
+                    "description": "Optional. How many seconds ago the claimed period ended, so seconds that waited (for example while the app was offline) are counted where they belong. Left out or 0 means the period ended just now. Only seconds are sent, never a clock time, so a wrong clock on the device does no harm. Waiting pieces may be sent in any order.",
                     "example": 0
                   },
                   "requestId": {
@@ -399,7 +404,7 @@
                     "minLength": 1,
                     "maxLength": 64,
                     "pattern": "^[A-Za-z0-9._:-]{1,64}$",
-                    "description": "Optional. An id that stays the same when the same request is sent again (a retry after a lost answer, a replay by a proxy). The server remembers the id of the last request that had one for that provider and day; a request with that same id again adds nothing and answers with the current total. Use an id that is different for each period you report. Without it, a request that is sent a second time later counts as a claim about a later period.",
+                    "description": "Optional. An id that stays the same when the same request is sent again (a retry after a lost answer, a replay by a proxy). The server remembers the ids of the last 20 requests that had one for that provider and day; a request with one of those ids again adds nothing and answers with the current total. Use an id that is different for each period you report. Without it, a request that is sent a second time later counts as a claim about a later period.",
                     "example": "1793082600000-1793082660000"
                   }
                 }

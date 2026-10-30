@@ -24,17 +24,20 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: 0,
       },
-      // The end of the latest period of time already counted for that day. The heartbeat adds only
-      // time after it, so the same minutes reported twice (two tabs, two devices) are added once.
-      covered_until: {
-        type: DataTypes.DATE,
+      // The time already counted for that day, as sorted intervals of seconds since IST midnight:
+      // "32400-43200,43500-43800" (see services/activity-intervals.js). Overlapping or touching time is
+      // one interval, so the same minutes reported twice (two tabs, two devices), or in any order,
+      // are counted once. active_seconds is the total length of these intervals.
+      covered_intervals: {
+        type: DataTypes.TEXT,
         allowNull: false,
       },
-      // CRC32 of the id of the last heartbeat request that had one, so the same request sent again adds
-      // nothing. Null until a request with an id has been recorded.
-      last_request_crc: {
-        type: DataTypes.INTEGER.UNSIGNED,
-        allowNull: true,
+      // CRC32 of the ids of the last 20 heartbeat requests that had one, comma separated, oldest first, so
+      // the same request sent again adds nothing even when another device sent a request in between.
+      // Empty until a request with an id has been recorded.
+      recent_request_crcs: {
+        type: DataTypes.TEXT,
+        allowNull: false,
       },
     },
     {
@@ -42,8 +45,7 @@ module.exports = (sequelize, DataTypes) => {
       modelName: "user_activity",
       tableName: "user_activity",
       underscored: false,
-      // covered_until already says when the row was last written to, so there are no
-      // createdAt / updatedAt columns.
+      // The row holds only the day's numbers, so there are no createdAt / updatedAt columns.
       timestamps: false,
     }
   );
