@@ -62,7 +62,7 @@ module.exports = (function () {
         } else {
           usersRecord.reason = null;
         }
-        
+
         if(usersRecord?.startTime) {
           await call_data.update(
             { start_time: usersRecord?.startTime },
