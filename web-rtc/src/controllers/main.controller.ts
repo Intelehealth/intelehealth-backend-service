@@ -33,7 +33,7 @@ export class MainController {
     }
 
     async startRecording(req: Request, res: Response) {
-        logStream('debug', 'API calling', 'Get Token');
+        logStream('debug', 'API calling', 'Start Recording');
         try {
             if (!req.body.roomId) {
                 return res.json({ message: "Missing roomId.", success: false });
@@ -58,11 +58,12 @@ export class MainController {
                 visitId: req.body.visitId,
                 chwId: req.body.chwId,
                 nurseName: req.body.nurseName,
-                location: req.body.location
+                location: req.body.location,
+                callType: req.body.callType
             };
 
             const response = await new WebRTCService().startRecording(req.body.roomId as string, recordingParams);
-            logStream('debug', 'Success', 'Get Token');
+            logStream('debug', 'Success', 'Start Recording');
             return res.json(response);
         } catch (error) {
             console.error("Error occurred:", error);
@@ -84,7 +85,7 @@ export class MainController {
     }
 
     async stopRecording(req: Request, res: Response) {
-        logStream('debug', 'API calling', 'Get Token');
+        logStream('debug', 'API calling', 'Stop Recording');
         try {
             if (!req.query.roomId) {
                 return res.json({ message: "Missing roomId.", success: false });
@@ -93,7 +94,7 @@ export class MainController {
             if (response?.success === false) {
                 return res.status(response?.status ?? 500).json(response)
             }
-            logStream('debug', 'Success', 'Get Token');
+            logStream('debug', 'Success', 'Stop Recording');
             return res.json(response);
         } catch (error) {
             console.error("Error occurred:", error);
@@ -112,5 +113,26 @@ export class MainController {
             });
         }
 
+    }
+
+    /**
+     * Records a recording start/stop failure seen by the doctor webapp, so failures that never
+     * reached startRecording/stopRecording (network, browser) are not only in Google Analytics.
+     */
+    async reportRecordingError(req: Request, res: Response) {
+        logStream('debug', 'API calling', 'Report Recording Error');
+        if (!req.body?.action) {
+            return res.status(400).json({ message: "Missing action.", success: false });
+        }
+        await new WebRTCService().reportClientRecordingError({
+            action: String(req.body.action),
+            roomId: req.body.roomId,
+            visitId: req.body.visitId,
+            doctorId: req.body.doctorId,
+            patientId: req.body.patientId,
+            recordingId: req.body.recordingId,
+            error: req.body.error
+        });
+        return res.json({ success: true });
     }
 }

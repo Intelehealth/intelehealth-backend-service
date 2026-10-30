@@ -1,6 +1,6 @@
 const { user_settings } = require("../models");
 const { sendCloudNotification } = require("../handlers/helper");
-const { createCallRecordOfWebrtc, updateCallRecordOfWebrtc } = require("./call_data.service");
+// const { createCallRecordOfWebrtc, updateCallRecordOfWebrtc } = require("./call_data.service");
 
 const CALL_STATUSES = {
   CALLING: "calling",
@@ -54,16 +54,16 @@ module.exports = function () {
     emitAllHwUsers();
 
     socket.on("disconnect", async (data) => {
-      const u = global.hwUsers[socket.id];
-      if (u && u.callStatus === CALL_STATUSES.CALLING && u.recordId) {
-        await updateCallRecordOfWebrtc({
-          recordId: u.recordId,
-          doctorId: u.uuid,
-          roomId: u.room,
-          callStatus: CALL_STATUSES.UNSUCCESS,
-          reason: data === "transport error" ? "Internet disconnected/Weak network" : "No internet",
-        });
-      }
+      // const u = global.hwUsers[socket.id];
+      // if (u && u.callStatus === CALL_STATUSES.CALLING && u.recordId) {
+      //   await updateCallRecordOfWebrtc({
+      //     recordId: u.recordId,
+      //     doctorId: u.uuid,
+      //     roomId: u.room,
+      //     callStatus: CALL_STATUSES.UNSUCCESS,
+      //     reason: data === "transport error" ? "Internet disconnected/Weak network" : "No internet",
+      //   });
+      // }
       delete global.hwUsers[socket.id];
       emitAllHwUsers();
     });
@@ -77,12 +77,12 @@ module.exports = function () {
         global.hwUsers[socket.id].nurseId = nurseId;
       }
 
-      const record = await createCallRecordOfWebrtc(
-        doctorId, nurseId, roomId, visitId, CALL_STATUSES.CALLING, calltype
-      );
-      if (global.hwUsers[socket.id]) {
-        global.hwUsers[socket.id].recordId = record?.data?.id;
-      }
+      // const record = await createCallRecordOfWebrtc(
+      //   doctorId, nurseId, roomId, visitId, CALL_STATUSES.CALLING, calltype
+      // );
+      // if (global.hwUsers[socket.id]) {
+      //   global.hwUsers[socket.id].recordId = record?.data?.id;
+      // }
 
       for (const id in global.hwUsers) {
         if (global.hwUsers[id].uuid === nurseId) {

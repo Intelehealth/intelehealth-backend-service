@@ -15,14 +15,33 @@ const {
   sequelize
 } = require("../openmrs_models");
 const Op = Sequelize.Op;
-const { QueryTypes } = require("sequelize");
+const { QueryTypes, Op: SequelizeOp } = require("sequelize");
 const { locationQuery } = require("../controllers/queries");
+const { CALL_DATA_STATUS, CALL_OUTCOMES } = require("../constants/call-outcomes");
+
+// How far back findOpenCallRecord looks; covers a long call ending with bye.
+const OPEN_CALL_WINDOW_MS = 3 * 60 * 60 * 1000;
+// A doctor cancel this soon after the call was placed is recorded as an immediate cancel.
+const IMMEDIATE_CANCEL_MS = 5000;
+// A row is still open while ringing (calling) or connected (success) and not yet ended.
+const OPEN_STATUSES = [CALL_DATA_STATUS.CALLING, CALL_DATA_STATUS.SUCCESS];
+
+// call_data times are stored shifted to IST, as start_time always has been.
+const istTime = (ms = Date.now()) => new Date(ms + (5.5 * 60 * 60 * 1000));
+
+const isOpenRecord = (row) => OPEN_STATUSES.includes(row.call_status) && !row.end_time;
+
+const issueOutcomeOf = (reason) => Object.keys(CALL_OUTCOMES).find((key) =>
+  CALL_OUTCOMES[key].phase === "issue" && CALL_OUTCOMES[key].reason === reason
+);
+
+const secondsBetween = (from, to) => Math.max(0, Math.floor((to - new Date(from)) / 1000));
 
 module.exports = (function () {
 
   this.createCallRecordOfWebrtc = async (doctorId, nurseId, roomId, visitId, callStatus, callType) => {
     try {
-      const startTime = new Date(new Date().getTime() + (5.5 * 60 * 60 * 1000));
+      const startTime = istTime();
 
       const data = await call_data.create({
         doctor_id: doctorId,
@@ -44,43 +63,148 @@ module.exports = (function () {
     }
   };
 
-  this.updateCallRecordOfWebrtc = async (usersRecord) => {
+  /**
+   * Row for an attempt that ended before the HW was called (the "call" event, which creates the
+   * row, was never sent), e.g. the token API or the LiveKit connection failed.
+   */
+  this.createClosedCallRecord = async ({ doctorId, nurseId, roomId, visitId, callType, outcome }) => {
+    const def = CALL_OUTCOMES[outcome];
     try {
-      let endTime = new Date(new Date().getTime() + (5.5 * 60 * 60 * 1000));
-
-      const callRecord = await call_data.findOne({
-        where: { id: usersRecord.recordId }
+      const now = istTime();
+      const data = await call_data.create({
+        doctor_id: doctorId,
+        chw_id: nurseId,
+        room_id: roomId,
+        visit_id: visitId,
+        call_status: def.status,
+        reason: def.reason,
+        call_duration: 0,
+        start_time: now,
+        end_time: now,
+        call_type: ["audio", "video"].includes(callType) ? callType : undefined
       });
+      return { success: true, data };
+    } catch (error) {
+      logStream("error", `createClosedCallRecord failed for doctor ${doctorId}, visit ${visitId}, outcome ${outcome}: ${error?.message}`);
+      return { success: false, data: null, error };
+    }
+  };
 
-      if (callRecord) {
-        let callDuration = Math.floor((endTime - callRecord.start_time) / 1000); // Duration in seconds
-        if(usersRecord.callStatus === 'failure') {
-          endTime = null;
-          callDuration = 0;
-        } else {
-          usersRecord.reason = null;
+  /**
+   * Latest still-ringing/ongoing row of a doctor's call. Used when the socket that started the
+   * call is gone (page re-created its socket, network reconnect), so its recordId is lost.
+   */
+  this.findOpenCallRecord = async ({ doctorId, roomId, nurseId }) => {
+    if (!doctorId) return null;
+    const where = {
+      doctor_id: doctorId,
+      call_status: { [SequelizeOp.in]: OPEN_STATUSES },
+      end_time: null,
+      createdAt: { [SequelizeOp.gte]: new Date(Date.now() - OPEN_CALL_WINDOW_MS) },
+    };
+    if (roomId) where.room_id = roomId;
+    else if (nurseId) where.chw_id = nurseId;
+    else return null;
+    return call_data.findOne({ where, order: [["id", "DESC"]] });
+  };
+
+  /**
+   * "calling" or "success" while the call is still open, otherwise null.
+   */
+  this.getOpenCallStatus = async (recordId) => {
+    if (!recordId) return null;
+    const callRecord = await call_data.findOne({ where: { id: recordId } });
+    return callRecord && isOpenRecord(callRecord) ? callRecord.call_status : null;
+  };
+
+  /**
+   * The column changes an outcome makes to a row, or null when it must not change it: the row
+   * is already final, the event repeats, or it arrives out of order (a pre-connection outcome
+   * after the call connected).
+   */
+  this.outcomeChanges = (row, outcome, nowMs = Date.now()) => {
+    const def = CALL_OUTCOMES[outcome];
+    if (!def || !isOpenRecord(row)) return null;
+    const now = istTime(nowMs);
+
+    switch (def.phase) {
+      case "connect":
+        if (row.call_status === CALL_DATA_STATUS.SUCCESS) return null;
+        // start_time becomes the connect time, as it always has been, so the call log's start
+        // and end times match the call both apps showed. createdAt keeps the attempt start.
+        return { call_status: def.status, reason: def.reason, start_time: now };
+
+      case "end": {
+        // start_time is the connect time once connected. A bye without an earlier call-connected
+        // still means the call connected, but when is not known, so the duration then counts
+        // from the attempt start.
+        if (row.call_status !== CALL_DATA_STATUS.SUCCESS) {
+          logStream("error", `call_data ${row.id} ended (${outcome}) without a recorded connection; duration counted from the attempt start`);
         }
-        
-        if(usersRecord?.startTime) {
-          await call_data.update(
-            { start_time: usersRecord?.startTime },
-            { where: { id: callRecord.id } }
-          );
-        } else if(usersRecord.callStatus || usersRecord.reason){
-          await call_data.update(
-            { call_status: usersRecord.callStatus, reason: usersRecord.reason, call_duration: callDuration, end_time: endTime },
-            { where: { id: callRecord.id } }
-          );
-        }else{
-          await call_data.update(
-            { call_duration: callDuration, end_time: endTime },
-            { where: { id: callRecord.id } }
-          );
-        }
+        return { call_status: def.status, reason: def.reason, end_time: now, call_duration: secondsBetween(row.start_time, now) };
       }
 
-      return { success: true, data: call_data };
+      case "before": {
+        if (row.call_status === CALL_DATA_STATUS.SUCCESS) return null;
+        let final = outcome;
+        if (outcome === "doctorCancelled" && row.createdAt && nowMs - new Date(row.createdAt).getTime() <= IMMEDIATE_CANCEL_MS) {
+          final = "doctorCancelledImmediately";
+        }
+        const issue = issueOutcomeOf(row.reason);
+        if (issue && CALL_OUTCOMES[issue].replaces.includes(final)) {
+          return { call_status: CALL_DATA_STATUS.FAILURE, reason: CALL_OUTCOMES[issue].reason, end_time: now, call_duration: 0 };
+        }
+        return { call_status: CALL_OUTCOMES[final].status, reason: CALL_OUTCOMES[final].reason, end_time: now, call_duration: 0 };
+      }
+
+      case "issue": {
+        if (row.call_status !== CALL_DATA_STATUS.CALLING) return null;
+        const current = issueOutcomeOf(row.reason);
+        if (current && CALL_OUTCOMES[current].rank >= def.rank) return null;
+        return { reason: def.reason };
+      }
+    }
+    return null;
+  };
+
+  /**
+   * Apply a call outcome (a key of CALL_OUTCOMES) to the attempt's row.
+   * @param {object} usersRecord - { outcome, recordId, and with findOpen: doctorId, roomId, nurseId }
+   */
+  this.updateCallRecordOfWebrtc = async (usersRecord) => {
+    const { outcome } = usersRecord;
+    if (!CALL_OUTCOMES[outcome]) {
+      logStream("error", `updateCallRecordOfWebrtc: unknown call outcome ${outcome}`);
+      return { success: false, data: null };
+    }
+    try {
+      let callRecord = usersRecord.recordId
+        ? await call_data.findOne({ where: { id: usersRecord.recordId } })
+        : null;
+      if (!callRecord && usersRecord.findOpen) {
+        callRecord = await this.findOpenCallRecord(usersRecord);
+      }
+
+      if (!callRecord) {
+        logStream("error", `updateCallRecordOfWebrtc: no call_data row for record ${usersRecord.recordId}, doctor ${usersRecord.doctorId}, room ${usersRecord.roomId}; outcome ${outcome} not saved`);
+        return { success: false, data: null };
+      }
+
+      const changes = this.outcomeChanges(callRecord, outcome);
+      if (!changes) {
+        return { success: true, data: callRecord, ignored: true };
+      }
+
+      // Only if no other event changed the row since it was read.
+      const [updated] = await call_data.update(changes, {
+        where: { id: callRecord.id, call_status: callRecord.call_status, end_time: null }
+      });
+      if (!updated) {
+        return { success: true, data: callRecord, ignored: true };
+      }
+      return { success: true, data: callRecord };
     } catch (error) {
+      logStream("error", `updateCallRecordOfWebrtc failed for call_data ${usersRecord?.recordId}, outcome ${outcome}: ${error?.message}`);
       return { success: false, data: null, error };
     }
   };
