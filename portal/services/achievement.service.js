@@ -506,5 +506,4 @@ const getAchievementService = () => {
   return defaultService;
 };
 
-// recordedByProvider is exported so a test can show that it refuses any visit column not on its list.
-module.exports = { HttpError, createAchievementService, getAchievementService, recordedByProvider };
+module.exports = { HttpError, createAchievementService, getAchievementService };

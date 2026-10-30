@@ -8,6 +8,9 @@ const {
 } = require("../services/achievement-validation");
 const { HttpError } = require("../services/achievement.service");
 
+const REFUSAL_LOG_WINDOW_MS = 10 * 60 * 1000;
+const REFUSAL_LOG_MAX_USERS = 5000;
+
 /**
  * Build the controller. The service, logger and clock are passed in so the
  * controller can be tested without a database.
@@ -31,12 +34,22 @@ const createAchievementController = ({
   const validationFailed = (res, errors) =>
     fail(res, 400, MESSAGE.ACHIEVEMENT.VALIDATION_FAILED, { errors });
 
+  // A user with no provider is refused on every call, and the app may call often, so each user is
+  // written to the log at most once per window, not once per request.
+  const refusedLoggedAt = new Map();
+  const logRefusal = (route, message, userUuid) => {
+    const time = now().getTime();
+    const last = refusedLoggedAt.get(userUuid);
+    if (last !== undefined && time - last < REFUSAL_LOG_WINDOW_MS) return;
+    if (refusedLoggedAt.size >= REFUSAL_LOG_MAX_USERS) refusedLoggedAt.clear();
+    refusedLoggedAt.set(userUuid, time);
+    log("info", `${route}: ${message} (OpenMRS user ${userUuid})`, "Achievements");
+  };
+
   const handleError = (res, error, route, userUuid) => {
     if (error instanceof HttpError) {
       // Say which user was refused, so a missing provider can be traced in the log.
-      if (error.code === 403) {
-        log("info", `${route}: ${error.message} (OpenMRS user ${userUuid})`, "Achievements");
-      }
+      if (error.code === 403) logRefusal(route, error.message, userUuid);
       return fail(res, error.code, error.message);
     }
     // The detail goes to the log only. The token is never logged.
