@@ -47,7 +47,7 @@ on:
       deploy_demoai:
         description: 'Deploy to DEMOAI host'
         type: boolean
-        default: false    
+        default: false
   push:
     branches: [development_master]
     paths:
@@ -127,10 +127,6 @@ jobs:
     strategy:
       matrix: ${{ fromJson(needs.prepare-matrix.outputs.build_matrix) }}
       fail-fast: false
-#    outputs:
-      # Computed identically in every arch leg, so the value is the same
-      # regardless of which leg the deploy job reads it from.
-  #    migrations_changed: ${{ steps.check-migrations.outputs.changed }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -148,20 +144,6 @@ jobs:
         run: npm i --production=false
         working-directory: portal
 
-  #     - name: Check for migration file changes
-  #       id: check-migrations
-  #       run: |
-  #         if [ "${{ github.event_name }}" != "push" ]; then
-  #           echo "changed=true" >> $GITHUB_OUTPUT
-  #         elif [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
-  #           echo "changed=true" >> $GITHUB_OUTPUT
-  #         else
-  #           git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q "^portal/migrations/" \
-  #             && echo "changed=true" >> $GITHUB_OUTPUT \
-  #             || echo "changed=false" >> $GITHUB_OUTPUT
-  #         fi
-      # Every leg builds natively: amd64 on the x64 runner, arm64 on the
-      # ARM64 runner. No QEMU emulation needed.
       - name: Build Docker image (${{ matrix.arch }}, native)
         run: |
           cd portal
@@ -180,12 +162,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix: ${{ fromJson(needs.prepare-matrix.outputs.matrix) }}
-      fail-fast: false  # a failure on one host should not cancel the other
+      fail-fast: false
     env:
       REMOTE_PORT: 22
       ENV_FILE_PATH: /home/ubuntu/deploy/portal/.env
       PEM_FOLDER_PATH: /home/ubuntu/deploy/portal/.pem
-      # All host secrets mapped upfront  dynamic secret refs aren't supported in GitHub Actions
       DEV_HOST: ${{ secrets.DEV_HOST }}
       TTXAI_HOST: ${{ secrets.TTXAI_HOST }}
       DEMOAI_HOST: ${{ secrets.DEMOAI_HOST }}
@@ -207,15 +188,11 @@ jobs:
             *)        echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
           echo "REMOTE_HOST=$host" >> $GITHUB_ENV
-          # Pin this host's SSH public key for the rest of the job so the
-          # ssh/scp steps below can verify it (StrictHostKeyChecking=yes)
-          # instead of blindly trusting any host (StrictHostKeyChecking=no).
-          # This is trust-on-first-use; for full pinning, commit a known_hosts
-          # file to the repo and copy it here instead.
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           ssh-keyscan -p $REMOTE_PORT -H "$host" >> ~/.ssh/known_hosts 2>/dev/null
           chmod 600 ~/.ssh/known_hosts
+
       - name: Download image artifact for ${{ matrix.arch }}
         uses: actions/download-artifact@v4
         with:
@@ -227,21 +204,31 @@ jobs:
           chmod 700 ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          # Copy Docker image to remote host
+
+          REMOTE_TAR="/tmp/app-image-${{ matrix.environment }}-${{ github.run_id }}.tar"
+
+          # Upload to a writable temp location first. Writing directly into
+          # /home/ubuntu/deploy/portal can fail if that directory is not writable
+          # by the deploy SSH user.
           scp -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=yes \
               -P $REMOTE_PORT \
-              app-image-${{ matrix.arch }}.tar $REMOTE_USER@$REMOTE_HOST:/home/ubuntu/deploy/portal/app-image.tar
-          # SSH into remote host and deploy
+              app-image-${{ matrix.arch }}.tar \
+              $REMOTE_USER@$REMOTE_HOST:$REMOTE_TAR
+
           ssh -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=yes \
               -p $REMOTE_PORT \
               $REMOTE_USER@$REMOTE_HOST <<EOF
+            set -e
             DOCKER_IMAGE_NAME="${{ env.DOCKER_IMAGE_NAME }}"
             ENV_FILE_PATH="${{ env.ENV_FILE_PATH }}"
             PEM_FOLDER_PATH="${{ env.PEM_FOLDER_PATH }}"
-            docker load -i /home/ubuntu/deploy/portal/app-image.tar
-            rm /home/ubuntu/deploy/portal/app-image.tar
+            REMOTE_TAR="$REMOTE_TAR"
+
+            docker load -i "\$REMOTE_TAR"
+            rm "\$REMOTE_TAR"
+
             # Validate prerequisites BEFORE touching the running container,
             # so any failure below leaves the current version serving traffic.
             if [ ! -f "\$ENV_FILE_PATH" ]; then
@@ -252,9 +239,9 @@ jobs:
               echo "Error: .pem folder not found at \$PEM_FOLDER_PATH"
               exit 1
             fi
+
             # Run migrations from the NEW image as a one-off container BEFORE
             # swapping. If they fail, abort and keep the old container live.
-
             docker stop \$DOCKER_IMAGE_NAME || true
             docker rm \$DOCKER_IMAGE_NAME || true
             docker run -d \
@@ -268,4 +255,3 @@ jobs:
             docker image prune -f
             echo "Portal deployment to ${{ matrix.environment }} completed successfully"
           EOF
-
