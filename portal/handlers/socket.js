@@ -5,8 +5,6 @@ const { getFirebaseAdmin, sendCloudNotification } = require("./helper");
 const { deliveredById } = require("../services/message.service");
 const { createCallRecordOfWebrtc, createClosedCallRecord, updateCallRecordOfWebrtc, getOpenCallStatus } = require("../services/call_data.service")
 const { CALL_DATA_STATUS, WEBAPP_PRE_CALL_OUTCOMES, WEBAPP_CALL_OUTCOMES } = require("../constants/call-outcomes");
-const { createCallRecordOfWebrtc, createClosedCallRecord, updateCallRecordOfWebrtc, getOpenCallStatus } = require("../services/call_data.service")
-const { CALL_DATA_STATUS, WEBAPP_PRE_CALL_OUTCOMES, WEBAPP_CALL_OUTCOMES } = require("../constants/call-outcomes");
 const { registerAiDdxSocket } = require("./ai-ddx-socket");
 
 const admin = getFirebaseAdmin();
@@ -359,16 +357,6 @@ module.exports = function (server) {
     socket.on("cancel_dr", async function (data) {
       // Tell the health worker's app to stop ringing. Their socket is keyed by uuid; only the
       // calling doctor's socket carries nurseId, so the loop below never reaches the app.
-      for (const id in users) {
-        if (data?.nurseId && users[id].uuid === data.nurseId) {
-          users[id].callStatus = CALL_STATUSES.IDLE;
-          users[id].room = null;
-          io.to(id).emit("cancel_dr", "webapp");
-        }
-      }
-
-      // Close the calling doctor's call record.
-      let recordId = await attemptRecordId(data?.callAttemptId);
       for (const id in users) {
         if (data?.nurseId && users[id].uuid === data.nurseId) {
           users[id].callStatus = CALL_STATUSES.IDLE;
