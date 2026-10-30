@@ -1,6 +1,6 @@
 const express = require("express");
-const { getVisit } = require("./openmrs");
-const { buildPrescriptionData, hasPrescription, fmtFollowUpDate } = require("./data");
+const { getVisit, getVisitAttributes } = require("./openmrs");
+const { buildPrescriptionData, hasPrescription, fmtFollowUpDate, getVisitSource } = require("./data");
 const { generatePrescriptionPdf } = require("./pdf");
 const { notifyPrescriptionReady, notifyFollowUpScheduled } = require("./turn");
 const { runFollowUpReminders, getCronInfo, remindersEnabled } = require("./followup-cron");
@@ -25,6 +25,20 @@ const fileSafeName = (data, visitUuid) =>
    clean(data.patientName).replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "") || data.patientId || visitUuid;
 const pdfName = (data, visitUuid) => `e-prescription_${fileSafeName(data, visitUuid)}.pdf`;
 
+// Lower-cased intake source ("vtt", ...). A caller-supplied visit may lack its
+// attributes, so fetch them then; a failed lookup falls back to the English copy.
+const visitSource = async (visitUuid, suppliedVisit, data) => {
+   if (data.source || !suppliedVisit || Array.isArray(suppliedVisit.attributes)) {
+      return clean(data.source).toLowerCase();
+   }
+   try {
+      return clean(getVisitSource(await getVisitAttributes(visitUuid))).toLowerCase();
+   } catch (err) {
+      console.warn(`[prescription notify] ${visitUuid}: source lookup failed:`, errDetail(err));
+      return "";
+   }
+};
+
 // Tracks visits already pushed so a doctor-share retry never double-sends (in-memory: single-instance only).
 const notifiedVisits = new Set();
 
@@ -47,6 +61,7 @@ const notifyForVisit = async (visitUuid, { number: overrideNumber, baseUrl, visi
       filename: pdfName(data, visitUuid),
       name: data.patientName,
       resend: Boolean(resend),
+      vtt: (await visitSource(visitUuid, visit, data)) === "vtt",
    });
    notifiedVisits.add(visitUuid); // only after a successful send, so a failed push can retry
 

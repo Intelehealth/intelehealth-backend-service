@@ -3,6 +3,8 @@
 // portal shows: patient, doctor, vitals, diagnosis, medicines, advice, tests,
 // referrals and follow-up.
 
+const { OPENMRS_VISIT_ATTR_JOURNEY_INFO } = require("../constants");
+
 const CONCEPT = {
    // Chief-complaint / current-complaint obs (what visit_push writes as the
    // visit reason, and what the doctor portal reads as CURRENT_COMPLAINT).
@@ -44,6 +46,20 @@ const PROVIDER_ATTR = {
 
 const getPersonAttribute = (person, display) =>
    person?.attributes?.find((a) => a.attributeType?.display === display)?.value ?? null;
+
+// Intake source (e.g. "VTT") from the journey-info visit attribute visit_push writes
+// as JSON. attributeType may be an object or a bare uuid. null when absent/unparseable.
+const getVisitSource = (attributes) => {
+   const attr = (attributes || []).find(
+      (a) => (a.attributeType?.uuid ?? a.attributeType) === OPENMRS_VISIT_ATTR_JOURNEY_INFO
+   );
+   if (!attr?.value) return null;
+   try {
+      return JSON.parse(attr.value)?.source || null;
+   } catch {
+      return null;
+   }
+};
 
 const obsStr = (o) => String(o.value || o.display || "");
 
@@ -249,6 +265,7 @@ const buildPrescriptionData = (visit) => {
    return {
       visitUuid: visit?.uuid || "",
       shared,
+      source: getVisitSource(visit?.attributes),
       patientName,
       patientUuid: patient?.uuid || "",
       patientId,
@@ -299,4 +316,5 @@ const buildPrescriptionData = (visit) => {
 // sharing, so a fallback there leaks the PDF to the patient prematurely.
 const hasPrescription = (data) => Boolean(data.shared);
 
-module.exports = { buildPrescriptionData, hasPrescription, toDateInput, fmtFollowUpDate, CONCEPT };
+module.exports = {
+   getVisitSource, buildPrescriptionData, hasPrescription, toDateInput, fmtFollowUpDate, CONCEPT };

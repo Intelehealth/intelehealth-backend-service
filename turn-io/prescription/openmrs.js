@@ -10,7 +10,7 @@ const openmrsGet = (path, params) =>
 // Custom rep mirrors the HW webapp (visit-prescription.service.ts) for the prescription's obs/provider/patient fields.
 // startDatetime/stopDatetime dropped: buildPrescriptionData derives consultationDate from encounters instead.
 const VISIT_CUSTOM_REP =
-   "custom:(uuid,location:(display)," +
+   "custom:(uuid,location:(display),attributes:(value,attributeType:(uuid,display))," +
    "patient:(uuid,identifiers:(identifier,identifierType:(name,display))," +
    "person:(display,gender,age,birthdate,preferredName:(givenName,middleName,familyName)," +
    "attributes:(value,attributeType:(display,uuid)),preferredAddress:(address1,address2,cityVillage,countyDistrict,stateProvince,postalCode)))," +
@@ -30,6 +30,12 @@ const getVisit = async (visitUuid) => {
       console.error(`[openmrs] getVisit(${visitUuid}) failed:`, err.response?.data || err.message);
       throw err;
    }
+};
+
+// Just the visit attributes -- for a caller-supplied visit that came without them.
+const getVisitAttributes = async (visitUuid) => {
+   const { data } = await openmrsGet(`/visit/${visitUuid}`, { v: "custom:(attributes:(value,attributeType:(uuid,display)))" });
+   return data?.attributes || [];
 };
 
 // Fetching Follow-ups from mindmap service
@@ -127,4 +133,4 @@ const getFollowUpVisits = () => getMindmapVisits("getFollowUpVisits", { tag: "[f
 const getCompletedVisits = (opts = {}) =>
    getMindmapVisits("getCompletedVisits", { tag: "[survey mindmap]", ...opts });
 
-module.exports = { getVisit, getFollowUpVisits, getCompletedVisits };
+module.exports = { getVisit, getVisitAttributes, getFollowUpVisits, getCompletedVisits };
