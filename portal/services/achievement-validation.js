@@ -1,5 +1,5 @@
 "use strict";
-const { PERIODS, DEFAULTS, MAX_ENDED_SECONDS_AGO } = require("../constants/achievement.constant");
+const { PERIODS, DEFAULTS, MAX_ENDED_SECONDS_AGO, SECONDS_PER_DAY } = require("../constants/achievement.constant");
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,64}$/;
@@ -8,6 +8,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /**
  * Read the settings used by the achievement APIs. A missing, non-numeric
  * or non-positive value falls back to the default.
+ * HEARTBEAT_MAX_SECONDS is held to one day: recordHeartbeat splits a period at one IST midnight only,
+ * which is enough for a period of at most a day and not for a longer one.
  * @param {object} env - environment variables
  */
 const getConfig = (env = process.env) => {
@@ -18,7 +20,7 @@ const getConfig = (env = process.env) => {
   const offset = Number.parseInt(env.ACHIEVEMENTS_TZ_OFFSET_MINUTES, 10);
   return {
     tzOffsetMinutes: Number.isFinite(offset) ? offset : DEFAULTS.TZ_OFFSET_MINUTES,
-    heartbeatMaxSeconds: positive(env.HEARTBEAT_MAX_SECONDS, DEFAULTS.HEARTBEAT_MAX_SECONDS),
+    heartbeatMaxSeconds: Math.min(positive(env.HEARTBEAT_MAX_SECONDS, DEFAULTS.HEARTBEAT_MAX_SECONDS), SECONDS_PER_DAY),
     maxRangeDays: positive(env.ACHIEVEMENTS_MAX_RANGE_DAYS, DEFAULTS.MAX_RANGE_DAYS),
   };
 };

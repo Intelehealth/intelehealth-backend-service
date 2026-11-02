@@ -40,6 +40,9 @@ const isDeadlock = (error) =>
 // kept, so a user who is linked to a provider later is not turned away for the length of the cache.
 const PROVIDER_CACHE_TTL_MS = 60 * 1000;
 const PROVIDER_CACHE_MAX_ENTRIES = 5000;
+// A day that is full refuses every further period, so its log line is written once per window, not once
+// per request.
+const DROP_LOG_WINDOW_MS = 10 * 60 * 1000;
 
 // The number of open visits waiting for the doctor is not shown on the dashboard, so it is
 // counted at most once a minute per provider.
@@ -147,10 +150,18 @@ const CREATED_DATE_SQL = `
 // The first branch of the UNION finds the patients tagged with the provider by reading every
 // providerUUID attribute row (person_attribute has an index on the attribute type but none on value),
 // so its cost grows with the number of such rows in the whole database, not with this provider's
-// patients (EXPLAIN ANALYZE on a database of 30k patients: 3,411 rows read for 1,861 patients, about
-// 3 ms). If that becomes slow, the fix is an index on the OpenMRS database, which this service only
-// reads, so it has to be added there by whoever runs it:
-//   CREATE INDEX person_attribute_type_value_idx ON person_attribute (person_attribute_type_id, value);
+// patients. Measured on a local database of 30k patients (EXPLAIN ANALYZE): 3,411 attribute rows read,
+// about 7 ms of a query that takes 20 to 27 ms. Many tagged rows are not patients: the largest provider
+// has 1,861 tagged rows, of which 91 have a row in the patient table, and the join below drops the rest.
+// The second branch (patients with no tag, by creator) has no such index question, but MySQL did not
+// plan it the same way for every provider: for one it read the creator index (24 rows), for another it
+// went through every visit row and filtered by creator, which grows with the visit table. Neither is
+// measured at production size yet, so check both branches in the production EXPLAIN.
+// If the first branch becomes slow, the fix is an index on the OpenMRS database, which this service
+// only reads, so it has to be added there by whoever runs it.
+// The value column is varchar(3000) utf8mb3, too long to index whole (MySQL allows 3072 bytes), so
+// the index takes a prefix. A uuid is 36 characters, so 64 covers it:
+//   CREATE INDEX person_attribute_type_value_idx ON person_attribute (person_attribute_type_id, value(64));
 const BENEFICIARY_FROM = `
   FROM (
     SELECT pa.person_id AS person_id
@@ -258,6 +269,7 @@ const VISITS_PENDING_SQL = `
  * @param {() => Date} [deps.now]
  * @param {() => object} [deps.getSettings]
  * @param {(ms: number) => Promise<void>} [deps.sleep] - the wait between two attempts at a deadlocked heartbeat
+ * @param {(type: string, message: string, prefix?: string) => void} [deps.log] - where a heartbeat that could not be counted is reported
  * @param {number} [deps.providerCacheTtlMs] - how long a found provider is kept in memory, 0 to turn it off
  * @param {number} [deps.pendingVisitsTtlMs] - how long a provider's count of visits waiting for the doctor is kept, 0 to turn it off
  * @param {number} [deps.countsTtlMs] - how long a provider's doctor-visit and beneficiary counts are kept, 0 to turn it off
@@ -269,6 +281,7 @@ const createAchievementService = ({
   now = () => new Date(),
   getSettings = getConfig,
   sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  log = () => {},
   providerCacheTtlMs = PROVIDER_CACHE_TTL_MS,
   pendingVisitsTtlMs = PENDING_VISITS_TTL_MS,
   countsTtlMs = COUNTS_TTL_MS,
@@ -489,6 +502,23 @@ const createAchievementService = ({
     };
   };
 
+  // Reports a period that was not counted because the day is full. Written once per provider and day
+  // per DROP_LOG_WINDOW_MS.
+  const droppedLoggedAt = new Map();
+  const logDropped = (providerUuid, date, intervalCount, start, end) => {
+    const key = `${providerUuid}|${date}`;
+    const time = now().getTime();
+    const last = droppedLoggedAt.get(key);
+    if (last !== undefined && time - last < DROP_LOG_WINDOW_MS) return;
+    if (droppedLoggedAt.size >= PROVIDER_CACHE_MAX_ENTRIES) droppedLoggedAt.clear();
+    droppedLoggedAt.set(key, time);
+    log(
+      "error",
+      `heartbeat time dropped: provider ${providerUuid} on ${date} already has ${intervalCount} separate intervals (${end - start}s at ${start}-${end} not counted; further drops for this day are not logged for ${DROP_LOG_WINDOW_MS / 60000} minutes)`,
+      "Achievements"
+    );
+  };
+
   /**
    * Add the time a provider spent working. The beat claims the `activeSeconds` that ended
    * `endedSecondsAgo` seconds ago (0 for a beat sent as soon as its period ends). The period is added to
@@ -496,8 +526,14 @@ const createAchievementService = ({
    * or pieces that arrive in any order, are counted once and none is lost. The time is saved under the
    * IST day it happened in: a period that crosses IST midnight is split there, so each day gets only its
    * own part.
-   * `todaySeconds` is the day's total, read after the write. A request with the same `requestId` as the
-   * last one that had one is a replay: it adds nothing.
+   * `todaySeconds` is the day's total, read after the write. A request with the same `requestId` as one of
+   * the last MAX_RECENT_REQUESTS requests that had one (for that provider and day) is a replay: it adds
+   * nothing.
+   * The figures are the client's claim, and a period may end up to MAX_ENDED_SECONDS_AGO (a day) in the
+   * past, so a client can fill a whole past day. That is fine for the time shown on the dashboard panel,
+   * but this number must not feed incentives or pay.
+   * When the day already holds MAX_INTERVALS_PER_DAY separate intervals the period is not counted, and
+   * that is logged.
    * @param {{ userUuid: string, activeSeconds: number, endedSecondsAgo?: number, requestId?: string }} input
    */
   const recordHeartbeat = async ({ userUuid, activeSeconds, endedSecondsAgo = 0, requestId = null }) => {
@@ -508,9 +544,9 @@ const createAchievementService = ({
     const activityDate = todayInOffset(endedAt, tzOffsetMinutes);
 
     // The part of the period after IST midnight belongs to this day, the part before it to the day
-    // before. A period is at most an hour, so it crosses at most one midnight. Both rows get the same
-    // requestId, so a replay of the whole request adds nothing to either. Times are whole seconds since
-    // the start of the IST day (0..86400).
+    // before. A period is at most HEARTBEAT_MAX_SECONDS, which getConfig holds to one day, so it crosses
+    // at most one midnight. Both rows get the same requestId, so a replay of the whole request adds
+    // nothing to either. Times are whole seconds since the start of the IST day (0..86400).
     const dayStartSeconds = Date.parse(`${activityDate}T00:00:00Z`) / 1000 - tzOffsetMinutes * 60;
     const endOffset = Math.floor(endedAt.getTime() / 1000) - dayStartSeconds;
     const todayPart = Math.min(activeSeconds, endOffset);
@@ -527,7 +563,12 @@ const createAchievementService = ({
             const crc = row.request_crc === null || row.request_crc === undefined ? null : String(row.request_crc);
             if (requestId !== null && crc !== null && recent.includes(crc)) return; // a replay
 
-            const intervals = addInterval(parseIntervals(row.covered_intervals), start, end);
+            const counted = parseIntervals(row.covered_intervals);
+            const intervals = addInterval(counted, start, end);
+            // addInterval hands back the same list only when it refused the period (the day already
+            // holds MAX_INTERVALS_PER_DAY separate intervals). The request id is still recorded below,
+            // so the time is not counted on a retry either; say so, or it disappears without a trace.
+            if (intervals === counted) logDropped(providerUuid, date, counted.length, start, end);
             await sequelize.query(SAVE_ROW_SQL, {
               replacements: {
                 ...replacements,
@@ -570,10 +611,12 @@ const getAchievementService = () => {
   if (!defaultService) {
     const openmrs = require("../openmrs_models").sequelize;
     const { user_activity, sequelize } = require("../models");
+    const { logStream } = require("../logger/index");
     defaultService = createAchievementService({
       openmrs,
       userActivity: user_activity,
       sequelize,
+      log: logStream,
     });
   }
   return defaultService;
