@@ -3,16 +3,17 @@
 # Builds the portal Docker image once and deploys it to one or more remote hosts.
 #
 # Triggers:
-#   - push to development_master (portal/** changes) ? deploys to ALL hosts
-#   - workflow_dispatch (manual) ? deploys to selected hosts via checkboxes
+#   - push to development_master (portal/** changes) -> deploys to ALL hosts
+#   - workflow_dispatch (manual) -> deploys to selected hosts via checkboxes
 #
 # Jobs:
 #   1. prepare-matrix  Decides which environments to deploy based on trigger/inputs
 #   2. build           Builds the Docker image and uploads it as a workflow artifact
-#   3. deploy          Matrix job   downloads the artifact, runs migrations (if any), swaps the container, and waits for it to become healthy
+#   3. deploy          Matrix job: downloads the artifact, swaps the container,
+#                      and waits for it to become healthy
 #
 # Required secrets:
-#   DEV_HOST, TURN_HOST     SSH hostnames/IPs
+#   DEV_HOST, TTXAI_HOST, TURN_HOST, TESTTURN_HOST, PATHQA_HOST, DEMOAI_HOST   SSH hostnames/IPs
 #   DEV_USER                SSH username
 #   DEV_SSH_KEY             SSH private key
 #
@@ -81,7 +82,6 @@ jobs:
           turn_arch=amd64
           demoai_arch=amd64
           pathqa_arch=arm64
-
           if [ "${{ github.event_name }}" == "push" ]; then
             # On push, deploy to all hosts
             includes='[]'
@@ -100,9 +100,9 @@ jobs:
                 dev)      selected="${{ inputs.deploy_dev }}" ;;
                 ttxai)    selected="${{ inputs.deploy_ttxai }}" ;;
                 testturn) selected="${{ inputs.deploy_testturn }}" ;;
-                turn)    selected="${{ inputs.deploy_turn }}" ;;
+                turn)     selected="${{ inputs.deploy_turn }}" ;;
                 pathqa)   selected="${{ inputs.deploy_pathqa }}" ;;
-                demoai)    selected="${{ inputs.deploy_demoai }}" ;;
+                demoai)   selected="${{ inputs.deploy_demoai }}" ;;
               esac
               if [ "$selected" == "true" ]; then
                 arch_var="${env}_arch"
@@ -184,7 +184,7 @@ jobs:
             testturn) host="$TESTTURN_HOST" ;;
             turn)     host="$TURN_HOST" ;;
             pathqa)   host="$PATHQA_HOST" ;;
-            demoai)    host="$DEMOAI_HOST" ;;
+            demoai)   host="$DEMOAI_HOST" ;;
             *)        echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
           echo "REMOTE_HOST=$host" >> $GITHUB_ENV
@@ -204,9 +204,7 @@ jobs:
           chmod 700 ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-
           REMOTE_TAR="/tmp/app-image-${{ matrix.environment }}-${{ github.run_id }}.tar"
-
           # Upload to a writable temp location first. Writing directly into
           # /home/ubuntu/deploy/portal can fail if that directory is not writable
           # by the deploy SSH user.
@@ -215,60 +213,65 @@ jobs:
               -P $REMOTE_PORT \
               app-image-${{ matrix.arch }}.tar \
               $REMOTE_USER@$REMOTE_HOST:$REMOTE_TAR
-
-          ssh -i ~/.ssh/deploy_key \
+          # Quoted 'EOF': nothing below is expanded on the runner, so every $
+          # runs on the server. GitHub ${{ }} expressions are still filled in.
+          ssh -T -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=yes \
               -p $REMOTE_PORT \
-              $REMOTE_USER@$REMOTE_HOST <<EOF
+              $REMOTE_USER@$REMOTE_HOST <<'EOF'
             set -euo pipefail
-            DOCKER_IMAGE_NAME="${{ env.DOCKER_IMAGE_NAME }}"
+            NAME="${{ env.DOCKER_IMAGE_NAME }}"
+            SHA="${{ github.sha }}"
             ENV_FILE_PATH="${{ env.ENV_FILE_PATH }}"
             PEM_FOLDER_PATH="${{ env.PEM_FOLDER_PATH }}"
-            REMOTE_TAR="$REMOTE_TAR"
+            REMOTE_TAR="/tmp/app-image-${{ matrix.environment }}-${{ github.run_id }}.tar"
+            TARGET="${{ matrix.environment }}"
 
-            docker load -i "\$REMOTE_TAR"
-            rm -f "\$REMOTE_TAR"
+            docker load -i "$REMOTE_TAR"
+            rm -f "$REMOTE_TAR"
 
             # Validate prerequisites BEFORE touching the running container,
             # so any failure below leaves the current version serving traffic.
-            if [ ! -f "\$ENV_FILE_PATH" ]; then
-              echo "Error: .env file not found at \$ENV_FILE_PATH"
+            if [ ! -f "$ENV_FILE_PATH" ]; then
+              echo "Error: .env file not found at $ENV_FILE_PATH"
               exit 1
             fi
-            if [ ! -d "\$PEM_FOLDER_PATH" ]; then
-              echo "Error: .pem folder not found at \$PEM_FOLDER_PATH"
+            if [ ! -d "$PEM_FOLDER_PATH" ]; then
+              echo "Error: .pem folder not found at $PEM_FOLDER_PATH"
               exit 1
             fi
 
             # Stop and replace the existing container before starting the new image.
-            docker stop "\$DOCKER_IMAGE_NAME" || true
-            docker rm "\$DOCKER_IMAGE_NAME" || true
-
+            docker stop "$NAME" || true
+            docker rm "$NAME" || true
             docker run -d \
-              --name "\$DOCKER_IMAGE_NAME" \
+              --name "$NAME" \
               --restart unless-stopped \
               -p 3004:3004 \
-              --env-file "\$ENV_FILE_PATH" \
-              -v "\$PEM_FOLDER_PATH:/app/.pem" \
+              --env-file "$ENV_FILE_PATH" \
+              -v "$PEM_FOLDER_PATH:/app/.pem" \
               --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
-              "\$DOCKER_IMAGE_NAME:${{ github.sha }}"
+              "$NAME:$SHA"
 
-            echo "Waiting for \$DOCKER_IMAGE_NAME to become healthy..."
+            echo "Waiting for $NAME to become healthy..."
             for i in $(seq 1 30); do
-              status=$(docker inspect --format '{{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "\$DOCKER_IMAGE_NAME" 2>/dev/null || true)
-              echo "Attempt \$i: \$status"
-
-              if docker inspect --format '{{.State.Health.Status}}' "\$DOCKER_IMAGE_NAME" 2>/dev/null | grep -q '^healthy$'; then
-                echo "Portal deployment on ${{ matrix.environment }} successful! Ports: $(docker port "\$DOCKER_IMAGE_NAME" | tr '\n' ' ')"
+              state=$(docker inspect --format '{{.State.Status}}' "$NAME" 2>/dev/null || echo missing)
+              health=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$NAME" 2>/dev/null || echo unknown)
+              echo "Attempt $i: state=$state health=$health"
+              # Healthy, or no HEALTHCHECK in the image and still running after ~15s
+              if [ "$health" = "healthy" ] || { [ "$health" = "none" ] && [ "$state" = "running" ] && [ "$i" -ge 3 ]; }; then
+                echo "Portal deployment on $TARGET successful! Ports: $(docker port "$NAME" | tr '\n' ' ')"
+                # Remove older portal:<sha> images (prune -f alone never removes tagged images)
+                docker images "$NAME" --format '{{.Repository}}:{{.Tag}}' | grep -vx "$NAME:$SHA" | xargs -r docker rmi || true
                 docker image prune -f || true
                 exit 0
               fi
               sleep 5
             done
 
-            echo "Portal deployment on ${{ matrix.environment }} FAILED — last 100 log lines:"
-            docker logs --tail 100 "\$DOCKER_IMAGE_NAME" || true
-            docker inspect --format '{{json .State}}' "\$DOCKER_IMAGE_NAME" || true
+            echo "Portal deployment on $TARGET FAILED — last 100 log lines:"
+            docker logs --tail 100 "$NAME" || true
+            docker inspect --format '{{json .State}}' "$NAME" || true
             docker image prune -f || true
             exit 1
           EOF
