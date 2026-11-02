@@ -1,0 +1,179 @@
+name: Auth Gateway Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_ezazi:
+        description: 'Deploy to EZAZI host'
+        type: boolean
+        default: false
+      deploy_testezazi:
+        description: 'Deploy to TESTEZAZI host'
+        type: boolean
+        default: false
+  push:
+    branches: [ezazi-master-dev]
+    paths:
+      - 'auth-gateway/**'
+
+env:
+  DOCKER_IMAGE_NAME: auth-gateway
+
+jobs:
+  prepare-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      migrations_changed: ${{ steps.check-migrations.outputs.changed }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for migration file changes
+        id: check-migrations
+        run: |
+          if [ "${{ github.event_name }}" != "push" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q "^auth-gateway/migrations/" \
+              && echo "changed=true" >> $GITHUB_OUTPUT \
+              || echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build deployment matrix
+        id: set-matrix
+        run: |
+          includes='[]'
+          if [ "${{ github.event_name }}" == "push" ]; then
+            # On push, deploy to both hosts
+            for env in ezazi testezazi; do
+              includes=$(echo "$includes" | jq -c --arg env "$env" '. += [{"environment":$env}]')
+            done
+          else
+            # On manual run, deploy only to the ticked hosts
+            if [ "${{ inputs.deploy_ezazi }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"ezazi"}]')
+            fi
+            if [ "${{ inputs.deploy_testezazi }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"testezazi"}]')
+            fi
+          fi
+          if [ "$includes" == "[]" ]; then
+            echo "No hosts selected. Tick at least one checkbox when running manually."
+            exit 1
+          fi
+          echo "matrix={\"include\":$includes}" >> $GITHUB_OUTPUT
+
+  build:
+    runs-on: ubuntu-latest
+    needs: prepare-matrix
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build Docker image (amd64)
+        run: |
+          docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} ./auth-gateway
+          docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > app-image.tar
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: auth-gateway-image-amd64
+          path: app-image.tar
+          retention-days: 1
+
+  deploy:
+    needs: [prepare-matrix, build]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJson(needs.prepare-matrix.outputs.matrix) }}
+      fail-fast: false
+    env:
+      REMOTE_PORT: 22
+      ENV_FILE_PATH: /home/ubuntu/deploy/auth-gateway/.env
+      PEM_FOLDER_PATH: /home/ubuntu/deploy/auth-gateway/.pem
+      EZAZI_HOST: ${{ secrets.EZAZI_HOST }}
+      TESTEZAZI_HOST: ${{ secrets.TESTEZAZI_HOST }}
+      REMOTE_USER: ${{ secrets.DEV_USER }}
+      SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
+    steps:
+      - name: Resolve host for environment
+        run: |
+          case "${{ matrix.environment }}" in
+            ezazi)     host="$EZAZI_HOST" ;;
+            testezazi) host="$TESTEZAZI_HOST" ;;
+            *)         echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
+          esac
+          if [ -z "$host" ]; then
+            echo "Host secret for ${{ matrix.environment }} is empty or missing"
+            exit 1
+          fi
+          echo "REMOTE_HOST=$host" >> $GITHUB_ENV
+
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: auth-gateway-image-amd64
+
+      - name: Deploy to ${{ matrix.environment }} host
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          scp -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              -P $REMOTE_PORT \
+              app-image.tar \
+              $REMOTE_USER@$REMOTE_HOST:/tmp/
+
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              -p $REMOTE_PORT \
+              $REMOTE_USER@$REMOTE_HOST <<EOF
+            DOCKER_IMAGE_NAME="${{ env.DOCKER_IMAGE_NAME }}"
+            ENV_FILE_PATH="${{ env.ENV_FILE_PATH }}"
+            PEM_FOLDER_PATH="${{ env.PEM_FOLDER_PATH }}"
+
+            docker load -i /tmp/app-image.tar
+            rm /tmp/app-image.tar
+
+            docker stop \$DOCKER_IMAGE_NAME || true
+            docker rm \$DOCKER_IMAGE_NAME || true
+
+            if [ ! -f "\$ENV_FILE_PATH" ]; then
+              echo "Error: .env file not found at \$ENV_FILE_PATH"
+              exit 1
+            fi
+
+            if [ ! -d "\$PEM_FOLDER_PATH" ]; then
+              echo "Error: .pem folder not found at \$PEM_FOLDER_PATH"
+              exit 1
+            fi
+
+            docker ps -a | grep auth-gateway | awk '{print \$1}' | xargs -r docker rm -f || true
+
+            fuser -k 3030/tcp || true
+
+            sleep 2
+
+            docker run -d \
+              --name \$DOCKER_IMAGE_NAME \
+              --restart unless-stopped \
+              -p 0.0.0.0:3030:3030 \
+              --env-file \$ENV_FILE_PATH \
+              -v \$PEM_FOLDER_PATH:/app/.pem \
+              --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
+              \$DOCKER_IMAGE_NAME:${{ github.sha }}
+
+            docker image prune -f
+            echo "Auth-gateway deployment to ${{ matrix.environment }} completed successfully"
+          EOF
