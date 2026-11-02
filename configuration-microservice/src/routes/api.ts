@@ -26,6 +26,7 @@ import DropdownRoutes from './DropdownRoutes';
 import AILLMRoutes from './AILLMRoutes';
 import HomeScreenRoutes from './HomeScreenRoutes';
 import AILLMRecordingRoutes from './AILLMRecordingRoutes';
+import PrescriptionNotesRoutes from './PrescriptionNotesRoutes';
 
 // **** Variables **** //
 
@@ -626,6 +627,33 @@ homeScreenSectionsRouter.put(
 
 // Add HomeScreenRouter
 apiRouter.use(Paths.HomeScreen.Base, authMw, homeScreenSectionsRouter);
+
+// **** Setup PrescriptionNotesRouter **** //
+
+const prescriptionNotesRouter = Router();
+
+// Get all specialty prescription notes
+prescriptionNotesRouter.get(
+  Paths.PrescriptionNotes.Get,
+  PrescriptionNotesRoutes.getAll,
+);
+
+// Toggle is_enabled for a specialty
+prescriptionNotesRouter.put(
+  Paths.PrescriptionNotes.UpdateIsEnabled,
+  validate(['id', 'number', 'params'], ['is_enabled', 'boolean', 'body']),
+  PrescriptionNotesRoutes.updateIsEnabled,
+);
+
+// Update notes array for a specialty
+prescriptionNotesRouter.put(
+  Paths.PrescriptionNotes.UpdateNotes,
+  validate(['id', 'number', 'params'], ['notes', 'object', 'body']),
+  PrescriptionNotesRoutes.updateNotes,
+);
+
+// Add PrescriptionNotesRouter
+apiRouter.use(Paths.PrescriptionNotes.Base, authMw, prescriptionNotesRouter);
 
 // **** Export default **** //
 

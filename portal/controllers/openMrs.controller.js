@@ -9,6 +9,7 @@ const {
   _getCompletedVisits,
   _getEndedVisits
 } = require("../services/openmrs.service");
+const { _getReferredVisits } = require("../services/openmrs.service");
 
 const getVisitCountQuery = ({ speciality = "General Physician" }) => {
   return `select count(t1.visit_id) as Total,
@@ -230,8 +231,8 @@ const forgetPasswordResetPassword = async (req, res, next) => {
 const getAwaitingVisits = async (req, res, next) => {
   try {
     logStream('debug', 'API call', 'Get Awaiting Visits');
-    const { speciality, page, limit } = req.query;
-    const data = await _getAwaitingVisits(speciality, page, limit);
+    const { speciality, page, limit, countOnly } = req.query;
+    const data = await _getAwaitingVisits(speciality, page, limit, countOnly === 'true');
     logStream('debug', 'Success', 'Get Awaiting Visits');
     res.json({
       count: data.currentCount,
@@ -254,8 +255,8 @@ const getAwaitingVisits = async (req, res, next) => {
 const getPriorityVisits = async (req, res, next) => {
   try {
     logStream('debug', 'API call', 'Get Priority Visits');
-    const { speciality, page, limit } = req.query;
-    const data = await _getPriorityVisits(speciality, page, limit);
+    const { speciality, page, limit, countOnly } = req.query;
+    const data = await _getPriorityVisits(speciality, page, limit, countOnly === 'true');
     logStream('debug', 'Success', 'Get Priority Visits');
     res.json({
       count: data.currentCount,
@@ -278,8 +279,8 @@ const getPriorityVisits = async (req, res, next) => {
 const getInProgressVisits = async (req, res, next) => {
   try {
     logStream('debug', 'API call', 'Get In Progress Visits');
-    const { speciality, page, limit } = req.query;
-    const data = await _getInProgressVisits(speciality, page, limit);
+    const { speciality, page, limit, countOnly } = req.query;
+    const data = await _getInProgressVisits(speciality, page, limit, countOnly === 'true');
     logStream('debug', 'Success', 'Get In Progress Visits');
     res.json({
       count: data.currentCount,
@@ -370,6 +371,31 @@ const getEndedVisits = async (req, res, next) => {
   }
 };
 
+/**
+ * Get referred visit.
+ * @param {request} req
+ * @param {response} res
+ * @returns visits
+ */
+const getReferredVisits = async (req, res, next) => {
+  try {
+    logStream('debug', 'API call', 'Get Referred Visits');
+    const { speciality, page, countOnly, limit } = req.query;
+    const data = await _getReferredVisits(speciality, page, limit, countOnly === 'true');
+    logStream('debug', 'Success', 'Get Referred Visits');
+    res.json({
+      count: data.currentCount,
+      totalCount: data.totalCount,
+      data: data.visits,
+      success: true,
+    });
+  } catch (error) {
+    logStream("error", error.message);
+    res.statusCode = 422;
+    res.json({ status: false, message: error.message });
+  }
+};
+
 module.exports = {
   getVisitCounts,
   getFollowUpVisit,
@@ -380,5 +406,6 @@ module.exports = {
   getInProgressVisits,
   getCompletedVisits,
   getEndedVisits,
-  getFollowUpVisits
+  getFollowUpVisits,
+  getReferredVisits
 };
