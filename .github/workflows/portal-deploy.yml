@@ -213,8 +213,8 @@ jobs:
               -P $REMOTE_PORT \
               app-image-${{ matrix.arch }}.tar \
               $REMOTE_USER@$REMOTE_HOST:$REMOTE_TAR
-          # Quoted 'EOF': nothing below is expanded on the runner, so every $
-          # runs on the server. GitHub ${{ }} expressions are still filled in.
+          # Quoted 'EOF': nothing below is expanded on the runner, so every
+          # shell variable runs on the server. GitHub expressions are still filled in.
           ssh -T -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=yes \
               -p $REMOTE_PORT \
@@ -269,7 +269,7 @@ jobs:
               sleep 5
             done
 
-            echo "Portal deployment on $TARGET FAILED — last 100 log lines:"
+            echo "Portal deployment on $TARGET FAILED - last 100 log lines:"
             docker logs --tail 100 "$NAME" || true
             docker inspect --format '{{json .State}}' "$NAME" || true
             docker image prune -f || true
