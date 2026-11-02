@@ -199,14 +199,21 @@ Names are filled in best-effort from OpenMRS and cached for 10 minutes per uuid,
 
 ### Env
 
+Required:
+
 ```
-CONFIG_SERVICE_URL=https://<domain>:4004/api   # configuration-microservice base, including /api
-VOICEDOC_MOCK=false                            # true uses an in-process fake VoiceDoc
-VOICEDOC_AUTH_URL=xxxx
-VOICEDOC_CORE_URL=xxxx
-VOICEDOC_HELPER_URL=xxxx
 VOICEDOC_EMAIL=xxxx
 VOICEDOC_PASSWORD=xxxx
+```
+
+Optional overrides (defaults shown):
+
+```
+CONFIG_SERVICE_URL=https://<DOMAIN>:4004/api   # configuration-microservice base, including /api; derived from DOMAIN
+VOICEDOC_MOCK=false                            # true uses an in-process fake VoiceDoc
+VOICEDOC_AUTH_URL=https://intelehealth-auth-tyohwkctkq-el.a.run.app
+VOICEDOC_CORE_URL=https://core-tyohwkctkq-el.a.run.app
+VOICEDOC_HELPER_URL=https://intelehealth-helper-service-tyohwkctkq-el.a.run.app
 VOICEDOC_FORCE_LOGIN=true
 VOICEDOC_ENCRYPT_AUDIO=true
 VOICEDOC_LANGUAGE=auto

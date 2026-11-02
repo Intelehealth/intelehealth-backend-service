@@ -61,7 +61,7 @@ function loadConfig() {
     timeZone: envValue('VOICEDOC_TIMEZONE') || 'Asia/Kolkata',
     maxPendingChunks: envInt('VOICEDOC_MAX_PENDING_CHUNKS', 90),
     endStreamTimeoutMs: envInt('VOICEDOC_END_STREAM_TIMEOUT_MS', 600000),
-    configServiceUrl: envValue('CONFIG_SERVICE_URL'),
+    configServiceUrl: envValue('CONFIG_SERVICE_URL') || (envValue('DOMAIN') ? `https://${envValue('DOMAIN')}:4004/api` : ''),
   };
 }
 

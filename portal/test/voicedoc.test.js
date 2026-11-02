@@ -14,6 +14,46 @@ const flags = require('../services/voicedoc/flags');
 
 const { subtle } = webcrypto;
 
+describe('loadConfig', () => {
+  const { loadConfig } = require('../services/voicedoc/config');
+  const saved = {};
+  beforeEach(() => {
+    for (const k of ['CONFIG_SERVICE_URL', 'DOMAIN']) saved[k] = process.env[k];
+  });
+  afterEach(() => {
+    for (const [k, v] of Object.entries(saved)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+  });
+
+  test('derives the config service url from DOMAIN when CONFIG_SERVICE_URL is unset', () => {
+    delete process.env.CONFIG_SERVICE_URL;
+    process.env.DOMAIN = 'ttxai.intelehealth.org';
+    assert.equal(loadConfig().configServiceUrl, 'https://ttxai.intelehealth.org:4004/api');
+  });
+
+  test('prefers an explicit CONFIG_SERVICE_URL', () => {
+    process.env.CONFIG_SERVICE_URL = 'http://localhost:4004/api';
+    process.env.DOMAIN = 'ttxai.intelehealth.org';
+    assert.equal(loadConfig().configServiceUrl, 'http://localhost:4004/api');
+  });
+
+  test('is empty when neither is set', () => {
+    delete process.env.CONFIG_SERVICE_URL;
+    delete process.env.DOMAIN;
+    assert.equal(loadConfig().configServiceUrl, '');
+  });
+
+  test('defaults everything except the credentials', () => {
+    const cfg = loadConfig();
+    assert.ok(cfg.authBaseUrl && cfg.coreBaseUrl && cfg.helperBaseUrl);
+    assert.equal(cfg.forceLogin, true);
+    assert.equal(cfg.language, 'auto');
+    assert.equal(cfg.timeZone, 'Asia/Kolkata');
+  });
+});
+
 describe('buildRecordingName', () => {
   test('formats MR-<pid>_<vid> with a local timestamp', () => {
     const now = new Date('2026-10-30T04:35:00Z');
