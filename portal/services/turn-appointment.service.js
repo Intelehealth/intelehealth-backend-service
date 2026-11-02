@@ -153,16 +153,18 @@ module.exports = (function () {
       raw: true,
     });
 
-    appointments.forEach((apnmt) => {
-      const idx = dates.findIndex(
-        (d) =>
-          d.userUuid === apnmt.userUuid &&
-          d.slotTime === apnmt.slotTime &&
-          d.slotDate === apnmt.slotDate &&
-          d.slotDay === apnmt.slotDay
-      );
-      if (idx !== -1) dates.splice(idx, 1);
-    });
+    // Drop every copy of a booked slot: overlapping or duplicate schedule rows can
+    // generate the same doctor/time more than once, and removing just one left it open.
+    dates = dates.filter(
+      (d) =>
+        !appointments.some(
+          (apnmt) =>
+            d.userUuid === apnmt.userUuid &&
+            d.slotTime === apnmt.slotTime &&
+            d.slotDate === apnmt.slotDate &&
+            d.slotDay === apnmt.slotDay
+        )
+    );
 
     const now = moment();
     const openSlots = [];
@@ -330,6 +332,19 @@ module.exports = (function () {
     if (!stillOpen) {
       throw new Error(
         MESSAGE.APPOINTMENT.APPOINTMENT_NOT_AVAILABLE_ITS_ALREADY_BOOKED
+      );
+    }
+
+    // Check the bookings table directly too, so a doctor never gets two patients in one slot
+    // whatever the schedule rows look like.
+    const doctorBooked = await Appointment.findOne({
+      where: { userUuid, slotDate, slotTime, status: Constant.BOOKED },
+      raw: true,
+    });
+    if (doctorBooked) {
+      logStream("error", `Doctor ${userUuid} already booked at ${slotDate} ${slotTime} (appointment ${doctorBooked.id})`);
+      throw new Error(
+        MESSAGE.APPOINTMENT.ANOTHER_APPOINTMENT_HAS_ALREADY_BEEN_BOOKED_FOR_THIS_TIME_SLOT
       );
     }
 

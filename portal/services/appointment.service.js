@@ -812,17 +812,13 @@ WHERE
 
         if (appointments) {
           appointments.forEach((apnmt) => {
-            const sameSlot = (d) =>
-              d.slotTime === apnmt.slotTime &&
-              d.slotDate === apnmt.slotDate &&
-              d.slotDay === apnmt.slotDay &&
-              d.speciality === apnmt.speciality;
-            // Turn server: remove the booked doctor's own slot, so another doctor's free slot at the
-            // same time isn't taken instead; fall back to any doctor's for old rows without userUuid.
-            let dateIdx = process.env.IS_TURN_SERVER === 'true'
-              ? dates.findIndex((d) => sameSlot(d) && d.userUuid === apnmt.userUuid)
-              : -1;
-            if (dateIdx == -1) dateIdx = dates.findIndex(sameSlot);
+            const dateIdx = dates.findIndex(
+              (d) =>
+                d.slotTime === apnmt.slotTime &&
+                d.slotDate === apnmt.slotDate &&
+                d.slotDay === apnmt.slotDay &&
+                d.speciality === apnmt.speciality
+            );
             if (dateIdx != -1) {
               dates.splice(dateIdx, 1);
             }
@@ -917,7 +913,7 @@ WHERE
      * @param { object } params - (slotDate, slotTime, speciality, visitUuid)
      */
   this._bookAppointment = async (params) => {
-    const { slotDate, slotTime, speciality, visitUuid, userUuid, webApp = false } = params;
+    const { slotDate, slotTime, speciality, visitUuid, webApp = false } = params;
     try {
       logStream('debug','API calling', 'Book Appointment');
       const appntSlots = await this._getAppointmentSlots({
@@ -942,21 +938,6 @@ WHERE
       } else {
         logStream("error", 'Appointment not available, its already booked.');
         throw new Error(MESSAGE.APPOINTMENT.APPOINTMENT_NOT_AVAILABLE_ITS_ALREADY_BOOKED);
-      }
-
-      // Turn server: the slot check above is per speciality; make sure this doctor isn't already booked at this time.
-      const doctorApnmt = process.env.IS_TURN_SERVER === 'true' && userUuid && await Appointment.findOne({
-        where: {
-          slotDate,
-          slotTime,
-          status: Constant.BOOKED,
-          userUuid,
-        },
-        raw: true,
-      });
-      if (doctorApnmt) {
-        logStream("error", 'Another appointment has already been booked for this time slot');
-        throw new Error(MESSAGE.APPOINTMENT.ANOTHER_APPOINTMENT_HAS_ALREADY_BEEN_BOOKED_FOR_THIS_TIME_SLOT);
       }
 
       const visitApnmt = await Appointment.findOne({
