@@ -50,7 +50,7 @@ async function updateIsEnabled(id: string, is_enabled: boolean, user_id: string,
   });
 
   // Update dic_config feature configs key
-  await Config.update({ value: JSON.stringify(grouped), published: false }, { where: { key: "ai_llm" } });
+  await Config.update({ value: JSON.stringify(grouped), published: false }, { where: { key: "ai_llm_recording" } });
 
   // Insert audit trail entry
   await AuditTrail.create({user_id, user_name, activity_type: "AI LLM RECORDING CONFIG UPDATED", description: `${is_enabled ? "Enabled" : "Disabled"} "${aillmRecording.key}" config.`});
