@@ -1,0 +1,253 @@
+# Portal Deploy
+#
+# Builds the portal Docker image once and deploys it to one or more remote hosts.
+#
+# Triggers:
+#   - push to development_master (portal/** changes) -> deploys to ALL hosts
+#   - workflow_dispatch (manual) -> deploys to selected hosts via checkboxes
+#
+# Jobs:
+#   1. prepare-matrix  Decides which environments to deploy based on trigger/inputs
+#   2. build           Builds the Docker image and uploads it as a workflow artifact
+#   3. deploy          Matrix job: downloads the artifact, swaps the container,
+#                      and waits for it to become healthy
+#
+# Required secrets:
+#   EZAZI_HOST, TESTEZAZI_HOST   SSH hostnames/IPs
+#   DEV_USER                     SSH username
+#   DEV_SSH_KEY                  SSH private key
+#
+# To add a new host: add a secret for the hostname, map it in the deploy job env block,
+# add a case in "Resolve host", add a boolean input, and add it to the push matrix.
+
+name: Portal Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_ezazi:
+        description: 'Deploy to EZAZI host'
+        type: boolean
+        default: false
+      deploy_testezazi:
+        description: 'Deploy to TESTEZAZI host'
+        type: boolean
+        default: false
+  push:
+    branches: [ezazi-nepal-changes]
+    paths:
+      - 'portal/**'
+
+# Serialize runs per branch: two pushes (or push + manual dispatch) must not
+# deploy to the same hosts concurrently. New runs queue instead of cancelling
+# an in-flight deploy.
+concurrency:
+  group: portal-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DOCKER_IMAGE_NAME: portal
+
+jobs:
+  prepare-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      build_matrix: ${{ steps.set-matrix.outputs.build_matrix }}
+    steps:
+      - name: Build deployment matrix
+        id: set-matrix
+        run: |
+          # Host -> CPU architecture map. Each arch builds natively on its
+          # matching runner (see build_matrix below).
+          ezazi_arch=amd64
+          testezazi_arch=amd64
+          if [ "${{ github.event_name }}" == "push" ]; then
+            # On push, deploy to all hosts
+            includes='[]'
+            for env in ezazi testezazi; do
+              arch_var="${env}_arch"
+              includes=$(echo "$includes" | jq -c --arg e "$env" --arg a "${!arch_var}" '. += [{"environment":$e,"arch":$a}]')
+            done
+          else
+            # On manual dispatch, deploy only to selected hosts.
+            # NOTE: "inputs.deploy_x" is GitHub expression syntax, not a bash
+            # variable - indirect expansion (${!...}) fails on the dots, so
+            # each input is expanded literally via the case below.
+            includes='[]'
+            for env in ezazi testezazi; do
+              case "$env" in
+                ezazi)     selected="${{ inputs.deploy_ezazi }}" ;;
+                testezazi) selected="${{ inputs.deploy_testezazi }}" ;;
+              esac
+              if [ "$selected" == "true" ]; then
+                arch_var="${env}_arch"
+                includes=$(echo "$includes" | jq -c --arg e "$env" --arg a "${!arch_var}" '. += [{"environment":$e,"arch":$a}]')
+              fi
+            done
+          fi
+          if [ "$includes" == "[]" ]; then
+            echo "No hosts selected. Tick at least one checkbox when running manually."
+            exit 1
+          fi
+          matrix="{\"include\":$includes}"
+          # De-duplicated arch -> runner mapping for the build job.
+          # arm64 builds natively on the ARM64 runner (no QEMU emulation),
+          # amd64 on the standard x64 runner.
+          build_includes=$(echo "$includes" | jq -c '[.[].arch] | unique | map(
+            if . == "arm64" then {arch: ., os: "ubuntu-24.04-arm"}
+            else {arch: ., os: "ubuntu-latest"} end
+          )')
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
+          echo "build_matrix={\"include\":$build_includes}" >> $GITHUB_OUTPUT
+
+  build:
+    needs: prepare-matrix
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix: ${{ fromJson(needs.prepare-matrix.outputs.build_matrix) }}
+      fail-fast: false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: portal/package-lock.json
+
+      - name: Install dependencies
+        run: npm i --production=false
+        working-directory: portal
+
+      - name: Build Docker image (${{ matrix.arch }}, native)
+        run: |
+          cd portal
+          docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} .
+          docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > ../app-image-${{ matrix.arch }}.tar
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: portal-${{ matrix.arch }}
+          path: app-image-${{ matrix.arch }}.tar
+          retention-days: 1
+
+  deploy:
+    needs: [prepare-matrix, build]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJson(needs.prepare-matrix.outputs.matrix) }}
+      fail-fast: false
+    env:
+      REMOTE_PORT: 22
+      ENV_FILE_PATH: /home/ubuntu/deploy/portal/.env
+      PEM_FOLDER_PATH: /home/ubuntu/deploy/portal/.pem
+      EZAZI_HOST: ${{ secrets.EZAZI_HOST }}
+      TESTEZAZI_HOST: ${{ secrets.TESTEZAZI_HOST }}
+      REMOTE_USER: ${{ secrets.DEV_USER }}
+      SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
+    steps:
+      - name: Resolve host for environment
+        run: |
+          case "${{ matrix.environment }}" in
+            ezazi)     host="$EZAZI_HOST" ;;
+            testezazi) host="$TESTEZAZI_HOST" ;;
+            *)         echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
+          esac
+          if [ -z "$host" ]; then
+            echo "Host secret for ${{ matrix.environment }} is empty or missing"
+            exit 1
+          fi
+          echo "REMOTE_HOST=$host" >> $GITHUB_ENV
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan -p $REMOTE_PORT -H "$host" >> ~/.ssh/known_hosts 2>/dev/null
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Download image artifact for ${{ matrix.arch }}
+        uses: actions/download-artifact@v4
+        with:
+          name: portal-${{ matrix.arch }}
+
+      - name: Deploy to ${{ matrix.environment }} host
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          REMOTE_TAR="/tmp/app-image-${{ matrix.environment }}-${{ github.run_id }}.tar"
+          # Upload to a writable temp location first. Writing directly into
+          # /home/ubuntu/deploy/portal can fail if that directory is not writable
+          # by the deploy SSH user.
+          scp -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=yes \
+              -P $REMOTE_PORT \
+              app-image-${{ matrix.arch }}.tar \
+              $REMOTE_USER@$REMOTE_HOST:$REMOTE_TAR
+          # Quoted 'EOF': nothing below is expanded on the runner, so every
+          # shell variable runs on the server. GitHub expressions are still filled in.
+          ssh -T -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=yes \
+              -p $REMOTE_PORT \
+              $REMOTE_USER@$REMOTE_HOST <<'EOF'
+            set -euo pipefail
+            NAME="${{ env.DOCKER_IMAGE_NAME }}"
+            SHA="${{ github.sha }}"
+            ENV_FILE_PATH="${{ env.ENV_FILE_PATH }}"
+            PEM_FOLDER_PATH="${{ env.PEM_FOLDER_PATH }}"
+            REMOTE_TAR="/tmp/app-image-${{ matrix.environment }}-${{ github.run_id }}.tar"
+            TARGET="${{ matrix.environment }}"
+
+            docker load -i "$REMOTE_TAR"
+            rm -f "$REMOTE_TAR"
+
+            # Validate prerequisites BEFORE touching the running container,
+            # so any failure below leaves the current version serving traffic.
+            if [ ! -f "$ENV_FILE_PATH" ]; then
+              echo "Error: .env file not found at $ENV_FILE_PATH"
+              exit 1
+            fi
+            if [ ! -d "$PEM_FOLDER_PATH" ]; then
+              echo "Error: .pem folder not found at $PEM_FOLDER_PATH"
+              exit 1
+            fi
+
+            # Stop and replace the existing container before starting the new image.
+            docker stop "$NAME" || true
+            docker rm "$NAME" || true
+            docker run -d \
+              --name "$NAME" \
+              --restart unless-stopped \
+              -p 3004:3004 \
+              --env-file "$ENV_FILE_PATH" \
+              -v "$PEM_FOLDER_PATH:/app/.pem" \
+              --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
+              "$NAME:$SHA"
+
+            echo "Waiting for $NAME to become healthy..."
+            for i in $(seq 1 30); do
+              state=$(docker inspect --format '{{.State.Status}}' "$NAME" 2>/dev/null || echo missing)
+              health=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$NAME" 2>/dev/null || echo unknown)
+              echo "Attempt $i: state=$state health=$health"
+              # Healthy, or no HEALTHCHECK in the image and still running after ~15s
+              if [ "$health" = "healthy" ] || { [ "$health" = "none" ] && [ "$state" = "running" ] && [ "$i" -ge 3 ]; }; then
+                echo "Portal deployment on $TARGET successful! Ports: $(docker port "$NAME" | tr '\n' ' ')"
+                # Remove older portal:<sha> images (prune -f alone never removes tagged images)
+                docker images "$NAME" --format '{{.Repository}}:{{.Tag}}' | grep -vx "$NAME:$SHA" | xargs -r docker rmi || true
+                docker image prune -f || true
+                exit 0
+              fi
+              sleep 5
+            done
+
+            echo "Portal deployment on $TARGET FAILED - last 100 log lines:"
+            docker logs --tail 100 "$NAME" || true
+            docker inspect --format '{{json .State}}' "$NAME" || true
+            docker image prune -f || true
+            exit 1
+          EOF
