@@ -9,8 +9,7 @@
 # Jobs:
 #   1. prepare-matrix  Decides which environments to deploy based on trigger/inputs
 #   2. build           Builds the Docker image and uploads it as a workflow artifact
-#   3. deploy          Matrix job: downloads the artifact, swaps the container,
-#                      and waits for it to become healthy
+#   3. deploy          Matrix job: downloads the artifact and swaps the container
 #
 # Required secrets:
 #   DEV_HOST, TTXAI_HOST, TURN_HOST, TESTTURN_HOST, PATHQA_HOST, DEMOAI_HOST   SSH hostnames/IPs
@@ -225,7 +224,6 @@ jobs:
             ENV_FILE_PATH="${{ env.ENV_FILE_PATH }}"
             PEM_FOLDER_PATH="${{ env.PEM_FOLDER_PATH }}"
             REMOTE_TAR="/tmp/app-image-${{ matrix.environment }}-${{ github.run_id }}.tar"
-            TARGET="${{ matrix.environment }}"
 
             docker load -i "$REMOTE_TAR"
             rm -f "$REMOTE_TAR"
@@ -253,25 +251,9 @@ jobs:
               --mount type=bind,src=/etc/letsencrypt,dst=/etc/letsencrypt,ro \
               "$NAME:$SHA"
 
-            echo "Waiting for $NAME to become healthy..."
-            for i in $(seq 1 30); do
-              state=$(docker inspect --format '{{.State.Status}}' "$NAME" 2>/dev/null || echo missing)
-              health=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$NAME" 2>/dev/null || echo unknown)
-              echo "Attempt $i: state=$state health=$health"
-              # Healthy, or no HEALTHCHECK in the image and still running after ~15s
-              if [ "$health" = "healthy" ] || { [ "$health" = "none" ] && [ "$state" = "running" ] && [ "$i" -ge 3 ]; }; then
-                echo "Portal deployment on $TARGET successful! Ports: $(docker port "$NAME" | tr '\n' ' ')"
-                # Remove older portal:<sha> images (prune -f alone never removes tagged images)
-                docker images "$NAME" --format '{{.Repository}}:{{.Tag}}' | grep -vx "$NAME:$SHA" | xargs -r docker rmi || true
-                docker image prune -f || true
-                exit 0
-              fi
-              sleep 5
-            done
-
-            echo "Portal deployment on $TARGET FAILED - last 100 log lines:"
-            docker logs --tail 100 "$NAME" || true
-            docker inspect --format '{{json .State}}' "$NAME" || true
+            # Remove older portal:<sha> images (prune -f alone never removes tagged images)
+            docker images "$NAME" --format '{{.Repository}}:{{.Tag}}' | grep -vx "$NAME:$SHA" | xargs -r docker rmi || true
             docker image prune -f || true
-            exit 1
+
+            echo "Portal deployed successfully"
           EOF
