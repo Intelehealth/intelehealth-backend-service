@@ -33,10 +33,11 @@ COPY . .
 # Expose the port your app runs on
 EXPOSE 3004
 
-# The app starts an HTTP server in non-prod mode and exposes /health on the app port.
-# Using HTTPS + / will fail because the healthcheck is probing the wrong protocol/path.
+# The server uses HTTPS in prod mode and HTTP otherwise. Probe the public
+# health endpoint using the same protocol as the app; -k allows local probing
+# when the mounted certificate is issued for the public hostname.
 HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
-  CMD curl -fsS http://127.0.0.1:3004/health || exit 1
+  CMD if [ "$NODE_ENV" = "prod" ]; then curl -kfsS https://127.0.0.1:3004/health; else curl -fsS http://127.0.0.1:3004/health; fi || exit 1
 
 # Start the application
 CMD ["npm", "start"]
