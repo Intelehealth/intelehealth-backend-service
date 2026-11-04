@@ -61,3 +61,11 @@ typings/
 # Production build
 dist/
 /configuration-microservice/dist/
+
+# turn-io cron sent-logs (runtime state, per server)
+turn-io/prescription/.followup-sent.json
+turn-io/prescription/.followup-sent-log.json
+turn-io/prescription/.followup-pending.json
+# Post-consultation survey (IDTP-177): sent-log + one-time bulk marker
+turn-io/prescription/.survey-sent.json
+turn-io/prescription/.survey-bulk-done.json

@@ -52,6 +52,20 @@ module.exports = {
    OPENMRS_CONCEPT_HEIGHT: "5090AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
    OPENMRS_CONCEPT_WEIGHT: "5089AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
 
+   // Person attribute type UUIDs (from HW webapp openmrs_uuids.ts).
+   OPENMRS_PERSON_ATTR: {
+      telephone:         "14d4f066-15f5-102d-96e4-000c29c2a5d7",
+      occupation:        "ecdaadb6-14a0-4ed9-b5b7-cfed87b44b87",
+      sonDaughterWifeOf: "1b2f34f7-2bf8-4ef7-9736-f5b858afc160",
+      caste:             "5a889d96-0c84-4a04-88dc-59a6e37db2d3",
+      education:         "1c718819-345c-4368-aad6-d69b4c267db7",
+      economicStatus:    "f4af0ef3-579c-448a-8157-750283409122",
+      emergContactName:  "9b37e244-2cf5-4bd8-af32-b85ed4f919aa",
+      emergContactNum:   "6c25becf-1bdd-4b2e-98dd-558a4becf4a4",
+      emergContactType:  "5fde1411-801c-49b9-93d4-abeefd8e1164",
+      consent:           "11b990b9-2798-477a-9aad-073e5459f5d3",
+   },
+
    // Visit attribute type UUIDs
    OPENMRS_VISIT_ATTR_SPECIALITY: "3f296939-c6d3-4d2e-b8ca-d7f4bfd42c2d",
    OPENMRS_VISIT_ATTR_COMPLETE_DATETIME: "e76eee5e-9d73-4d07-8f30-16b77e626ccf",

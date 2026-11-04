@@ -4,6 +4,8 @@ const { buildPrescriptionData, hasPrescription, fmtFollowUpDate, getVisitSource 
 const { generatePrescriptionPdf } = require("./pdf");
 const { notifyPrescriptionReady, notifyFollowUpScheduled } = require("./turn");
 const { runFollowUpReminders, getCronInfo, remindersEnabled } = require("./followup-cron");
+const { findPending, markStarted } = require("./followup-pending");
+const { getFollowUpPatient } = require("./followup-patient");
 const { runSurvey, getSurveyCronInfo } = require("./survey-cron");
 const { flushHeldFeedback } = require("../lib/feedback");
 
@@ -188,21 +190,73 @@ router.get("/prescription/:visitUuid.pdf", async (req, res) => {
    }
 });
 
-// Manual trigger for the follow-up reminder cron -- lets Postman/curl run a pass
-// on demand instead of waiting for 09:50. Body: { visit_uuid?, force?, dryRun? }.
+// Manual/bulk trigger for the follow-up reminder cron -- lets Postman/curl run a pass
+// on demand instead of waiting for 09:50. Body: { from?, to?, visit_uuid?, force?, limit?, dryRun? }
+//   bulk, past follow-ups: { "from": "2026-09-01", "to": "2026-11-01", "dryRun": true }
+//   one patient test:      { "visit_uuid": "<uuid>" }
 router.post("/followup/run", async (req, res) => {
    const src = { ...req.query, ...req.body };
    console.log("\n[followup run] received:", JSON.stringify(src));
+   const flag = (v) => v === true || v === "true";
    try {
       const result = await runFollowUpReminders({
          visitUuid: clean(src.visit_uuid || src.visitUuid) || null,
-         force: Boolean(src.force),
-         dryRun: Boolean(src.dryRun),
-         trigger: "manual",
+         from: clean(src.from) || null,
+         to: clean(src.to) || null,
+         force: flag(src.force),
+         limit: Number(src.limit) || 0,
+         dryRun: flag(src.dryRun),
+         trigger: src.from || src.to ? "bulk" : "manual",
       });
-      res.json(result);
+      res.status(result.busy ? 409 : result.ok ? 200 : 400).json(result);
    } catch (err) {
       fail(res, "followup run", err);
+   }
+});
+
+// "Start Follow Up Visit" button tap: the Turn journey posts the patient's WhatsApp
+// number and gets back the patient the reminder was sent for -- in the same
+// { exists, count, next_step, patients: [...] } shape as the patient lookup -- so it
+// can go straight to select_problem -> /visit_push with this patient_uuid (no
+// registration). Body: { whatsapp_id } (or mobile / phone).
+router.post("/followup/start", async (req, res) => {
+   const src = { ...req.query, ...req.body };
+   console.log("\n[followup start] received:", JSON.stringify(src));
+   try {
+      const phone = clean(src.whatsapp_id || src.mobile || src.phone);
+      const pending = phone ? findPending(phone) : null;
+      if (!pending?.patientUuid) {
+         console.warn(`[followup start] no follow-up reminder found for ${phone || "(no phone)"}`);
+         return res.status(404).json({
+            success: false, exists: false, count: 0, next_step: "registration", patients: [],
+            error: "no follow-up reminder was sent to this number",
+         });
+      }
+      markStarted(pending.phone);
+      console.log(`[followup start] ${pending.phone} -> patient ${pending.patientUuid} (previous visit ${pending.visitUuid})`);
+
+      const patient = await getFollowUpPatient(pending.patientUuid, pending.visitUuid);
+      res.json({
+         success: true,
+         exists: true,
+         count: 1,
+         next_step: "select_problem",
+         patients: [patient],
+         follow_up: {
+            previous_visit_uuid: pending.visitUuid,
+            follow_up_date: pending.followUpDate,
+            doctor_name: pending.doctorName,
+         },
+         // Flat fields kept for journeys built on the earlier reply.
+         patient_uuid: pending.patientUuid,
+         patient_name: pending.patientName,
+         openmrs_id: pending.openmrsId,
+         previous_visit_uuid: pending.visitUuid,
+         follow_up_date: pending.followUpDate,
+         doctor_name: pending.doctorName,
+      });
+   } catch (err) {
+      fail(res, "followup start", err);
    }
 });
 

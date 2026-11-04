@@ -15,12 +15,31 @@ const loadStore = () => {
 const saveStore = (store) => fs.writeFileSync(PENDING_STORE_PATH, JSON.stringify(store), "utf8");
 
 // Record (or overwrite) the pending follow-up for this phone number.
-const recordPending = ({ phone, today, patientUuid, patientName, openmrsId, visitUuid, followUpDate, doctorName }) => {
+const recordPending = ({ phone, today, patientUuid, patientName, openmrsId, visitUuid, followUpDate, doctorName, messageId }) => {
    const number = normalizeNumber(phone);
    if (!number) throw new Error("recordPending: phone is required");
 
    const store = loadStore();
-   store[number] = { recordedAt: today, patientUuid, patientName, openmrsId, visitUuid, followUpDate, doctorName };
+   store[number] = { recordedAt: today, patientUuid, patientName, openmrsId, visitUuid, followUpDate, doctorName, messageId };
+   saveStore(store);
+};
+
+// The pending follow-up for a WhatsApp number. Portal-registered numbers are often
+// stored without the country code, so a 91-prefixed reply also matches the 10-digit key.
+const findPending = (phone) => {
+   const number = normalizeNumber(phone);
+   if (!number) return null;
+   const store = loadStore();
+   const key = [number, number.replace(/^91(?=\d{10}$)/, ""), `91${number}`].find((k) => store[k]);
+   return key ? { phone: key, ...store[key] } : null;
+};
+
+// Stamp when the patient tapped "Start follow-up" (kept for tracking, not cleared,
+// so a journey retry still finds the patient).
+const markStarted = (phone) => {
+   const store = loadStore();
+   if (!store[phone]) return;
+   store[phone] = { ...store[phone], startedAt: new Date().toISOString() };
    saveStore(store);
 };
 
@@ -34,4 +53,4 @@ const daysBetween = (from, to) => {
    return Math.round((b.getTime() - a.getTime()) / 86_400_000);
 };
 
-module.exports = { recordPending, daysBetween };
+module.exports = { recordPending, findPending, markStarted, daysBetween };

@@ -15,7 +15,7 @@ const path = require("path");
 const cron = require("node-cron");
 const { getVisit, getCompletedVisits } = require("./openmrs");
 const { buildPrescriptionData } = require("./data");
-const { notifyPostConsultationSurvey, normalizeNumber } = require("./turn");
+const { notifyPostConsultationSurvey, toWhatsAppNumber } = require("./turn");
 
 const CRON_SCHEDULE = process.env.SURVEY_CRON_SCHEDULE || "0 10 * * *"; // 10:00 daily
 const CRON_TIMEZONE = "Asia/Kolkata";
@@ -60,12 +60,6 @@ const fmtSurveyDate = (isoDate) => {
 const titleCase = (s) =>
    String(s || "").split(/\s+/).filter((w) => w && w !== ".").join(" ")
       .toLowerCase().replace(/\b\p{L}/gu, (c) => c.toUpperCase());
-
-// Portal-registered numbers are often 10 digits; WhatsApp needs the country code.
-const toWhatsAppNumber = (phone) => {
-   const digits = normalizeNumber(phone);
-   return digits.length === 10 ? `91${digits}` : digits;
-};
 
 // Date the prescription was first shared: earliest Visit Complete encounter.
 const prescriptionDateOf = (item) => {

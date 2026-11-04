@@ -38,6 +38,30 @@ const getVisitAttributes = async (visitUuid) => {
    return data?.attributes || [];
 };
 
+// Patient demographics for the follow-up "Start" reply (same fields registration writes).
+const PATIENT_CUSTOM_REP =
+   "custom:(uuid,identifiers:(identifier,identifierType:(name,display))," +
+   "person:(gender,age,birthdate,preferredName:(givenName,middleName,familyName)," +
+   "preferredAddress:(address1,address2,address3,cityVillage,countyDistrict,stateProvince,postalCode,country)," +
+   "attributes:(value,attributeType:(uuid))))";
+
+const getPatient = async (patientUuid) => {
+   const { data } = await openmrsGet(`/patient/${patientUuid}`, { v: PATIENT_CUSTOM_REP });
+   return data;
+};
+
+// Start/stop times of one visit (VISIT_CUSTOM_REP leaves them out).
+const getVisitDates = async (visitUuid) => {
+   const { data } = await openmrsGet(`/visit/${visitUuid}`, { v: "custom:(uuid,startDatetime,stopDatetime)" });
+   return data;
+};
+
+// Whether the patient has any visit that hasn't been stopped.
+const hasActiveVisit = async (patientUuid) => {
+   const { data } = await openmrsGet("/visit", { patient: patientUuid, includeInactive: false, v: "custom:(uuid)" });
+   return (data?.results || []).length > 0;
+};
+
 // Fetching Follow-ups from mindmap service
 // (GET /obs?concept=... returns nothing on this server, for any concept).
 const AUTH_GATEWAY_URL = (process.env.AUTH_GATEWAY_URL || "").replace(/\/+$/, "");
@@ -133,4 +157,6 @@ const getFollowUpVisits = () => getMindmapVisits("getFollowUpVisits", { tag: "[f
 const getCompletedVisits = (opts = {}) =>
    getMindmapVisits("getCompletedVisits", { tag: "[survey mindmap]", ...opts });
 
-module.exports = { getVisit, getVisitAttributes, getFollowUpVisits, getCompletedVisits };
+module.exports = {
+   getVisit, getVisitAttributes, getPatient, getVisitDates, hasActiveVisit, getFollowUpVisits, getCompletedVisits,
+};
