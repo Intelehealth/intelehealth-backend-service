@@ -11,6 +11,9 @@ const voicedoc = require('../services/voicedoc');
 const { encryptChunk, importPublicKey } = require('../services/voicedoc/encryption');
 const service = require('../services/voicedoc.service');
 const flags = require('../services/voicedoc/flags');
+const openmrs = require('../services/voicedoc/openmrs');
+
+flags.setNoteOverride(async () => false);
 
 const { subtle } = webcrypto;
 
@@ -66,6 +69,10 @@ describe('buildRecordingName', () => {
   test('falls back to UNKNOWN when the patient is missing', () => {
     const now = new Date('2026-10-30T04:35:00Z');
     assert.equal(voicedoc.buildRecordingName('', 'vid-2', 'Asia/Kolkata', now), 'MR-UNKNOWN_vid-2 Oct 30 2026 10:05 AM');
+  });
+  test('visitSummaryName strips the timestamp', () => {
+    assert.equal(voicedoc.visitSummaryName('MR-pid-1_vid-2 Oct 30 2026 10:05 AM'), 'MR-pid-1_vid-2');
+    assert.equal(voicedoc.visitSummaryName(''), null);
   });
 });
 
@@ -350,9 +357,110 @@ describe('voicedoc.service', () => {
     service.setChunkModel(null);
     voicedoc.setClient(null);
     flags.setOverride(null);
+    flags.setNoteOverride(async () => false);
+    openmrs.setHttp(null);
   });
 
   const session = () => service.createSession({ visitUuid: 'visit-1', patientUuid: 'patient-1', doctorUuid: 'doctor-1' });
+
+  const VISIT_NOTE = 'd7151f82-c1f3-4152-a605-2f9ea7414a79';
+  const openmrsHttp = (encounters, calls, obsState = {}) => ({
+    async get(url) {
+      calls.push(['GET', url]);
+      if (url.includes('/visit/')) return { data: { uuid: 'visit-1', encounters } };
+      const uuid = url.split('/obs/')[1].split('?')[0];
+      if (!obsState[uuid]) throw Object.assign(new Error('nf'), { response: { status: 404 } });
+      return { data: { uuid, voided: obsState[uuid] === 'voided' } };
+    },
+    async post(url, body) {
+      calls.push(['POST', url, body]);
+      const uuid = `obs-${calls.filter((c) => c[0] === 'POST').length}`;
+      obsState[uuid] = 'live';
+      return { data: { uuid } };
+    },
+  });
+  const finished = async () => {
+    const { sessionId } = await session();
+    await service.enqueueChunk(sessionId, Buffer.from('one'), 1);
+    await service.endSession(sessionId);
+    await waitForStatus(model, sessionId, ['done', 'empty', 'error']);
+    for (let i = 0; i < 50 && !model.rows.get(sessionId).note_status; i++) await new Promise((r) => setTimeout(r, 5));
+    return model.rows.get(sessionId);
+  };
+
+  test('finalize stores the summary of all visit recordings and skips the note when autofill is off', async () => {
+    const calls = [];
+    openmrs.setHttp(openmrsHttp([], calls));
+    const row = await finished();
+    assert.equal(row.status, 'done');
+    assert.ok(row.visit_summary.length > 0);
+    assert.equal(row.visit_summary_response.visits_found, 1);
+    assert.ok(row.visit_summary_at instanceof Date);
+    assert.equal(row.note_status, 'disabled');
+    assert.equal(calls.length, 0);
+    const detail = await service.getTranscript(row.id);
+    assert.equal(detail.visitSummary, row.visit_summary);
+    assert.equal(detail.noteStatus, 'disabled');
+  });
+
+  test('saves the visit summary as a doctor note on the latest visit note encounter, then updates that note', async () => {
+    flags.setNoteOverride(async () => true);
+    const calls = [];
+    const obsState = {};
+    openmrs.setHttp(openmrsHttp([
+      { uuid: 'enc-old', voided: false, encounterDatetime: '2026-11-04T09:00:00Z', encounterType: { uuid: VISIT_NOTE } },
+      { uuid: 'enc-voided', voided: true, encounterDatetime: '2026-11-04T11:00:00Z', encounterType: { uuid: VISIT_NOTE } },
+      { uuid: 'enc-other', voided: false, encounterDatetime: '2026-11-04T12:00:00Z', encounterType: { uuid: 'adult-initial' } },
+      { uuid: 'enc-1', voided: false, encounterDatetime: '2026-11-04T10:00:00Z', encounterType: { uuid: VISIT_NOTE } },
+    ], calls, obsState));
+
+    const first = await finished();
+    assert.equal(first.note_status, 'saved');
+    assert.equal(first.note_obs_uuid, 'obs-1');
+    const [, url, body] = calls.find((c) => c[0] === 'POST');
+    assert.equal(url, '/openmrs/ws/rest/v1/obs');
+    assert.equal(body.concept, '162169AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
+    assert.equal(body.person, 'patient-1');
+    assert.equal(body.encounter, 'enc-1');
+    assert.equal(body.value, first.visit_summary);
+
+    const second = await finished();
+    assert.equal(second.visit_summary_response.visits_found, 2);
+    assert.equal(second.note_status, 'updated');
+    const update = calls.filter((c) => c[0] === 'POST')[1];
+    assert.equal(update[1], '/openmrs/ws/rest/v1/obs/obs-1');
+    assert.deepEqual(update[2], { value: second.visit_summary });
+    assert.equal(second.note_obs_uuid, 'obs-2');
+
+    obsState['obs-2'] = 'voided';
+    const third = await finished();
+    assert.equal(third.note_status, 'saved');
+    assert.equal(calls.filter((c) => c[0] === 'POST')[2][1], '/openmrs/ws/rest/v1/obs');
+  });
+
+  test('records no_encounter when the visit has no visit note encounter', async () => {
+    flags.setNoteOverride(async () => true);
+    openmrs.setHttp(openmrsHttp([], []));
+    const row = await finished();
+    assert.equal(row.note_status, 'no_encounter');
+    assert.equal(row.note_obs_uuid, undefined);
+  });
+
+  test('regenerateVisitSummary validates the transcript and maps VoiceDoc failures to 502', async () => {
+    openmrs.setHttp(openmrsHttp([], []));
+    await assert.rejects(service.regenerateVisitSummary('999'), { status: 404 });
+    await assert.rejects(service.regenerateVisitSummary('abc'), { status: 404 });
+    const pendingSession = await session();
+    await assert.rejects(service.regenerateVisitSummary(pendingSession.sessionId), { status: 409 });
+    const row = await finished();
+    const detail = await service.regenerateVisitSummary(row.id);
+    assert.ok(detail.visitSummary.length > 0);
+    voicedoc.setClient({
+      prepare: async () => {},
+      patientVisitSummary: async () => { throw Object.assign(new Error('bad'), { status: 400 }); },
+    });
+    await assert.rejects(service.regenerateVisitSummary(row.id), { status: 502, code: 'VOICEDOC_VISIT_SUMMARY_FAILED' });
+  });
 
   test('create, two chunks, end and finalize yields done with a transcript', async () => {
     const { sessionId, chunkId, name } = await session();
@@ -667,5 +775,96 @@ describe('chunk tracking and raw responses', () => {
     assert.equal(row.chunks_uploaded, 2);
     assert.equal(row.chunks_failed, 0);
     await assert.rejects(service.enqueueChunk(sessionId, wavOf(1), 3, {}), { status: 409 });
+  });
+});
+
+describe('per-doctor VoiceDoc accounts', () => {
+  let model;
+  let made;
+
+  const factory = ({ failLogin = [] } = {}) => (account) => {
+    const client = new voicedoc.MockVoiceDocClient({ delayScale: 0 });
+    client.account = account || 'shared';
+    client.logins = 0;
+    client.ensureSession = async () => {
+      client.logins++;
+      if (failLogin.includes(account)) throw Object.assign(new Error('VoiceDoc login failed (401): Incorrect Email Id or Password'), { status: 401 });
+    };
+    for (const method of ['uploadChunk', 'endStream', 'uploadCombinedAudio', 'patientVisitSummary']) {
+      const original = client[method].bind(client);
+      client[method] = async (...args) => {
+        made.push([client.account, method]);
+        return original(...args);
+      };
+    }
+    return client;
+  };
+
+  beforeEach(() => {
+    made = [];
+    model = stubModel();
+    service.setModel(model);
+    service.setChunkModel(chunkStub());
+    flags.setOverride(async () => true);
+  });
+
+  afterEach(() => {
+    service.setModel(null);
+    service.setChunkModel(null);
+    voicedoc.setClientFactory(null);
+    voicedoc.setClient(null);
+    flags.setOverride(null);
+    delete process.env.VOICEDOC_DOCTOR_ACCOUNTS;
+  });
+
+  const record = async (userId) => {
+    const { sessionId } = await service.createSession({ visitUuid: 'visit-1', patientUuid: 'patient-1', doctorUuid: 'doctor-1', userId });
+    await service.enqueueChunk(sessionId, Buffer.from('one'), 1);
+    await service.endSession(sessionId);
+    await waitForStatus(model, sessionId, ['done', 'empty', 'error']);
+    for (let i = 0; i < 50 && !model.rows.get(sessionId).visit_summary_at; i++) await new Promise((r) => setTimeout(r, 5));
+    return model.rows.get(sessionId);
+  };
+
+  test('doctorAccount builds <userId>@intelehealth.org', () => {
+    assert.equal(voicedoc.doctorAccount('u-1'), 'u-1@intelehealth.org');
+    assert.equal(voicedoc.doctorAccount(''), null);
+  });
+
+  test('a session runs every VoiceDoc call through the doctor account', async () => {
+    voicedoc.setClientFactory(factory());
+    const row = await record('user-1');
+    assert.equal(row.status, 'done');
+    assert.equal(row.voicedoc_account, 'user-1@intelehealth.org');
+    assert.ok(made.length >= 4);
+    assert.ok(made.every(([account]) => account === 'user-1@intelehealth.org'));
+    assert.ok(row.visit_summary);
+    assert.equal((await service.getTranscript(row.id)).voicedocAccount, 'user-1@intelehealth.org');
+  });
+
+  test('falls back to the shared account when the doctor login fails, and does not retry the login right away', async () => {
+    const make = factory({ failLogin: ['user-2@intelehealth.org'] });
+    const created = [];
+    voicedoc.setClientFactory((account) => {
+      const c = make(account);
+      created.push(c);
+      return c;
+    });
+    const row = await record('user-2');
+    assert.equal(row.status, 'done');
+    assert.equal(row.voicedoc_account, null);
+    assert.ok(made.every(([account]) => account === 'shared'));
+    await record('user-2');
+    const doctorClients = created.filter((c) => c.account === 'user-2@intelehealth.org');
+    assert.equal(doctorClients.length, 1);
+    assert.equal(doctorClients[0].logins, 1);
+  });
+
+  test('uses the shared account without a user id or when VOICEDOC_DOCTOR_ACCOUNTS=false', async () => {
+    voicedoc.setClientFactory(factory());
+    assert.equal((await record(undefined)).voicedoc_account, null);
+    process.env.VOICEDOC_DOCTOR_ACCOUNTS = 'false';
+    assert.equal((await record('user-3')).voicedoc_account, null);
+    assert.ok(made.every(([account]) => account === 'shared'));
   });
 });

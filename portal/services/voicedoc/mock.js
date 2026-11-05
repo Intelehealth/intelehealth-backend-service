@@ -56,6 +56,16 @@ class MockVoiceDocClient {
     return { message: 'Audio Uploaded Successfully' };
   }
 
+  async patientVisitSummary(name) {
+    await sleep(500 * this.delayScale);
+    const visits = this.recordings.map((r) => Object.keys(r)[0]).filter((key) => key.split(' ')[0] === name);
+    return {
+      overall_summary: visits.length ? 'The patient reported four days of fever with evening chills and a dry cough. A malaria test and CBC were ordered, paracetamol was advised, and a review was planned after three days.' : '',
+      visits_found: visits.length,
+      visits,
+    };
+  }
+
   async listRecordings() {
     return { jsons: this.recordings };
   }

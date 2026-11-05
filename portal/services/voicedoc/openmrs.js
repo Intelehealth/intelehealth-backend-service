@@ -6,6 +6,8 @@ const ADMIN_TTL_MS = 5 * 60 * 1000;
 const LOOKUP_TTL_MS = 10 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 8000;
 const REST = '/openmrs/ws/rest/v1';
+const NOTE_CONCEPT = '162169AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+const VISIT_NOTE_ENCOUNTER_TYPES = ['d7151f82-c1f3-4152-a605-2f9ea7414a79', '086f323a-b90b-49aa-a3ca-fb9ed8ab7426'];
 
 let httpOverride = null;
 const caches = new Map();
@@ -58,6 +60,11 @@ function cached(name, key, ttlMs, load) {
 
 async function get(path) {
   const res = await getHttp().get(`${REST}${path}`, { timeout: REQUEST_TIMEOUT_MS });
+  return res.data;
+}
+
+async function post(path, body) {
+  const res = await getHttp().post(`${REST}${path}`, body, { timeout: REQUEST_TIMEOUT_MS });
   return res.data;
 }
 
@@ -128,6 +135,39 @@ function personName(uuid) {
   });
 }
 
+async function findVisitNoteEncounter(visitUuid) {
+  const data = await get(`/visit/${encodeURIComponent(visitUuid)}?v=custom:(uuid,encounters:(uuid,voided,encounterDatetime,encounterType:(uuid)))`);
+  const encounters = (Array.isArray(data && data.encounters) ? data.encounters : [])
+    .filter((e) => e && !e.voided && VISIT_NOTE_ENCOUNTER_TYPES.includes(e.encounterType && e.encounterType.uuid))
+    .sort((a, b) => new Date(b.encounterDatetime || 0) - new Date(a.encounterDatetime || 0));
+  return encounters.length ? encounters[0].uuid : null;
+}
+
+async function liveObs(uuid) {
+  try {
+    const obs = await get(`/obs/${encodeURIComponent(uuid)}?v=custom:(uuid,voided)`);
+    return obs && !obs.voided ? obs : null;
+  } catch (err) {
+    if (isNotFound(err)) return null;
+    throw err;
+  }
+}
+
+async function upsertNote({ patientUuid, encounterUuid, value, obsUuid }) {
+  if (obsUuid && await liveObs(obsUuid)) {
+    const updated = await post(`/obs/${encodeURIComponent(obsUuid)}`, { value });
+    return { uuid: (updated && updated.uuid) || obsUuid, updated: true };
+  }
+  const created = await post('/obs', {
+    concept: NOTE_CONCEPT,
+    person: patientUuid,
+    obsDatetime: new Date().toISOString(),
+    value,
+    encounter: encounterUuid,
+  });
+  return { uuid: created && created.uuid, updated: false };
+}
+
 async function resolveNames(rows) {
   const unique = (values) => [...new Set(values.filter(Boolean))];
   const patients = unique(rows.map((r) => r.patient_id));
@@ -144,6 +184,8 @@ async function resolveNames(rows) {
 
 module.exports = {
   ADMIN_ROLE,
+  NOTE_CONCEPT,
+  VISIT_NOTE_ENCOUNTER_TYPES,
   setHttp,
   clearCaches,
   hasAdminRole,
@@ -151,4 +193,6 @@ module.exports = {
   patient,
   personName,
   resolveNames,
+  findVisitNoteEncounter,
+  upsertNote,
 };

@@ -184,6 +184,13 @@ class VoiceDocClient {
     }, COMBINED_AUDIO_TIMEOUT_MS);
   }
 
+  patientVisitSummary(name) {
+    return this.request('POST', `${this.cfg.coreBaseUrl}/api/patient-visit-summary`, {
+      email: this.cfg.email,
+      name,
+    }, this.cfg.endStreamTimeoutMs || DEFAULT_END_STREAM_TIMEOUT_MS);
+  }
+
   listRecordings() {
     return this.request('POST', `${this.cfg.coreBaseUrl}/api/json`, { email: this.cfg.email });
   }
