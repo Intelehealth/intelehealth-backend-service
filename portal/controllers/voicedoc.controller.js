@@ -37,7 +37,8 @@ const createSession = async (req, res) => {
     return res.status(400).json({ success: false, message: MESSAGES.missingFields });
   }
   try {
-    const data = await voicedocService.createSession({ visitUuid, patientUuid, doctorUuid, chwUuid, roomId, language, source });
+    const userId = req.user && req.user.data && req.user.data.userId;
+    const data = await voicedocService.createSession({ visitUuid, patientUuid, doctorUuid, chwUuid, roomId, language, source, userId });
     return res.status(201).json({ success: true, data });
   } catch (err) {
     return sendError(res, err, '/voicedoc/sessions');
@@ -120,4 +121,14 @@ const getTranscript = async (req, res) => {
   }
 };
 
-module.exports = { createSession, uploadChunk, endSession, getByVisit, requireAdmin, listTranscripts, getTranscript };
+const regenerateVisitSummary = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const data = await voicedocService.regenerateVisitSummary(id);
+    return res.status(200).json({ success: true, data });
+  } catch (err) {
+    return sendError(res, err, `/voicedoc/transcripts/${id}/visit-summary`);
+  }
+};
+
+module.exports = { createSession, uploadChunk, endSession, getByVisit, requireAdmin, listTranscripts, getTranscript, regenerateVisitSummary };

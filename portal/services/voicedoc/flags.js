@@ -11,6 +11,7 @@ let cached = null;
 let nextFetchAt = 0;
 let inflight = null;
 let override = null;
+let noteOverride = null;
 
 function toBool(value) {
   if (typeof value === 'boolean') return value;
@@ -91,6 +92,18 @@ async function isRecordingEnabled(source) {
   return Boolean(flags && flags.section && flags[`record_transcribe_${source}`] === true);
 }
 
+async function isNoteAutofillEnabled() {
+  if (noteOverride) {
+    return noteOverride();
+  }
+  const flags = await getFlags();
+  return Boolean(flags && flags.section && flags.autofill_doctor_notes === true);
+}
+
+function setNoteOverride(fn) {
+  noteOverride = fn;
+}
+
 function setOverride(fn) {
   override = fn;
 }
@@ -109,6 +122,8 @@ module.exports = {
   parseFlags,
   getFlags,
   isRecordingEnabled,
+  isNoteAutofillEnabled,
   setOverride,
+  setNoteOverride,
   reset,
 };

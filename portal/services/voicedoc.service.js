@@ -180,10 +180,20 @@ function chunkUpdate(sessionId, chunkNumber, values) {
   }));
 }
 
-async function createSession({ visitUuid, patientUuid, doctorUuid, chwUuid, roomId, language, source }) {
+async function sessionAccount(userId) {
+  try {
+    return await voicedoc.resolveAccount(userId);
+  } catch (err) {
+    logStream('error', `VoiceDoc login as ${err.account} failed, using the shared account: ${err.message}`, 'VoiceDoc');
+    return null;
+  }
+}
+
+async function createSession({ visitUuid, patientUuid, doctorUuid, chwUuid, roomId, language, source, userId }) {
   const origin = normaliseSource(source);
   await assertEnabled(origin);
   const cfg = voicedoc.getConfig();
+  const account = await sessionAccount(userId);
   const chunkId = crypto.randomBytes(16).toString('hex');
   const name = voicedoc.buildRecordingName(patientUuid, visitUuid, cfg.timeZone);
   const row = await getModel().create({
@@ -196,6 +206,7 @@ async function createSession({ visitUuid, patientUuid, doctorUuid, chwUuid, room
     chunk_id: chunkId,
     recording_name: name,
     language: language || cfg.language,
+    voicedoc_account: account,
     status: 'recording',
     started_at: new Date(),
   });
@@ -204,7 +215,7 @@ async function createSession({ visitUuid, patientUuid, doctorUuid, chwUuid, room
 
 async function uploadJob(row, buffer, chunkNumber, onAttempt = () => {}) {
   const cfg = voicedoc.getConfig();
-  const client = voicedoc.getClient();
+  const client = voicedoc.getClient(row.voicedoc_account);
   const encrypt = cfg.encryptAudio;
   if (encrypt && typeof client.prepare === 'function') {
     await voicedoc.withRetry(() => client.prepare({ encrypt }));
@@ -264,7 +275,7 @@ async function enqueueChunk(sessionId, buffer, chunkNumber, meta = {}) {
   let attempts = 0;
   const received = Model.increment('chunks_received', where);
   const job = received
-    .then(() => voicedoc.runInLane(() => uploadJob(row, buffer, chunkNumber, () => { attempts++; })))
+    .then(() => voicedoc.runInLane(() => uploadJob(row, buffer, chunkNumber, () => { attempts++; }), row.voicedoc_account))
     .then(
       (response) => Promise.all([
         Model.increment('chunks_uploaded', where),
@@ -319,7 +330,7 @@ async function finalize(sessionId) {
       return;
     }
 
-    const client = voicedoc.getClient();
+    const client = voicedoc.getClient(row.voicedoc_account);
     const language = row.language || voicedoc.getConfig().language;
     let response;
     try {
@@ -328,7 +339,7 @@ async function finalize(sessionId) {
         name: row.recording_name,
         fields: voicedoc.DEFAULT_FIELDS,
         language,
-      }));
+      }), row.voicedoc_account);
     } catch (err) {
       if (err.body !== undefined && err.body !== null) {
         err.rawResponse = jsonColumn(err.body);
@@ -344,13 +355,16 @@ async function finalize(sessionId) {
     }
 
     try {
-      const audio = await voicedoc.runInLane(() => client.uploadCombinedAudio({ chunkId: row.chunk_id, name: row.recording_name }));
+      const audio = await voicedoc.runInLane(() => client.uploadCombinedAudio({ chunkId: row.chunk_id, name: row.recording_name }), row.voicedoc_account);
       await Model.update({ combined_audio_response: jsonColumn(audio) }, where);
     } catch (err) {
       logStream('error', `VoiceDoc combined audio for session ${sessionId} failed: ${err.message}`, 'VoiceDoc');
       const message = `Combined audio was not saved: ${err.message}`;
       await Model.update({ error: row.error ? `${row.error}\n${message}` : message, combined_audio_response: errorColumn(err) }, where);
     }
+    await generateVisitSummary(plain(await Model.findByPk(sessionId))).catch((err) => {
+      logStream('error', `VoiceDoc visit summary of session ${sessionId} failed: ${err.message}`, 'VoiceDoc');
+    });
   } catch (err) {
     logStream('error', `VoiceDoc finalize of session ${sessionId} failed: ${err.message}`, 'VoiceDoc');
     const values = { status: 'error', error: err.message };
@@ -563,8 +577,94 @@ async function getTranscript(id) {
     summary,
     rawResponse: parseStoredJson(row.raw_response),
     combinedAudioResponse: parseStoredJson(row.combined_audio_response),
+    voicedocAccount: row.voicedoc_account || null,
+    visitSummary: row.visit_summary ?? null,
+    visitSummaryResponse: parseStoredJson(row.visit_summary_response),
+    visitSummaryAt: row.visit_summary_at || null,
+    noteObsUuid: row.note_obs_uuid || null,
+    noteStatus: row.note_status || null,
+    noteError: row.note_error || null,
     chunks,
   };
+}
+
+async function previousNoteObs(row) {
+  const rows = await getModel().findAll({
+    where: { visit_id: row.visit_id },
+    attributes: ['id', 'note_obs_uuid'],
+    order: [['id', 'DESC']],
+  });
+  const prior = rows.map(plain)
+    .filter((r) => r.id !== row.id && r.note_obs_uuid)
+    .sort((a, b) => b.id - a.id)[0];
+  return prior ? prior.note_obs_uuid : null;
+}
+
+async function saveNote(row, summary) {
+  const where = { where: { id: row.id } };
+  if (!(await flags.isNoteAutofillEnabled())) {
+    await getModel().update({ note_status: 'disabled', note_error: null }, where);
+    return;
+  }
+  try {
+    const encounterUuid = await openmrs.findVisitNoteEncounter(row.visit_id);
+    if (!encounterUuid) {
+      await getModel().update({ note_status: 'no_encounter', note_error: 'The visit has no visit note encounter yet.' }, where);
+      return;
+    }
+    const obsUuid = row.note_obs_uuid || await previousNoteObs(row);
+    const saved = await openmrs.upsertNote({ patientUuid: row.patient_id, encounterUuid, value: summary, obsUuid });
+    await getModel().update({ note_obs_uuid: saved.uuid || null, note_status: saved.updated ? 'updated' : 'saved', note_error: null }, where);
+  } catch (err) {
+    const detail = err.response && err.response.data ? JSON.stringify(err.response.data).slice(0, 500) : err.message;
+    logStream('error', `VoiceDoc doctor note for transcript ${row.id} failed: ${detail}`, 'VoiceDoc');
+    await getModel().update({ note_status: 'error', note_error: detail }, where);
+  }
+}
+
+async function generateVisitSummary(row) {
+  const where = { where: { id: row.id } };
+  const name = voicedoc.visitSummaryName(row.recording_name);
+  if (!name) {
+    return null;
+  }
+  const client = voicedoc.getClient(row.voicedoc_account);
+  let response;
+  try {
+    response = await voicedoc.runInLane(() => voicedoc.withRetry(async () => {
+      await client.prepare({ encrypt: false });
+      return client.patientVisitSummary(name);
+    }, 3), row.voicedoc_account);
+  } catch (err) {
+    logStream('error', `VoiceDoc visit summary for ${name} failed: ${err.message}`, 'VoiceDoc');
+    await getModel().update({ visit_summary_response: errorColumn(err), visit_summary_at: new Date() }, where);
+    return null;
+  }
+  const summary = String((response && response.overall_summary) || '').trim();
+  await getModel().update({ visit_summary: summary || null, visit_summary_response: jsonColumn(response), visit_summary_at: new Date() }, where);
+  if (summary) {
+    await saveNote(row, summary);
+  }
+  return summary;
+}
+
+async function regenerateVisitSummary(id) {
+  const raw = String(id ?? '');
+  if (!/^\d+$/.test(raw)) {
+    throw httpError(404, 'Transcript not found.');
+  }
+  const row = plain(await getModel().findByPk(raw));
+  if (!row || !voicedoc.visitSummaryName(row.recording_name)) {
+    throw httpError(404, 'Transcript not found.');
+  }
+  if (row.status !== 'done') {
+    throw httpError(409, 'The visit summary is available once the transcript is done.');
+  }
+  const summary = await generateVisitSummary(row);
+  if (summary === null) {
+    throw httpError(502, 'VoiceDoc visit summary is unavailable. Try again later.', 'VOICEDOC_VISIT_SUMMARY_FAILED');
+  }
+  return getTranscript(raw);
 }
 
 module.exports = {
@@ -583,4 +683,6 @@ module.exports = {
   parseListQuery,
   listTranscripts,
   getTranscript,
+  generateVisitSummary,
+  regenerateVisitSummary,
 };

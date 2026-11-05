@@ -36,6 +36,7 @@ module.exports = (sequelize, DataTypes) => {
       unique: true
     },
     recording_name: DataTypes.STRING(191),
+    voicedoc_account: DataTypes.STRING(191),
     language: DataTypes.STRING(40),
     status: {
       type: DataTypes.STRING(20),
@@ -61,6 +62,12 @@ module.exports = (sequelize, DataTypes) => {
     summary: DataTypes.JSON,
     raw_response: DataTypes.JSON,
     combined_audio_response: DataTypes.JSON,
+    visit_summary: DataTypes.TEXT('long'),
+    visit_summary_response: DataTypes.JSON,
+    visit_summary_at: DataTypes.DATE,
+    note_obs_uuid: DataTypes.STRING(36),
+    note_status: DataTypes.STRING(20),
+    note_error: DataTypes.TEXT,
     error: DataTypes.TEXT,
     started_at: DataTypes.DATE,
     ended_at: DataTypes.DATE

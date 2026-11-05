@@ -54,6 +54,8 @@ function loadConfig() {
     helperBaseUrl: envValue('VOICEDOC_HELPER_URL') || 'https://intelehealth-helper-service-tyohwkctkq-el.a.run.app',
     email: envValue('VOICEDOC_EMAIL'),
     password: envValue('VOICEDOC_PASSWORD'),
+    doctorAccounts: envBool('VOICEDOC_DOCTOR_ACCOUNTS', true),
+    doctorLoginRetryMs: envInt('VOICEDOC_DOCTOR_LOGIN_RETRY_MS', 10 * 60 * 1000),
     mock: envBool('VOICEDOC_MOCK', false),
     forceLogin: envBool('VOICEDOC_FORCE_LOGIN', true),
     encryptAudio: envBool('VOICEDOC_ENCRYPT_AUDIO', true),
