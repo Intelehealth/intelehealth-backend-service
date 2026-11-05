@@ -23,6 +23,7 @@ import { AILLM } from '@src/models/mst_ai_llm';
 import { AILLMRecording } from '@src/models/mst_ai_llm_recording';
 import { AILLMVoiceTranscript } from '@src/models/mst_ai_llm_voice_transcript';
 import { HomeScreen } from '@src/models/mst_home_screen.model';
+import { PrescriptionNotes } from '@src/models/mst_prescription_notes.model';
 
 // Create a new Sequelize instance with the connection configuration
 const connection = new Sequelize({

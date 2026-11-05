@@ -1,3 +1,5 @@
+import './instrument';
+import * as Sentry from '@sentry/node';
 import * as dotenv from 'dotenv';
 dotenv.config();
 import express from 'express';
@@ -9,7 +11,6 @@ import * as http from 'http';
 import * as https from 'https';
 const cors = require('cors');
 const db = require("./models");
-const Dummy = 'dummy';
 
 class Server {
     app: express.Application;
@@ -79,7 +80,10 @@ class Server {
         // Ensure table is created
         db.sequelize.sync().then(() => {
             console.log("Session table synced.");
-        }).catch((err: any) => console.error("Sync error:", err));
+        }).catch((err: any) => {
+            console.error("Sync error:", err);
+            Sentry.captureException(err);
+        });
     }
 
     init() {
@@ -89,6 +93,7 @@ class Server {
         }));
 
         this.app.use('/api', IndexRouter);
+        Sentry.setupExpressErrorHandler(this.app);
     }
 };
 

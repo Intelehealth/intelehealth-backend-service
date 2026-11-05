@@ -65,8 +65,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
-    outputs:
-      migrations_changed: ${{ steps.check-migrations.outputs.changed }}
+   
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

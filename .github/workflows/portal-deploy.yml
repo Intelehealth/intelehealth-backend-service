@@ -16,20 +16,20 @@
 #   DEV_USER                SSH username
 #   DEV_SSH_KEY             SSH private key
 #
-# To add a new host: add a secret for the hostname, map it in the deploy job env block,
-# add a case in "Resolve host", add a boolean input, and add it to the push matrix.
+# Optional: create a GitHub Environment named "nasprod" (Settings → Environments)
+# with "Required reviewers" so production deploys need manual approval.
 
 name: Portal Deploy
 
 on:
   workflow_dispatch:
     inputs:
-      deploy_dev:
-        description: 'Deploy to DEV host'
+      deploy_nasstaging:
+        description: 'Deploy to NAS Staging host'
         type: boolean
-        default: false
-      deploy_ttxai:
-        description: 'Deploy to TTXAI host'
+        default: true
+      deploy_nasprod:
+        description: 'Deploy to NAS Prod host'
         type: boolean
         default: false
       deploy_turn:
@@ -49,26 +49,27 @@ on:
         type: boolean
         default: false
   push:
-    branches: [development_master]
+    branches: [nas-ida5-development-master]
     paths:
       - 'portal/**'
+      - '.github/workflows/portal-deploy.yml'
 
-# Serialize runs per branch: two pushes (or push + manual dispatch) must not
-# deploy to the same hosts concurrently. New runs queue instead of cancelling
-# an in-flight deploy.
+# Serialize runs: two pushes (or push + manual dispatch) must not deploy
+# concurrently. New runs queue instead of cancelling an in-flight deploy.
 concurrency:
-  group: portal-deploy-${{ github.ref }}
+  group: portal-deploy
   cancel-in-progress: false
 
 env:
   DOCKER_IMAGE_NAME: portal
+  APP_PORT: 3004
 
 jobs:
   prepare-matrix:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
-      build_matrix: ${{ steps.set-matrix.outputs.build_matrix }}
+      has_targets: ${{ steps.set-matrix.outputs.has_targets }}
     steps:
       - name: Build deployment matrix
         id: set-matrix
@@ -82,12 +83,8 @@ jobs:
           demoai_arch=amd64
           pathqa_arch=arm64
           if [ "${{ github.event_name }}" == "push" ]; then
-            # On push, deploy to all hosts
-            includes='[]'
-            for env in dev turn ttxai testturn pathqa demoai; do
-              arch_var="${env}_arch"
-              includes=$(echo "$includes" | jq -c --arg e "$env" --arg a "${!arch_var}" '. += [{"environment":$e,"arch":$a}]')
-            done
+            # On push, deploy to nasstaging only
+            includes='[{"environment":"nasstaging"}]'
           else
             # On manual dispatch, deploy only to selected hosts.
             # NOTE: "inputs.deploy_x" is GitHub expression syntax, not a bash
@@ -109,18 +106,18 @@ jobs:
               fi
             done
           fi
-          matrix="{\"include\":$includes}"
-          # De-duplicated arch -> runner mapping for the build job.
-          # arm64 builds natively on the ARM64 runner (no QEMU emulation),
-          # amd64 on the standard x64 runner.
-          build_includes=$(echo "$includes" | jq -c '[.[].arch] | unique | map(
-            if . == "arm64" then {arch: ., os: "ubuntu-24.04-arm"}
-            else {arch: ., os: "ubuntu-latest"} end
-          )')
-          echo "matrix=$matrix" >> $GITHUB_OUTPUT
-          echo "build_matrix={\"include\":$build_includes}" >> $GITHUB_OUTPUT
+
+          count=$(echo "$includes" | jq 'length')
+          if [ "$count" -eq 0 ]; then
+            echo "No hosts selected — nothing to deploy."
+            echo "has_targets=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_targets=true" >> $GITHUB_OUTPUT
+          fi
+          echo "matrix={\"include\":$includes}" >> $GITHUB_OUTPUT
 
   build:
+    runs-on: ubuntu-latest
     needs: prepare-matrix
     runs-on: ${{ matrix.os }}
     strategy:
@@ -145,25 +142,27 @@ jobs:
 
       - name: Build Docker image (${{ matrix.arch }}, native)
         run: |
-          cd portal
-          docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} .
-          docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > ../app-image-${{ matrix.arch }}.tar
+          docker build -t $DOCKER_IMAGE_NAME:${{ github.sha }} ./portal
+          docker save $DOCKER_IMAGE_NAME:${{ github.sha }} > app-image.tar
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
-          name: portal-${{ matrix.arch }}
-          path: app-image-${{ matrix.arch }}.tar
+          name: portal-image
+          path: app-image.tar
           retention-days: 1
 
   deploy:
     needs: [prepare-matrix, build]
+    if: needs.prepare-matrix.outputs.has_targets == 'true'
     runs-on: ubuntu-latest
+    environment: ${{ matrix.environment }}
     strategy:
       matrix: ${{ fromJson(needs.prepare-matrix.outputs.matrix) }}
       fail-fast: false
     env:
       REMOTE_PORT: 22
+      DEPLOY_DIR: /home/ubuntu/deploy/portal
       ENV_FILE_PATH: /home/ubuntu/deploy/portal/.env
       PEM_FOLDER_PATH: /home/ubuntu/deploy/portal/.pem
       DEV_HOST: ${{ secrets.DEV_HOST }}
@@ -175,7 +174,7 @@ jobs:
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
-      - name: Resolve host for environment
+      - name: Resolve host and set up SSH
         run: |
           case "${{ matrix.environment }}" in
             dev)      host="$DEV_HOST" ;;
@@ -189,13 +188,17 @@ jobs:
           echo "REMOTE_HOST=$host" >> $GITHUB_ENV
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # Pin this host's SSH key (trust-on-first-use) so ssh/scp below can
+          # use StrictHostKeyChecking=yes instead of trusting any host.
           ssh-keyscan -p $REMOTE_PORT -H "$host" >> ~/.ssh/known_hosts 2>/dev/null
           chmod 600 ~/.ssh/known_hosts
 
       - name: Download image artifact for ${{ matrix.arch }}
         uses: actions/download-artifact@v4
         with:
-          name: portal-${{ matrix.arch }}
+          name: portal-image
 
       - name: Deploy to ${{ matrix.environment }} host
         run: |
