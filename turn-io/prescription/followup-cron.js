@@ -1,4 +1,4 @@
-// Sends WhatsApp follow-up reminders (template arogyapath_followup_reminder) with a
+// Sends WhatsApp follow-up reminders (template from FOLLOWUP_TEMPLATE_NAME) with a
 // "Start Follow Up Visit" button. Re-fetches the mindmap follow-up list on every run
 // and nudges whoever is due.
 //
@@ -23,7 +23,7 @@ const CRON_TIMEZONE = "Asia/Kolkata";
 const REMINDER_OFFSETS = (process.env.FOLLOWUP_REMINDER_OFFSETS || "0")
    .split(",").map((s) => parseInt(s.trim(), 10)).filter((n) => Number.isInteger(n) && n >= 0)
    .sort((a, b) => b - a);
-const TEMPLATE_NAME = process.env.FOLLOWUP_TEMPLATE_NAME || "arogyapath_followup_reminder";
+const TEMPLATE_NAME = process.env.FOLLOWUP_TEMPLATE_NAME || null;
 const TEMPLATE_LANGUAGE = process.env.FOLLOWUP_TEMPLATE_LANGUAGE || "hi";
 // Pause between sends so a bulk run doesn't burst the Turn API.
 const SEND_DELAY_MS = Number(process.env.FOLLOWUP_SEND_DELAY_MS || 500);
@@ -39,8 +39,12 @@ const titleCase = (s) =>
    String(s || "").split(/\s+/).filter((w) => w && w !== ".").join(" ")
       .toLowerCase().replace(/\b\p{L}/gu, (c) => c.toUpperCase());
 
-// {{2}} reads "आपने {{2}} से सलाह ली थी" -- same "Dr. <name>" the prescription PDF prints.
-const doctorLabel = (name) => (name ? `Dr. ${String(name).replace(/^dr\.?\s*/i, "")}` : "");
+// {{2}} reads "आपने {{2}} से सलाह ली थी". Provider display is "<identifier> - <name>"
+// (e.g. "21-6 - rohith M s"), so keep only the name: "Dr. Rohith M S".
+const doctorLabel = (display) => {
+   const name = titleCase(String(display || "").replace(/^.*?\s-\s/, "").replace(/^dr\.?\s*/i, ""));
+   return name ? `Dr. ${name}` : "";
+};
 
 // ---- sent-log: { [visitUuid|followUpDate|slot]: { sent_at, mode, phone, patient_uuid, visit_uuid, follow_up_date, template, message_id } } ----
 // The slot is "d1", "d2"... for advance nudges and "due" for the day itself or later,

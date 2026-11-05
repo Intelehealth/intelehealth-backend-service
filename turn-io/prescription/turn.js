@@ -91,10 +91,11 @@ const notifyFollowUpReminder = ({ number, patientName, doctorName, date }) =>
    sendTemplate({ number, name: "followup_reminder", language: "en", bodyParams: [patientName || "", doctorName || "", date] });
 
 // Buttoned reminder with a "Start Follow Up Visit" quick reply: Hindi utility template
-// (default arogyapath_followup_reminder). {{1}} patient, {{2}} doctor, {{3}} follow-up date.
+// named by FOLLOWUP_TEMPLATE_NAME. {{1}} patient, {{2}} doctor, {{3}} follow-up date.
 // Returns the template name too, so each send records which template it used.
 const notifyFollowUpStart = async ({ number, patientName, doctorName, date }) => {
-   const template = process.env.FOLLOWUP_TEMPLATE_NAME || "arogyapath_followup_reminder";
+   const template = process.env.FOLLOWUP_TEMPLATE_NAME;
+   if (!template) throw new Error("FOLLOWUP_TEMPLATE_NAME is not set");
    const result = await sendTemplate({
       number,
       name: template,
