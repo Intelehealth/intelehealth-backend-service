@@ -67,6 +67,7 @@ export class AuditTrail extends Model<AuditTrailAttributes, AuditTrailCreationAt
             'HOME SCREEN SECTION ENABLED STATUS UPDATED',
             'AI LLM CONFIG UPDATED',
             'AI LLM RECORDING CONFIG UPDATED',
+            'AI LLM VOICE TRANSCRIPT CONFIG UPDATED',
             'PLATFORM UPDATED',
             'LANGUAGE PLATFORM UPDATED',
             'LANGUAGE STATUS UPDATED',

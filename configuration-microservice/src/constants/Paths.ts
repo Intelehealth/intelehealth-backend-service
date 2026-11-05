@@ -127,6 +127,12 @@ export default {
     UpdateIsVideoEnabled: '/updateIsVideoEnabled/:id',
     UpdateIsAudioEnabled: '/updateIsAudioEnabled/:id',
   },
+  AILLMVoiceTranscript: {
+    Base: '/ai-llm-voice-transcript',
+    Get: '/all',
+    GetByKey: '/getByKey/:key',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+  },
   HomeScreen: {
     Base: '/home-screen',
     Get: '/all',

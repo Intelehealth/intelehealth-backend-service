@@ -99,6 +99,14 @@ const MESSAGE = {
         INVALID_LINK: "Invalid link!",
         INVALID_OTP: "Invalid OTP!"
     },
+    ACHIEVEMENT: {
+        SUMMARY_FETCHED_SUCCESSFULLY: "Achievements fetched successfully!",
+        HEARTBEAT_RECORDED_SUCCESSFULLY: "Heartbeat recorded successfully!",
+        VALIDATION_FAILED: "Validation failed",
+        INVALID_TOKEN: "Invalid token",
+        PROVIDER_NOT_LINKED: "No provider is linked to this user",
+        INTERNAL_ERROR: "Something went wrong. Please try again."
+    },
     TEMP_STORAGE: {
         RESOURCE_CREATED_SUCCESSFULLY: "Resource created successfully!",
         RESOURCE_UPDATED_SUCCESSFULLY: "Resource updated successfully!",

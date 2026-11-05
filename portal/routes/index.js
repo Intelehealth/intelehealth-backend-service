@@ -37,6 +37,7 @@ router.use("/turn-appointment", require("./turn-appointment.route"));
 router.use("/insights", require("./insight.route"));
 router.use("/ddx-ttx-overrides", require("./ddx-ttx-override.route"));
 router.use("/ai-ddx", require("./ai-ddx.route"));
+router.use("/voicedoc", require("./voicedoc.route"));
 router.use('/auth', require("./auth.route"));
 router.use("/links", require("./links.route"));
 router.use("/support", require("./support.route"));
@@ -45,6 +46,7 @@ router.use('/signature', require("./signature.route"));
 router.use('/kaleyra', require('./kaleyra.route'));
 router.use('/pincode', require("./pincode.route"));
 router.use('/temp-storage', require("./temp-storage.route"));
+router.use("/activity", require("./activity.route"));
 router.use("/", require("./ai-diagnosis.route"));
 
 module.exports = router;

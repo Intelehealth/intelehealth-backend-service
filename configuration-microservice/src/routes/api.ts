@@ -27,6 +27,7 @@ import AILLMRoutes from './AILLMRoutes';
 import HomeScreenRoutes from './HomeScreenRoutes';
 import AILLMRecordingRoutes from './AILLMRecordingRoutes';
 import PrescriptionNotesRoutes from './PrescriptionNotesRoutes';
+import AILLMVoiceTranscriptRoutes from './AILLMVoiceTranscriptRoutes';
 
 // **** Variables **** //
 
@@ -600,6 +601,26 @@ aiLlmRecording.get(
 
 // Add AILLMRecording Router
 apiRouter.use(Paths.AILLMRecording.Base, authMw, aiLlmRecording);
+
+const aiLlmVoiceTranscript = Router();
+
+aiLlmVoiceTranscript.get(
+  Paths.AILLMVoiceTranscript.Get,
+  AILLMVoiceTranscriptRoutes.getAll,
+);
+
+aiLlmVoiceTranscript.put(
+  Paths.AILLMVoiceTranscript.UpdateIsEnabled,
+  validate(['id', 'number', 'params'],['is_enabled', 'boolean', 'body']),
+  AILLMVoiceTranscriptRoutes.updateIsEnabled
+);
+
+aiLlmVoiceTranscript.get(
+  Paths.AILLMVoiceTranscript.GetByKey,
+  AILLMVoiceTranscriptRoutes.GetByKey,
+);
+
+apiRouter.use(Paths.AILLMVoiceTranscript.Base, authMw, aiLlmVoiceTranscript);
 
 // **** Setup homeScreenSectionsRouter **** //
 

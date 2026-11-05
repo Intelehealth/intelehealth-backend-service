@@ -14,6 +14,7 @@ const {
 } = require("../controllers/openMrs.controller");
 const { getReferredVisits } = require("../controllers/openMrs.controller");
 const authMiddleware = require("../middleware/auth");
+const { getSummary: getAchievementSummary } = require("../controllers/achievement.controller");
 
 router.get("/getVisitCounts", [authMiddleware, getVisitCounts]);
 router.get("/getFollowUpVisit/:providerId", [authMiddleware, getFollowUpVisit]);
@@ -33,5 +34,10 @@ router.get("/getCompletedVisits", [authMiddleware, getCompletedVisits]);
 router.get("/getEndedVisits", [authMiddleware, getEndedVisits]);
 router.get("/getFollowUpVisits", [authMiddleware, getFollowUpVisits]);
 router.get("/getReferredVisits", [authMiddleware, getReferredVisits]);
+
+/**
+ * Achievements API
+ */
+router.get("/achievements/summary", [authMiddleware, getAchievementSummary]);
 
 module.exports = router;

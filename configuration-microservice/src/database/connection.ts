@@ -21,6 +21,7 @@ import { RosterQuestionnaire } from '@src/models/mst_roster_questionnaire';
 import { Dropdown } from '@src/models/mst_dropdown_values.model';
 import { AILLM } from '@src/models/mst_ai_llm';
 import { AILLMRecording } from '@src/models/mst_ai_llm_recording';
+import { AILLMVoiceTranscript } from '@src/models/mst_ai_llm_voice_transcript';
 import { HomeScreen } from '@src/models/mst_home_screen.model';
 import { PrescriptionNotes } from '@src/models/mst_prescription_notes.model';
 
@@ -33,7 +34,7 @@ const connection = new Sequelize({
   password: EnvVars.DbPassword, // Specifies the database password
   database: EnvVars.DbName, // Specifies the database name
   logging: false, // Disables logging of SQL queries
-  models: [Specialization, Config, AuditTrail, Language, Publish, PatientRegistration, ThemeConfig, Vital, Diagnostics, Webrtc, Features, PatientVisitSummary, SidebarMenu, PatientVisitSection, RosterQuestionnaire, Dropdown, AILLM, AILLMRecording, HomeScreen, PrescriptionNotes], // Associates the models with this Sequelize instance,
+  models: [Specialization, Config, AuditTrail, Language, Publish, PatientRegistration, ThemeConfig, Vital, Diagnostics, Webrtc, Features, PatientVisitSummary, SidebarMenu, PatientVisitSection, RosterQuestionnaire, Dropdown, AILLM, AILLMRecording, AILLMVoiceTranscript, HomeScreen], // Associates the models with this Sequelize instance,
 });
 
 // Export the connection object as the default module
