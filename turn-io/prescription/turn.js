@@ -1,4 +1,5 @@
 const axios = require("axios");
+const { inSessionWindow, lastActivity } = require("./session");
 
 // Turn WhatsApp API. TURN_API_TOKEN is the workspace API token (app.turn.io ->
 // Settings -> API). Proactive free-form messages only deliver inside the patient's
@@ -90,14 +91,57 @@ const sendTemplate = async ({ number, name, language, bodyParams = [] }) => {
 const notifyFollowUpReminder = ({ number, patientName, doctorName, date }) =>
    sendTemplate({ number, name: "followup_reminder", language: "en", bodyParams: [patientName || "", doctorName || "", date] });
 
-// Buttoned reminder with a "Start Follow Up Visit" quick reply: Hindi utility template
-// named by FOLLOWUP_TEMPLATE_NAME. {{1}} patient, {{2}} doctor, {{3}} follow-up date.
-// Returns the template name too, so each send records which template it used.
+// In-session follow-up: the same Hindi copy and button as the template, as a plain
+// interactive message (no template cost / approval needed). The button title matches
+// the template's quick-reply text so the journey sees the same label; the reply id
+// lets it also match on id. Note the tap arrives as type "interactive"
+// (interactive.button_reply), not "button" like a template quick reply.
+const FOLLOWUP_BUTTON_ID = "followup_start";
+const FOLLOWUP_BUTTON_TITLE = process.env.FOLLOWUP_BUTTON_TITLE || "फॉलो-अप";
+const sendFollowUpSessionMessage = async ({ to, patientName, doctorName, date }) => {
+   const body = `नमस्ते ${patientName || ""}, आपने ${doctorName || "डॉक्टर"} से सलाह ली थी। ` +
+      `आपका फॉलो-अप ${date} को है। शुरू करने के लिए नीचे दिए बटन पर क्लिक करें।`;
+   const { data } = await postMessage({
+      to,
+      type: "interactive",
+      interactive: {
+         type: "button",
+         body: { text: body },
+         action: { buttons: [{ type: "reply", reply: { id: FOLLOWUP_BUTTON_ID, title: FOLLOWUP_BUTTON_TITLE } }] },
+      },
+   });
+   return { messageId: data?.messages?.[0]?.id || null, response: data };
+};
+
+// Session messages are on unless FOLLOWUP_SESSION_MESSAGES=false.
+const sessionMessagesEnabled = () => process.env.FOLLOWUP_SESSION_MESSAGES !== "false";
+
+// Buttoned reminder with a "Start Follow Up Visit" quick reply. Inside the patient's
+// 24h window (see session.js) it goes as a free-form interactive message; otherwise,
+// or if that send is rejected, as the Hindi utility template named by
+// FOLLOWUP_TEMPLATE_NAME ({{1}} patient, {{2}} doctor, {{3}} follow-up date).
+// Returns `template` ("session-message" or the template name) so each send records how it went.
 const notifyFollowUpStart = async ({ number, patientName, doctorName, date }) => {
+   if (!TURN_API_TOKEN) throw new Error("TURN_API_TOKEN is not set");
+   const to = normalizeNumber(number);
+   if (!to) throw new Error("recipient number is required");
+
+   if (sessionMessagesEnabled() && inSessionWindow(to)) {
+      try {
+         const result = await sendFollowUpSessionMessage({ to, patientName, doctorName, date });
+         console.log(`[followup session] ${to}: in 24h window (last activity ${lastActivity(to)}) -- sent session message`);
+         return { ...result, template: "session-message" };
+      } catch (err) {
+         // Window closed early, number unknown to Turn, etc. -- the template always works.
+         console.warn(`[followup session] ${to}: session message rejected, falling back to template:`,
+            JSON.stringify(err.response?.data || err.message));
+      }
+   }
+
    const template = process.env.FOLLOWUP_TEMPLATE_NAME;
    if (!template) throw new Error("FOLLOWUP_TEMPLATE_NAME is not set");
    const result = await sendTemplate({
-      number,
+      number: to,
       name: template,
       language: process.env.FOLLOWUP_TEMPLATE_LANGUAGE || "hi",
       bodyParams: [patientName || "", doctorName || "", date],
@@ -125,6 +169,7 @@ module.exports = {
    sendTemplate,
    notifyFollowUpReminder,
    notifyFollowUpStart,
+   sessionMessagesEnabled,
    notifyPostConsultationSurvey,
    normalizeNumber,
    toWhatsAppNumber,

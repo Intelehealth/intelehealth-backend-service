@@ -9,6 +9,8 @@ const surveyResponse = require("./routes/survey-response");
 const prescription = require("./prescription");
 const followUpCron = require("./prescription/followup-cron");
 const surveyCron = require("./prescription/survey-cron");
+const turnInbound = require("./routes/turn-inbound");
+const { recordJourneyActivity } = require("./prescription/session");
 
 const app = express();
 
@@ -47,6 +49,11 @@ app.use((err, req, res, next) => {
 });
 
 app.get("/", (_req, res) => res.send("Server working"));
+
+// 24h WhatsApp window: journey calls carrying whatsapp_id mark the patient as
+// active, and Turn's inbound-message webhook records every patient message.
+app.use("/webhooks/turn", recordJourneyActivity);
+app.use("/webhooks/turn", turnInbound);
 
 app.use("/webhooks/turn", patientRegistration);
 app.use("/webhooks/turn", visitPush);
