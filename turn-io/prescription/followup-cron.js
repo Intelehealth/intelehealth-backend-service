@@ -205,8 +205,10 @@ const runFollowUpReminders = async ({
                console.error(`${tag} ${visitUuid}: pending-store write failed:`, err.message);
             }
 
-            results.push({ ...shared, status: "sent", sent_at: sentAt, message_id: messageId });
-            console.log(`${tag} ${visitUuid}: nudge sent to ${number} (T-${daysUntil}, ${data.patientName}) message_id=${messageId}`);
+            // via: "session" = free-form message inside the 24h window, "template" = approved template.
+            const via = template === "session-message" ? "session" : "template";
+            results.push({ ...shared, status: "sent", via, template, sent_at: sentAt, message_id: messageId });
+            console.log(`${tag} ${visitUuid}: nudge sent to ${number} via ${via} (${template}) (T-${daysUntil}, ${data.patientName}) message_id=${messageId}`);
          } catch (err) {
             failed++;
             results.push({ ...shared, status: "send-failed", reason: errDetail(err) });
