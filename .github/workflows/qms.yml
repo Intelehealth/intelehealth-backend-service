@@ -46,7 +46,7 @@ jobs:
       REMOTE_TAR: /tmp/queue-microservice-${{ github.run_id }}-${{ github.run_attempt }}.tar
       ENV_FILE_PATH: /home/ubuntu/deploy/queue-microservice/.env
       PEM_FOLDER_PATH: /home/ubuntu/deploy/queue-microservice/.pem
-      REMOTE_HOST: ${{ secrets.DEV_HOST }}
+      REMOTE_HOST: ${{ secrets.TESTTURN_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
