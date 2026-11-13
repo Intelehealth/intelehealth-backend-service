@@ -15,14 +15,26 @@ const loadStore = () => {
 const saveStore = (store) => fs.writeFileSync(PENDING_STORE_PATH, JSON.stringify(store), "utf8");
 
 // Record (or overwrite) the pending follow-up for this phone number.
-const recordPending = ({ phone, today, patientUuid, patientName, openmrsId, visitUuid, followUpDate, doctorName, messageId }) => {
+// encounterUuid = the OpenMRS reminder encounter (followup-record.js), so the tap can be added to it.
+const recordPending = ({ phone, today, patientUuid, patientName, openmrsId, visitUuid, followUpDate, doctorName, messageId, encounterUuid = null }) => {
    const number = normalizeNumber(phone);
    if (!number) throw new Error("recordPending: phone is required");
 
    const store = loadStore();
-   store[number] = { recordedAt: today, patientUuid, patientName, openmrsId, visitUuid, followUpDate, doctorName, messageId };
+   store[number] = { recordedAt: today, patientUuid, patientName, openmrsId, visitUuid, followUpDate, doctorName, messageId, encounterUuid };
    saveStore(store);
 };
+
+// Merge fields into a pending entry (by its stored key), e.g. a backfilled encounterUuid
+// or the uuid of the recorded tap. No-op if the entry is gone.
+const updatePending = (key, fields) => {
+   const store = loadStore();
+   if (!store[key]) return;
+   store[key] = { ...store[key], ...fields };
+   saveStore(store);
+};
+
+const allPending = () => loadStore();
 
 // The pending follow-up for a WhatsApp number. Portal-registered numbers are often
 // stored without the country code, so a 91-prefixed reply also matches the 10-digit key.
@@ -53,4 +65,4 @@ const daysBetween = (from, to) => {
    return Math.round((b.getTime() - a.getTime()) / 86_400_000);
 };
 
-module.exports = { recordPending, findPending, markStarted, daysBetween };
+module.exports = { recordPending, findPending, markStarted, updatePending, allPending, daysBetween };

@@ -107,4 +107,21 @@ const uploadComplexObs = async ({ personUuid, encounterUuid, concept, buffer, fi
    return resp.json();
 };
 
-module.exports = { pushData, basicAuth, getOpenmrsId, getVisitContents, getVisitEncounterTypes, getEncounter, uploadComplexObs };
+// Adds a plain (Text) obs to an existing encounter via the REST API.
+const postObs = async ({ personUuid, encounterUuid, concept, value, obsDatetime }) => {
+   const base = restUrl();
+   if (!base) throw new Error("OPENMRS_REST_URL is not set");
+   const { data } = await axios.post(`${base}/obs`, {
+      person: personUuid,
+      encounter: encounterUuid,
+      concept,
+      value,
+      // OpenMRS wants a numeric offset ("+0000"), not "Z".
+      obsDatetime: new Date(obsDatetime || Date.now()).toISOString().replace("Z", "+0000"),
+   }, {
+      headers: { Authorization: basicAuth, Accept: "application/json", "Content-Type": "application/json" },
+   });
+   return data;
+};
+
+module.exports = { pushData, basicAuth, getOpenmrsId, getVisitContents, getVisitEncounterTypes, getEncounter, uploadComplexObs, postObs };

@@ -14,7 +14,8 @@ const cron = require("node-cron");
 const { getVisit, getFollowUpVisits } = require("./openmrs");
 const { buildPrescriptionData, fmtFollowUpDate } = require("./data");
 const { notifyFollowUpStart, toWhatsAppNumber } = require("./turn");
-const { recordPending, daysBetween } = require("./followup-pending");
+const { recordPending, daysBetween, updatePending, allPending } = require("./followup-pending");
+const { recordingEnabled, saveReminderSent, saveReminderStarted, safely } = require("./followup-record");
 
 const CRON_SCHEDULE = process.env.FOLLOWUP_CRON_SCHEDULE || "50 9 * * *"; // 09:50 daily
 const CRON_TIMEZONE = "Asia/Kolkata";
@@ -188,26 +189,41 @@ const runFollowUpReminders = async ({
                date: fmtFollowUpDate(fu.followUpDateIso),
             });
             const sentAt = new Date().toISOString();
+            // via: "session" = free-form message inside the 24h window, "template" = approved template.
+            const via = template === "session-message" ? "session" : "template";
             sentLog[logKey] = {
                sent_at: sentAt, mode: trigger, phone: number, patient_uuid: data.patientUuid, visit_uuid: visitUuid,
-               follow_up_date: fu.followUpDateIso, template, message_id: messageId,
+               follow_up_date: fu.followUpDateIso, template, via, message_id: messageId,
             };
             saveSentLog(sentLog); // per send, so a crash mid-bulk never re-sends what already went out
             sent++;
+
+            // Store the send in OpenMRS (cost tracking). Never blocks the send; a miss is
+            // backfilled by POST /followup/sync-openmrs.
+            const record = await safely(`${visitUuid} sent-record`, () => saveReminderSent({
+               patientUuid: data.patientUuid, visitUuid, followUpDate: fu.followUpDateIso, sentAt,
+               mode: trigger, via, template, messageId, phone: number,
+            }));
+            if (record && record.saved !== false) {
+               sentLog[logKey].openmrs_encounter = record.encounterUuid;
+               saveSentLog(sentLog);
+            }
 
             // Remember who this nudge was for, so the "Start follow-up" tap can be matched back to a patient.
             try {
                recordPending({
                   phone: number, today, patientUuid: data.patientUuid, patientName: data.patientName,
                   openmrsId: data.patientId, visitUuid, followUpDate: fu.followUpDateIso, doctorName: data.doctorName, messageId,
+                  encounterUuid: sentLog[logKey].openmrs_encounter || null,
                });
             } catch (err) {
                console.error(`${tag} ${visitUuid}: pending-store write failed:`, err.message);
             }
 
-            // via: "session" = free-form message inside the 24h window, "template" = approved template.
-            const via = template === "session-message" ? "session" : "template";
-            results.push({ ...shared, status: "sent", via, template, sent_at: sentAt, message_id: messageId });
+            results.push({
+               ...shared, status: "sent", via, template, sent_at: sentAt, message_id: messageId,
+               openmrs_encounter: sentLog[logKey].openmrs_encounter || null,
+            });
             console.log(`${tag} ${visitUuid}: nudge sent to ${number} via ${via} (${template}) (T-${daysUntil}, ${data.patientName}) message_id=${messageId}`);
          } catch (err) {
             failed++;
@@ -224,6 +240,65 @@ const runFollowUpReminders = async ({
          ok: true, today, offsets: REMINDER_OFFSETS, from, to, dry_run: dryRun, forced: force, limit: limit || null, limited,
          considered: visitUuids.length, sent, skipped, failed, results,
       };
+   } finally {
+      running = false;
+   }
+};
+
+// Backfills OpenMRS from the sent-log: every send without an openmrs_encounter gets
+// its "sent" record, and every tapped reminder its "started" obs. Run once after
+// OPENMRS_CONCEPT_FOLLOWUP_REMINDER is set (or after an OpenMRS outage). Safe to repeat.
+const syncSentLogToOpenmrs = async ({ dryRun = false, limit = 0 } = {}) => {
+   if (!recordingEnabled()) {
+      return { ok: false, error: "OPENMRS_CONCEPT_FOLLOWUP_REMINDER is not set" };
+   }
+   if (running) return { ok: false, busy: true, error: "a follow-up run is in progress" };
+
+   running = true;
+   try {
+      const sentLog = loadSentLog();
+      const todo = Object.entries(sentLog).filter(([, e]) => !e.openmrs_encounter && e.patient_uuid && e.visit_uuid);
+      const results = [];
+      let saved = 0, failed = 0;
+
+      for (const [key, e] of todo) {
+         if (limit && saved >= limit) break;
+         if (dryRun) { results.push({ key, status: "would-save" }); continue; }
+
+         const record = await safely(`${e.visit_uuid} backfill`, () => saveReminderSent({
+            patientUuid: e.patient_uuid, visitUuid: e.visit_uuid, followUpDate: e.follow_up_date, sentAt: e.sent_at,
+            mode: e.mode, via: e.via || (e.template === "session-message" ? "session" : "template"),
+            template: e.template, messageId: e.message_id, phone: e.phone,
+         }));
+         if (record && record.saved !== false) {
+            sentLog[key].openmrs_encounter = record.encounterUuid;
+            saveSentLog(sentLog);
+            saved++;
+            results.push({ key, status: "saved", encounter: record.encounterUuid });
+         } else {
+            failed++;
+            results.push({ key, status: "failed" });
+         }
+      }
+
+      // Pending entries: link the encounter, and record taps made before it existed.
+      const encounterByMessage = Object.fromEntries(Object.values(sentLog)
+         .filter((e) => e.message_id && e.openmrs_encounter).map((e) => [e.message_id, e.openmrs_encounter]));
+      let tapsSaved = 0;
+      for (const [phone, p] of Object.entries(allPending())) {
+         const encounterUuid = p.encounterUuid || encounterByMessage[p.messageId];
+         if (!encounterUuid || dryRun) continue;
+         if (!p.encounterUuid) updatePending(phone, { encounterUuid });
+         if (p.startedAt && !p.startedObs) {
+            const obsUuid = await safely(`${p.visitUuid} tap backfill`, () => saveReminderStarted({
+               patientUuid: p.patientUuid, encounterUuid, startedAt: p.startedAt, messageId: p.messageId, phone,
+            }));
+            if (obsUuid) { updatePending(phone, { startedObs: obsUuid }); tapsSaved++; }
+         }
+      }
+
+      console.log(`[followup openmrs sync] ${dryRun ? "dry-run: " : ""}${todo.length} unsaved sends -- saved ${saved}, failed ${failed}, taps saved ${tapsSaved}`);
+      return { ok: true, dry_run: dryRun, unsaved: todo.length, saved, failed, taps_saved: tapsSaved, results };
    } finally {
       running = false;
    }
@@ -264,11 +339,14 @@ const getCronInfo = () => {
       next_runs: task?.getNextRuns?.(3)?.map((d) => d.toISOString()) || [],
       last_run: last ? { at: last.date?.toISOString?.() || null, error: last.error?.message || null } : null,
       today, server_time_utc: new Date().toISOString(), pid: process.pid,
+      openmrs_recording: recordingEnabled(),
       sent_log: {
          path: SENT_LOG_PATH, total_sent: entries.length,
+         stored_in_openmrs: entries.filter((e) => e.openmrs_encounter).length,
+         via_template: entries.filter((e) => (e.via || (e.template === "session-message" ? "session" : "template")) === "template").length,
          sent_today: entries.filter((e) => e.sent_at && new Date(e.sent_at).toLocaleDateString("en-CA", { timeZone: CRON_TIMEZONE }) === today).length,
       },
    };
 };
 
-module.exports = { start, runFollowUpReminders, getCronInfo, remindersEnabled };
+module.exports = { start, runFollowUpReminders, syncSentLogToOpenmrs, getCronInfo, remindersEnabled };

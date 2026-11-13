@@ -38,15 +38,12 @@ module.exports = {
    // Survey (as agreed with DevOps); the rating and the survey are told apart by
    // concept. Concept "Post Consultation Survey" (Text) created by the data team.
    //
-   // To move to a dedicated encounter type later: create one, put its uuid here, and
-   // migrate saved answers with
-   //   UPDATE encounter e JOIN obs o ON o.encounter_id = e.encounter_id
-   //     JOIN concept c ON c.concept_id = o.concept_id
-   //   SET e.encounter_type = (SELECT encounter_type_id FROM encounter_type WHERE uuid = '<new uuid>')
-   //   WHERE c.uuid = '1b06b554-47f4-4a80-8ce3-34796f27be40';
-   // (survey answers are always saved in their own encounter, never the rating's)
+  
    OPENMRS_ENCOUNTER_TYPE_POST_CONSULTATION_SURVEY: "629a9d0b-48eb-405e-953d-a5964c88dc30", // = PATIENT_EXIT_SURVEY
    OPENMRS_CONCEPT_POST_CONSULTATION_SURVEY: "1b06b554-47f4-4a80-8ce3-34796f27be40",
+
+   // Follow-up reminder
+   OPENMRS_CONCEPT_FOLLOWUP_REMINDER: "bf72c524-0fd1-4fe4-803d-a21c6dc3e10d",
 
    // Vitals concept UUIDs (standard OpenMRS concepts)
    OPENMRS_CONCEPT_HEIGHT: "5090AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",

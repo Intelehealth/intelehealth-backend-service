@@ -3,8 +3,9 @@ const { getVisit, getVisitAttributes } = require("./openmrs");
 const { buildPrescriptionData, hasPrescription, fmtFollowUpDate, getVisitSource } = require("./data");
 const { generatePrescriptionPdf } = require("./pdf");
 const { notifyPrescriptionReady, notifyFollowUpScheduled } = require("./turn");
-const { runFollowUpReminders, getCronInfo, remindersEnabled } = require("./followup-cron");
-const { findPending, markStarted } = require("./followup-pending");
+const { runFollowUpReminders, syncSentLogToOpenmrs, getCronInfo, remindersEnabled } = require("./followup-cron");
+const { findPending, markStarted, updatePending } = require("./followup-pending");
+const { saveReminderStarted, safely } = require("./followup-record");
 const { getFollowUpPatient } = require("./followup-patient");
 const { runSurvey, getSurveyCronInfo } = require("./survey-cron");
 const { flushHeldFeedback } = require("../lib/feedback");
@@ -235,6 +236,15 @@ router.post("/followup/start", async (req, res) => {
       markStarted(pending.phone);
       console.log(`[followup start] ${pending.phone} -> patient ${pending.patientUuid} (previous visit ${pending.visitUuid})`);
 
+      // Record the tap in OpenMRS on the reminder's encounter -- once per reminder, in the
+      // background so the journey reply isn't delayed. No encounter yet -> the sync backfills it.
+      if (pending.encounterUuid && !pending.startedObs) {
+         safely(`${pending.visitUuid} tap`, () => saveReminderStarted({
+            patientUuid: pending.patientUuid, encounterUuid: pending.encounterUuid,
+            startedAt: new Date().toISOString(), messageId: pending.messageId, phone: pending.phone,
+         })).then((obsUuid) => obsUuid && updatePending(pending.phone, { startedObs: obsUuid }));
+      }
+
       const patient = await getFollowUpPatient(pending.patientUuid, pending.visitUuid);
       res.json({
          success: true,
@@ -257,6 +267,22 @@ router.post("/followup/start", async (req, res) => {
       });
    } catch (err) {
       fail(res, "followup start", err);
+   }
+});
+
+// Backfill OpenMRS with reminders sent before OPENMRS_CONCEPT_FOLLOWUP_REMINDER was set
+// (or while OpenMRS was down). Body: { dryRun?, limit? }. Safe to run more than once.
+router.post("/followup/sync-openmrs", async (req, res) => {
+   const src = { ...req.query, ...req.body };
+   console.log("\n[followup openmrs sync] received:", JSON.stringify(src));
+   try {
+      const result = await syncSentLogToOpenmrs({
+         dryRun: src.dryRun === true || src.dryRun === "true",
+         limit: Number(src.limit) || 0,
+      });
+      res.status(result.busy ? 409 : result.ok ? 200 : 400).json(result);
+   } catch (err) {
+      fail(res, "followup openmrs sync", err);
    }
 });
 
