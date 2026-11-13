@@ -1,5 +1,6 @@
 'use strict';
 const axios = require('axios');
+const slackService = require('./slack.service');
 
 /*
  * Model calls run 50-60s+, so this needs headroom above ai-middleware's own
@@ -72,12 +73,18 @@ async function ttxManual(body) {
   return forward('/ttx/manual', body);
 }
 
+async function reportError(path, body) {
+  const data = await forward(path, body);
+  slackService.notifyAiIssueReport(body, data).catch(() => {});
+  return data;
+}
+
 async function ddxError(body) {
-  return forward('/ddx/error', body);
+  return reportError('/ddx/error', body);
 }
 
 async function ttxError(body) {
-  return forward('/ttx/error', body);
+  return reportError('/ttx/error', body);
 }
 
 module.exports = { ddx, ttxv1, ddxfinal, ttxfinal, ddxManual, ttxManual, ddxError, ttxError };

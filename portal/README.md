@@ -129,6 +129,15 @@ Upstream 400/422 responses are validation failures, most often a visit with no r
 
 Env changes need `docker compose up -d --force-recreate portal`; `docker restart` reuses the old environment.
 
+### AI issue reports → Slack
+
+The doctor webapp's "Report AI issue" modal posts to `/api/ddx/error` (DDx surfaces) or `/api/ttx/error` (`ttx_*` surfaces). The portal forwards the body to ai-middleware unchanged, and after the upstream call succeeds, sends a Slack card to `SLACK_AI_ISSUE_WEBHOOK_URL` with the surface, reason, doctor name, patient OpenMRS ID, environment, reporting domain, note, a visit-summary link, and the visit and doctor UUIDs. The card adds a report ID only when the upstream response contains one (`report_uuid`, `report_id` or `id`, top-level or under `data`). The Slack post runs in the background and is never awaited, so a slow or failing Slack cannot delay or fail the doctor's report. If the upstream call fails, no card is sent.
+
+```
+SLACK_AI_ISSUE_WEBHOOK_URL=xxxx   # unset = no Slack notification
+DOCTOR_WEBAPP_URL=                # optional; defaults to https://$DOMAIN/intelehealth
+```
+
 ## Precomputed DDx (portal)
 
 The cron-microservice computes DDx ahead of time into `ai_ddx_results`, fed by `visit_queue`. The portal only reads and requeues:
