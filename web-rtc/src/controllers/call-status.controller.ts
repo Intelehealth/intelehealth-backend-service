@@ -55,8 +55,8 @@ export class CallStatusController {
    * POST /api/call/disconnected
    * body: { visitId?, roomId?, doctorId?, reason? }
    *
-   * QMS decides the outcome — a live call becomes COMPLETED, a call that never
-   * connected returns to the queue — and reports it back in `qms.outcome`.
+   * QMS decides the outcome — a live call becomes COMPLETED, a rejected call /
+   * one that never connected stays ASSIGNED — and reports it back in `qms.outcome`.
    */
   async disconnected(req: Request, res: Response) {
     logStream("debug", "API calling", "Call Disconnected");

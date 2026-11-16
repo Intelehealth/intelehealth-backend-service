@@ -188,8 +188,8 @@ export const notifyCallConnected = async (params: {
 /**
  * The call ended — the room finished or the last participant left.
  *
- * QMS decides what that means: a live call becomes COMPLETED, a call that never
- * connected goes back in the queue. Safe to send more than once.
+ * QMS decides what that means: a live call becomes COMPLETED, a rejected call /
+ * one that never connected stays ASSIGNED (not re-queued). Safe to send more than once.
  */
 export const notifyCallDisconnected = async (params: {
   visitId?: string;

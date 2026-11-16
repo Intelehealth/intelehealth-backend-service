@@ -44,30 +44,24 @@ const sweepHeartbeats = async (now = new Date()) => {
   return stale;
 };
 
-/** Assigned or connecting but never actually connected — back to the queue. */
+/**
+ * Assigned or connecting but never actually connected. Report-only: a case
+ * whose call was rejected or never started stays ASSIGNED to its doctor and is
+ * NOT re-queued automatically. Re-queuing is an explicit action (POST /requeue
+ * or /release).
+ */
 const sweepStuckConnections = async (now = new Date()) => {
   const cutoff = new Date(now.getTime() - config.queue.connectingTimeoutMinutes * 60000);
 
-  const stuck = await models.queue_entries.findAll({
+  const stuck = await models.queue_entries.count({
     where: {
       status: { [Op.in]: [STATUS.ASSIGNED, STATUS.CALL_CONNECTING] },
       assignedAt: { [Op.lt]: cutoff },
     },
-    limit: config.jobs.batchSize,
   });
 
-  let requeued = 0;
-  for (const entry of stuck) {
-    try {
-      await queueService.requeue(entry.id, { reason: "CONNECTION_TIMEOUT" });
-      requeued += 1;
-    } catch (err) {
-      logger.warn("Could not re-queue stuck case", { queueEntryId: entry.id, error: err.message });
-    }
-  }
-
-  if (requeued) logger.warn("Stuck connections re-queued", { requeued });
-  return requeued;
+  if (stuck) logger.warn("Assigned cases with no connected call — review, not re-queued", { stuck });
+  return 0;
 };
 
 /**

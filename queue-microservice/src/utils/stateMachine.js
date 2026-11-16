@@ -59,8 +59,8 @@ const TRANSITIONS = {
     STATUS.RE_QUEUED /* + */,
     STATUS.ESCALATED /* + */,
   ],
-  // PRESCRIPTION_COMPLETED direct from the call is the ungated path
-  // (REQUIRE_PRESCRIPTION_TO_COMPLETE=false) and the admin close-out.
+  // PRESCRIPTION_COMPLETED direct from the call: the prescription is shared
+  // while the call is still live, and the admin close-out.
   [STATUS.CALL_CONNECTED]: [
     STATUS.CALL_COMPLETED,
     STATUS.PRESCRIPTION_COMPLETED,

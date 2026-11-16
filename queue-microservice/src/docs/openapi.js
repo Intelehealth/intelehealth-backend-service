@@ -645,7 +645,7 @@ module.exports = {
         description: [
           "Fired by web-rtc when the call ends. The outcome depends on whether the call ever connected, and is reported back in `outcome`:",
           "",
-          "- a call that connected becomes **CALL_COMPLETED** — the call is over, the visit is not (or PRESCRIPTION_COMPLETED directly, when `REQUIRE_PRESCRIPTION_TO_COMPLETE` is off)",
+          "- a call that connected becomes **CALL_COMPLETED** — the call is over, the visit is not; only prescription-shared completes it",
           "- a call that never established becomes **RE_QUEUED** with a priority bump — a failed attempt, not a finished consultation",
           "",
           "This is also where the consult duration feeds `avg_consult_min` (μ in the §07 estimate), measured to the call ending rather than to completion.",

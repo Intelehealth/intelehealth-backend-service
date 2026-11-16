@@ -75,7 +75,7 @@ test("it cannot be reached from anywhere a call has not happened", () => {
 });
 
 test("CONNECTED can still complete directly, for ungated deployments", () => {
-  // REQUIRE_PRESCRIPTION_TO_COMPLETE=false must keep working, and an admin
+  // A prescription shared mid-call must still close the case, and an admin
   // must be able to close a case out.
   assert.ok(canTransition(STATUS.CALL_CONNECTED, STATUS.PRESCRIPTION_COMPLETED));
 });

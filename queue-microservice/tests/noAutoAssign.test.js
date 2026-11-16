@@ -46,7 +46,6 @@ const stubWorld = (t, { entry, doctors = {} }) => {
     statsFindOrCreate: models.doctor_service_stats.findOrCreate,
     peekNext: queueLane.peekNext,
     scheduleLaneUpdate: notification.scheduleLaneUpdate,
-    gated: config.queue.requirePrescriptionToComplete,
   };
 
   models.queue_entries.findOne = async () => row;
@@ -59,7 +58,6 @@ const stubWorld = (t, { entry, doctors = {} }) => {
     return null;
   };
   notification.scheduleLaneUpdate = () => {};
-  config.queue.requirePrescriptionToComplete = true;
 
   t.after(() => {
     models.queue_entries.findOne = saved.findOne;
@@ -69,7 +67,6 @@ const stubWorld = (t, { entry, doctors = {} }) => {
     models.doctor_service_stats.findOrCreate = saved.statsFindOrCreate;
     queueLane.peekNext = saved.peekNext;
     notification.scheduleLaneUpdate = saved.scheduleLaneUpdate;
-    config.queue.requirePrescriptionToComplete = saved.gated;
   });
 
   return { row, doctorRows, peeked: () => peeked };

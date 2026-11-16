@@ -929,8 +929,10 @@ const handleCallConnected = async (visitUuid, { doctorUuid = null } = {}) => {
  *
  * What that means depends on whether the call ever got going:
  *   CONNECTED             → COMPLETED, and the consult duration feeds μ (§07)
- *   ASSIGNED / CONNECTING → the call never established, so RE_QUEUED with a
- *                           priority bump (§04) rather than counted as done
+ *   ASSIGNED / CONNECTING → the call was rejected or never established. The
+ *                           case stays ASSIGNED to the same doctor — it is NOT
+ *                           re-queued. A CONNECTING entry is walked back to
+ *                           ASSIGNED.
  *   already terminal      → no-op, so a retried webhook is harmless
  */
 const handleCallDisconnected = async (visitUuid, { doctorUuid = null, reason = null } = {}) => {
@@ -946,20 +948,29 @@ const handleCallDisconnected = async (visitUuid, { doctorUuid = null, reason = n
   }
 
   if (entry.status === STATUS.CALL_CONNECTED) {
-    // complete() decides where this lands: CALL_COMPLETED when a
-    // prescription is required, PRESCRIPTION_COMPLETED when it is not.
+    // Always CALL_COMPLETED — PRESCRIPTION_COMPLETED only comes from
+    // /prescription-shared.
     const payload = await complete(entry.id, doctor, { source: "WEBRTC_WEBHOOK" });
     return { changed: true, outcome: payload.status, entry: payload };
   }
 
   if (entry.status === STATUS.ASSIGNED || entry.status === STATUS.CALL_CONNECTING) {
-    // The room closed without the call ever connecting — that is a failed
-    // attempt, not a finished consultation.
-    return {
-      changed: true,
-      outcome: STATUS.RE_QUEUED,
-      entry: await requeue(entry.id, { reason: reason || "CALL_ENDED_BEFORE_CONNECT" }),
-    };
+    // The call was rejected / ended before it connected. The case stays with
+    // the assigned doctor; it does not go back in the queue.
+    let changed = false;
+    if (entry.status === STATUS.CALL_CONNECTING) {
+      // Undo the CONNECTING step only — same doctor, same case. Written
+      // directly rather than as a state-machine edge, because an edge into
+      // ASSIGNED would make CONNECTING look claimable to other doctors.
+      await entry.update({ status: STATUS.ASSIGNED });
+      changed = true;
+    }
+    logger.info("Call ended before connecting — case stays ASSIGNED", {
+      queueEntryId: entry.id,
+      visitUuid,
+      reason: reason || "CALL_ENDED_BEFORE_CONNECT",
+    });
+    return { changed, outcome: STATUS.ASSIGNED, entry: await statusPayload(entry) };
   }
 
   // Waiting, back in the queue, or already past the call and awaiting a
@@ -1079,22 +1090,18 @@ const finishCall = async (entry, doctorUuid, { now = new Date(), release = true 
 /**
  * POST /api/queue/:id/complete — the call is over.
  *
- * With REQUIRE_PRESCRIPTION_TO_COMPLETE on, this does NOT finish the visit: it
- * moves the case to CALL_COMPLETED, because a finished call is not a
- * finished consultation while the doctor still owes a prescription. Only
- * POST /prescription-shared closes it, and the doctor stays in_consult until
- * then.
- *
- * With the flag off, the case completes here and the doctor goes online.
+ * Ending a call never finishes the visit: it always moves the case to
+ * CALL_COMPLETED, because a finished call is not a finished consultation while
+ * the doctor still owes a prescription. Only POST /prescription-shared moves
+ * it on to PRESCRIPTION_COMPLETED, and the doctor stays in_consult until then.
  */
 const complete = async (queueEntryId, doctorUuid, { source = "DOCTOR" } = {}) => {
   const entry = await findEntry(queueEntryId);
 
-  const gated = config.queue.requirePrescriptionToComplete;
   // A case already past the call (CALL_COMPLETED) is being closed out by
   // the prescription, not ending a call, so it must not re-feed the EMA.
   const endingACall = entry.status !== STATUS.CALL_COMPLETED;
-  const target = gated && endingACall ? STATUS.CALL_COMPLETED : STATUS.PRESCRIPTION_COMPLETED;
+  const target = endingACall ? STATUS.CALL_COMPLETED : STATUS.PRESCRIPTION_COMPLETED;
 
   assertTransition(entry.status, target, { queueEntryId });
 

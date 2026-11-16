@@ -324,10 +324,8 @@ Four consequences that matter more than the enum values:
   the call stopped and knows nothing about whether a prescription was written, and a
   timeout job does not get to assert a clinical act.
 
-`REQUIRE_PRESCRIPTION_TO_COMPLETE` **defaults on**, because `CALL_COMPLETED` is a real
-state in the agreed flow rather than an optional extra. Set it to `false` to close the
-visit when the call ends instead — the escape hatch if portal is not yet calling
-`/prescription-shared` and finished calls would otherwise accumulate.
+A call ending always lands in `CALL_COMPLETED`. Only `/prescription-shared` moves a case
+on to `PRESCRIPTION_COMPLETED`.
 
 #### Four transitions that are not in the agreed flow
 
