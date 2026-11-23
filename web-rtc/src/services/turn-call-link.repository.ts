@@ -45,6 +45,19 @@ export async function markSent(appointmentId: string): Promise<void> {
   );
 }
 
+// Record the patient opening the "Join Consultation" link. Only updates an
+// existing row: inserting one here would make claim() think the link was
+// already handled, and the patient would never get it.
+export async function markJoinClicked(appointmentId: string): Promise<void> {
+  await db.sequelize.query(
+    `UPDATE turn_call_links
+        SET joinClickedAt = NOW()
+      WHERE appointmentId = :id
+        AND joinClickedAt IS NULL`,
+    { replacements: { id: appointmentId } }
+  );
+}
+
 export async function markFailed(
   appointmentId: string,
   error: string
