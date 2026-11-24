@@ -5,14 +5,25 @@ import {
   decryptMagic,
   verifyShortCode,
 } from '../services/magic-link.service';
-import { findById, slotStartMillis } from '../services/appointment.repository';
+import { findById, findBookedByVisitUuid, slotStartMillis } from '../services/appointment.repository';
 import { sendDoctorWaiting } from '../services/turn-io.service';
 import { markJoinClicked } from '../services/turn-call-link.repository';
 
-// WhatsApp fetches the link itself to build the message preview; that request
-// is not the patient clicking "Join Consultation".
-const isLinkPreview = (req: Request) =>
-  /whatsapp/i.test(String(req.headers['user-agent'] || ''));
+// Every "Join Consultation" link (booking message, reminder, doctor-waiting)
+// lands on the join page, which calls redeem. WhatsApp's link preview never
+// runs the page, so it never reaches here. Never block the call on this.
+async function recordJoinClick(visitUuid: string): Promise<void> {
+  try {
+    const appointment = visitUuid ? await findBookedByVisitUuid(visitUuid) : null;
+    if (!appointment) {
+      console.log(`[magic-link] join click: no booked appointment for visit ${visitUuid}`);
+      return;
+    }
+    await markJoinClicked(String(appointment.id));
+  } catch (err: any) {
+    console.error(`[magic-link] visit ${visitUuid}: could not record join click:`, err?.message || err);
+  }
+}
 
 const notice = (title: string, detail: string) => `<!doctype html>
 <html><head><meta charset="utf-8">
@@ -157,6 +168,8 @@ export class MagicLinkController {
         .json({ success: false, message: 'This link has expired.' });
     }
 
+    await recordJoinClick(payload.visitUuid);
+
     return res.json({
       success: true,
       roomId: payload.roomId,
@@ -230,18 +243,6 @@ async function joinShortInner(req: Request, res: Response) {
       return res
         .status(410)
         .send(notice('Link expired', 'This joining link has expired. Please contact your health provider.'));
-    }
-
-    // Link is valid and open: record the patient's click. Never block the call on it.
-    if (!isLinkPreview(req)) {
-      try {
-        await markJoinClicked(appointmentId);
-      } catch (err: any) {
-        console.error(
-          `[magic-link] appointment ${appointmentId}: could not record join click:`,
-          err?.message || err
-        );
-      }
     }
 
     const ttl = Number(process.env.TURN_CALL_LINK_TTL_MINUTES) || 120;

@@ -16,7 +16,7 @@ export async function claim(
         SET status = 'sending', attempts = attempts + 1, updatedAt = NOW()
       WHERE appointmentId = :id
         AND attempts < :maxAttempts
-        AND (status = 'failed'
+        AND (status IN ('pending', 'failed')
              OR (status = 'sending'
                  AND updatedAt < DATE_SUB(NOW(), INTERVAL :staleMinutes MINUTE)))`,
     { replacements: { id: appointmentId, staleMinutes, maxAttempts } }
@@ -45,15 +45,16 @@ export async function markSent(appointmentId: string): Promise<void> {
   );
 }
 
-// Record the patient opening the "Join Consultation" link. Only updates an
-// existing row: inserting one here would make claim() think the link was
-// already handled, and the patient would never get it.
+// Record the first time the patient opened a "Join Consultation" link.
+// A row created here is 'pending' with 0 attempts, so claim() still picks it
+// up and the reminder link is still sent. updatedAt is left alone so a
+// 'sending' row's stale check is not pushed back.
 export async function markJoinClicked(appointmentId: string): Promise<void> {
   await db.sequelize.query(
-    `UPDATE turn_call_links
-        SET joinClickedAt = NOW()
-      WHERE appointmentId = :id
-        AND joinClickedAt IS NULL`,
+    `INSERT INTO turn_call_links
+       (appointmentId, status, attempts, joinClickedAt, createdAt, updatedAt)
+     VALUES (:id, 'pending', 0, NOW(), NOW(), NOW())
+     ON DUPLICATE KEY UPDATE joinClickedAt = COALESCE(joinClickedAt, NOW())`,
     { replacements: { id: appointmentId } }
   );
 }
