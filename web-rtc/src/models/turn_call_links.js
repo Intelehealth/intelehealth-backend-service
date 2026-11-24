@@ -13,6 +13,7 @@ module.exports = (sequelize, DataTypes) => {
     attempts: DataTypes.INTEGER,
     sentAt: DataTypes.DATE,
     lastError: DataTypes.STRING,
+    joinClickedAt: DataTypes.DATE,
   },
   {
     sequelize,

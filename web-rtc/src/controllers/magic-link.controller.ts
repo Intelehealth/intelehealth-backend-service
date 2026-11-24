@@ -7,6 +7,12 @@ import {
 } from '../services/magic-link.service';
 import { findById, slotStartMillis } from '../services/appointment.repository';
 import { sendDoctorWaiting } from '../services/turn-io.service';
+import { markJoinClicked } from '../services/turn-call-link.repository';
+
+// WhatsApp fetches the link itself to build the message preview; that request
+// is not the patient clicking "Join Consultation".
+const isLinkPreview = (req: Request) =>
+  /whatsapp/i.test(String(req.headers['user-agent'] || ''));
 
 const notice = (title: string, detail: string) => `<!doctype html>
 <html><head><meta charset="utf-8">
@@ -224,6 +230,18 @@ async function joinShortInner(req: Request, res: Response) {
       return res
         .status(410)
         .send(notice('Link expired', 'This joining link has expired. Please contact your health provider.'));
+    }
+
+    // Link is valid and open: record the patient's click. Never block the call on it.
+    if (!isLinkPreview(req)) {
+      try {
+        await markJoinClicked(appointmentId);
+      } catch (err: any) {
+        console.error(
+          `[magic-link] appointment ${appointmentId}: could not record join click:`,
+          err?.message || err
+        );
+      }
     }
 
     const ttl = Number(process.env.TURN_CALL_LINK_TTL_MINUTES) || 120;
