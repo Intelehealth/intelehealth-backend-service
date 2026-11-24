@@ -1,10 +1,7 @@
 const express = require("express");
 const { getVisitContents } = require("../lib/openmrs");
-const { saveFeedback, holdFeedback } = require("../lib/feedback");
-const {
-  OPENMRS_CONCEPT_RATING,
-  OPENMRS_ENCOUNTER_TYPE_VISIT_COMPLETE,
-} = require("../constants");
+const { saveFeedback } = require("../lib/feedback");
+const { OPENMRS_CONCEPT_RATING } = require("../constants");
 
 // An unset Turn contact field arrives as the literal "@contact.foo" template, and an
 // unanswered optional Flow field can arrive as the literal "${form.foo}".
@@ -106,9 +103,9 @@ router.post("/feedback_push", async (req, res) => {
       return res.status(400).json({ success: false, error: "feedback_rating must be a number from 1 to 5" });
     }
 
-    let encounterTypes, obsConcepts;
+    let obsConcepts, stopDatetime;
     try {
-      ({ encounterTypes, obsConcepts } = await getVisitContents(visitUuid));
+      ({ obsConcepts, stopDatetime } = await getVisitContents(visitUuid));
     } catch (err) {
       const status = err.response?.status;
       console.error(`[feedback_push] could not read visit ${visitUuid}:`, status || err.message);
@@ -125,15 +122,14 @@ router.post("/feedback_push", async (req, res) => {
 
     const result = { success: true, patient_uuid: personUuid, visit_uuid: visitUuid, rating, feedback_saved: Boolean(feedback) };
 
-    // The doctor portal treats an exit survey as "visit ended" and hides "Start visit note",
-    // so hold the rating until the prescription is shared (see prescription/route.js).
-    if (!encounterTypes.includes(OPENMRS_ENCOUNTER_TYPE_VISIT_COMPLETE)) {
-      holdFeedback({ personUuid, visitUuid, rating, feedback });
-      console.log(`[feedback_push] held for visit ${visitUuid} until the prescription is shared`);
-      return res.json({ ...result, held: true });
-    }
-
-    const encounterUuid = await saveFeedback({ personUuid, visitUuid, rating, feedback });
+    // Saved straight away, even before the doctor shares the prescription: on Turn the doctor
+    // portal (IS_TURN_SERVER) no longer treats an exit survey as "visit ended" -- only the
+    // visit's stopDatetime, set when the doctor shares, ends it.
+    // If the visit has already ended, date the encounter just before its stop time:
+    // OpenMRS rejects an encounter dated after its visit's stopDatetime.
+    const encounterDatetime = stopDatetime ? new Date(new Date(stopDatetime).getTime() - 1000) : undefined;
+    const encounterUuid = await saveFeedback({ personUuid, visitUuid, rating, feedback, encounterDatetime });
+    console.log(`[feedback_push] saved for visit ${visitUuid} as encounter ${encounterUuid}${stopDatetime ? " (visit already ended)" : ""}`);
     res.json({ ...result, held: false, encounter_uuid: encounterUuid });
   } catch (err) {
     const detail = err.response?.data || err.message;

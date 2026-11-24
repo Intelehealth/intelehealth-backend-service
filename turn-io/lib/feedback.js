@@ -20,7 +20,8 @@ const HELD_STORE_PATH = path.join(__dirname, "..", ".feedback-pending.json");
 const formatDatetime = (d) => d.toISOString().replace("Z", "+0000");
 
 // No visits[] entry: the visit exists, and re-posting would overwrite its attributes.
-const buildSurveyBundle = ({ personUuid, visitUuid, rating, feedback }) => {
+// encounterDatetime (optional) keeps the encounter inside an ended visit's dates.
+const buildSurveyBundle = ({ personUuid, visitUuid, rating, feedback, encounterDatetime }) => {
   const obs = [{ concept: OPENMRS_CONCEPT_RATING, value: rating, comments: "" }];
   if (feedback) obs.push({ concept: OPENMRS_CONCEPT_COMMENTS, value: feedback, comments: "" });
 
@@ -33,7 +34,7 @@ const buildSurveyBundle = ({ personUuid, visitUuid, rating, feedback }) => {
     encounters: [
       {
         uuid: randomUUID(),
-        encounterDatetime: formatDatetime(new Date()),
+        encounterDatetime: formatDatetime(encounterDatetime || new Date()),
         encounterType: OPENMRS_ENCOUNTER_TYPE_PATIENT_EXIT_SURVEY,
         encounterProviders: [
           { encounterRole: OPENMRS_ENCOUNTER_ROLE_UUID, provider: OPENMRS_PROVIDER_UUID },
@@ -49,8 +50,8 @@ const buildSurveyBundle = ({ personUuid, visitUuid, rating, feedback }) => {
 };
 
 // Writes the exit-survey encounter; returns its uuid.
-const saveFeedback = async ({ personUuid, visitUuid, rating, feedback }) => {
-  const bundle = buildSurveyBundle({ personUuid, visitUuid, rating, feedback });
+const saveFeedback = async ({ personUuid, visitUuid, rating, feedback, encounterDatetime }) => {
+  const bundle = buildSurveyBundle({ personUuid, visitUuid, rating, feedback, encounterDatetime });
   const { data } = await pushData(bundle);
   console.log(`[feedback] saved for visit ${visitUuid}:`, JSON.stringify(data));
   return bundle.encounters[0].uuid;

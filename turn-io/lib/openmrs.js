@@ -41,12 +41,13 @@ const getVisitContents = async (visitUuid) => {
    if (!base) throw new Error("OPENMRS_REST_URL is not set");
 
    const { data } = await axios.get(`${base}/visit/${visitUuid}`, {
-      params: { v: "custom:(uuid,encounters:(voided,encounterType:(uuid),obs:(voided,concept:(uuid))))" },
+      params: { v: "custom:(uuid,stopDatetime,encounters:(voided,encounterType:(uuid),obs:(voided,concept:(uuid))))" },
       headers: { Authorization: basicAuth, Accept: "application/json" },
    });
 
    const encounters = (data?.encounters || []).filter((e) => !e.voided);
    return {
+      stopDatetime: data?.stopDatetime || null,
       encounterTypes: encounters.map((e) => e.encounterType?.uuid).filter(Boolean),
       obsConcepts: encounters.flatMap((e) => e.obs || []).filter((o) => !o.voided)
          .map((o) => o.concept?.uuid).filter(Boolean),

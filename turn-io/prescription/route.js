@@ -136,9 +136,14 @@ router.post("/prescription/notify", async (req, res) => {
       const result = await notifyForVisit(visitUuid, opts);
       if (result.ok) {
          // The prescription is shared now, so a rating the patient gave earlier can be written.
-         flushHeldFeedback(visitUuid)
-            .then((enc) => enc && console.log(`[prescription notify] ${visitUuid}: held feedback saved as ${enc}`))
-            .catch((err) => console.error(`[prescription notify] ${visitUuid}: held feedback not saved:`, errDetail(err)));
+         // Awaited: the doctor webapp ends the visit (stopDatetime) only after this responds,
+         // and OpenMRS rejects an encounter dated after the visit's stop time.
+         try {
+            const enc = await flushHeldFeedback(visitUuid);
+            if (enc) console.log(`[prescription notify] ${visitUuid}: held feedback saved as ${enc}`);
+         } catch (err) {
+            console.error(`[prescription notify] ${visitUuid}: held feedback not saved:`, errDetail(err));
+         }
       }
       if (result.skipped) {
          console.log(`[prescription notify] already notified ${visitUuid} -- skipping`);
