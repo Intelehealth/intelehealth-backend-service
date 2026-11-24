@@ -53,10 +53,15 @@ on:
         description: 'Deploy to DEMOAI host'
         type: boolean
         default: false
+      deploy_nasstaging:
+        description: 'Deploy to NASSTAGING host'
+        type: boolean
+        default: false
   push:
-    branches: [development_master]
+    branches: [development_master, staging_master]
     paths:
       - 'web-rtc/**'
+      - '.github/workflows/web-rtc-deploy.yml'
 
 env:
   DOCKER_IMAGE_NAME: web-rtc
@@ -79,11 +84,17 @@ jobs:
           pathqa_arch=arm64
           turn_arch=amd64
           demoai_arch=amd64
+          nasstaging_arch=amd64
 
           if [ "${{ github.event_name }}" == "push" ]; then
             # On push, deploy to all hosts
             includes='[]'
-            for env in dev testturn ttxai pathqa turn demoai; do
+            if [ "${{ github.ref }}" == "refs/heads/staging_master" ]; then
+              push_envs="nasstaging"
+            else
+              push_envs="dev testturn ttxai pathqa turn demoai"
+            fi
+            for env in $push_envs; do
               arch_var="${env}_arch"
               includes=$(echo "$includes" | jq -c --arg e "$env" --arg a "${!arch_var}" '. += [{"environment":$e,"arch":$a}]')
             done
@@ -93,7 +104,7 @@ jobs:
             # variable - indirect expansion (${!...}) fails on the dots, so
             # each input is expanded literally via the case below.
             includes='[]'
-            for env in dev ttxai pathqa testturn turn demoai; do
+            for env in dev ttxai pathqa testturn turn demoai nasstaging; do
               case "$env" in
                 dev)      selected="${{ inputs.deploy_dev }}" ;;
                 ttxai)    selected="${{ inputs.deploy_ttxai }}" ;;
@@ -101,6 +112,7 @@ jobs:
                 testturn) selected="${{ inputs.deploy_testturn }}" ;;
                 turn)     selected="${{ inputs.deploy_turn }}" ;;
                 demoai)   selected="${{ inputs.deploy_demoai }}" ;;
+                nasstaging) selected="${{ inputs.deploy_nasstaging }}" ;;
               esac
               if [ "$selected" == "true" ]; then
                 arch_var="${env}_arch"
@@ -191,6 +203,7 @@ jobs:
       TESTTURN_HOST: ${{ secrets.TESTTURN_HOST }}
       TURN_HOST: ${{ secrets.TURN_HOST }}
       DEMOAI_HOST: ${{ secrets.DEMOAI_HOST }}
+      NASSTAGING_HOST: ${{ secrets.NASSTAGING_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
@@ -203,6 +216,7 @@ jobs:
             testturn) echo "REMOTE_HOST=$TESTTURN_HOST" >> $GITHUB_ENV ;;
             turn)     echo "REMOTE_HOST=$TURN_HOST" >> $GITHUB_ENV ;;
             demoai)   echo "REMOTE_HOST=$DEMOAI_HOST" >> $GITHUB_ENV ;;
+            nasstaging) echo "REMOTE_HOST=$NASSTAGING_HOST" >> $GITHUB_ENV ;;
             *)        echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
 

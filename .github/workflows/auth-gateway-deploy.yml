@@ -27,10 +27,15 @@ on:
         description: 'Deploy to DEMOAI host'
         type: boolean
         default: false
+      deploy_nasstaging:
+        description: 'Deploy to NASSTAGING host'
+        type: boolean
+        default: false
   push:
-    branches: [development_master]
+    branches: [development_master, staging_master]
     paths:
       - 'auth-gateway/**'
+      - '.github/workflows/auth-gateway-deploy.yml'
 
 env:
   DOCKER_IMAGE_NAME: auth-gateway
@@ -73,7 +78,12 @@ jobs:
           }
           includes='[]'
           if [ "${{ github.event_name }}" == "push" ]; then
-            for env in dev turn ttxai testturn pathqa demoai; do
+            if [ "${{ github.ref }}" == "refs/heads/staging_master" ]; then
+              push_envs="nasstaging"
+            else
+              push_envs="dev turn ttxai testturn pathqa demoai"
+            fi
+            for env in $push_envs; do
               includes=$(echo "$includes" | jq -c --arg env "$env" --arg arch "$(arch_of "$env")" '. += [{"environment":$env,"arch":$arch}]')
             done
           else
@@ -94,6 +104,9 @@ jobs:
             fi
             if [ "${{ inputs.deploy_demoai }}" == "true" ]; then
               includes=$(echo "$includes" | jq -c --arg arch "$(arch_of demoai)" '. += [{"environment":"demoai","arch":$arch}]')
+            fi
+            if [ "${{ inputs.deploy_nasstaging }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c --arg arch "$(arch_of nasstaging)" '. += [{"environment":"nasstaging","arch":$arch}]')
             fi
           fi
           archs=$(echo "$includes" | jq -r '.[].arch' | sort -u | paste -sd, -)
@@ -166,6 +179,7 @@ jobs:
       TESTTURN_HOST: ${{ secrets.TESTTURN_HOST }}
       PATHQA_HOST: ${{ secrets.PATHQA_HOST }}
       DEMOAI_HOST: ${{ secrets.DEMOAI_HOST }}
+      NASSTAGING_HOST: ${{ secrets.NASSTAGING_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
@@ -178,6 +192,7 @@ jobs:
             turn) echo "REMOTE_HOST=$TURN_HOST" >> $GITHUB_ENV ;;
             pathqa) echo "REMOTE_HOST=$PATHQA_HOST" >> $GITHUB_ENV ;;
             demoai) echo "REMOTE_HOST=$DEMOAI_HOST" >> $GITHUB_ENV ;;
+            nasstaging) echo "REMOTE_HOST=$NASSTAGING_HOST" >> $GITHUB_ENV ;;
             *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
 

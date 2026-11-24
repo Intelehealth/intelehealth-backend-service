@@ -48,10 +48,15 @@ on:
         description: 'Deploy to DEMOAI host'
         type: boolean
         default: false
+      deploy_nasstaging:
+        description: 'Deploy to NASSTAGING host'
+        type: boolean
+        default: false
   push:
-    branches: [development_master]
+    branches: [development_master, staging_master]
     paths:
       - 'portal/**'
+      - '.github/workflows/portal-deploy.yml'
 
 # Serialize runs per branch: two pushes (or push + manual dispatch) must not
 # deploy to the same hosts concurrently. New runs queue instead of cancelling
@@ -81,10 +86,16 @@ jobs:
           turn_arch=amd64
           demoai_arch=amd64
           pathqa_arch=arm64
+          nasstaging_arch=amd64
           if [ "${{ github.event_name }}" == "push" ]; then
             # On push, deploy to all hosts
             includes='[]'
-            for env in dev turn ttxai testturn pathqa demoai; do
+            if [ "${{ github.ref }}" == "refs/heads/staging_master" ]; then
+              push_envs="nasstaging"
+            else
+              push_envs="dev turn ttxai testturn pathqa demoai"
+            fi
+            for env in $push_envs; do
               arch_var="${env}_arch"
               includes=$(echo "$includes" | jq -c --arg e "$env" --arg a "${!arch_var}" '. += [{"environment":$e,"arch":$a}]')
             done
@@ -94,7 +105,7 @@ jobs:
             # variable - indirect expansion (${!...}) fails on the dots, so
             # each input is expanded literally via the case below.
             includes='[]'
-            for env in dev turn ttxai testturn pathqa demoai; do
+            for env in dev turn ttxai testturn pathqa demoai nasstaging; do
               case "$env" in
                 dev)      selected="${{ inputs.deploy_dev }}" ;;
                 ttxai)    selected="${{ inputs.deploy_ttxai }}" ;;
@@ -102,6 +113,7 @@ jobs:
                 turn)     selected="${{ inputs.deploy_turn }}" ;;
                 pathqa)   selected="${{ inputs.deploy_pathqa }}" ;;
                 demoai)   selected="${{ inputs.deploy_demoai }}" ;;
+                nasstaging) selected="${{ inputs.deploy_nasstaging }}" ;;
               esac
               if [ "$selected" == "true" ]; then
                 arch_var="${env}_arch"
@@ -172,6 +184,7 @@ jobs:
       TESTTURN_HOST: ${{ secrets.TESTTURN_HOST }}
       TURN_HOST: ${{ secrets.TURN_HOST }}
       PATHQA_HOST: ${{ secrets.PATHQA_HOST }}
+      NASSTAGING_HOST: ${{ secrets.NASSTAGING_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
@@ -184,6 +197,7 @@ jobs:
             turn)     host="$TURN_HOST" ;;
             pathqa)   host="$PATHQA_HOST" ;;
             demoai)   host="$DEMOAI_HOST" ;;
+            nasstaging) host="$NASSTAGING_HOST" ;;
             *)        echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
           echo "REMOTE_HOST=$host" >> $GITHUB_ENV
