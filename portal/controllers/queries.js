@@ -1,5 +1,14 @@
 const Constant = require("../constants/constant");
 
+// Applies ONLY when the portal runs with IS_TURN_SERVER=true. Every other server keeps the
+// original values (1,6,9,12,14,15 and 12, 14), so its behaviour is unchanged.
+// On Turn the patient's feedback is saved as a Patient Exit Survey encounter (type 12) as
+// soon as it arrives on WhatsApp, before the doctor has seen the visit, so there type 12 must
+// not decide the visit status: only Visit Complete (14) or date_stopped does.
+const IS_TURN_SERVER = () => process.env.IS_TURN_SERVER === "true";
+const statusEncounterTypes = () => (IS_TURN_SERVER() ? "1,6,9,14,15" : "1,6,9,12,14,15");
+const completedEncounterTypes = () => (IS_TURN_SERVER() ? "14" : "12, 14");
+
 module.exports = (function () {
     this.getVisitCountQuery = ({ speciality = "General Physician" }) => {
         return `select count(t1.visit_id) as Total,
@@ -222,7 +231,7 @@ module.exports = (function () {
                 max(encounter_id) as max_enc,
                 max(
                     case
-                        when (encounter_type in (12, 14)) then 1
+                        when (encounter_type in (${completedEncounterTypes()})) then 1
                         else 0
                     end
                 ) as com_enc,
@@ -265,7 +274,7 @@ module.exports = (function () {
                 ) > 0 as hasSpecialistNote
             from
                 visit v
-                LEFT JOIN encounter e on e.visit_id = v.visit_id and (e.encounter_type IN (1,6,9,12,14,15))
+                LEFT JOIN encounter e on e.visit_id = v.visit_id and (e.encounter_type IN (${statusEncounterTypes()}))
                 LEFT JOIN visit_attribute va on (va.visit_id= v.visit_id and va.voided = 0 and va.attribute_type_id = 5)
             where
                 v.voided = 0
@@ -311,7 +320,7 @@ module.exports = (function () {
                 max(encounter_id) as max_enc,
                 max(
                     case
-                        when (encounter_type in (12, 14)) then 1
+                        when (encounter_type in (${completedEncounterTypes()})) then 1
                         else 0
                     end
                 ) as com_enc,
@@ -329,7 +338,7 @@ module.exports = (function () {
               ) as ended
             from
                 visit v
-                LEFT JOIN encounter e on e.visit_id = v.visit_id and (e.encounter_type IN (1,6,9,12,14,15))
+                LEFT JOIN encounter e on e.visit_id = v.visit_id and (e.encounter_type IN (${statusEncounterTypes()}))
                 LEFT JOIN visit_attribute va on (va.visit_id= v.visit_id and va.voided = 0 and va.attribute_type_id = 5)
             where
                 v.voided = 0
