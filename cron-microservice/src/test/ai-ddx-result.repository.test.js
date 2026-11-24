@@ -107,3 +107,82 @@ test("a worker failure never marks a notes-based row failed", async (t) => {
   assert.match(sql, /WHERE id = :id AND source <> :notesSource/);
   assert.equal(params.notesSource, "notes");
 });
+
+const aiLlmFeature = require("../crons/services/ai-llm-feature.service");
+
+const summaryObj = { extraction: { chief_complaint: "fever" } };
+const jsonRow = (value) => ({
+  visit_id: 7, visit_uuid: "visit-1", patient_uuid: "patient-1", gender: "F", birthdate: "1990-01-01",
+  obs_id: 2, value_text: value, value_numeric: null, encounter_type_name: "ADULTINITIAL",
+  concept_uuid: "1f770363-262e-4d01-b1df-3eb164d575ef",
+  concept_name: "JSON Format Visit Summary", locale_preferred: 1, concept_name_type: "FULLY_SPECIFIED",
+});
+const withFlags = (t, flags) => t.mock.method(aiLlmFeature, "getPublishedAiLlmFlags", async () => flags);
+const allOn = { json_format_visit_summary: true, json_format_visit_summary_ddx: true };
+
+test("both flags on with the obs present sends the parsed object and stores a string payload", async (t) => {
+  withFlags(t, allOn);
+  const writes = setup(t, { visit: [...visitRows, jsonRow(JSON.stringify(summaryObj))] });
+  const ddx = t.mock.method(aiMiddleware, "ddx", async () => ({ result: { data: { result: [{ diagnosis: "flu" }] } } }));
+  t.mock.method(console, "log", () => {});
+
+  await computeForVisit("visit-1");
+  assert.deepEqual(ddx.mock.calls[0].arguments[0].casehistory, summaryObj);
+  const { params } = writes.at(-1);
+  assert.equal(typeof params.request_payload, "string");
+  assert.equal(params.request_payload, JSON.stringify(summaryObj));
+  assert.equal(params.payload_hash, require("../crons/services/ddx-payload.service").hashPayload(summaryObj));
+});
+
+test("parent on with the ddx child off sends the string", async (t) => {
+  withFlags(t, { json_format_visit_summary: true, json_format_visit_summary_ddx: false });
+  setup(t, { visit: [...visitRows, jsonRow(JSON.stringify(summaryObj))] });
+  const ddx = t.mock.method(aiMiddleware, "ddx", async () => ({ result: { data: { result: [] } } }));
+  t.mock.method(console, "log", () => {});
+
+  await computeForVisit("visit-1");
+  assert.equal(typeof ddx.mock.calls[0].arguments[0].casehistory, "string");
+});
+
+test("parent off with the ddx child on sends the string", async (t) => {
+  withFlags(t, { json_format_visit_summary: false, json_format_visit_summary_ddx: true });
+  setup(t, { visit: [...visitRows, jsonRow(JSON.stringify(summaryObj))] });
+  const ddx = t.mock.method(aiMiddleware, "ddx", async () => ({ result: { data: { result: [] } } }));
+  t.mock.method(console, "log", () => {});
+
+  await computeForVisit("visit-1");
+  assert.equal(typeof ddx.mock.calls[0].arguments[0].casehistory, "string");
+});
+
+test("both flags on with the obs missing sends the string", async (t) => {
+  withFlags(t, allOn);
+  setup(t);
+  const ddx = t.mock.method(aiMiddleware, "ddx", async () => ({ result: { data: { result: [] } } }));
+  t.mock.method(console, "log", () => {});
+
+  await computeForVisit("visit-1");
+  assert.equal(typeof ddx.mock.calls[0].arguments[0].casehistory, "string");
+});
+
+test("both flags on with malformed JSON warns once and sends the string", async (t) => {
+  withFlags(t, allOn);
+  setup(t, { visit: [...visitRows, jsonRow("{bad")] });
+  const ddx = t.mock.method(aiMiddleware, "ddx", async () => ({ result: { data: { result: [] } } }));
+  t.mock.method(console, "log", () => {});
+  const warn = t.mock.method(console, "warn", () => {});
+
+  await computeForVisit("visit-1");
+  assert.equal(typeof ddx.mock.calls[0].arguments[0].casehistory, "string");
+  assert.equal(warn.mock.callCount(), 1);
+  assert.match(warn.mock.calls[0].arguments[0], /visit-1/);
+});
+
+test("a failure with a JSON payload records the request payload as a string", async (t) => {
+  withFlags(t, allOn);
+  t.mock.method(aiMiddleware, "ddx", async () => { throw new Error("boom"); });
+  t.mock.method(console, "log", () => {});
+  const { params } = await failOnce(t, { visit: [...visitRows, jsonRow(JSON.stringify(summaryObj))] });
+
+  assert.equal(typeof params.request_payload, "string");
+  assert.equal(params.request_payload, JSON.stringify(summaryObj));
+});

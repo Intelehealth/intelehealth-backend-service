@@ -282,6 +282,22 @@ AI_DDX_NOTIFY_TOKEN=<shared secret>
 
 With either unset the worker skips notifying. A failed notify is logged and never fails the job: the result is already stored, and the page still gets it on reload.
 
+## JSON visit summary casehistory
+
+The mobile app can save a structured summary as an obs on the `ADULTINITIAL` encounter: concept `JSON Format Visit Summary` (uuid `1f770363-262e-4d01-b1df-3eb164d575ef`), whose value is a JSON string shaped `{"extraction": {...}}`. The DDx worker can send that object, instead of the legacy text, as `casehistory` to the AI middleware `/ddx`. The same path serves the doctor's retry, because retry re-queues the visit.
+
+Published AI LLM flags (read through the cached `getPublishedAiLlmFlags`):
+
+| Key | Role |
+|---|---|
+| `json_format_visit_summary` | parent flag |
+| `json_format_visit_summary_ddx` | child flag for DDx |
+| `json_format_visit_summary_ttx` | child flag for TTx (not read by this service) |
+
+The JSON object is sent only when the parent and the DDx child are both `true` and the visit has a non-voided `JSON Format Visit Summary` obs whose value parses to a non-null object. Anything else sends the legacy text unchanged: flag off, obs missing, or malformed JSON (the last logs one warning naming the visit). Each run logs which form was used and why. The obs is matched by concept uuid, falling back to the concept name.
+
+The stored `request_payload` is always a string (`JSON.stringify` of the object) and `payload_hash` hashes that string. Flipping the flags changes the payload, so the hash differs and the visit is recomputed. Seeder: `configuration-microservice/src/seeders/20261124120000-mst-ai-llm-json-format-visit-summary-ddx-ttx.ts` (both children default off).
+
 ## Timezones across hosts
 
 `CRON_TIMEZONE` is the single source of truth for *when a day starts*. It drives
