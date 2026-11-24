@@ -116,12 +116,59 @@ ${vitalPayload}
 `;
 };
 
-const hashPayload = (payload) => crypto.createHash('sha256').update(payload).digest('hex');
+const JSON_SUMMARY_CONCEPT_UUID = '1f770363-262e-4d01-b1df-3eb164d575ef';
+const JSON_SUMMARY_CONCEPT_NAME = 'JSON Format Visit Summary';
+
+const serializePayload = (payload) => (typeof payload === 'string' ? payload : JSON.stringify(payload));
+
+const hashPayload = (payload) => crypto.createHash('sha256').update(serializePayload(payload)).digest('hex');
+
+const isJsonSummaryObs = (obsRow) => {
+  if (obsRow?.concept?.uuid) {
+    return obsRow.concept.uuid === JSON_SUMMARY_CONCEPT_UUID;
+  }
+  return (obsRow?.concept?.names || []).some((n) => n.name === JSON_SUMMARY_CONCEPT_NAME);
+};
+
+const extractJsonVisitSummary = (visitRow) => {
+  const grouped = groupObsByEncounterType(visitRow?.obsRows);
+  const obs = (grouped[ADULT_INITIAL] || []).find(
+    (o) => isJsonSummaryObs(o) && o.value_text !== null && o.value_text !== undefined && String(o.value_text).trim() !== ''
+  );
+  if (!obs) {
+    return { payload: null, reason: 'obs missing' };
+  }
+  try {
+    const parsed = JSON.parse(obs.value_text);
+    if (parsed === null || typeof parsed !== 'object') {
+      return { payload: null, reason: 'parse error' };
+    }
+    return { payload: parsed, reason: null };
+  } catch (error) {
+    return { payload: null, reason: 'parse error' };
+  }
+};
+
+const buildCasePayload = (visitRow, { jsonEnabled = false } = {}) => {
+  if (!jsonEnabled) {
+    return { casehistory: buildCaseHistory(visitRow), source: 'text', reason: 'flag off' };
+  }
+  const { payload, reason } = extractJsonVisitSummary(visitRow);
+  if (payload) {
+    return { casehistory: payload, source: 'json', reason: null };
+  }
+  return { casehistory: buildCaseHistory(visitRow), source: 'text', reason };
+};
 
 module.exports = {
   buildCaseHistory,
   groupObsByEncounterType,
   hashPayload,
+  serializePayload,
+  extractJsonVisitSummary,
+  buildCasePayload,
+  JSON_SUMMARY_CONCEPT_UUID,
+  JSON_SUMMARY_CONCEPT_NAME,
   formatText,
   formatAge,
   genderLabel,

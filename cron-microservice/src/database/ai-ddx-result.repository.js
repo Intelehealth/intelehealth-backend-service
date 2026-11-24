@@ -1,6 +1,7 @@
 const { database, openMrsDatabase } = require('./index');
-const { buildCaseHistory, hashPayload } = require('../crons/services/ddx-payload.service');
+const { buildCasePayload, hashPayload, serializePayload } = require('../crons/services/ddx-payload.service');
 const aiMiddleware = require('../crons/services/ai-middleware.service');
+const aiLlmFeature = require('../crons/services/ai-llm-feature.service');
 
 const STATUS_DONE = 'done';
 const STATUS_FAILED = 'failed';
@@ -16,6 +17,7 @@ const VISIT_PAYLOAD_QUERY = `SELECT
     o.value_text,
     o.value_numeric,
     et.name AS encounter_type_name,
+    c.uuid AS concept_uuid,
     cn.name AS concept_name,
     cn.locale_preferred,
     cn.concept_name_type
@@ -44,7 +46,7 @@ const buildVisitRow = (flatRows) => {
         value_text: row.value_text,
         value_numeric: row.value_numeric,
         encounter_type_name: row.encounter_type_name,
-        concept: { names: [] },
+        concept: { uuid: row.concept_uuid || null, names: [] },
       });
     }
     if (row.concept_name != null) {
@@ -129,6 +131,14 @@ const upsertSuccess = async (existing, values) => {
   );
 };
 
+const JSON_PARENT_FLAG = 'json_format_visit_summary';
+const JSON_DDX_FLAG = 'json_format_visit_summary_ddx';
+
+const isJsonSummaryEnabled = async () => {
+  const flags = await aiLlmFeature.getPublishedAiLlmFlags();
+  return flags?.[JSON_PARENT_FLAG] === true && flags?.[JSON_DDX_FLAG] === true;
+};
+
 const computeForVisit = async (visitUuid, { timeout } = {}) => {
   const visitRow = await loadVisitForPayload(visitUuid);
   if (!visitRow) {
@@ -137,8 +147,19 @@ const computeForVisit = async (visitUuid, { timeout } = {}) => {
     throw err;
   }
 
-  const casehistory = buildCaseHistory(visitRow);
+  const jsonEnabled = await isJsonSummaryEnabled();
+  const built = buildCasePayload(visitRow, { jsonEnabled });
+  const casehistory = built.casehistory;
+  const requestPayload = serializePayload(casehistory);
   const payloadHash = hashPayload(casehistory);
+  if (built.source === 'json') {
+    console.log(`[ddx-worker] ${visitUuid} using JSON visit summary casehistory`);
+  } else {
+    if (built.reason === 'parse error') {
+      console.warn(`[ddx-worker] ${visitUuid} JSON Format Visit Summary is malformed, falling back to text casehistory`);
+    }
+    console.log(`[ddx-worker] ${visitUuid} using text casehistory (${built.reason})`);
+  }
   const patientUuid = visitRow?.person?.uuid || null;
 
   const existing = await findResult(visitUuid);
@@ -158,7 +179,7 @@ const computeForVisit = async (visitUuid, { timeout } = {}) => {
     error.ddxContext = {
       patient_uuid: patientUuid,
       payload_hash: payloadHash,
-      request_payload: casehistory,
+      request_payload: requestPayload,
       response: error.responseBody ?? null,
     };
     throw error;
@@ -169,7 +190,7 @@ const computeForVisit = async (visitUuid, { timeout } = {}) => {
     visit_uuid: visitUuid,
     patient_uuid: patientUuid,
     payload_hash: payloadHash,
-    request_payload: casehistory,
+    request_payload: requestPayload,
     response,
     conclusion,
     status: STATUS_DONE,
