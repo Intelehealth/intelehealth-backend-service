@@ -57,7 +57,19 @@ module.exports = (function () {
 
   const getMonthSlots = ({ schedule, days, SLOT_DURATION,SLOT_GAP,SLOT_DURATION_UNIT }) => {
     let dates = [];
-    const slots = schedule.slotSchedule.filter((s) => s.startTime && s.endTime);
+    // slotSchedule is a JSON column; with raw:true MySQL/MariaDB may return it
+    // as a string (or null), so normalise it to an array first.
+    let slotSchedule = schedule.slotSchedule;
+    if (typeof slotSchedule === "string") {
+      try {
+        slotSchedule = JSON.parse(slotSchedule);
+      } catch (e) {
+        logStream("error", `Invalid slotSchedule JSON for userUuid=${schedule.userUuid}`);
+        slotSchedule = [];
+      }
+    }
+    if (!Array.isArray(slotSchedule)) return dates;
+    const slots = slotSchedule.filter((s) => s && s.startTime && s.endTime);
     const slotDays = slots
       .map((s) => moment(s.date).get("date"))
       .sort((a, b) => a - b);
