@@ -6,9 +6,11 @@ const {
   OPENMRS_ENCOUNTER_TYPE_VISIT_COMPLETE,
 } = require("../constants");
 
-// An unset Turn contact field arrives as the literal "@contact.foo" template.
+// An unset Turn contact field arrives as the literal "@contact.foo" template, and an
+// unanswered optional Flow field can arrive as the literal "${form.foo}".
 const isBlank = (v) =>
-  v == null || (typeof v === "string" && (v.trim() === "" || v.trim().startsWith("@")));
+  v == null ||
+  (typeof v === "string" && (v.trim() === "" || v.trim().startsWith("@") || v.trim().startsWith("${")));
 
 const clean = (v, fallback = "") => (isBlank(v) ? fallback : String(v).trim());
 
@@ -16,6 +18,51 @@ const clean = (v, fallback = "") => (isBlank(v) ? fallback : String(v).trim());
 const parseRating = (raw) => {
   const value = clean(raw);
   return /^[1-5]$/.test(value) ? value : "";
+};
+
+// Feedback Flow radio questions: option ids -> English labels, exactly as in the
+// Flow JSON. Keep in sync if the Flow's option ids change.
+const SURVEY_QUESTIONS = {
+  technical_difficulty: {
+    none: "No, I did not face any difficulty",
+    connectivity: "Internet or network connectivity",
+    slow_loading: "Messages or questions were taking too long to load",
+    sending_selecting: "Difficulty sending responses or selecting options",
+    whatsapp_phone_use: "Difficulty using WhatsApp or the phone",
+    other: "Other",
+  },
+  question_comprehension: {
+    easy: "I understood all or most questions and could answer them easily.",
+    some_difficulty: "I understood some questions but had difficulty understanding or answering others.",
+    needed_help: "I had difficulty answering them or had to take someone's help",
+    cannot_say: "Cannot say / Do not remember",
+  },
+  comfort_sharing_info: {
+    comfortable: "I felt comfortable sharing all the information asked",
+    somewhat_hesitant: "I felt hesitant to share some information.",
+    not_comfortable: "I did not feel comfortable sharing my health information",
+    cannot_say: "Cannot say / Do not remember",
+  },
+  time_effort: {
+    reasonable: "It took a reasonable amount of time and effort",
+    more_than_preferred: "It took more time or effort than I would have preferred",
+    too_much: "It took too much time or effort",
+    cannot_say: "Cannot say / Do not remember",
+  },
+};
+
+// { technical_difficulty: { id, answer, other? }, ... } for the questions answered;
+// an id the Flow no longer defines is kept with answer null so nothing is lost.
+const parseSurveyAnswers = (src) => {
+  const answers = {};
+  for (const [key, options] of Object.entries(SURVEY_QUESTIONS)) {
+    const id = clean(src[key]);
+    if (!id) continue;
+    answers[key] = { id, answer: options[id] ?? null };
+  }
+  const other = clean(src.technical_difficulty_other);
+  if (other && answers.technical_difficulty?.id === "other") answers.technical_difficulty.other = other;
+  return answers;
 };
 
 // Turn unwraps the Flow's nfm_reply, so `feedback` arrives flat (or stringified).
@@ -26,11 +73,17 @@ const readSurvey = (body) => {
   }
   const src = fb && typeof fb === "object" ? fb : body;
 
-  return {
-    rating: parseRating(src.feedback_rating ?? src.rating),
-    // The Turn journey encodes line breaks in the comment as "[NL]"; restore them.
-    feedback: clean(src.feedback_comment ?? src.comment ?? src.comments).replaceAll("[NL]", "\n").trim(),
-  };
+  // The Turn journey encodes line breaks in the comment as "[NL]"; restore them.
+  const comment = clean(src.feedback_comment ?? src.comment ?? src.comments).replaceAll("[NL]", "\n").trim();
+  const answers = parseSurveyAnswers(src);
+
+  // Stored in the existing feedback (comments) obs. Old journeys send only a comment,
+  // which stays plain text; the survey Flow stores the comment plus its answers as JSON.
+  const feedback = Object.keys(answers).length
+    ? JSON.stringify({ survey: "patient_feedback", v: 1, comment: comment || null, answers })
+    : comment;
+
+  return { rating: parseRating(src.feedback_rating ?? src.rating), feedback };
 };
 
 const router = express.Router();
