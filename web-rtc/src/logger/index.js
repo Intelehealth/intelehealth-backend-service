@@ -47,13 +47,16 @@ exports.logStream = (type, data, prefix) => {
   try {
     switch(type) {
       case 'info':
-        logger.log("info", data)
+        logger.log("info", `${prefix}---${data}`)
+      break
+      case 'warn':
+        logger.log("warn", `${prefix}---${data}`)
       break
       case 'debug':
         logger.log("debug", `${prefix}---${JSON.stringify(data)}`)
       break
       case 'error':
-        logger.log("error", data)
+        logger.log("error", `${prefix}---${data}`)
       break
     }
   } catch (err) {
