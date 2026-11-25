@@ -35,10 +35,15 @@ on:
         description: 'Deploy to ttxai host'
         type: boolean
         default: false  
+      deploy_nasstaging:
+        description: 'Deploy to nasstaging host'
+        type: boolean
+        default: false
   push:
-    branches: [development_master]
+    branches: [development_master, staging_master]
     paths:
       - 'cron-microservice/**'
+      - '.github/workflows/cron-microservice-deploy.yml'
 
 env:
   DOCKER_IMAGE_NAME: cron-microservice
@@ -53,11 +58,18 @@ jobs:
         id: set-matrix
         run: |
           if [ "${{ github.event_name }}" == "push" ]; then
-            matrix='{"include":[{"environment":"ttxai"}]}'
+            if [ "${{ github.ref }}" == "refs/heads/staging_master" ]; then
+              matrix='{"include":[{"environment":"nasstaging"}]}'
+            else
+              matrix='{"include":[{"environment":"ttxai"}]}'
+            fi
           else
             includes='[]'
             if [ "${{ inputs.deploy_ttxai }}" == "true" ]; then
               includes=$(echo "$includes" | jq -c '. += [{"environment":"ttxai"}]')
+            fi
+            if [ "${{ inputs.deploy_nasstaging }}" == "true" ]; then
+              includes=$(echo "$includes" | jq -c '. += [{"environment":"nasstaging"}]')
             fi
             matrix="{\"include\":$includes}"
           fi
@@ -123,7 +135,7 @@ jobs:
       REMOTE_PORT: 22
       ENV_FILE_PATH: /home/ubuntu/deploy/cron-microservice/.env
       # All host secrets mapped upfront — dynamic secret refs aren't supported in GitHub Actions
-      REMOTE_HOST: ${{ secrets.TTXAI_HOST }}
+      REMOTE_HOST: ${{ matrix.environment == 'nasstaging' && secrets.NASSTAGING_HOST || secrets.TTXAI_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
