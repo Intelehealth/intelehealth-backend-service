@@ -51,6 +51,17 @@ export async function findDueForCallLink(
   return rows as AppointmentRow[];
 }
 
+export async function findBookedByVisitUuid(visitUuid: string): Promise<AppointmentRow | null> {
+  const rows = await db.sequelize.query(
+    `SELECT ${SELECT_FIELDS} FROM appointments
+      WHERE visitUuid = :visitUuid AND status = 'booked'
+      ORDER BY id DESC LIMIT 1`,
+    { replacements: { visitUuid }, type: db.Sequelize.QueryTypes.SELECT }
+  );
+  const list = rows as AppointmentRow[];
+  return list.length ? list[0] : null;
+}
+
 export async function findById(id: string): Promise<AppointmentRow | null> {
   const rows = await db.sequelize.query(
     `SELECT ${SELECT_FIELDS} FROM appointments WHERE id = :id LIMIT 1`,

@@ -155,7 +155,7 @@ const buildCasePayload = (visitRow, { jsonEnabled = false } = {}) => {
   }
   const { payload, reason } = extractJsonVisitSummary(visitRow);
   if (payload) {
-    return { casehistory: payload, source: 'json', reason: null };
+    return { casehistory: JSON.stringify(payload), source: 'json', reason: null };
   }
   return { casehistory: buildCaseHistory(visitRow), source: 'text', reason };
 };

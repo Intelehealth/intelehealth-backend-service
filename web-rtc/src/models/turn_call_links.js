@@ -9,7 +9,7 @@ module.exports = (sequelize, DataTypes) => {
 
   turn_call_links.init({
     appointmentId: DataTypes.STRING,
-    status: DataTypes.ENUM('sending', 'sent', 'failed'),
+    status: DataTypes.ENUM('pending', 'sending', 'sent', 'failed'),
     attempts: DataTypes.INTEGER,
     sentAt: DataTypes.DATE,
     lastError: DataTypes.STRING,
