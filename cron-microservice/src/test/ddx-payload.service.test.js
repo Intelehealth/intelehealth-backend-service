@@ -36,10 +36,11 @@ test('flag off returns the legacy string unchanged', () => {
   assert.equal(built.casehistory, buildCaseHistory(v));
 });
 
-test('flags on with the obs present returns the parsed object', () => {
+test('flags on with the obs present returns the JSON string', () => {
   const built = buildCasePayload(visit(jsonObs(JSON.stringify(summary))), { jsonEnabled: true });
   assert.equal(built.source, 'json');
-  assert.deepEqual(built.casehistory, summary);
+  assert.equal(typeof built.casehistory, 'string');
+  assert.deepEqual(JSON.parse(built.casehistory), summary);
 });
 
 test('obs is matched by concept name when the uuid is absent', () => {

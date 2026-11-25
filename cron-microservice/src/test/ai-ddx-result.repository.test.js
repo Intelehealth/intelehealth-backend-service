@@ -120,18 +120,20 @@ const jsonRow = (value) => ({
 const withFlags = (t, flags) => t.mock.method(aiLlmFeature, "getPublishedAiLlmFlags", async () => flags);
 const allOn = { json_format_visit_summary: true, json_format_visit_summary_ddx: true };
 
-test("both flags on with the obs present sends the parsed object and stores a string payload", async (t) => {
+test("both flags on with the obs present sends the JSON string and stores a string payload", async (t) => {
   withFlags(t, allOn);
   const writes = setup(t, { visit: [...visitRows, jsonRow(JSON.stringify(summaryObj))] });
   const ddx = t.mock.method(aiMiddleware, "ddx", async () => ({ result: { data: { result: [{ diagnosis: "flu" }] } } }));
   t.mock.method(console, "log", () => {});
 
   await computeForVisit("visit-1");
-  assert.deepEqual(ddx.mock.calls[0].arguments[0].casehistory, summaryObj);
+  const sent = ddx.mock.calls[0].arguments[0].casehistory;
+  assert.equal(typeof sent, "string");
+  assert.deepEqual(JSON.parse(sent), summaryObj);
   const { params } = writes.at(-1);
   assert.equal(typeof params.request_payload, "string");
-  assert.equal(params.request_payload, JSON.stringify(summaryObj));
-  assert.equal(params.payload_hash, require("../crons/services/ddx-payload.service").hashPayload(summaryObj));
+  assert.equal(params.request_payload, sent);
+  assert.equal(params.payload_hash, require("../crons/services/ddx-payload.service").hashPayload(sent));
 });
 
 test("parent on with the ddx child off sends the string", async (t) => {
