@@ -45,7 +45,8 @@ export async function markSent(appointmentId: string): Promise<void> {
   );
 }
 
-// Record the first time the patient opened a "Join Consultation" link.
+// Record the latest time the patient opened a "Join Consultation" link.
+// Every click overwrites the previous one (e.g. a retry after a network drop).
 // A row created here is 'pending' with 0 attempts, so claim() still picks it
 // up and the reminder link is still sent. updatedAt is left alone so a
 // 'sending' row's stale check is not pushed back.
@@ -54,7 +55,7 @@ export async function markJoinClicked(appointmentId: string): Promise<void> {
     `INSERT INTO turn_call_links
        (appointmentId, status, attempts, joinClickedAt, createdAt, updatedAt)
      VALUES (:id, 'pending', 0, NOW(), NOW(), NOW())
-     ON DUPLICATE KEY UPDATE joinClickedAt = COALESCE(joinClickedAt, NOW())`,
+     ON DUPLICATE KEY UPDATE joinClickedAt = NOW()`,
     { replacements: { id: appointmentId } }
   );
 }
