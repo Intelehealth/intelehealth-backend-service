@@ -90,9 +90,9 @@ jobs:
             # On push, deploy to all hosts
             includes='[]'
             if [ "${{ github.ref }}" == "refs/heads/staging_master" ]; then
-              push_envs="nasstaging"
+              push_envs="nasstaging pathqa"
             else
-              push_envs="dev testturn ttxai pathqa turn demoai"
+              push_envs="dev testturn ttxai turn demoai"
             fi
             for env in $push_envs; do
               arch_var="${env}_arch"
