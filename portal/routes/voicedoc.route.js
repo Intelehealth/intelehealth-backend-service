@@ -11,11 +11,13 @@ const {
   listTranscripts,
   getTranscript,
   regenerateVisitSummary,
+  saveMobileTranscript,
 } = require('../controllers/voicedoc.controller');
 
 router.get('/transcripts', [authMiddleware, requireAdmin, listTranscripts]);
 router.get('/transcripts/:id', [authMiddleware, requireAdmin, getTranscript]);
 router.post('/transcripts/:id/visit-summary', [authMiddleware, requireAdmin, regenerateVisitSummary]);
+router.post('/mobile/transcripts', [authMiddleware, saveMobileTranscript]);
 router.post('/sessions', [authMiddleware, createSession]);
 router.post('/sessions/:id/chunks', [authMiddleware, uploadChunk]);
 router.post('/sessions/:id/end', [authMiddleware, endSession]);
