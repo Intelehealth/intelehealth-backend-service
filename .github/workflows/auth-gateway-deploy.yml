@@ -79,9 +79,9 @@ jobs:
           includes='[]'
           if [ "${{ github.event_name }}" == "push" ]; then
             if [ "${{ github.ref }}" == "refs/heads/staging_master" ]; then
-              push_envs="nasstaging"
+              push_envs="nasstaging pathqa"
             else
-              push_envs="dev turn ttxai testturn pathqa demoai"
+              push_envs="dev turn ttxai testturn demoai"
             fi
             for env in $push_envs; do
               includes=$(echo "$includes" | jq -c --arg env "$env" --arg arch "$(arch_of "$env")" '. += [{"environment":$env,"arch":$arch}]')
