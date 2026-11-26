@@ -22,3 +22,21 @@ test("claimNext uses plain FOR UPDATE so it runs on MySQL 5.7 and MariaDB before
   assert.match(select, /FOR UPDATE/);
   assert.doesNotMatch(select, /SKIP LOCKED|NOWAIT/);
 });
+
+test("claimNext takes priority visits first, then the newest visits", async (t) => {
+  const statements = [];
+  const connection = {
+    beginTransaction: async () => {},
+    query: async (sql) => { statements.push(sql); return [[]]; },
+    commit: async () => {},
+    rollback: async () => {},
+    release: () => {},
+  };
+  t.mock.method(database, "query", async () => [{ affectedRows: 0 }]);
+  t.mock.method(database, "getConnection", async () => connection);
+
+  await claimNext(3);
+
+  const select = statements.find((sql) => sql.includes("SELECT * FROM visit_queue"));
+  assert.match(select, /ORDER BY FIELD\(priority, 'high', 'normal'\) ASC, visit_created_at DESC, id DESC/);
+});

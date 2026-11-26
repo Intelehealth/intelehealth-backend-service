@@ -271,6 +271,10 @@ AI_DDX_PIPELINE_ENABLED=true
 CRONS_DISABLED=ddx-worker
 ```
 
+## DDx queue order
+
+`ddx-worker` claims Priority visits first, then the newest visits (`visit_created_at DESC`). `visit-queue-sync` queues every Awaiting Consult or Priority visit with no date limit, so on a host with an old backlog the newest visits get their DDx first.
+
 ## Telling the portal a DDx is ready
 
 After the DDx worker marks a visit `done`, or `failed` on its last attempt, it calls the portal's `POST /api/ai-ddx/notify` so an open visit page loads the result over its socket instead of polling. Set both keys, with the token matching the portal's `AI_DDX_NOTIFY_TOKEN`:
