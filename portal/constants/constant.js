@@ -1,4 +1,5 @@
 module.exports = {
+    OPENMRS_ID_IDENTIFIER_TYPE: 3,
     FROM_DATE: 'fromDate',
     TO_DATE: 'toDate',
     LOCATION_UUID: 'locationUuid',
@@ -45,7 +46,11 @@ module.exports = {
     DAYS: "days",
     USERNAME: "username",
     PASSWORD: "password",
-    VERIFICATON: "verificaton",
+    VERIFICATION: "verification",
+    OTP_REASON: {
+        EXPIRED: "EXPIRED",
+        INCORRECT: "INCORRECT"
+    },
     PHONE_NUMBER: "phoneNumber",
     COUNTRY_CODE: "countryCode",
     EMAIL_ID: "emailId",
@@ -56,6 +61,40 @@ module.exports = {
         ENDED: 'Ended Visit',
         FOLLOW_UP:'Follow-Up'
     },
+    REFERRED_VISIT_STATUS: 'Referred Visit',
+    REFERRAL_ENCOUNTER_TYPE_UUID: '95f4ae7f-6caa-4c66-950f-7f3d6072ce56',
+    ROUTING_SPECIALIZATION_ATTRIBUTE_TYPE_UUID: '8128ee6a-af76-4c79-8c99-b7de54e13f8d',
+    SPECIALIST_VISIT_NOTE_ENCOUNTER_TYPE_UUID: '086f323a-b90b-49aa-a3ca-fb9ed8ab7426',
+    VISIT_COMPLETE_ENCOUNTER_TYPE_UUID: 'bd1fbfaa-f5fb-4ebd-b75c-564506fc309e',
+    RESOURCE_TYPE: 'resource_type',
+    RESOURCE_ID: 'resource_id',
+    PARENT_ID: 'parent_id',
+    PARENT_TYPE: 'parent_type',
+    DATA: 'data',
+    CREATED_BY: 'created_by',
+    SYNC_STATUS: 'sync_status',
+    RESOURCE_TYPES: {
+        PATIENT: 'patient',
+        VISIT: 'visit',
+        ASSET: 'asset'
+    },
+    SYNC_STATUSES: {
+        PENDING: 'pending',
+        SYNCED: 'synced'
+    },
+    TEMP_STORAGE: {
+        UPLOAD_FOLDER: 'temp_storage',
+        DEFAULT_SYNCED_RETENTION_DAYS: 7,
+        DEFAULT_UNSYNCED_RETENTION_DAYS: 30,
+        MS_PER_DAY: 24 * 60 * 60 * 1000,
+        CLEANUP_ORDER: ['asset', 'visit', 'patient']
+    },
+    SORT_ORDER: {
+        ASC: 'ASC',
+        DESC: 'DESC'
+    },
+    // OpenMRS patient_identifier_type id for "OpenMRS ID" (distinct from ABHA Number/Address types added by the abha module)
+    OPENMRS_ID_IDENTIFIER_TYPE: 3,
     PENDING_VISIT_BY_CALL_STATUS: [
         "Review of Imaging", 
         "Review with Reports",

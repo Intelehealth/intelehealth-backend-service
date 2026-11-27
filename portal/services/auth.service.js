@@ -9,6 +9,9 @@ const fs = require("fs");
 const { MESSAGE } = require("../constants/messages");
 const Constant = require("../constants/constant");
 
+// Time (in seconds) for which an OTP stays valid, for every OTP purpose
+const OTP_VALIDITY_SECONDS = 180;
+
 module.exports = (function () {
   /**
      * Save otp to database
@@ -36,12 +39,25 @@ module.exports = (function () {
   };
 
   /**
-     * Verify otp
-     * @param { string } email - Email of the provider
-     * @param { string } phonenumber - Phone number of the provider
-     * @param { string } username - Username of the provider
-     * @param { string } verifyFor - Verification for
-     * @param { string } otp - OTP
+     * Check whether a stored otp is still inside its validity window
+     * @param { object } user - user_settings row holding the otp
+     */
+  const isOtpValid = function (user) {
+    return moment().diff(moment(user.updatedAt), "seconds") < OTP_VALIDITY_SECONDS;
+  };
+
+  /**
+     * Spend an otp so it cannot be used again. The row (and its otpFor) is kept.
+     * @param { object } user - user_settings row holding the otp
+     */
+  const clearOtp = async function (user) {
+    user.otp = null;
+    await user.save();
+  };
+
+  /**
+     * Request an otp from 2factor
+     * @param { string } phoneNumber - Phone number with country code
      */
   const getOtpFrom2Factor = async function (phoneNumber) {
     return axios.get(
@@ -158,7 +174,7 @@ module.exports = (function () {
   const requestOtp = async function (email, phoneNumber, countryCode, username, otpFor) {
     try {
       let attributes;
-      if (![Constant.USERNAME, Constant.PASSWORD, Constant.VERIFICATON].includes(otpFor)) {
+      if (![Constant.USERNAME, Constant.PASSWORD, Constant.VERIFICATION].includes(otpFor)) {
         return {
           code: 400,
           success: false,
@@ -170,11 +186,11 @@ module.exports = (function () {
       let message = 'If you have not initiated this request, please contact your admin.';
       if(Constant.USERNAME == otpFor) message = 'If the username retrieval has not been initiated by you, please contact your admin immediately';
       if(Constant.PASSWORD == otpFor) message = 'If the password reset has not been initiated by you, please contact your admin immediately';
-      if(Constant.VERIFICATON == otpFor) message = 'If the user verification has not been initiated by you, please contact your admin immediately';
+      if(Constant.VERIFICATION == otpFor) message = 'If the user verification has not been initiated by you, please contact your admin immediately';
 
       const data = await getUserData(phoneNumber, email, username, otpFor);
       if (data.length) {
-        if (otpFor === Constant.USERNAME || otpFor === Constant.VERIFICATON) {
+        if (otpFor === Constant.USERNAME || otpFor === Constant.VERIFICATION) {
           for (const element of data) {
             if (element.attributeTypeName == Constant.PHONE_NUMBER) {
               // Make send OTP request
@@ -201,7 +217,9 @@ module.exports = (function () {
             code: 200,
             success: true,
             message: MESSAGE.AUTH.OTP_SENT_SUCCESSFULLY,
-            data: null
+            data: {
+              expiresInSeconds: OTP_VALIDITY_SECONDS
+            }
           };
         } else {
           // Get phoneNumber and email of the user
@@ -236,21 +254,34 @@ module.exports = (function () {
               const otp = await getOtpFrom2Factor(`+${countryCode}${phoneNumber}`).catch(error => {
                 throw new Error(error.message);
               });
-              if (otp) {
+              if (otp && otp.data && otp.data.OTP) {
                 // Save OTP in database for verification
                 await saveOtp(data[0].userUuid, otp.data.OTP, "P");
                 if (email) {
                   await sendEmailOtp(email, MESSAGE.AUTH.VERIFICATION_CODE_FOR_FORGOT_PASSWORD, otp.data.OTP, message);  
                 }
+              } else {
+                // 2factor did not return an OTP, so nothing was sent
+                return {
+                  code: 200,
+                  success: false,
+                  message: MESSAGE.AUTH.OTP_NOT_SENT,
+                  data: null
+                }
               }
             } else if (email) {
-              // Send email here
               const randomOtp = otpGenerator.generate(6, { lowerCaseAlphabets: false, upperCaseAlphabets: false, specialChars: false });
-              const mail = await sendEmailOtp(email, MESSAGE.AUTH.VERIFICATION_CODE_FOR_FORGOT_PASSWORD, randomOtp, message);
-              if (mail.messageId) {
-                // Save OTP in database for verification
-                await saveOtp(data[i].uuid, randomOtp, "P");
-              }
+              // Save OTP before emailing it, so a code that cannot be verified is never sent
+              await saveOtp(data[0].userUuid, randomOtp, "P");
+              await sendEmailOtp(email, MESSAGE.AUTH.VERIFICATION_CODE_FOR_FORGOT_PASSWORD, randomOtp, message);
+            } else {
+              // Neither a phone number with country code nor an email: nothing can be sent
+              return {
+                code: 200,
+                success: false,
+                message: MESSAGE.AUTH.NO_PHONENUMBER_EMAIL_UPDATED_FOR_THIS_USERNAME,
+                data: null
+              };
             }
 
             return {
@@ -259,7 +290,8 @@ module.exports = (function () {
               message: MESSAGE.AUTH.OTP_SENT_SUCCESSFULLY,
               data: {
                 userUuid: data[0].userUuid,
-                providerUuid: data[0].providerUuid
+                providerUuid: data[0].providerUuid,
+                expiresInSeconds: OTP_VALIDITY_SECONDS
               }
             }
           } else {
@@ -299,7 +331,7 @@ module.exports = (function () {
     try {
       let user, index;
 
-      if (![Constant.USERNAME, Constant.PASSWORD, Constant.VERIFICATON].includes(verifyFor)) {
+      if (![Constant.USERNAME, Constant.PASSWORD, Constant.VERIFICATION].includes(verifyFor)) {
         return {
           code: 400,
           success: false,
@@ -328,7 +360,7 @@ module.exports = (function () {
             }
 
             if (user) {
-              if (moment().diff(moment(user.updatedAt), "minutes") < 3) {
+              if (isOtpValid(user)) {
                 //TODO: Code for send otp to phone number.
                 if (phoneNumber) {
                   const body = new URLSearchParams();
@@ -352,6 +384,7 @@ module.exports = (function () {
                 if (email) {
                   await sendEmailUsername(email, MESSAGE.AUTH.YOUR_ACCOUNT_CREDENTIALS_AT_INTELEHEALTH, data[index].username);
                 }
+                await clearOtp(user);
                 return {
                   code: 200,
                   success: true,
@@ -363,7 +396,7 @@ module.exports = (function () {
                   code: 200,
                   success: false,
                   message: MESSAGE.AUTH.OTP_EXPIRED,
-                  data: null
+                  data: { reason: Constant.OTP_REASON.EXPIRED }
                 };
               }
             } else {
@@ -371,7 +404,7 @@ module.exports = (function () {
                 code: 200,
                 success: false,
                 message: MESSAGE.AUTH.OTP_INCORRECT,
-                data: null
+                data: { reason: Constant.OTP_REASON.INCORRECT }
               };
             }
 
@@ -384,9 +417,9 @@ module.exports = (function () {
               },
             });
             if (user) {
-              if (moment().diff(moment(user.updatedAt), "minutes") < 1) {
-                // Send username here
-
+              if (isOtpValid(user)) {
+                // resetPassword only needs the otpFor = 'P' row, so spending the OTP here is safe
+                await clearOtp(user);
                 return {
                   code: 200,
                   success: true,
@@ -401,7 +434,7 @@ module.exports = (function () {
                   code: 200,
                   success: false,
                   message: MESSAGE.AUTH.OTP_EXPIRED,
-                  data: null
+                  data: { reason: Constant.OTP_REASON.EXPIRED }
                 };
               }
             } else {
@@ -409,11 +442,11 @@ module.exports = (function () {
                 code: 200,
                 success: false,
                 message: MESSAGE.AUTH.OTP_INCORRECT,
-                data: null
+                data: { reason: Constant.OTP_REASON.INCORRECT }
               };
             }
 
-          case Constant.VERIFICATON:
+          case Constant.VERIFICATION:
             for (const element of data) {
               user = await user_settings.findOne({
                 where: {
@@ -428,7 +461,8 @@ module.exports = (function () {
             }
 
             if (user) {
-              if (moment().diff(moment(user.updatedAt), "minutes") < 1) {
+              if (isOtpValid(user)) {
+                await clearOtp(user);
                 return {
                   code: 200,
                   success: true,
@@ -440,15 +474,15 @@ module.exports = (function () {
                   code: 200,
                   success: false,
                   message: MESSAGE.AUTH.OTP_EXPIRED,
-                  data: null
+                  data: { reason: Constant.OTP_REASON.EXPIRED }
                 };
               }
             } else {
               return {
                 code: 200,
                 success: false,
-                message: MESSAGE.AUTH.OTP_EXPIRED,
-                data: null
+                message: MESSAGE.AUTH.OTP_INCORRECT,
+                data: { reason: Constant.OTP_REASON.INCORRECT }
               };
             }
 

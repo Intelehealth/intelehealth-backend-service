@@ -69,10 +69,11 @@ async function publish(req: IReqUser, res: IRes) {
     //     dir: path.join(__dirname, `publish-config`)
     // });
     // const tmpDir = tmpObj.name;
-    const tmpDir = path.join(__dirname, '../public/configs');
+    const tmpDir = path.join(process.cwd(), 'dist/public/configs');
+    fs.mkdirSync(tmpDir, { recursive: true });
     const outputFilename = `config-${new Date().valueOf()}`;
     const outputFileExtension = `json`;
-    const outputFileDir = `${tmpDir}/${outputFilename}.${outputFileExtension}`;
+    const outputFileDir = path.join(tmpDir, `${outputFilename}.${outputFileExtension}`);
     fs.writeFileSync(outputFileDir, JSON.stringify(data));
     await ConfigService.publish(`${outputFilename}.${outputFileExtension}`, outputFileDir, userId, name, version + 1);
     return res.status(HttpStatusCodes.OK).json({success: true});

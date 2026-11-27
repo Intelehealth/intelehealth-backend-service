@@ -12,7 +12,7 @@ const Constant = require("../constants/constant");
 const path = require('path');
 const fs = require('fs');
 const FILE_PATH = path.join(__dirname, '../constants/instructionRemarks.json');
-
+const { _getWebrtcStatuses }  = require("../services/call_data.service");
 
 /**
  * Return mindmaps respect to key
@@ -329,6 +329,22 @@ const addInstructionRemarks = async(req, res) => {
   }
 }
 
+  const getWebrtcStatuses = async (req, res) => {
+    try {
+      res.json({
+        status: true,
+        data: await _getWebrtcStatuses(),
+      });
+    } catch (error) {
+      logStream("error", error.message);
+      res.json({
+        status: false,
+        message: error.message,
+      });
+    }
+  };
+
+
 module.exports = {
   getMindmapDetails,
   addUpdateLicenceKey,
@@ -338,5 +354,6 @@ module.exports = {
   downloadMindmaps,
   toggleMindmapActiveStatus,
   getInstructionRemarks,
-  addInstructionRemarks
+  addInstructionRemarks,
+  getWebrtcStatuses
 };

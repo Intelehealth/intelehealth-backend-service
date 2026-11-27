@@ -1,13 +1,17 @@
+import './instrument';
+import * as Sentry from '@sentry/node';
 import * as dotenv from 'dotenv';
 dotenv.config();
 import express from 'express';
 import IndexRouter from './routes';
+import { createHealthRouter } from './routes/health';
 import { WebSocketController } from './controllers/websocket.controller';
+import { startAppointmentCallLinkJob } from './jobs/appointment-call-link.job';
 import * as http from 'http';
 import * as https from 'https';
 const cors = require('cors');
 const db = require("./models");
- 
+const { logStream } = require("./logger/index");
 
 class Server {
     app: express.Application;
@@ -59,8 +63,10 @@ class Server {
             console.log(`Server is running on ${this.port}`);
             console.log('----------*---------*--------');
         });
+        this.checkRecordingConfig();
         this.init();
         new WebSocketController(server);
+        startAppointmentCallLinkJob();
 
         // If needed, move this definition to models/session.js
         db.sequelize.define("Session", {
@@ -76,11 +82,39 @@ class Server {
         // Ensure table is created
         db.sequelize.sync().then(() => {
             console.log("Session table synced.");
-        }).catch((err: any) => console.error("Sync error:", err));
+        }).catch((err: any) => {
+            console.error("Sync error:", err);
+            Sentry.captureException(err);
+        });
+    }
+
+    /**
+     * Recording needs these at call time, and without them failures are not reported anywhere
+     * but the log file. Say so at boot instead of on the first failed call.
+     */
+    checkRecordingConfig() {
+        const required = [
+            'API_KEY', 'SECRET', 'LIVEHOST',
+            'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_REGION', 'S3_BUCKET_NAME',
+            'MYSQL_DB', 'SENTRY_DSN',
+            'MAIL_USERNAME', 'MAIL_PASSWORD', 'MAIL_ALERT_RECIPIENT'
+        ];
+        const missing = required.filter((key) => !process.env[key]);
+        if (missing.length > 0) {
+            const message = `Call recording config incomplete, missing: ${missing.join(', ')}`;
+            console.error(message);
+            logStream('error', message, 'checkRecordingConfig');
+        }
     }
 
     init() {
+        this.app.use(createHealthRouter({
+            service: 'web-rtc',
+            databases: { portal: db.sequelize },
+        }));
+
         this.app.use('/api', IndexRouter);
+        Sentry.setupExpressErrorHandler(this.app);
     }
 };
 

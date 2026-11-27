@@ -47,7 +47,9 @@ jasmine.loadConfig({
     './tests/**/*.spec.ts',
   ],
   stopSpecOnExpectationFailure: false,
-});
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  jsLoader: 'require',
+} as any);
 
 // Run all or a single unit-test
 let execResp: Promise<jasmine.JasmineDoneInfo> | undefined;

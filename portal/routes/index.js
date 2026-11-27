@@ -9,7 +9,8 @@ const {
   downloadMindmaps,
   toggleMindmapActiveStatus,
   getInstructionRemarks,
-  addInstructionRemarks
+  addInstructionRemarks,
+  getWebrtcStatuses
 } = require("../controllers/mindmap.controller");
 const authMiddleware = require("../middleware/auth");
 // const limiter = require("../middleware/rate-limiter");
@@ -17,6 +18,7 @@ const authMiddleware = require("../middleware/auth");
 
 router.post("/mindmap/upload", [authMiddleware, addUpdateMindMap]);
 router.get("/mindmap", [authMiddleware, getMindmapKeys]);
+router.get("/mindmap/getWebrtcStatuses", [getWebrtcStatuses]);
 
 router.post("/mindmap/addUpdatekey", [authMiddleware, addUpdateLicenceKey]);
 router.get("/mindmap/details/:key", [authMiddleware, getMindmapDetails]);
@@ -25,16 +27,26 @@ router.get("/mindmap/download", [authMiddleware, downloadMindmaps]);
 router.post("/mindmap/toggleStatus", [authMiddleware, toggleMindmapActiveStatus]);
 router.get("/instructionRemarkList", [authMiddleware, getInstructionRemarks]);
 router.post("/instructionRemarks", [authMiddleware, addInstructionRemarks]);
+router.get("/mindmap/getWebrtcStatuses", [authMiddleware, getWebrtcStatuses]);
 
 router.use("/mindmap", require("./notification.route"));
 router.use("/messages", require("./message.route"));
 router.use("/openmrs", require("./openmrs.route"));
 router.use("/appointment", require("./appointment.route"));
+router.use("/turn-appointment", require("./turn-appointment.route"));
+router.use("/insights", require("./insight.route"));
+router.use("/ddx-ttx-overrides", require("./ddx-ttx-override.route"));
+router.use("/ai-ddx", require("./ai-ddx.route"));
+router.use("/voicedoc", require("./voicedoc.route"));
 router.use('/auth', require("./auth.route"));
 router.use("/links", require("./links.route"));
 router.use("/support", require("./support.route"));
 router.use("/openai", require("./openai.route"));
 router.use('/signature', require("./signature.route"));
+router.use('/kaleyra', require('./kaleyra.route'));
 router.use('/pincode', require("./pincode.route"));
+router.use('/temp-storage', require("./temp-storage.route"));
+router.use("/activity", require("./activity.route"));
+router.use("/", require("./ai-diagnosis.route"));
 
 module.exports = router;

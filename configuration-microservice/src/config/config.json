@@ -1,7 +1,7 @@
 {
   "development": {
     "username": "root",
-    "password": "Anurag@007",
+    "password": "",
     "database": "mindmap_server",
     "host": "127.0.0.1",
     "dialect": "mysql"

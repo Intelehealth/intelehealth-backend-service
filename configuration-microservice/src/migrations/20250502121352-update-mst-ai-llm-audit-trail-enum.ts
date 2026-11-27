@@ -30,6 +30,9 @@ import { QueryInterface, DataTypes } from "sequelize";
            "ROSTER QUESTIONNAIRE CONFIG UPDATED",
            "PATIENT REGISTRATION FIELD VALIDATION UPDATED",
            "DROPDOWN CONFIG UPDATED",
+           "HOME SCREEN SECTION NAME UPDATED",
+           "HOME SCREEN SECTION ENABLED STATUS UPDATED",
+           "LANGUAGE PLATFORM UPDATED",
            "AI LLM CONFIG UPDATED"
          ),
        });
@@ -62,6 +65,10 @@ import { QueryInterface, DataTypes } from "sequelize";
             "VITAL NAME UPDATED",
             "ROSTER QUESTIONNAIRE CONFIG UPDATED",
             "PATIENT REGISTRATION FIELD VALIDATION UPDATED",
+            "DROPDOWN CONFIG UPDATED",
+            "HOME SCREEN SECTION NAME UPDATED",
+            "HOME SCREEN SECTION ENABLED STATUS UPDATED",
+            "LANGUAGE PLATFORM UPDATED",
          ),
        });
     }),
