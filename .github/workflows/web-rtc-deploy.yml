@@ -58,7 +58,7 @@ on:
         type: boolean
         default: false
   push:
-    branches: [development_master, staging_master]
+    branches: [development_master, staging_master, nas_production_master]
     paths:
       - 'web-rtc/**'
       - '.github/workflows/web-rtc-deploy.yml'
@@ -85,11 +85,14 @@ jobs:
           turn_arch=amd64
           demoai_arch=amd64
           nasstaging_arch=amd64
+          nasprod_arch=amd64
 
           if [ "${{ github.event_name }}" == "push" ]; then
             # On push, deploy to all hosts
             includes='[]'
-            if [ "${{ github.ref }}" == "refs/heads/staging_master" ]; then
+            if [ "${{ github.ref }}" == "refs/heads/nas_production_master" ]; then
+              push_envs="nasprod"
+            elif [ "${{ github.ref }}" == "refs/heads/staging_master" ]; then
               push_envs="nasstaging pathqa"
             else
               push_envs="dev testturn ttxai turn demoai"
@@ -204,6 +207,7 @@ jobs:
       TURN_HOST: ${{ secrets.TURN_HOST }}
       DEMOAI_HOST: ${{ secrets.DEMOAI_HOST }}
       NASSTAGING_HOST: ${{ secrets.NASSTAGING_HOST }}
+      NASPROD_HOST: ${{ secrets.NASPROD_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
@@ -217,6 +221,7 @@ jobs:
             turn)     echo "REMOTE_HOST=$TURN_HOST" >> $GITHUB_ENV ;;
             demoai)   echo "REMOTE_HOST=$DEMOAI_HOST" >> $GITHUB_ENV ;;
             nasstaging) echo "REMOTE_HOST=$NASSTAGING_HOST" >> $GITHUB_ENV ;;
+            nasprod) echo "REMOTE_HOST=$NASPROD_HOST" >> $GITHUB_ENV ;;
             *)        echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
 
