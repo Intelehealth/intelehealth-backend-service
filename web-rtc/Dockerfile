@@ -34,6 +34,9 @@ COPY . .
 # Expose the port your app runs on
 EXPOSE 3000
 
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 CMD curl -sk -o /dev/null https://127.0.0.1:3000/ || exit 1
+
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 
 # Start the application

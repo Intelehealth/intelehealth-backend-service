@@ -22,6 +22,7 @@ const MESSAGE = {
         YOUR_ACCOUNT_CREDENTIALS_AT_INTELEHEALTH: "Your account credentials at Intelehealth",
         PASSWORD_RESET_SUCCESSFUL: "Password reset successful.",
         NO_PHONENUMBER_EMAIL_UPDATED_FOR_THIS_USERNAME: "No phoneNumber/email updated for this username.",
+        OTP_NOT_SENT: "Unable to send OTP. Please try again.",
         NO_USER_EXISTS_WITH_THIS_PHONE_NUMBER_EMAIL_USERNAME: "No user exists with this phone number/email/username."
     },
     NOTIFICATION: {
@@ -97,6 +98,29 @@ const MESSAGE = {
     PRESCRIPTION: {
         INVALID_LINK: "Invalid link!",
         INVALID_OTP: "Invalid OTP!"
+    },
+    ACHIEVEMENT: {
+        SUMMARY_FETCHED_SUCCESSFULLY: "Achievements fetched successfully!",
+        HEARTBEAT_RECORDED_SUCCESSFULLY: "Heartbeat recorded successfully!",
+        VALIDATION_FAILED: "Validation failed",
+        INVALID_TOKEN: "Invalid token",
+        PROVIDER_NOT_LINKED: "No provider is linked to this user",
+        INTERNAL_ERROR: "Something went wrong. Please try again."
+    },
+    TEMP_STORAGE: {
+        RESOURCE_CREATED_SUCCESSFULLY: "Resource created successfully!",
+        RESOURCE_UPDATED_SUCCESSFULLY: "Resource updated successfully!",
+        RESOURCE_FETCHED_SUCCESSFULLY: "Resource fetched successfully!",
+        CHILDREN_FETCHED_SUCCESSFULLY: "Child resources fetched successfully!",
+        PENDING_FETCHED_SUCCESSFULLY: "Pending resources fetched successfully!",
+        RESOURCES_SYNCED_SUCCESSFULLY: "Resources synced successfully!",
+        RESOURCE_DELETED_SUCCESSFULLY: "Resource deleted successfully!",
+        RESOURCE_NOT_FOUND: "Resource not found!",
+        IDS_REQUIRED: "ids array is required!",
+        RESOURCE_TYPE_REQUIRED: "resource_type is required!",
+        RESOURCE_ID_REQUIRED: "resource_id is required!",
+        CREATED_BY_REQUIRED: "created_by is required!",
+        FILE_REQUIRED: "File is required for asset upload!"
     }
 }
 

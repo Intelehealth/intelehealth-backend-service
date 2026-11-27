@@ -15,6 +15,7 @@ module.exports = {
         { name: 'Hemoglobin', key: 'hemoglobin', uuid:'8f1993c4-c460-4715-86f8-c4c582ef4b3d', is_enabled: true, is_mandatory: false },
         { name: 'Uric Acid', key: 'uric_acid', uuid:'366e11ae-f6a2-4c27-8285-5bc496f9dfb4', is_enabled: true, is_mandatory: false },
         { name: 'Total Cholesterol', key: 'total_cholesterol', uuid:'24914ddd-b97a-400e-a7e1-171ec8fb77d0', is_enabled: true, is_mandatory: false },
+        { name: 'HbA1c', key: 'hba1c', uuid:'f0631271-e0b3-48ca-a4e5-70959a7b76d9', is_enabled: true, is_mandatory: false },
       ];
       await queryInterface.bulkInsert('dic_config', [
         {
@@ -23,7 +24,7 @@ module.exports = {
           type: 'array',
           default_value: JSON.stringify(dianostics)
         }
-      ]);
+      ], { transaction });
     }),
 
   down: (queryInterface: QueryInterface): Promise<void> => queryInterface.sequelize.transaction(

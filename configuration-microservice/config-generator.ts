@@ -9,16 +9,16 @@ import dotenv from 'dotenv';
 import logger from 'jet-logger';
 
 // Load environment variables from the correct .env file
-// const envFile = process.env.ENV_FILE_PATH ?? path.join(__dirname, `env/${process.env.NODE_ENV || 'production'}.env`);
-// const result = dotenv.config({ path: envFile });
+const envFile = process.env.ENV_FILE_PATH ?? path.join(__dirname, `env/${process.env.NODE_ENV || 'production'}.env`);
+const result = dotenv.config({ path: envFile });
 
-// if (result.error) {
-  // logger.warn(`Could not load .env file from ${envFile}: ${result.error.message}`);
+if (result.error) {
+  logger.warn(`Could not load .env file from ${envFile}: ${result.error.message}`);
   // Try loading from default location
   dotenv.config();
-// } else {
-  // logger.info(`Loaded environment variables from ${envFile}`);
-// }
+} else {
+  logger.info(`Loaded environment variables from ${envFile}`);
+}
 
 // Now import database-related modules after environment is loaded
 import connection from './src/database/connection';

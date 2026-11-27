@@ -19,6 +19,9 @@ import HttpStatusCodes from '@src/constants/HttpStatusCodes';
 
 import { NodeEnvs } from '@src/constants/misc';
 import { RouteError } from '@src/other/classes';
+import connection from '@src/database/connection';
+import connectionOpenmrs from '@src/database/connection-openmrs';
+import { createHealthRouter } from '@src/routes/HealthRoutes';
 
 
 // **** Variables **** //
@@ -56,14 +59,13 @@ app.use(cors({
   credentials: true
 }));
 
-// Health check endpoint
-app.get(Paths.Health, (_: Request, res: Response) => {
-  res.status(HttpStatusCodes.OK).json({ 
-    status: 'healthy', 
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime()
-  });
-});
+app.use(createHealthRouter({
+  service: 'configuration-microservice',
+  databases: {
+    portal: connection,
+    openmrs: connectionOpenmrs,
+  },
+}));
 
 // Add APIs, must be after middleware
 app.use(Paths.Base, BaseRouter);
@@ -96,6 +98,14 @@ app.set('views', viewsDir);
 // Set static directory (js and css).
 const staticDir = path.join(__dirname, '../public');
 app.use(express.static(staticDir));
+
+// Also serve dist/public when running compiled code so uploaded assets resolve
+const staticDistDir = path.join(__dirname, '..', 'public');
+app.use(express.static(staticDistDir));
+
+// When running via ts-node from src, also serve project-root/dist/public
+const staticCwdDistDir = path.resolve(process.cwd(), 'dist/public');
+app.use(express.static(staticCwdDistDir));
 
 // Nav to login pg by default
 app.get('/', (_: Request, res: Response) => {

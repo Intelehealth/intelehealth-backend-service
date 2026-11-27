@@ -6,6 +6,7 @@
 export default {
   Base: '/api',
   Health: '/health',
+  Ready: '/ready',
   Auth: {
     Base: '/auth',
     Login: '/login',
@@ -126,10 +127,22 @@ export default {
     UpdateIsVideoEnabled: '/updateIsVideoEnabled/:id',
     UpdateIsAudioEnabled: '/updateIsAudioEnabled/:id',
   },
+  AILLMVoiceTranscript: {
+    Base: '/ai-llm-voice-transcript',
+    Get: '/all',
+    GetByKey: '/getByKey/:key',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+  },
   HomeScreen: {
     Base: '/home-screen',
     Get: '/all',
     UpdateIsEnabled: '/updateIsEnabled/:id',
     updateHomeScreenName: '/updateHomeScreenName/:id',
+  },
+  PrescriptionNotes: {
+    Base: '/prescription-notes',
+    Get: '/all',
+    UpdateIsEnabled: '/updateIsEnabled/:id',
+    UpdateNotes: '/updateNotes/:id',
   },
 } as const;

@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { WebRTCService } from "../services/webrtc.service";
+import { notifyCallConnected, notifyCallDisconnected } from "../services/qms.service";
 const { logStream } = require("../logger/index");
 
 export class MainController {
@@ -33,7 +34,7 @@ export class MainController {
     }
 
     async startRecording(req: Request, res: Response) {
-        logStream('debug', 'API calling', 'Get Token');
+        logStream('debug', 'API calling', 'Start Recording');
         try {
             if (!req.body.roomId) {
                 return res.json({ message: "Missing roomId.", success: false });
@@ -58,11 +59,23 @@ export class MainController {
                 visitId: req.body.visitId,
                 chwId: req.body.chwId,
                 nurseName: req.body.nurseName,
-                location: req.body.location
+                location: req.body.location,
+                callType: req.body.callType
             };
 
             const response = await new WebRTCService().startRecording(req.body.roomId as string, recordingParams);
-            logStream('debug', 'Success', 'Get Token');
+
+            // Tell QMS the call has started. Inert unless qms_section is on, and
+            // deliberately NOT awaited into the response path: a queue update
+            // must never delay or fail the recording that just succeeded.
+            notifyCallConnected({
+                visitId: req.body.visitId,
+                roomId: req.body.roomId,
+                doctorId: req.body.doctorId,
+                authorization: req.header("Authorization") ?? null,
+            }).catch(() => { /* qms.service already logged it */ });
+
+            logStream('debug', 'Success', 'Start Recording');
             return res.json(response);
         } catch (error) {
             console.error("Error occurred:", error);
@@ -84,7 +97,7 @@ export class MainController {
     }
 
     async stopRecording(req: Request, res: Response) {
-        logStream('debug', 'API calling', 'Get Token');
+        logStream('debug', 'API calling', 'Stop Recording');
         try {
             if (!req.query.roomId) {
                 return res.json({ message: "Missing roomId.", success: false });
@@ -93,7 +106,16 @@ export class MainController {
             if (response?.success === false) {
                 return res.status(response?.status ?? 500).json(response)
             }
-            logStream('debug', 'Success', 'Get Token');
+
+            // Tell QMS the call has ended. The visit is recovered from the room
+            // via call_recordings. Fire-and-forget, same reasoning as above.
+            notifyCallDisconnected({
+                roomId: req.query.roomId as string,
+                reason: 'RECORDING_STOPPED',
+                authorization: req.header("Authorization") ?? null,
+            }).catch(() => { /* qms.service already logged it */ });
+
+            logStream('debug', 'Success', 'Stop Recording');
             return res.json(response);
         } catch (error) {
             console.error("Error occurred:", error);
@@ -112,5 +134,26 @@ export class MainController {
             });
         }
 
+    }
+
+    /**
+     * Records a recording start/stop failure seen by the doctor webapp, so failures that never
+     * reached startRecording/stopRecording (network, browser) are not only in Google Analytics.
+     */
+    async reportRecordingError(req: Request, res: Response) {
+        logStream('debug', 'API calling', 'Report Recording Error');
+        if (!req.body?.action) {
+            return res.status(400).json({ message: "Missing action.", success: false });
+        }
+        await new WebRTCService().reportClientRecordingError({
+            action: String(req.body.action),
+            roomId: req.body.roomId,
+            visitId: req.body.visitId,
+            doctorId: req.body.doctorId,
+            patientId: req.body.patientId,
+            recordingId: req.body.recordingId,
+            error: req.body.error
+        });
+        return res.json({ success: true });
     }
 }
