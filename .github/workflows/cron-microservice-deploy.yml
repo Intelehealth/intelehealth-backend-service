@@ -40,7 +40,7 @@ on:
         type: boolean
         default: false
   push:
-    branches: [development_master, staging_master]
+    branches: [development_master, staging_master, nas_production_master]
     paths:
       - 'cron-microservice/**'
       - '.github/workflows/cron-microservice-deploy.yml'
@@ -58,7 +58,9 @@ jobs:
         id: set-matrix
         run: |
           if [ "${{ github.event_name }}" == "push" ]; then
-            if [ "${{ github.ref }}" == "refs/heads/staging_master" ]; then
+            if [ "${{ github.ref }}" == "refs/heads/nas_production_master" ]; then
+              matrix='{"include":[{"environment":"nasprod"}]}'
+            elif [ "${{ github.ref }}" == "refs/heads/staging_master" ]; then
               matrix='{"include":[{"environment":"nasstaging"}]}'
             else
               matrix='{"include":[{"environment":"ttxai"}]}'
@@ -135,7 +137,7 @@ jobs:
       REMOTE_PORT: 22
       ENV_FILE_PATH: /home/ubuntu/deploy/cron-microservice/.env
       # All host secrets mapped upfront — dynamic secret refs aren't supported in GitHub Actions
-      REMOTE_HOST: ${{ matrix.environment == 'nasstaging' && secrets.NASSTAGING_HOST || secrets.TTXAI_HOST }}
+      REMOTE_HOST: ${{ matrix.environment == 'nasprod' && secrets.NASPROD_HOST || matrix.environment == 'nasstaging' && secrets.NASSTAGING_HOST || secrets.TTXAI_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
