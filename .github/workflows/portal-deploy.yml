@@ -53,7 +53,7 @@ on:
         type: boolean
         default: false
   push:
-    branches: [development_master, staging_master]
+    branches: [development_master, staging_master, nas_production_master]
     paths:
       - 'portal/**'
       - '.github/workflows/portal-deploy.yml'
@@ -87,10 +87,13 @@ jobs:
           demoai_arch=amd64
           pathqa_arch=arm64
           nasstaging_arch=amd64
+          nasprod_arch=amd64
           if [ "${{ github.event_name }}" == "push" ]; then
             # On push, deploy to all hosts
             includes='[]'
-            if [ "${{ github.ref }}" == "refs/heads/staging_master" ]; then
+            if [ "${{ github.ref }}" == "refs/heads/nas_production_master" ]; then
+              push_envs="nasprod"
+            elif [ "${{ github.ref }}" == "refs/heads/staging_master" ]; then
               push_envs="nasstaging"
             else
               push_envs="dev turn ttxai testturn pathqa demoai"
@@ -185,6 +188,7 @@ jobs:
       TURN_HOST: ${{ secrets.TURN_HOST }}
       PATHQA_HOST: ${{ secrets.PATHQA_HOST }}
       NASSTAGING_HOST: ${{ secrets.NASSTAGING_HOST }}
+      NASPROD_HOST: ${{ secrets.NASPROD_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
@@ -198,6 +202,7 @@ jobs:
             pathqa)   host="$PATHQA_HOST" ;;
             demoai)   host="$DEMOAI_HOST" ;;
             nasstaging) host="$NASSTAGING_HOST" ;;
+            nasprod) host="$NASPROD_HOST" ;;
             *)        echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
           echo "REMOTE_HOST=$host" >> $GITHUB_ENV
