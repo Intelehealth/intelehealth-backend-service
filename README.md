@@ -329,13 +329,13 @@ pattern the surrounding code in that service already uses.
 | --- | --- | --- |
 | `development_master` | Testing only. May hold unstable changes. | dev, ttxai, testturn |
 | `staging_master` | Stable base. Every branch starts here and returns here. | nasstaging, pathqa |
-| `production_master` | Takes code from `staging_master`. | staging server |
-| `master` | Takes code from `staging_master` or `production_master`. | demoai |
-| `nas_production_master` | Cut from `production_master`. | NAS production |
-| `ap_production_master` | Cut from `production_master`. | Arogya Path production |
+| `production_master` | Takes code from `staging_master` for a release. | staging server |
+| `master` | Takes code from `staging_master` for a release. | demoai |
+| `nas_production_master` | Takes code from `staging_master` for a NAS release. | NAS production |
+| `ap_production_master` | Takes code from `staging_master` for an Arogya Path release. | Arogya Path production |
 
-The staging server, demoai and the two production servers are being moved onto these branches by
-DevOps; until then they keep their current triggers.
+Production servers move onto their branch at their next planned release; until then they keep
+their current triggers.
 
 **Flow**
 
@@ -343,7 +343,10 @@ DevOps; until then they keep their current triggers.
    `feature`, `fix` or `patch`, e.g. `fix/ayu-46-manual-ai-wrappers`, `feature/cron-manual-trigger`.
 2. Open a PR into `development_master` and test the change on the dev server.
 3. Once tested, open a PR from the **same branch** into `staging_master`.
-4. `staging_master` is merged into `production_master` and `master` when a release is ready.
+4. For a release, `staging_master` is merged into `production_master`, `nas_production_master`,
+   `ap_production_master` or `master`.
+5. Build every feature so it can be switched on per server (configurable or pluggable) and is off
+   by default. Pushing it to a server must not change anything there until it is enabled.
 
 **Rules**
 
@@ -352,7 +355,7 @@ DevOps; until then they keep their current triggers.
 - Never cut a branch from `development_master`. A branch must carry only stable code plus its own change.
 - If testing on dev finds a problem, fix it on your branch and merge the branch into
   `development_master` again. Do not commit the fix on `development_master` only.
-- Merges from `staging_master` into `production_master` or `master` use **"Create a merge commit"**, never squash.
+- Release merges from `staging_master` use **"Create a merge commit"**, never squash.
 - `development_master` may be reset to `staging_master` with a force push to make the dev branch
   stable again. This discards every testing change that is on `development_master` only, so it is
   the Tech Lead's decision alone. Before a reset, make sure your work is on your own branch.
