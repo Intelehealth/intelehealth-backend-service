@@ -3,9 +3,7 @@
 # Builds the auth-gateway Docker image once and deploys it to one or more remote hosts.
 #
 # Triggers:
-#   - push to nas-ida5-development-master (auth-gateway/** changes) → deploys to nasstaging ONLY
 #   - workflow_dispatch (manual) → deploys to the hosts selected via checkboxes
-#     (nasprod is manual-dispatch-only; it is never deployed on push)
 #
 # Jobs:
 #   1. prepare-matrix  Decides which environments to deploy based on trigger/inputs
@@ -13,12 +11,9 @@
 #   3. deploy          Matrix job — downloads the artifact and deploys to each host in parallel
 #
 # Required secrets:
-#   NASSTAGING_HOST, NASPROD_HOST — SSH hostnames/IPs
-#   DEV_USER                      — SSH username
-#   DEV_SSH_KEY                   — SSH private key
-#
-# Optional: create a GitHub Environment named "nasprod" (Settings → Environments)
-# with "Required reviewers" so production deploys need manual approval.
+#   NASSTAGING_HOST — SSH hostname/IP
+#   DEV_USER        — SSH username
+#   DEV_SSH_KEY     — SSH private key
 
 name: Auth Gateway Deploy
 
@@ -29,15 +24,6 @@ on:
         description: 'Deploy to NAS Staging host'
         type: boolean
         default: true
-      deploy_nasprod:
-        description: 'Deploy to NAS Prod host'
-        type: boolean
-        default: false
-
-  push:
-    branches: [nas-ida5-development-master]
-    paths:
-      - 'auth-gateway/**'
 
 # Prevent two deploys from running at the same time and fighting over port 3030
 concurrency:
@@ -65,9 +51,6 @@ jobs:
           else
             if [ "${{ inputs.deploy_nasstaging }}" == "true" ]; then
               includes=$(echo "$includes" | jq -c '. += [{"environment":"nasstaging"}]')
-            fi
-            if [ "${{ inputs.deploy_nasprod }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c '. += [{"environment":"nasprod"}]')
             fi
           fi
 
@@ -131,7 +114,6 @@ jobs:
       PEM_FOLDER_PATH: /home/ubuntu/deploy/auth-gateway/.pem
       # All host secrets mapped upfront — dynamic secret refs aren't supported in GitHub Actions
       NASSTAGING_HOST: ${{ secrets.NASSTAGING_HOST }}
-      NASPROD_HOST: ${{ secrets.NASPROD_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
@@ -139,7 +121,6 @@ jobs:
         run: |
           case "${{ matrix.environment }}" in
             nasstaging) echo "REMOTE_HOST=$NASSTAGING_HOST" >> $GITHUB_ENV ;;
-            nasprod)    echo "REMOTE_HOST=$NASPROD_HOST"    >> $GITHUB_ENV ;;
             *)          echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
 
