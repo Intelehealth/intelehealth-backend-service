@@ -131,4 +131,13 @@ const regenerateVisitSummary = async (req, res) => {
   }
 };
 
-module.exports = { createSession, uploadChunk, endSession, getByVisit, requireAdmin, listTranscripts, getTranscript, regenerateVisitSummary };
+const saveMobileTranscript = async (req, res) => {
+  try {
+    const data = await voicedocService.saveMobileTranscript(req.body);
+    return res.status(data.created ? 201 : 200).json({ success: true, data });
+  } catch (err) {
+    return sendError(res, err, '/voicedoc/mobile/transcripts');
+  }
+};
+
+module.exports = { saveMobileTranscript, createSession, uploadChunk, endSession, getByVisit, requireAdmin, listTranscripts, getTranscript, regenerateVisitSummary };

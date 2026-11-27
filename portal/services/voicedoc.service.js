@@ -667,6 +667,208 @@ async function regenerateVisitSummary(id) {
   return getTranscript(raw);
 }
 
+const MOBILE_STATUSES = ['done', 'empty', 'error'];
+const CHUNK_STATUSES = ['queued', 'uploaded', 'failed', 'skipped'];
+
+function requiredString(body, field) {
+  const value = body[field];
+  if (typeof value !== 'string' || !value.trim()) {
+    throw httpError(400, `${field} is required.`);
+  }
+  return value.trim();
+}
+
+function optionalString(body, field) {
+  const value = body[field];
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (typeof value !== 'string') {
+    throw httpError(400, `${field} must be a string.`);
+  }
+  return value;
+}
+
+function nonNegativeInt(value, field) {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0 || value > MAX_INT) {
+    throw httpError(400, `${field} must be a non-negative integer.`);
+  }
+  return value;
+}
+
+function optionalInt(body, field) {
+  return body[field] === undefined || body[field] === null ? undefined : nonNegativeInt(body[field], field);
+}
+
+function requiredDate(body, field) {
+  const value = body[field];
+  const date = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value.trim()) ? new Date(value.trim()) : null;
+  if (!date || Number.isNaN(date.getTime())) {
+    throw httpError(400, `${field} must be a valid ISO-8601 date.`);
+  }
+  return date;
+}
+
+function optionalObject(body, field) {
+  const value = body[field];
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    throw httpError(400, `${field} must be an object.`);
+  }
+  return value;
+}
+
+function parseMobileChunks(list) {
+  if (list === undefined || list === null) {
+    return [];
+  }
+  if (!Array.isArray(list)) {
+    throw httpError(400, 'chunks must be an array.');
+  }
+  const seen = new Set();
+  return list.map((item, index) => {
+    const at = `chunks[${index}]`;
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      throw httpError(400, `${at} must be an object.`);
+    }
+    const n = item.chunkNumber;
+    if (typeof n !== 'number' || !Number.isSafeInteger(n) || n < 1 || n > MAX_INT) {
+      throw httpError(400, `${at}.chunkNumber must be an integer of 1 or more.`);
+    }
+    if (seen.has(n)) {
+      throw httpError(400, `${at}.chunkNumber ${n} is duplicated.`);
+    }
+    seen.add(n);
+    if (!CHUNK_STATUSES.includes(item.status)) {
+      throw httpError(400, `${at}.status must be one of: ${CHUNK_STATUSES.join(', ')}.`);
+    }
+    const error = item.error === undefined || item.error === null ? null : item.error;
+    if (error !== null && typeof error !== 'string') {
+      throw httpError(400, `${at}.error must be a string.`);
+    }
+    return {
+      chunk_number: n,
+      status: item.status,
+      attempts: item.attempts === undefined || item.attempts === null ? 0 : nonNegativeInt(item.attempts, `${at}.attempts`),
+      bytes: item.bytes === undefined || item.bytes === null ? null : nonNegativeInt(item.bytes, `${at}.bytes`),
+      duration_ms: item.durationMs === undefined || item.durationMs === null ? null : nonNegativeInt(item.durationMs, `${at}.durationMs`),
+      response: jsonColumn(item.response),
+      error,
+      uploaded_at: item.status === 'uploaded' ? new Date() : null,
+    };
+  });
+}
+
+function parseMobileTranscript(input) {
+  const body = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
+  const status = body.status;
+  if (!MOBILE_STATUSES.includes(status)) {
+    throw httpError(400, `status must be one of: ${MOBILE_STATUSES.join(', ')}.`);
+  }
+  const values = {
+    visit_id: requiredString(body, 'visitUuid'),
+    patient_id: requiredString(body, 'patientUuid'),
+    recording_name: requiredString(body, 'recordingName'),
+    status,
+    started_at: requiredDate(body, 'startedAt'),
+    ended_at: requiredDate(body, 'endedAt'),
+  };
+  const chunkId = requiredString(body, 'chunkId');
+  if (values.ended_at < values.started_at) {
+    throw httpError(400, 'endedAt must not be before startedAt.');
+  }
+  const text = optionalString(body, 'transcript');
+  if (status === 'done' && (text === undefined || !text.trim())) {
+    throw httpError(400, 'transcript is required when status is done.');
+  }
+  const strings = [
+    ['doctorUuid', 'doctor_id'],
+    ['chwUuid', 'chw_id'],
+    ['jatayuAccount', 'voicedoc_account'],
+    ['language', 'language'],
+    ['error', 'error'],
+    ['visitSummary', 'visit_summary'],
+  ];
+  for (const [field, column] of strings) {
+    const value = optionalString(body, field);
+    if (value !== undefined) {
+      values[column] = value;
+    }
+  }
+  if (text !== undefined) {
+    values.transcript = text;
+  }
+  for (const [field, column] of [['chunksReceived', 'chunks_received'], ['chunksUploaded', 'chunks_uploaded'], ['chunksFailed', 'chunks_failed']]) {
+    const value = optionalInt(body, field);
+    if (value !== undefined) {
+      values[column] = value;
+    }
+  }
+  if (body.summary !== undefined && body.summary !== null) {
+    if (typeof body.summary !== 'string' && (typeof body.summary !== 'object' || Array.isArray(body.summary))) {
+      throw httpError(400, 'summary must be an object or a JSON string.');
+    }
+    values.summary = voicedoc.parseSummary(body.summary);
+  }
+  for (const [field, column] of [['rawResponse', 'raw_response'], ['combinedAudioResponse', 'combined_audio_response'], ['visitSummaryResponse', 'visit_summary_response']]) {
+    const value = optionalObject(body, field);
+    if (value !== undefined) {
+      values[column] = jsonColumn(value);
+    }
+  }
+  if (typeof values.visit_summary === 'string' && values.visit_summary.trim()) {
+    values.visit_summary_at = new Date();
+  }
+  return { chunkId, values, chunks: parseMobileChunks(body.chunks) };
+}
+
+async function saveMobileTranscript(input) {
+  const { chunkId, values, chunks } = parseMobileTranscript(input);
+  await assertEnabled('mobile');
+  const Model = getModel();
+  const existing = plain(await Model.findOne({ where: { chunk_id: chunkId } }));
+  if (existing && existing.source !== 'mobile') {
+    throw httpError(409, 'chunkId already belongs to a non-mobile recording');
+  }
+  let id;
+  let created = false;
+  if (existing) {
+    id = existing.id;
+    await Model.update(values, { where: { id } });
+  } else {
+    const cfg = voicedoc.getConfig();
+    const row = await Model.create({
+      chunks_received: 0,
+      chunks_uploaded: 0,
+      chunks_failed: 0,
+      ...values,
+      language: values.language || cfg.language,
+      source: 'mobile',
+      chunk_id: chunkId,
+    });
+    id = row.id;
+    created = true;
+  }
+  const ChunkModel = getChunkModel();
+  for (const chunk of chunks) {
+    await ChunkModel.upsert({ ...chunk, call_transcript_id: id });
+  }
+  let noteStatus = null;
+  const note = typeof values.visit_summary === 'string' ? values.visit_summary.trim() : '';
+  if (values.status === 'done' && note) {
+    try {
+      await saveNote(plain(await Model.findByPk(id)), values.visit_summary);
+    } catch (err) {
+      logStream('error', `VoiceDoc doctor note for mobile transcript ${id} failed: ${err.message}`, 'VoiceDoc');
+    }
+    const fresh = plain(await Model.findByPk(id));
+    noteStatus = (fresh && fresh.note_status) || null;
+  }
+  return { id, created, noteStatus };
+}
+
 module.exports = {
   getModel,
   setModel,
@@ -685,4 +887,5 @@ module.exports = {
   getTranscript,
   generateVisitSummary,
   regenerateVisitSummary,
+  saveMobileTranscript,
 };
