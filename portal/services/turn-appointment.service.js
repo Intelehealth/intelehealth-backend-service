@@ -211,6 +211,20 @@ module.exports = (function () {
       }))
     );
 
+  // TEMPORARY (one-time): the WhatsApp "Tomorrow" button shows the next Monday's
+  // slots instead of tomorrow's, and a booking made from it lands on that Monday.
+  // Off unless TURN_TOMORROW_AS_MONDAY=true is set in the portal .env.
+  // Remove this helper and its two calls (slots + booking) to restore normal behaviour.
+  const tomorrowToMonday = (date) => {
+    const normalized = normalizeDate(date);
+    if (process.env.TURN_TOMORROW_AS_MONDAY !== "true") return normalized;
+    const tomorrow = moment().utcOffset(APP_UTC_OFFSET).add(1, "day").startOf("day");
+    if (normalized !== tomorrow.format(DATE_FORMAT)) return normalized;
+    const monday = tomorrow.clone();
+    while (monday.isoWeekday() !== 1) monday.add(1, "day");
+    return monday.format(DATE_FORMAT);
+  };
+
   this.getUserAppointmentSlots = async ({
     userUuid,
     speciality,
@@ -218,6 +232,8 @@ module.exports = (function () {
     toDate,
   }) => {
     logStream("debug", "Turn Appointment Service", "Get User Appointment Slots");
+    fromDate = tomorrowToMonday(fromDate); // TEMPORARY, see tomorrowToMonday
+    toDate = tomorrowToMonday(toDate); // TEMPORARY, see tomorrowToMonday
     const openSlots = await computeOpenSlots({
       userUuid,
       speciality,
@@ -310,7 +326,7 @@ module.exports = (function () {
       }
     }
 
-    slotDate = normalizeDate(slotDate);
+    slotDate = tomorrowToMonday(slotDate); // TEMPORARY, see tomorrowToMonday
     slotDay = moment(slotDate, DATE_FORMAT).format("dddd");
     patientName = stripAstral(patientName) || "Patient";
 
