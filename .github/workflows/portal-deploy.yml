@@ -3,9 +3,7 @@
 # Builds the portal Docker image once and deploys it to one or more remote hosts.
 #
 # Triggers:
-#   - push to nas-ida5-development-master (portal/** changes) → deploys to nasstaging ONLY
 #   - workflow_dispatch (manual) → deploys to the hosts selected via checkboxes
-#     (nasprod is manual-dispatch-only; it is never deployed on push)
 #
 # Jobs:
 #   1. prepare-matrix  Decides which environments to deploy based on trigger/inputs
@@ -14,12 +12,9 @@
 #                      and waits for it to become healthy
 #
 # Required secrets:
-#   NASSTAGING_HOST, NASPROD_HOST — SSH hostnames/IPs
-#   DEV_USER                      — SSH username
-#   DEV_SSH_KEY                   — SSH private key
-#
-# Optional: create a GitHub Environment named "nasprod" (Settings → Environments)
-# with "Required reviewers" so production deploys need manual approval.
+#   NASSTAGING_HOST — SSH hostname/IP
+#   DEV_USER        — SSH username
+#   DEV_SSH_KEY     — SSH private key
 
 name: Portal Deploy
 
@@ -30,16 +25,6 @@ on:
         description: 'Deploy to NAS Staging host'
         type: boolean
         default: true
-      deploy_nasprod:
-        description: 'Deploy to NAS Prod host'
-        type: boolean
-        default: false
-
-  push:
-    branches: [nas-ida5-development-master]
-    paths:
-      - 'portal/**'
-      - '.github/workflows/portal-deploy.yml'
 
 # Serialize runs: two pushes (or push + manual dispatch) must not deploy
 # concurrently. New runs queue instead of cancelling an in-flight deploy.
@@ -68,9 +53,6 @@ jobs:
           else
             if [ "${{ inputs.deploy_nasstaging }}" == "true" ]; then
               includes=$(echo "$includes" | jq -c '. += [{"environment":"nasstaging"}]')
-            fi
-            if [ "${{ inputs.deploy_nasprod }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c '. += [{"environment":"nasprod"}]')
             fi
           fi
 
@@ -131,7 +113,6 @@ jobs:
       PEM_FOLDER_PATH: /home/ubuntu/deploy/portal/.pem
       # All host secrets mapped upfront — dynamic secret refs aren't supported in GitHub Actions
       NASSTAGING_HOST: ${{ secrets.NASSTAGING_HOST }}
-      NASPROD_HOST: ${{ secrets.NASPROD_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
@@ -139,7 +120,6 @@ jobs:
         run: |
           case "${{ matrix.environment }}" in
             nasstaging) host="$NASSTAGING_HOST" ;;
-            nasprod)    host="$NASPROD_HOST" ;;
             *)          echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
           echo "REMOTE_HOST=$host" >> $GITHUB_ENV

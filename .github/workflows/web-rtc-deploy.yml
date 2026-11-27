@@ -3,9 +3,7 @@
 # Builds the web-rtc Docker image once and deploys it to one or more remote hosts.
 #
 # Triggers:
-#   - push to nas-ida5-development-master (web-rtc/** changes) → deploys to nasstaging ONLY
 #   - workflow_dispatch (manual) → deploys to the hosts selected via checkboxes
-#     (nasprod is manual-dispatch-only; it is never deployed on push)
 #
 # Jobs:
 #   1. prepare-matrix  Decides which environments to deploy based on trigger/inputs
@@ -20,16 +18,13 @@
 #   and the current version keeps running untouched.
 #
 # Required secrets:
-#   NASSTAGING_HOST, NASPROD_HOST — SSH hostnames/IPs
-#   DEV_USER                      — SSH username
-#   DEV_SSH_KEY                   — SSH private key
+#   NASSTAGING_HOST — SSH hostname/IP
+#   DEV_USER        — SSH username
+#   DEV_SSH_KEY     — SSH private key
 #
 # Each host's .env should set NODE_ENV (e.g. staging / production) so that
 # sequelize-cli picks the right block from src/config/config.cli.js instead of
 # falling back to "development".
-#
-# Optional: create a GitHub Environment named "nasprod" (Settings → Environments)
-# with "Required reviewers" so production deploys need manual approval.
 
 name: Web RTC Deploy
 
@@ -40,20 +35,10 @@ on:
         description: 'Deploy to NAS Staging host'
         type: boolean
         default: true
-      deploy_nasprod:
-        description: 'Deploy to NAS Prod host'
-        type: boolean
-        default: false
       run_migrations:
         description: 'Run DB migrations (manual runs only)'
         type: boolean
         default: true
-
-  push:
-    branches: [nas-ida5-development-master]
-    paths:
-      - 'web-rtc/**'
-      - '.github/workflows/web-rtc-deploy.yml'
 
 # Serialize runs: two pushes (or push + manual dispatch) must not deploy
 # concurrently. New runs queue instead of cancelling an in-flight deploy.
@@ -82,9 +67,6 @@ jobs:
           else
             if [ "${{ inputs.deploy_nasstaging }}" == "true" ]; then
               includes=$(echo "$includes" | jq -c '. += [{"environment":"nasstaging"}]')
-            fi
-            if [ "${{ inputs.deploy_nasprod }}" == "true" ]; then
-              includes=$(echo "$includes" | jq -c '. += [{"environment":"nasprod"}]')
             fi
           fi
           count=$(echo "$includes" | jq 'length')
@@ -165,7 +147,6 @@ jobs:
       RUN_MIGRATIONS: ${{ needs.build.outputs.migrations_changed }}
       # All host secrets mapped upfront — dynamic secret refs aren't supported in GitHub Actions
       NASSTAGING_HOST: ${{ secrets.NASSTAGING_HOST }}
-      NASPROD_HOST: ${{ secrets.NASPROD_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
@@ -173,7 +154,6 @@ jobs:
         run: |
           case "${{ matrix.environment }}" in
             nasstaging) host="$NASSTAGING_HOST" ;;
-            nasprod)    host="$NASPROD_HOST" ;;
             *)          echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
           if [ -z "$host" ]; then
