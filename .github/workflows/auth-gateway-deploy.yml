@@ -32,7 +32,7 @@ on:
         type: boolean
         default: false
   push:
-    branches: [development_master, staging_master]
+    branches: [development_master, staging_master, nas_production_master]
     paths:
       - 'auth-gateway/**'
       - '.github/workflows/auth-gateway-deploy.yml'
@@ -73,12 +73,15 @@ jobs:
           arch_of() {
             case "$1" in
               pathqa) echo "arm64" ;;
+              nasprod) echo "amd64" ;;
               *)      echo "amd64" ;;
             esac
           }
           includes='[]'
           if [ "${{ github.event_name }}" == "push" ]; then
-            if [ "${{ github.ref }}" == "refs/heads/staging_master" ]; then
+            if [ "${{ github.ref }}" == "refs/heads/nas_production_master" ]; then
+              push_envs="nasprod"
+            elif [ "${{ github.ref }}" == "refs/heads/staging_master" ]; then
               push_envs="nasstaging pathqa"
             else
               push_envs="dev turn ttxai testturn demoai"
@@ -180,6 +183,7 @@ jobs:
       PATHQA_HOST: ${{ secrets.PATHQA_HOST }}
       DEMOAI_HOST: ${{ secrets.DEMOAI_HOST }}
       NASSTAGING_HOST: ${{ secrets.NASSTAGING_HOST }}
+      NASPROD_HOST: ${{ secrets.NASPROD_HOST }}
       REMOTE_USER: ${{ secrets.DEV_USER }}
       SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_KEY }}
     steps:
@@ -193,6 +197,7 @@ jobs:
             pathqa) echo "REMOTE_HOST=$PATHQA_HOST" >> $GITHUB_ENV ;;
             demoai) echo "REMOTE_HOST=$DEMOAI_HOST" >> $GITHUB_ENV ;;
             nasstaging) echo "REMOTE_HOST=$NASSTAGING_HOST" >> $GITHUB_ENV ;;
+            nasprod) echo "REMOTE_HOST=$NASPROD_HOST" >> $GITHUB_ENV ;;
             *)    echo "Unknown environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
 
